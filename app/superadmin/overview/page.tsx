@@ -1,6 +1,6 @@
 'use client';
 
-import { Building2, Users, BookOpen, TrendingUp, ArrowUpRight, ArrowDownRight, Activity, Zap, Clock } from 'lucide-react';
+import { Building2, Users, BookOpen, Mail, ArrowUpRight, ArrowDownRight, Activity, Zap, Clock } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useEffect, useState } from 'react';
@@ -34,11 +34,11 @@ const STATS = [
         iconColor: 'text-amber-600 dark:text-amber-400',
     },
     {
-        label: 'Monthly revenue',
-        value: '₹8.4L',
-        sub: '+12% vs last month',
-        trend: 'up',
-        icon: TrendingUp,
+        label: 'Pending Invites',
+        value: '6',
+        sub: '2 expiring soon',
+        trend: 'down',
+        icon: Mail,
         iconBg: 'bg-sky-100 dark:bg-sky-950',
         iconColor: 'text-sky-600 dark:text-sky-400',
     },
