@@ -21,6 +21,7 @@ export interface Institution {
     users?: User[];
     phone?: string;
     city?: string;
+    logoUrl?: string;
 }
 
 export interface AuditLog {
@@ -36,4 +37,41 @@ export interface ApiResponse<T> {
     success: boolean;
     data: T;
     message?: string;
+}
+
+export interface Plan {
+    id: string;
+    name: 'BASIC' | 'PRO';
+    limits: {
+        users: number;
+        storageMb: number;
+        tests: number;
+    };
+}
+
+export interface AdminOverview {
+    institution: {
+        id: string;
+        name: string;
+        type: InstitutionType;
+        status: InstitutionStatus;
+        logoUrl?: string;
+    };
+    stats: {
+        totalUsers: number;
+        totalStudents: number;
+        totalTeachers: number;
+        totalClasses: number;
+    };
+    enrollmentGrowth: { month: string; students: number; teachers: number }[];
+    plan: {
+        name: string;
+        usage: {
+            users: { used: number; limit: number };
+            storage: { used: number; limit: number };
+            tests: { used: number; limit: number };
+        };
+    };
+    recentActivity: { id: string; dot: string; text: string; time: string }[];
+    notifications: { id: string; title: string; body: string; time: string }[];
 }
