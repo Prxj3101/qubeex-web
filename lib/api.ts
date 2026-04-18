@@ -14,9 +14,23 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
+        const status = error.response?.status;
+        const code = error.response?.data?.code;
+
+        if (status === 403 && code === 'INSTITUTION_SUSPENDED') {
             localStorage.removeItem('token');
-            window.location.href = '/login';
+            localStorage.removeItem('auth-storage');
+            if (typeof window !== 'undefined' && window.location.pathname !== '/suspended') {
+                window.location.href = '/suspended';
+            }
+            return Promise.reject(error);
+        }
+
+        if (status === 401) {
+            localStorage.removeItem('token');
+            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }
