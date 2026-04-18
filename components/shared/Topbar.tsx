@@ -3,7 +3,7 @@
 import { ThemeToggle } from './ThemeToggle';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bell } from 'lucide-react';
+import { Bell, LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
@@ -22,14 +22,12 @@ import { motion } from 'framer-motion';
 interface NavItem {
     label: string;
     href: string;
-    icon?: any;
+    icon?: LucideIcon;
 }
 
 interface TopbarProps {
     navItems?: NavItem[];
 }
-
-type Role = 'SUPER_ADMIN' | 'ADMIN' | 'TEACHER' | 'STUDENT';
 
 function RoleBadge() {
     const { user } = useAuthStore();
@@ -112,7 +110,7 @@ function AvatarMenu() {
                 <DropdownMenuItem onClick={() => router.push(settingsHref)}>
                     Settings
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="text-red-600 dark:text-red-400 focus:text-red-600">
+                <DropdownMenuItem onClick={handleLogout} variant="destructive">
                     Logout
                 </DropdownMenuItem>
             </DropdownMenuContent>
