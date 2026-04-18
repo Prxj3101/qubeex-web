@@ -32,12 +32,9 @@ export default function SuspendedPage() {
                     <Button onClick={handleLogout} className="w-full">
                         Logout
                     </Button>
-                    <a
-                        href={`mailto:${supportEmail}`}
-                        className="w-full inline-flex items-center justify-center h-9 rounded-md border border-border bg-transparent text-sm font-medium hover:bg-muted/50 transition-colors"
-                    >
-                        Contact support
-                    </a>
+                    <Button variant="outline" className="w-full" asChild>
+                        <a href={`mailto:${supportEmail}`}>Contact support</a>
+                    </Button>
                 </div>
             </div>
         </main>
