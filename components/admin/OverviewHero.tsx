@@ -37,7 +37,7 @@ export function OverviewHero({ adminName, institutionName, institutionType }: Ov
 
             <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-5 left-16 animate-pulse" />
             <div className="absolute w-1 h-1 rounded-full bg-white/70 top-27 left-36 animate-pulse delay-300" />
-            <div className="absolute w-1 h-1 rounded-full bg-white/70 top-22 left-5 animate-pulse delay-600" />
+            <div className="absolute w-1 h-1 rounded-full bg-white/70 top-22 left-5 animate-pulse delay-500" />
             <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-4 left-52 animate-pulse delay-700" />
 
             <div className="space-y-1 z-10">
