@@ -107,3 +107,30 @@ export interface InstitutionStructure {
     institutionType: InstitutionType;
     levels: StructureLevel1[];
 }
+
+// ── Phase 3A: Teacher Management ──
+
+export type TeacherStatus = 'ACTIVE' | 'INACTIVE';
+export type TeacherRole = 'SUBJECT_TEACHER' | 'CLASS_TEACHER';
+
+export interface TeacherAssignment {
+    id: string;
+    level1Id: string;
+    level1Name: string;
+    level2Id: string;
+    level2Name: string;
+    level3Id: string;
+    level3Name: string;
+    role: TeacherRole;
+}
+
+export interface Teacher {
+    id: string;
+    name: string;
+    email: string;
+    phone?: string;
+    status: TeacherStatus;
+    joinedAt: string;
+    assignments: TeacherAssignment[];
+}
+

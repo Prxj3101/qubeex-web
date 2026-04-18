@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 const schema = z.object({
     name: z.string().min(1, 'Name is required').max(100),
     code: z.string().max(20).optional(),
-    capacity: z.coerce.number().int().positive().optional().or(z.literal('')),
+    capacity: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -58,7 +58,7 @@ export function StructureItemModal({
         defaultValues: {
             name: defaultValues?.name ?? '',
             code: defaultValues?.code ?? '',
-            capacity: defaultValues?.capacity ?? '',
+            capacity: defaultValues?.capacity?.toString() ?? '',
         },
     });
 
@@ -68,10 +68,11 @@ export function StructureItemModal({
     };
 
     const handleFormSubmit = (data: FormValues) => {
+        const cap = data.capacity ? parseInt(data.capacity, 10) : undefined;
         onFormSubmit({
             name: data.name,
             code: data.code || undefined,
-            capacity: typeof data.capacity === 'number' ? data.capacity : undefined,
+            capacity: cap && !isNaN(cap) && cap > 0 ? cap : undefined,
         });
     };
 
