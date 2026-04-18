@@ -10,13 +10,13 @@
 
 The full Admin spec (16 sections) is split into 5 phases. This doc covers only Phase 1. Later phases get their own specs.
 
-| Phase | Scope |
-|---|---|
-| **1. Foundation** *(this doc)* | Admin layout shell, nav, Overview dashboard, Settings, Suspended page, protected-route guard |
-| 2. Institution Structure | Variant-aware module: School (standards/subjects/divisions), College (courses/streams/divisions), Coaching (courses/subjects/batches) |
-| 3. People & Classes | Teachers, Students (read-only from Admin side — teachers create students in their classes), Class/Division/Batch, teacher assignment, join codes |
-| 4. Growth & Ops | Analytics/reports, Plan & feature management, Notifications (inbox + compose) |
-| 5. Support & Trail | Tickets (create + thread), Audit logs |
+| Phase                          | Scope                                                                                                                                          |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| **1. Foundation** _(this doc)_ | Admin layout shell, nav, Overview dashboard, Settings, Suspended page, protected-route guard                                                   |
+| 2. Institution Structure       | Variant-aware module: School (standards/subjects/divisions), College (courses/streams/divisions), Coaching (courses/subjects/batches)          |
+| 3. People & Classes            | Teachers, Students (read-only from Admin side teachers create students in their classes), Class/Division/Batch, teacher assignment, join codes |
+| 4. Growth & Ops                | Analytics/reports, Plan & feature management, Notifications (inbox + compose)                                                                  |
+| 5. Support & Trail             | Tickets (create + thread), Audit logs                                                                                                          |
 
 ---
 
@@ -35,14 +35,14 @@ Out of scope for Phase 1: wiring any dashboard data to real endpoints beyond wha
 
 Grouped pill topbar (consistent with SuperAdmin `Topbar`). Primary tabs:
 
-| Tab | Route | Sub-pages (added in later phases) |
-|---|---|---|
-| Overview | `/admin/overview` | — |
-| Structure | `/admin/structure` | variant-aware (Phase 2) |
-| People | `/admin/people/teachers` | Teachers · Students · Classes & Batches (Phase 3) |
-| Insights | `/admin/insights/analytics` | Analytics · Plan & Features (Phase 4) |
-| Support | `/admin/support/notifications` | Notifications · Tickets (Phase 5) |
-| Audit Logs | `/admin/audit-logs` | — |
+| Tab        | Route                          | Sub-pages (added in later phases)                 |
+| ---------- | ------------------------------ | ------------------------------------------------- |
+| Overview   | `/admin/overview`              | —                                                 |
+| Structure  | `/admin/structure`             | variant-aware (Phase 2)                           |
+| People     | `/admin/people/teachers`       | Teachers · Students · Classes & Batches (Phase 3) |
+| Insights   | `/admin/insights/analytics`    | Analytics · Plan & Features (Phase 4)             |
+| Support    | `/admin/support/notifications` | Notifications · Tickets (Phase 5)                 |
+| Audit Logs | `/admin/audit-logs`            | —                                                 |
 
 **Settings** — not in primary nav. Reachable via avatar dropdown (to be added to `Topbar`). Route: `/admin/settings`.
 
@@ -56,11 +56,11 @@ For Phase 1, Overview and Settings render real content; all other tabs route to 
 
 Per-institution accent color drives the dashboard hero (and is available for Phase-2 variant branding).
 
-| Type | Accent (light) | Accent (dark) | Emoji |
-|---|---|---|---|
-| SCHOOL | `#7C3AED` violet | `#4C1D95` | 🏫 |
-| COLLEGE | `#059669` emerald | `#064E3B` | 🎓 |
-| COACHING | `#D97706` amber | `#78350F` | 📚 |
+| Type     | Accent (light)    | Accent (dark) | Emoji |
+| -------- | ----------------- | ------------- | ----- |
+| SCHOOL   | `#7C3AED` violet  | `#4C1D95`     | 🏫    |
+| COLLEGE  | `#059669` emerald | `#064E3B`     | 🎓    |
+| COACHING | `#D97706` amber   | `#78350F`     | 📚    |
 
 Exposed as a helper `getInstitutionAccent(type)` returning `{ bg, bgDark, emoji, label }`. Used by hero and (in later phases) variant-specific UI.
 
@@ -105,15 +105,15 @@ interface AdminOverview {
     totalUsers: number;
     totalStudents: number;
     totalTeachers: number;
-    totalClasses: number;    // label adapts to institution type
+    totalClasses: number; // label adapts to institution type
   };
   enrollmentGrowth: { month: string; students: number; teachers: number }[];
   plan: {
-    name: string;            // e.g. 'Pro'
+    name: string; // e.g. 'Pro'
     usage: {
       users: { used: number; limit: number };
-      storage: { used: number; limit: number };  // in MB
-      tests:   { used: number; limit: number };
+      storage: { used: number; limit: number }; // in MB
+      tests: { used: number; limit: number };
     };
   };
   recentActivity: { id: string; dot: string; text: string; time: string }[];
@@ -140,6 +140,7 @@ interface AdminOverview {
 Two cards:
 
 **Institution details** (editable, PATCH `/admin/institution`):
+
 - Name (text)
 - Logo (upload — shadcn file input; preview round 64px)
 - Contact email (text)
@@ -150,6 +151,7 @@ Success → `toast.success('Institution updated')`, refresh form defaults from r
 **Type is shown as read-only** (admin cannot change institution type).
 
 **Account:**
+
 - Admin email (read-only)
 - "Change password" link → opens a modal with current + new + confirm password (zod same rules as invite accept)
 - Theme toggle (reuse `ThemeToggle`)
@@ -162,11 +164,12 @@ Standalone page (not wrapped in admin layout). Centered card:
 - Icon (`ShieldAlert` or similar), red tint
 - Heading: "Institution suspended"
 - Body: "Your institution's access has been suspended. Please contact your super admin."
-- Buttons: *Logout* (primary), *Contact support* (secondary, `mailto:` link — address from an env var `NEXT_PUBLIC_SUPPORT_EMAIL` with a reasonable fallback).
+- Buttons: _Logout_ (primary), _Contact support_ (secondary, `mailto:` link — address from an env var `NEXT_PUBLIC_SUPPORT_EMAIL` with a reasonable fallback).
 
 ### 5.5 Placeholder pages (Phase 2-5 stubs)
 
 For each nav route not yet implemented:
+
 - `/admin/structure`
 - `/admin/people/teachers` (+ a default redirect from `/admin/people`)
 - `/admin/insights/analytics` (+ default redirect from `/admin/insights`)
@@ -187,6 +190,7 @@ Shared `<PhaseStub phase={2} title="Institution Structure" />` component renders
 ### 6.2 `types/index.ts`
 
 Add:
+
 - `AdminOverview` (see 5.2)
 - `Plan` type (`{ id: string; name: 'BASIC' | 'PRO'; limits: {...} }`) — minimal for Phase 1; fleshed out in Phase 4.
 - Extend `Institution` with `logoUrl?: string`, `phone?: string` (phone already present).
@@ -198,9 +202,22 @@ New helper:
 ```ts
 export function getInstitutionAccent(type: InstitutionType) {
   switch (type) {
-    case 'SCHOOL':   return { bg: '#7C3AED', bgDark: '#4C1D95', emoji: '🏫', label: 'School' };
-    case 'COLLEGE':  return { bg: '#059669', bgDark: '#064E3B', emoji: '🎓', label: 'College' };
-    case 'COACHING': return { bg: '#D97706', bgDark: '#78350F', emoji: '📚', label: 'Coaching' };
+    case "SCHOOL":
+      return { bg: "#7C3AED", bgDark: "#4C1D95", emoji: "🏫", label: "School" };
+    case "COLLEGE":
+      return {
+        bg: "#059669",
+        bgDark: "#064E3B",
+        emoji: "🎓",
+        label: "College",
+      };
+    case "COACHING":
+      return {
+        bg: "#D97706",
+        bgDark: "#78350F",
+        emoji: "📚",
+        label: "Coaching",
+      };
   }
 }
 ```
@@ -211,12 +228,12 @@ export function getInstitutionAccent(type: InstitutionType) {
 
 Endpoints used in Phase 1 (all scoped to the authenticated admin's institution):
 
-| Method | Path | Purpose |
-|---|---|---|
-| `GET` | `/admin/overview` | Dashboard bundle (see 5.2) |
-| `PATCH` | `/admin/institution` | Update institution name/logo/email/phone |
-| `POST` | `/admin/institution/logo` | Logo upload (multipart) — if backend prefers separate endpoint |
-| `POST` | `/auth/change-password` | Change password |
+| Method  | Path                      | Purpose                                                        |
+| ------- | ------------------------- | -------------------------------------------------------------- |
+| `GET`   | `/admin/overview`         | Dashboard bundle (see 5.2)                                     |
+| `PATCH` | `/admin/institution`      | Update institution name/logo/email/phone                       |
+| `POST`  | `/admin/institution/logo` | Logo upload (multipart) — if backend prefers separate endpoint |
+| `POST`  | `/auth/change-password`   | Change password                                                |
 
 If any endpoint is not yet available, page falls back to a clearly-marked mock and renders without crashing. No endpoint creation happens in this repo (frontend only).
 

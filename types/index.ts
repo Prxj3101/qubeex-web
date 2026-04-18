@@ -75,3 +75,35 @@ export interface AdminOverview {
     recentActivity: { id: string; dot: string; text: string; time: string }[];
     notifications: { id: string; title: string; body: string; time: string }[];
 }
+
+// ── Phase 2: Institution Structure ──
+
+export interface StructureLevel3 {
+    id: string;
+    name: string;
+    code?: string;
+    capacity?: number;
+    teacherCount: number;
+    studentCount: number;
+}
+
+export interface StructureLevel2 {
+    id: string;
+    name: string;
+    code?: string;
+    order: number;
+    children: StructureLevel3[];
+}
+
+export interface StructureLevel1 {
+    id: string;
+    name: string;
+    code?: string;
+    order: number;
+    children: StructureLevel2[];
+}
+
+export interface InstitutionStructure {
+    institutionType: InstitutionType;
+    levels: StructureLevel1[];
+}

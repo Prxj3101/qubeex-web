@@ -25,3 +25,14 @@ export function getFourthStatLabel(type: InstitutionType): string {
         case 'COACHING': return 'Batches';
     }
 }
+
+export function getStructureLabels(type: InstitutionType) {
+    switch (type) {
+        case 'SCHOOL':
+            return { l1: 'Standard', l2: 'Subject', l3: 'Division', l1Plural: 'Standards', l2Plural: 'Subjects', l3Plural: 'Divisions' };
+        case 'COLLEGE':
+            return { l1: 'Course', l2: 'Stream', l3: 'Division', l1Plural: 'Courses', l2Plural: 'Streams', l3Plural: 'Divisions' };
+        case 'COACHING':
+            return { l1: 'Course', l2: 'Subject', l3: 'Batch', l1Plural: 'Courses', l2Plural: 'Subjects', l3Plural: 'Batches' };
+    }
+}

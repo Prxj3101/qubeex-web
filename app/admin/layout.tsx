@@ -25,15 +25,23 @@ const ADMIN_NAV_ITEMS = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     const { user } = useAuthStore();
     const router = useRouter();
+    const [hydrated, setHydrated] = useState(false);
     const [ready, setReady] = useState(false);
 
+    // Wait for Zustand persist to hydrate from localStorage before checking role.
+    // Without this, user is null on the first render and causes a spurious redirect.
     useEffect(() => {
+        setHydrated(true);
+    }, []);
+
+    useEffect(() => {
+        if (!hydrated) return;
         if (!user || user.role !== 'ADMIN') {
             router.replace('/login');
             return;
         }
         setReady(true);
-    }, [user, router]);
+    }, [hydrated, user, router]);
 
     if (!ready) return null;
 
