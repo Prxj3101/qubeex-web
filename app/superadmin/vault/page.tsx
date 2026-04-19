@@ -146,13 +146,13 @@ function PasswordGate({ onUnlock }: { onUnlock: () => void }) {
                 transition={{ duration: 0.4 }} className="w-full max-w-sm">
                 <div className="flex justify-center mb-6">
                     <div className="relative">
-                        <div className="w-20 h-20 rounded-2xl flex items-center justify-center"
-                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                            <KeyRound size={36} className="text-white" />
-                        </div>
-                        <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-amber-400 flex items-center justify-center">
-                            <Lock size={10} className="text-white" />
-                        </div>
+                        {/* Vault PNG */}
+                        <img
+                            src="/images/vault1.png"
+                            alt="vault"
+                            className="w-55 h-55 object-contain"
+                            style={{ filter: 'drop-shadow(0 8px 24px rgba(218,119,86,0.3))' }}
+                        />
                     </div>
                 </div>
                 <div className="text-center mb-6">

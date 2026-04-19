@@ -1,15 +1,13 @@
 'use client';
 
 import { Topbar } from '@/components/shared/Topbar';
-import { useAuthStore } from '@/store/authStore';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
     LayoutDashboard,
     Building2,
     Users,
     LineChart,
-    LifeBuoy,
+    Headset,
     ScrollText,
 } from 'lucide-react';
 
@@ -18,30 +16,16 @@ const ADMIN_NAV_ITEMS = [
     { label: 'Structure', href: '/admin/structure', icon: Building2 },
     { label: 'People', href: '/admin/people/teachers', icon: Users },
     { label: 'Insights', href: '/admin/insights/analytics', icon: LineChart },
-    { label: 'Support', href: '/admin/support/notifications', icon: LifeBuoy },
+    { label: 'Support', href: '/admin/support/notifications', icon: Headset },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: ScrollText },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-    const { user } = useAuthStore();
-    const router = useRouter();
-    const [hydrated, setHydrated] = useState(false);
     const [ready, setReady] = useState(false);
 
-    // Wait for Zustand persist to hydrate from localStorage before checking role.
-    // Without this, user is null on the first render and causes a spurious redirect.
     useEffect(() => {
-        setHydrated(true);
-    }, []);
-
-    useEffect(() => {
-        if (!hydrated) return;
-        if (!user || user.role !== 'ADMIN') {
-            router.replace('/login');
-            return;
-        }
         setReady(true);
-    }, [hydrated, user, router]);
+    }, []);
 
     if (!ready) return null;
 

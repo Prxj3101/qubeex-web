@@ -2,12 +2,14 @@
 
 
 import { Topbar } from '@/components/shared/Topbar';
-import { LayoutDashboard, Building2, ScrollText, KeyRound } from 'lucide-react';
+import { LayoutDashboard, Building2, ScrollText, Headset, Activity, KeyRound } from 'lucide-react';
 
 const NAV_ITEMS = [
     { label: 'Overview', href: '/superadmin/overview', icon: LayoutDashboard },
     { label: 'Institutions', href: '/superadmin/institutions', icon: Building2 },
     { label: 'Audit Logs', href: '/superadmin/audit-logs', icon: ScrollText },
+    { label: 'Support', href: '/superadmin/support', icon: Headset },
+    { label: 'System & AI', href: '/superadmin/system', icon: Activity },
     { label: 'My Vault', href: '/superadmin/vault', icon: KeyRound },
 ];
 

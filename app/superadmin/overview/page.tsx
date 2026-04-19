@@ -4,6 +4,13 @@ import { Building2, Users, BookOpen, Mail, ArrowUpRight, ArrowDownRight, Activit
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useEffect, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+
+const CHARACTERS = [
+    '/images/superadmin1.png',
+    '/images/superadmin2.png',
+    '/images/superadmin3.png',
+];
 
 const STATS = [
     {
@@ -86,12 +93,20 @@ const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Go
 const dateStr = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
 export default function SuperAdminOverview() {
+    const [currentChar, setCurrentChar] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentChar(prev => (prev + 1) % CHARACTERS.length);
+        }, 8000);
+        return () => clearInterval(interval);
+    }, []);
     return (
+
         <div className="space-y-6">
 
             {/* Header */}
-            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-10 flex items-center justify-between">
-                {/* Orbs */}
+            <div className="-mx-4 relative overflow-visible rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-5 flex items-center justify-between min-h-[160px]">                {/* Orbs */}
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
 
@@ -111,32 +126,26 @@ export default function SuperAdminOverview() {
                     <p className="text-white/50 text-xs mt-2">{dateStr}</p>
                 </div>
 
-                {/* Right — Abstract SVG illustration */}
-                <div className="z-10 opacity-90">
-                    <svg width="140" height="120" viewBox="0 0 140 120" fill="none">
-                        {/* Dashboard mockup */}
-                        <rect x="10" y="20" width="120" height="85" rx="10" fill="white" fillOpacity="0.12" />
-                        <rect x="18" y="28" width="50" height="30" rx="6" fill="white" fillOpacity="0.15" />
-                        <rect x="76" y="28" width="46" height="30" rx="6" fill="white" fillOpacity="0.15" />
-                        <rect x="18" y="64" width="104" height="6" rx="3" fill="white" fillOpacity="0.1" />
-                        <rect x="18" y="74" width="80" height="6" rx="3" fill="white" fillOpacity="0.1" />
-                        <rect x="18" y="84" width="60" height="6" rx="3" fill="white" fillOpacity="0.1" />
-                        {/* Bar chart inside left card */}
-                        <rect x="24" y="46" width="6" height="8" rx="2" fill="white" fillOpacity="0.5" />
-                        <rect x="33" y="40" width="6" height="14" rx="2" fill="white" fillOpacity="0.5" />
-                        <rect x="42" y="44" width="6" height="10" rx="2" fill="white" fillOpacity="0.5" />
-                        <rect x="51" y="36" width="6" height="18" rx="2" fill="white" fillOpacity="0.7" />
-                        {/* Right card — circle stat */}
-                        <circle cx="99" cy="43" r="10" stroke="white" strokeOpacity="0.3" strokeWidth="3" />
-                        <circle cx="99" cy="43" r="10" stroke="white" strokeOpacity="0.8" strokeWidth="3"
-                            strokeDasharray="40 23" strokeLinecap="round" />
-                        <text x="99" y="47" textAnchor="middle" fill="white" fontSize="7" fontWeight="bold">82%</text>
-                        {/* Floating badges */}
-                        <rect x="85" y="8" width="42" height="16" rx="8" fill="white" fillOpacity="0.2" />
-                        <text x="106" y="20" textAnchor="middle" fill="white" fontSize="7">48 Inst.</text>
-                        <rect x="5" y="90" width="36" height="16" rx="8" fill="white" fillOpacity="0.2" />
-                        <text x="23" y="102" textAnchor="middle" fill="white" fontSize="7">↑ 12%</text>
-                    </svg>
+                {/* Right — Rotating 3D Characters */}
+                <div className="z-10 relative w-[200px] h-[200px] hidden sm:block self-end mb-[-40px]">
+                    <motion.div
+                        animate={{ y: [0, -12, 0] }}
+                        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                        <AnimatePresence mode="wait">
+                            <motion.img
+                                key={currentChar}
+                                src={CHARACTERS[currentChar]}
+                                alt="superadmin character"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 1.2 }}
+                                className="w-[188px] h-[187px] object-contain"
+                                style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3))' }}
+                            />
+                        </AnimatePresence>
+                    </motion.div>
                 </div>
             </div>
 
