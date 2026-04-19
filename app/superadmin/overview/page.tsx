@@ -98,7 +98,7 @@ export default function SuperAdminOverview() {
     useEffect(() => {
         const interval = setInterval(() => {
             setCurrentChar(prev => (prev + 1) % CHARACTERS.length);
-        }, 8000);
+        }, 7000);
         return () => clearInterval(interval);
     }, []);
     return (

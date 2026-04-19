@@ -104,18 +104,20 @@ const STAR_FILTERS = [5, 4, 3, 2, 1];
 
 // ─── Review Card ──────────────────────────────────────────────────────────────
 
-function ReviewCard({ review, index }: { review: Review; index: number }) {
-    const [expanded, setExpanded] = useState(false);
+// ─── Review Card ──────────────────────────────────────────────────────────────
+
+function ReviewCard({ review, index, expanded, onToggle }: {
+    review: Review;
+    index: number;
+    expanded: boolean;
+    onToggle: () => void;
+}) {
     const [reply, setReply] = useState('');
     const [replyData, setReplyData] = useState<ReviewReply | undefined>(review.reply);
-    const [likes, setLikes] = useState(review.likes);
     const [liked, setLiked] = useState(false);
     const [sending, setSending] = useState(false);
 
-    const handleLike = () => {
-        if (liked) { setLikes(l => l - 1); setLiked(false); }
-        else { setLikes(l => l + 1); setLiked(true); }
-    };
+    const handleLike = () => setLiked(v => !v);
 
     const handleSendReply = () => {
         if (!reply.trim()) return;
@@ -170,11 +172,10 @@ function ReviewCard({ review, index }: { review: Review; index: number }) {
                     {/* Like button */}
                     <button onClick={handleLike}
                         className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-[11px] font-medium transition-all ${liked
-                                ? 'bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-950 dark:text-violet-400 dark:border-violet-800'
-                                : 'border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                            ? 'bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-950 dark:text-violet-400 dark:border-violet-800'
+                            : 'border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50'
                             }`}>
-                        <ThumbsUp size={12} className={liked ? 'fill-current' : ''} />
-                        {likes}
+                        <ThumbsUp size={16} className={liked ? 'fill-current' : ''} />
                     </button>
                 </div>
 
@@ -195,10 +196,13 @@ function ReviewCard({ review, index }: { review: Review; index: number }) {
                         )}
                     </div>
                     <button
-                        onClick={() => setExpanded(e => !e)}
+                        onClick={onToggle}
                         className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
                     >
-                        {expanded ? <><ChevronUp size={13} /> Less</> : <><ChevronDown size={13} /> {replyData ? 'View thread' : 'Reply'}</>}
+                        {expanded
+                            ? <><ChevronUp size={13} /> Less</>
+                            : <><ChevronDown size={13} /> {replyData ? 'View thread' : 'Reply'}</>
+                        }
                     </button>
                 </div>
             </div>
@@ -274,6 +278,7 @@ export default function ReviewsPage() {
     const [search, setSearch] = useState('');
     const [activeType, setActiveType] = useState('All');
     const [activeStars, setActiveStars] = useState<number[]>([]);
+    const [expandedReview, setExpandedReview] = useState<string | null>(null);
 
     const toggleStar = (s: number) =>
         setActiveStars(prev => prev.includes(s) ? prev.filter(x => x !== s) : [...prev, s]);
@@ -336,8 +341,8 @@ export default function ReviewsPage() {
                     {TYPE_FILTERS.map(f => (
                         <button key={f} onClick={() => setActiveType(f)}
                             className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeType === f
-                                    ? 'bg-primary text-white border-primary'
-                                    : 'border-border/50 text-muted-foreground hover:text-foreground'
+                                ? 'bg-primary text-white border-primary'
+                                : 'border-border/50 text-muted-foreground hover:text-foreground'
                                 }`}>
                             {f}
                         </button>
@@ -346,8 +351,8 @@ export default function ReviewsPage() {
                     {STAR_FILTERS.map(s => (
                         <button key={s} onClick={() => toggleStar(s)}
                             className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeStars.includes(s)
-                                    ? 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400'
-                                    : 'border-border/50 text-muted-foreground hover:text-foreground'
+                                ? 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400'
+                                : 'border-border/50 text-muted-foreground hover:text-foreground'
                                 }`}>
                             <Star size={10} className={activeStars.includes(s) ? 'fill-amber-500 text-amber-500' : ''} />
                             {s}
@@ -372,9 +377,17 @@ export default function ReviewsPage() {
                     <p className="text-xs text-muted-foreground/60 mt-1">Try adjusting your filters</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                     {filtered.map((review, i) => (
-                        <ReviewCard key={review.id} review={review} index={i} />
+                        <ReviewCard
+                            key={review.id}
+                            review={review}
+                            index={i}
+                            expanded={expandedReview === review.id}
+                            onToggle={() => setExpandedReview(
+                                expandedReview === review.id ? null : review.id
+                            )}
+                        />
                     ))}
                 </div>
             )}

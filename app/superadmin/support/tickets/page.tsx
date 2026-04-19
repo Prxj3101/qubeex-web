@@ -276,15 +276,15 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                     {replies.map((r) => (
                                         <div key={r.id} className={`flex gap-2.5 ${r.role === 'SUPERADMIN' ? 'flex-row-reverse' : ''}`}>
                                             <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${r.role === 'SUPERADMIN'
-                                                    ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
-                                                    : 'bg-muted text-muted-foreground'
+                                                ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
+                                                : 'bg-muted text-muted-foreground'
                                                 }`}>
                                                 {r.author.split(' ').map(n => n[0]).join('').slice(0, 2)}
                                             </div>
                                             <div className={`flex-1 ${r.role === 'SUPERADMIN' ? 'items-end' : 'items-start'} flex flex-col`}>
                                                 <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${r.role === 'SUPERADMIN'
-                                                        ? 'bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-100'
-                                                        : 'bg-muted text-foreground'
+                                                    ? 'bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-100'
+                                                    : 'bg-muted text-foreground'
                                                     }`}>
                                                     {r.message}
                                                 </div>
@@ -329,8 +329,8 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                             key={s}
                                             onClick={() => handleStatusChange(s)}
                                             className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${status === s
-                                                    ? STATUS_CFG[s].cls + ' ring-2 ring-offset-1 ring-primary/30'
-                                                    : 'border-border/50 text-muted-foreground hover:text-foreground'
+                                                ? STATUS_CFG[s].cls + ' ring-2 ring-offset-1 ring-primary/30'
+                                                : 'border-border/50 text-muted-foreground hover:text-foreground'
                                                 }`}
                                         >
                                             {STATUS_CFG[s].label}
@@ -416,8 +416,8 @@ export default function TicketsPage() {
                     {STATUS_FILTERS.map(f => (
                         <button key={f.value} onClick={() => setActiveStatus(f.value)}
                             className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeStatus === f.value
-                                    ? 'bg-primary text-white border-primary'
-                                    : 'border-border/50 text-muted-foreground hover:text-foreground'
+                                ? 'bg-primary text-white border-primary'
+                                : 'border-border/50 text-muted-foreground hover:text-foreground'
                                 }`}>
                             {f.label}
                         </button>
@@ -449,7 +449,7 @@ export default function TicketsPage() {
                     <p className="text-xs text-muted-foreground/60 mt-1">Try adjusting your filters</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
                     {filtered.map((ticket, i) => (
                         <TicketCard key={ticket.id} ticket={ticket} index={i} />
                     ))}
