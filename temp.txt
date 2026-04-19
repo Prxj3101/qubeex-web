@@ -1,0 +1,15 @@
+claude --resume 29e705a2-8ef0-412b-81d5-bee3651e78a1
+
+
+what i am thinking about the institution admin is that when the superadmin adds the instiution and its admin so the admin will receive an invitation mail from the superadmin which the admin will click and set the password then he redirects to the institution dashboard where he can view all the analytics like total user total students total teachers etc can view his institution plan what features he has enabled and so on and the institution admin whould see the ui according to his institution type and he can alsos see his usage growth trends limits and also see the notification send by the superadmin or can get an email similarly the institution admin can send feedback or can create ticket like superadmin where he can report bug or request features or can ask about billing the superadmin will view reply or resolve the ticket and update the same which would be seen by the admin as we discussed earlier the superadmin can suspend the institution at that time the admin logs out and if he attempts to login his access should be blocked admin can update the plan and can add more features if requested which should be reflected in superadmin and his dashboard  this were the overall features we need in admin side for the institution  
+the admin can create 3 types of institutions
+i.school and jr college
+ii.college and university
+iii.coaching/classes
+
+so what i want that the institution admin creates courses / classes / streams for specific institution type like if the institution type is school so the admin should start with creating standards its subjects then divisions and then teachers and also the admin should assign a class teacher for each class or division 
+similarly for college and university the admin should start with creating courses its streams then divisions and then teachers and also the admin should assign a class teacher for each class or division 
+similarly for coaching/classes the admin should start with creating courses its streams then divisions and then teachers and also the admin should assign a class teacher for each class or division assigning class teachers to their respective classes is the role of the admin.
+after the admin creates all the above mentioned things then the admin should create the batches for each class or division and assign teachers to each batch and also assign a class teacher for each batch with their respective subjects .when the teachers are been assign to classes they should get a unique id to join that particular class as one teacher may be a part of many classes but only one teacher would be a class teacher of any one class so keep it in mind and how we will assign teachers to different classes and courses please tell me and anything else do we need to add so please provide it too.
+
+and what other things or features do admin need to take care of suggest them and provide me with each and every flow 
