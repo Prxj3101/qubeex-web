@@ -78,3 +78,35 @@
 ::-webkit-scrollbar {
   display: none;
 }
+
+@keyframes chalkFlicker {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  92% {
+    opacity: 1;
+  }
+
+  93% {
+    opacity: 0.82;
+  }
+
+  94% {
+    opacity: 1;
+  }
+
+  96% {
+    opacity: 0.88;
+  }
+
+  97% {
+    opacity: 1;
+  }
+}
+
+.chalk-flicker {
+  animation: chalkFlicker 4s infinite;
+}

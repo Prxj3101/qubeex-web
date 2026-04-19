@@ -1,13 +1,14 @@
 'use client';
 
 import { Topbar } from '@/components/shared/Topbar';
-import { LayoutDashboard, BookOpen, BarChart3, Settings } from 'lucide-react';
+import { LayoutDashboard, Rss, ClipboardList, BookOpen, User } from 'lucide-react';
 
 const NAV_ITEMS = [
     { label: 'Overview', href: '/student/overview', icon: LayoutDashboard },
-    { label: 'My Courses', href: '/student/courses', icon: BookOpen },
-    { label: 'Results', href: '/student/results', icon: BarChart3 },
-    { label: 'Settings', href: '/student/settings', icon: Settings },
+    { label: 'Feed', href: '/student/feed', icon: Rss },
+    { label: 'Tasks', href: '/student/tasks', icon: ClipboardList },
+    { label: 'Courses', href: '/student/courses', icon: BookOpen },
+    { label: 'Profile', href: '/student/profile', icon: User },
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {

@@ -20,6 +20,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet" />
+      </head>
       <body className={`${geist.className} ${poppins.variable}`} suppressHydrationWarning>        <ThemeProvider
         attribute="class"
         defaultTheme="system"
