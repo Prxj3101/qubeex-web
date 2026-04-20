@@ -191,8 +191,17 @@ export default function SuperAdminOverview() {
                     <ResponsiveContainer width="100%" height={180}>
                         <ComposedChart data={GROWTH_DATA} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
                             <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.4} />
-                            <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
+                            <XAxis
+                                dataKey="month"
+                                tick={{ fontSize: 11, fill: '#94A3B8' }}
+                                axisLine={false}
+                                tickLine={false}
+                            />
+                            <YAxis
+                                tick={{ fontSize: 11, fill: '#94A3B8' }}
+                                axisLine={false}
+                                tickLine={false}
+                            />
                             <Tooltip
                                 contentStyle={{
                                     background: 'hsl(var(--card))',
@@ -201,6 +210,8 @@ export default function SuperAdminOverview() {
                                     fontSize: 12,
                                     color: 'hsl(var(--foreground))',
                                 }}
+                                itemStyle={{ color: 'hsl(var(--foreground))' }}
+                                labelStyle={{ color: 'hsl(var(--foreground))' }}
                                 cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
                             />
                             <Bar dataKey="active" fill="#7C3AED" radius={[6, 6, 0, 0]} maxBarSize={28} opacity={0.9} />

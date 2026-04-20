@@ -3,10 +3,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
+import { RadialBarChart, RadialBar, PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import {
-    ArrowLeft, Building2, Mail, Calendar, Phone, MapPin,
-    User, Send, ToggleLeft, ToggleRight, Hash, Globe,
-    BookOpen, School, GraduationCap, CreditCard, Users,
+    ArrowLeft, Landmark, LayoutGrid, RefreshCcw, SlidersHorizontal, Building2, Mail, Calendar, Phone, MapPin,
+    User, Send, ToggleLeft, ToggleRight, Hash, Globe, IndianRupee,
+    BookOpen, School, GraduationCap, CreditCard, HardDrive, Sparkles, Users,
     Tag, Zap, CheckCircle, XCircle, Clock, ShieldCheck,
     FileText, Percent, Save, ChevronRight, Pencil, X, Check
 } from 'lucide-react';
@@ -92,15 +93,17 @@ function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
     );
 }
 
-function InfoBox({ label, value, sub }: { label: string; value: string; sub?: string }) {
+function InfoBox({ label, value, sub, highlight }: { label: string; value: string; sub?: string; highlight?: boolean }) {
     return (
-        <div className="bg-muted/40 rounded-xl p-3">
+        <div className={`rounded-xl p-3 ${highlight ? 'bg-[#DA7756]/10 border border-[#DA7756]/20' : 'bg-muted/40'}`}>
             <p className="text-[11px] text-muted-foreground">{label}</p>
-            <p className="text-sm font-bold mt-0.5">{value}</p>
+            <p className={`text-sm font-bold mt-0.5 ${highlight ? 'text-[#DA7756]' : ''}`}>{value}</p>
             {sub && <p className="text-[10px] text-muted-foreground mt-0.5">{sub}</p>}
         </div>
     );
 }
+
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -111,7 +114,7 @@ const statusCfg: Record<string, { label: string; cls: string }> = {
 };
 
 function SectionCard({ title, children, editBtn }: {
-    title: string;
+    title: React.ReactNode;
     children: React.ReactNode;
     editBtn?: React.ReactNode;
 }) {
@@ -369,161 +372,333 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
     const instType = (inst.type as keyof typeof PRICING) in PRICING ? inst.type as keyof typeof PRICING : 'SCHOOL';
     const pricing = PRICING[instType];
 
-    const [plan, setPlan] = useState<'BASIC' | 'PRO' | 'TRIAL'>((inst.plan as 'BASIC' | 'PRO' | 'TRIAL') ?? 'BASIC');
+    const [planActive, setPlanActive] = useState(false);
+    const [plan, setPlan] = useState<'BASIC' | 'PRO' | 'TRIAL'>((inst.plan as any) ?? 'BASIC');
     const [billing, setBilling] = useState<'MONTHLY' | 'SIX_MONTH'>('MONTHLY');
+    const [predefinedUsers, setPredefinedUsers] = useState(200);
+    const [predefinedInput, setPredefinedInput] = useState('200');
     const [discount, setDiscount] = useState(0);
+    const [showDiscount, setShowDiscount] = useState(false);
     const [discountInput, setDiscountInput] = useState('0');
-    const [predefinedUsers, setPredefinedUsers] = useState(inst.totalStudents ?? 100);
-    const [predefinedInput, setPredefinedInput] = useState(String(inst.totalStudents ?? 100));
-    const [paymentStatus, setPaymentStatus] = useState<'PAID' | 'PENDING' | 'FAILED'>('PAID');
+    const [licencePaid, setLicencePaid] = useState(false);
+    const [upfrontPaid, setUpfrontPaid] = useState(false);
+    const [activating, setActivating] = useState(false);
     const [features, setFeatures] = useState<Record<string, boolean>>({
         tests: true, question_bank: true, attendance: true, results: true,
         fees: false, announcements: true, tasks: true, leaderboard: true,
         pdf_upload: true, flags: false,
     });
-    const [saving, setSaving] = useState(false);
 
     const activeUsers = (inst.totalStudents ?? 0) + (inst.totalTeachers ?? 0) + 1;
-    const planPricing = pricing[plan];
+    const planPricing = pricing[plan] ?? pricing.BASIC;
     const licenceCost = planPricing.licence;
     const discountAmt = Math.round(licenceCost * (discount / 100));
     const finalLicence = licenceCost - discountAmt;
-
-    // Monthly bill = active users × monthly rate
     const monthlyBill = activeUsers * planPricing.monthly;
-
-    // 6 Month bill = predefined users × sixMonth rate × 6
     const sixMonthBill = predefinedUsers * planPricing.sixMonth * 6;
-
-    // Extra users in 6 month = active - predefined (if active > predefined)
     const extraUsers = Math.max(0, activeUsers - predefinedUsers);
-    const extraMonthly = extraUsers * planPricing.monthly;
+    const extraAddon = extraUsers * planPricing.monthly;
 
-    const handleDiscountSlider = (v: number) => {
-        setDiscount(v);
-        setDiscountInput(String(v));
+    const today = new Date();
+    const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+    const nextSix = new Date(today.getFullYear(), today.getMonth() + 6, today.getDate());
+
+    const canActivate = !!plan && (
+        plan === 'TRIAL' || (
+            licencePaid && (billing === 'MONTHLY' || upfrontPaid)
+        )
+    );
+    const handleActivate = async () => {
+        setActivating(true);
+        await new Promise(r => setTimeout(r, 1000));
+        setPlanActive(true);
+        setActivating(false);
+        toast.success(`${plan} plan activated!`);
     };
 
-    const handleDiscountInput = (v: string) => {
-        setDiscountInput(v);
-        const num = Math.min(50, Math.max(0, Number(v) || 0));
-        setDiscount(num);
-    };
-
-    const handlePredefinedSlider = (v: number) => {
-        setPredefinedUsers(v);
-        setPredefinedInput(String(v));
-    };
-
-    const handlePredefinedInput = (v: string) => {
-        setPredefinedInput(v);
-        const num = Math.max(1, Number(v) || 1);
-        setPredefinedUsers(num);
-    };
-
-    const toggleFeature = (key: string) =>
-        setFeatures(prev => ({ ...prev, [key]: !prev[key] }));
-
-    const handleSave = async () => {
-        setSaving(true);
-        await new Promise(r => setTimeout(r, 800));
-        toast.success('Plan updated successfully!');
-        setSaving(false);
-    };
-
-    const PLANS = [
-        { key: 'BASIC' as const, label: 'Basic', licence: pricing.BASIC.licence, activeColor: 'text-primary', dot: 'bg-primary', activeBorder: 'border-primary bg-primary/5' },
-        { key: 'PRO' as const, label: 'Pro', licence: pricing.PRO.licence, activeColor: 'text-[#DA7756]', dot: 'bg-[#DA7756]', activeBorder: 'border-[#DA7756] bg-[#DA7756]/5' },
-        { key: 'TRIAL' as const, label: 'Trial', licence: 0, activeColor: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500', activeBorder: 'border-amber-500 bg-amber-50 dark:bg-amber-950/20' },
+    const PLAN_OPTS = [
+        {
+            key: 'BASIC' as const, label: 'Basic',
+            activeColor: 'text-primary', dot: 'bg-primary', border: 'border-primary bg-primary/5',
+            features: [
+                { icon: IndianRupee, label: `₹${pricing.BASIC.monthly}/user/mo` },
+                { icon: Users, label: 'Min. 200 users' },
+                { icon: HardDrive, label: '5GB Storage' },
+                { icon: Sparkles, label: '100k AI Tokens/mo' },
+                { icon: LayoutGrid, label: '5 Default Features' },
+                { icon: XCircle, label: 'No Whitelabeling' },
+            ],
+        },
+        {
+            key: 'PRO' as const, label: 'Pro',
+            activeColor: 'text-[#DA7756]', dot: 'bg-[#DA7756]', border: 'border-[#DA7756] bg-[#DA7756]/5',
+            features: [
+                { icon: IndianRupee, label: `₹${pricing.PRO.monthly}/user/mo` },
+                { icon: Users, label: 'Min. 200 users' },
+                { icon: HardDrive, label: '10GB Storage' },
+                { icon: Sparkles, label: '200k AI Tokens/mo' },
+                { icon: LayoutGrid, label: '7 Default Features' },
+                { icon: CheckCircle, label: 'Whitelabeling' },
+            ],
+        },
+        {
+            key: 'TRIAL' as const, label: 'Trial',
+            activeColor: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500', border: 'border-amber-500 bg-amber-50 dark:bg-amber-950/20',
+            features: [],
+        },
     ];
 
+    // ── ACTIVE VIEW ──
+    if (planActive) {
+        const paymentHistory = [
+            { date: '14 Apr 2026', amount: licenceCost, type: 'One-time Licence', status: 'PAID' },
+            { date: '01 Apr 2026', amount: monthlyBill, type: 'Monthly Bill', status: 'PAID' },
+            { date: '01 Mar 2026', amount: monthlyBill, type: 'Monthly Bill', status: 'PAID' },
+        ];
+        const CustomTooltip = ({ active, payload }: any) => {
+            if (!active || !payload?.length) return null;
+            const { name, value } = payload[0];
+            const colorMap: Record<string, string> = {
+                Admin: '#7C3AED', Teachers: '#F59E0B', Students: '#10B981',
+            };
+            return (
+                <div className="px-3 py-2 rounded-xl shadow-xl"
+                    style={{ background: '#1A1030', border: '1px solid #2D1F50' }}>
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full" style={{ background: colorMap[name] }} />
+                        <span style={{ color: '#F1F5F9', fontSize: 12, fontWeight: 600 }}>{name}</span>
+                    </div>
+                    <p style={{ color: '#F1F5F9', fontSize: 13, fontWeight: 800, marginTop: 2 }}>{value}</p>
+                </div>
+            );
+        };
+
+        return (
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
+                className="space-y-4">
+
+                {/* Active Banner */}
+                <div className="bg-card border border-border/50 rounded-2xl p-5">
+                    <div className="flex items-start justify-between">
+                        <div>
+                            <div className="flex items-center gap-2 mb-1">
+                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Plan Active</span>
+                            </div>
+                            <h2 className="text-2xl font-black" style={{ color: plan === 'PRO' ? '#DA7756' : '#7C3AED' }}>{plan}</h2>
+                            <p className="text-sm text-muted-foreground mt-0.5">
+                                {instType} · {billing === 'MONTHLY' ? 'Monthly Billing' : '6 Month Billing'}
+                            </p>
+                        </div>
+                        <button onClick={() => { setPlanActive(false); toast.success('Plan deactivated'); }}
+                            className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 text-xs font-semibold hover:opacity-80 transition-all">
+                            <XCircle size={13} /> Deactivate
+                        </button>
+                    </div>
+                    <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/50">
+
+                        {/* Left — Donut with center total */}
+                        <div className="relative w-[90px] h-[90px] shrink-0" style={{ overflow: 'visible' }}>
+                            <ResponsiveContainer width="100%" height="100%">
+                                <PieChart>
+                                    <Pie
+                                        data={[
+                                            { name: 'Admin', value: 1 },
+                                            { name: 'Teachers', value: inst.totalTeachers ?? 0 },
+                                            { name: 'Students', value: inst.totalStudents ?? 0 },
+                                        ]}
+                                        cx="50%" cy="50%"
+                                        innerRadius={28} outerRadius={42}
+                                        dataKey="value"
+                                        strokeWidth={2} stroke="hsl(var(--card))"
+                                        paddingAngle={3} minAngle={8}
+                                    >
+                                        <Cell fill="#7C3AED" />
+                                        <Cell fill="#F59E0B" />
+                                        <Cell fill="#10B981" />
+                                    </Pie>
+                                    <Tooltip
+                                        content={<CustomTooltip />}
+                                        position={{ x: 95, y: 0 }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <p className="text-sm font-black leading-none">{activeUsers}</p>
+                                <p className="text-[9px] text-muted-foreground mt-0.5">Total</p>
+                            </div>
+                        </div>
+
+                        {/* Labels */}
+                        <div className="space-y-2 shrink-0">
+                            {[
+                                { label: 'Admin', value: 1, color: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500' },
+                                { label: 'Teachers', value: inst.totalTeachers ?? 0, color: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' },
+                                { label: 'Students', value: inst.totalStudents ?? 0, color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
+                            ].map(({ label, value, color, dot }) => (
+                                <div key={label} className="flex items-center gap-2">
+                                    <div className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                                    <div>
+                                        <p className={`text-sm font-black leading-none ${color}`}>{value}</p>
+                                        <p className="text-[10px] text-muted-foreground">{label}</p>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Billing Summary */}
+                <SectionCard title="Billing Summary">
+                    {billing === 'MONTHLY' ? (
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-3 gap-3">
+                                <InfoBox label="Active Users" value={String(activeUsers)} sub="billed this month" />
+                                <InfoBox label="Rate" value={fmt(planPricing.monthly)} sub="per user / month" />
+                                <InfoBox label="Next Bill" value={fmt(monthlyBill)} sub={nextMonth.toLocaleDateString('en-IN')} highlight />
+                            </div>
+                            <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl border border-violet-200/50 dark:border-violet-900/50">
+                                <p className="text-[11px] text-violet-600 dark:text-violet-400">
+                                    💡 Bill calculated on active users at end of each month. Estimate: {fmt(monthlyBill)}
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            <div className="grid grid-cols-3 gap-3">
+                                <InfoBox label="Committed Users" value={String(predefinedUsers)} sub="for 6 months" />
+                                <InfoBox label="Upfront Paid" value={fmt(sixMonthBill)} sub="already paid" />
+                                <InfoBox label="Next Renewal" value={nextSix.toLocaleDateString('en-IN')} sub="6 month cycle" />
+                            </div>
+                            {extraUsers > 0 ? (
+                                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200/50 dark:border-amber-900/50 space-y-2">
+                                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">⚡ Add-on: {extraUsers} extra user{extraUsers > 1 ? 's' : ''}</p>
+                                    <div className="grid grid-cols-3 gap-2">
+                                        <InfoBox label="Extra Users" value={String(extraUsers)} sub="beyond committed" />
+                                        <InfoBox label="Rate" value={fmt(planPricing.monthly)} sub="per user / month" />
+                                        <InfoBox label="Add-on / Month" value={fmt(extraAddon)} highlight />
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200/50 dark:border-emerald-900/50">
+                                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
+                                        ✅ Active users ({activeUsers}) within committed count ({predefinedUsers}). No add-on charges.
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </SectionCard>
+
+                {/* Payment History */}
+                <SectionCard title="Payment History">
+                    <div className="divide-y divide-border/40">
+                        {paymentHistory.map((p, i) => (
+                            <div key={i} className="flex items-center justify-between py-3">
+                                <div>
+                                    <p className="text-xs font-semibold">{p.type}</p>
+                                    <p className="text-[11px] text-muted-foreground">{p.date}</p>
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <p className="text-sm font-bold">{fmt(p.amount)}</p>
+                                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">{p.status}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </SectionCard>
+
+                {/* Feature Controls */}
+                <SectionCard title="Feature Controls">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {ALL_FEATURES.map(({ key, label, desc }) => (
+                            <div key={key} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? 'border-[#DA7756]/30 bg-[#DA7756]/5' : 'border-border/50 bg-muted/20'}`}>
+                                <div className="min-w-0 mr-3">
+                                    <p className="text-xs font-medium truncate">{label}</p>
+                                    <p className="text-[11px] text-muted-foreground">{desc}</p>
+                                </div>
+                                <Toggle on={features[key]} onToggle={() => setFeatures(p => ({ ...p, [key]: !p[key] }))} />
+                            </div>
+                        ))}
+                    </div>
+                </SectionCard>
+            </motion.div>
+        );
+    }
+
+    // ── SETUP VIEW ──
     return (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
             className="space-y-4">
 
-            {/* ── 1. Plan Selector ── */}
-            <SectionCard title="Subscription Plan">
+            {/* Pending Banner */}
+            <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+                <div>
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Plan Not Activated</p>
+                    <p className="text-xs text-amber-600/80 dark:text-amber-500/80">Configure below and activate to get started.</p>
+                </div>
+            </div>
 
-                {/* Plan buttons */}
-                <div className="grid grid-cols-3 gap-3 mb-5">
-                    {PLANS.map(p => {
+            {/* Step 1 — Plan */}
+            <SectionCard title={
+                <span className="flex items-center gap-2">
+                    <LayoutGrid size={15} className="text-muted-foreground/100" />
+                    Select Plan
+                </span>
+            }>
+                <div className="grid grid-cols-3 gap-3">
+                    {PLAN_OPTS.map(p => {
                         const isActive = plan === p.key;
+                        const price = p.key !== 'TRIAL' ? pricing[p.key] : null;
                         return (
                             <button key={p.key} onClick={() => setPlan(p.key)}
-                                className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${isActive ? p.activeBorder : 'border-border/50 bg-muted/30 hover:border-border'}`}>
-                                <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 ${isActive ? 'border-current' : 'border-muted-foreground/40'}`}>
-                                    {isActive && <div className={`w-2 h-2 rounded-full ${p.dot}`} />}
-                                </div>
-                                <div>
+                                className={`flex flex-col gap-2 p-4 rounded-xl border-2 text-left transition-all ${isActive ? p.border : 'border-border/50 bg-muted/30 hover:border-border'}`}>
+
+                                {/* Header */}
+                                <div className="flex items-center justify-between w-full">
                                     <p className={`text-sm font-bold ${isActive ? p.activeColor : 'text-foreground'}`}>{p.label}</p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {p.key === 'TRIAL' ? 'Free trial' : `${fmt(p.licence)} one-time`}
-                                    </p>
+                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${isActive ? 'border-current' : 'border-muted-foreground/40'}`}>
+                                        {isActive && <div className={`w-2 h-2 rounded-full ${p.dot}`} />}
+                                    </div>
                                 </div>
+
+                                {/* Price */}
+                                {price ? (
+                                    <p className="text-xs font-bold">{fmt(price.licence)} <span className="font-normal text-muted-foreground">one-time</span></p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">Free — no charge</p>
+                                )}
+
+                                {/* Features */}
+                                {p.features.length > 0 && (
+                                    <div className="space-y-1.5 mt-1 pt-2 border-t border-border/40 w-full">
+                                        {p.features.map(({ icon: Icon, label }) => (
+                                            <div key={label} className="flex items-center gap-1.5">
+                                                <Icon size={11} className={`shrink-0 ${label.startsWith('No') ? 'text-muted-foreground/50' : isActive ? 'text-current' : 'text-muted-foreground'
+                                                    }`} />
+                                                <span className={`text-[11px] ${label.startsWith('No') ? 'text-muted-foreground/50' : ''}`}>{label}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
                             </button>
                         );
                     })}
                 </div>
-
-                {/* Licence + Discount — only non-trial */}
-                {plan !== 'TRIAL' && (
-                    <div className="bg-muted/40 rounded-xl p-3.5 mb-4">
-                        <div className="flex items-center justify-between mb-1">
-                            <p className="text-xs font-semibold flex items-center gap-1.5">
-                                <Percent size={13} className="text-[#DA7756]" />
-                                One-time Licence Fee
-                            </p>
-                            <p className="text-sm font-bold">{fmt(licenceCost)}</p>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground mb-3">Apply discount on one-time licence cost only</p>
-
-                        {/* Discount slider + input */}
-                        <div className="flex items-center gap-3">
-                            <input
-                                type="range" min={0} max={50} step={1}
-                                value={discount}
-                                onChange={e => handleDiscountSlider(Number(e.target.value))}
-                                className="flex-1 accent-[#DA7756] h-1.5 cursor-pointer"
-                            />
-                            <div className="flex items-center gap-1 shrink-0">
-                                <input
-                                    type="number" min={0} max={50}
-                                    value={discountInput}
-                                    onChange={e => handleDiscountInput(e.target.value)}
-                                    className="w-14 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-[#DA7756] transition-all"
-                                />
-                                <span className="text-xs text-muted-foreground">%</span>
-                            </div>
-                        </div>
-
-                        {/* Price summary */}
-                        <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
-                            <div>
-                                <p className="text-[11px] text-muted-foreground">Original</p>
-                                <p className="text-xs font-medium line-through text-muted-foreground">{discount > 0 ? fmt(licenceCost) : ''}</p>
-                            </div>
-                            {discount > 0 && (
-                                <div className="text-center">
-                                    <p className="text-[11px] text-muted-foreground">Discount</p>
-                                    <p className="text-xs font-medium text-red-500">-{fmt(discountAmt)}</p>
-                                </div>
-                            )}
-                            <div className="text-right">
-                                <p className="text-[11px] text-muted-foreground">Final licence</p>
-                                <p className="text-sm font-bold text-[#DA7756]">{fmt(finalLicence)}</p>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </SectionCard>
 
-            {/* ── 2. Billing Cycle ── */}
+            {/* Step 2 — Billing (not trial) */}
             {plan !== 'TRIAL' && (
-                <SectionCard title="Billing Cycle">
-                    <div className="grid grid-cols-2 gap-3 mb-4">
+                <SectionCard title={
+                    <span className="flex items-center gap-2">
+                        <RefreshCcw size={15} className="text-muted-foreground/100" />
+                        Billing Cycle
+                    </span>
+                }>                    <div className="grid grid-cols-2 gap-3 mb-4">
                         {[
-                            { key: 'MONTHLY' as const, label: 'Monthly', sub: 'Billed end of each month based on active users', rate: planPricing.monthly },
-                            { key: 'SIX_MONTH' as const, label: '6 Months', sub: 'Predefined user count, paid upfront', rate: planPricing.sixMonth },
+                            { key: 'MONTHLY' as const, label: 'Monthly', sub: 'Billed end of each month · Flexible user count', rate: planPricing.monthly },
+                            { key: 'SIX_MONTH' as const, label: '6 Months', sub: 'Predefined user count · Paid upfront', rate: planPricing.sixMonth },
                         ].map(b => (
                             <button key={b.key} onClick={() => setBilling(b.key)}
                                 className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${billing === b.key ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-border'}`}>
@@ -539,146 +714,158 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                         ))}
                     </div>
 
-                    {/* Monthly bill preview */}
-                    {billing === 'MONTHLY' && (
-                        <div className="space-y-3">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Current Month Estimate</p>
+                    {billing === 'SIX_MONTH' && (
+                        <div className="bg-muted/40 rounded-xl p-4 space-y-3">
+                            <div className="flex items-center justify-between">
+                                <p className="text-xs font-semibold">Predefined User Count</p>
+                                <div className="flex items-center gap-1.5">
+                                    <input type="number" min={200} value={predefinedInput}
+                                        onChange={e => { setPredefinedInput(e.target.value); setPredefinedUsers(Math.max(200, Number(e.target.value) || 200)); }}
+                                        className="w-16 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-primary" />
+                                    <span className="text-xs text-muted-foreground">users</span>
+                                </div>
+                            </div>
+                            <input type="range" min={200} max={2000} step={1} value={predefinedUsers}
+                                onChange={e => { setPredefinedUsers(Number(e.target.value)); setPredefinedInput(e.target.value); }}
+                                className="w-full accent-[#7C3AED] h-1.5 cursor-pointer" />
                             <div className="grid grid-cols-3 gap-3">
-                                <InfoBox label="Active Users" value={String(activeUsers)} sub="Admin + Teachers + Students" />
-                                <InfoBox label="Rate per User" value={fmt(planPricing.monthly)} sub="per month" />
-                                <InfoBox label="Estimated Bill" value={fmt(monthlyBill)} sub="end of month" />
+                                <InfoBox label="Users" value={String(predefinedUsers)} sub="committed for 6mo" />
+                                <InfoBox label="Rate" value={fmt(planPricing.sixMonth)} sub="per user" />
+                                <InfoBox label="Upfront Total" value={fmt(sixMonthBill)} highlight />
                             </div>
-                            <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl border border-violet-200/50 dark:border-violet-900/50">
-                                <p className="text-[11px] text-violet-600 dark:text-violet-400">
-                                    💡 Bill is calculated on active user count at end of each month. Users can be added or removed anytime.
-                                </p>
-                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                                Extra users beyond {predefinedUsers} → ₹{planPricing.monthly}/user/month (monthly billing)
+                            </p>
                         </div>
                     )}
 
-                    {/* 6 Month plan */}
-                    {billing === 'SIX_MONTH' && (
-                        <div className="space-y-4">
-                            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">6 Month Plan Setup</p>
-
-                            {/* Predefined user count */}
-                            <div className="bg-muted/40 rounded-xl p-3.5">
-                                <div className="flex items-center justify-between mb-2">
-                                    <p className="text-xs font-semibold">Predefined User Count</p>
-                                    <div className="flex items-center gap-1">
-                                        <input
-                                            type="number" min={1}
-                                            value={predefinedInput}
-                                            onChange={e => handlePredefinedInput(e.target.value)}
-                                            className="w-16 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-primary transition-all"
-                                        />
-                                        <span className="text-xs text-muted-foreground">users</span>
-                                    </div>
-                                </div>
-                                <input
-                                    type="range" min={1} max={2000} step={1}
-                                    value={predefinedUsers}
-                                    onChange={e => handlePredefinedSlider(Number(e.target.value))}
-                                    className="w-full accent-[#7C3AED] h-1.5 cursor-pointer"
-                                />
-                                <div className="flex justify-between mt-1">
-                                    <span className="text-[10px] text-muted-foreground">1</span>
-                                    <span className="text-[10px] text-muted-foreground">2000</span>
-                                </div>
-                            </div>
-
-                            {/* Bill summary */}
+                    {billing === 'MONTHLY' && (
+                        <div className="bg-muted/40 rounded-xl p-4">
+                            <p className="text-xs font-semibold mb-3">Minimum First Bill</p>
                             <div className="grid grid-cols-3 gap-3">
-                                <InfoBox label="Predefined Users" value={String(predefinedUsers)} sub="committed count" />
-                                <InfoBox label="Rate per User" value={fmt(planPricing.sixMonth)} sub="per user × 6 months" />
-                                <InfoBox label="Upfront Amount" value={fmt(sixMonthBill)} sub="total for 6 months" />
+                                <InfoBox label="Min. Users" value="200" sub="minimum commitment" />
+                                <InfoBox label="Rate" value={fmt(planPricing.monthly)} sub="per user / month" />
+                                <InfoBox label="Min. First Bill" value={fmt(200 * planPricing.monthly)} sub="minimum amount" highlight />
                             </div>
-
-                            {/* Extra users warning */}
-                            {extraUsers > 0 && (
-                                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200/50 dark:border-amber-900/50">
-                                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-1">
-                                        ⚠️ {extraUsers} extra user{extraUsers > 1 ? 's' : ''} detected
-                                    </p>
-                                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
-                                        Current active users ({activeUsers}) exceeds predefined count ({predefinedUsers}). Extra {extraUsers} user{extraUsers > 1 ? 's' : ''} will be billed at monthly rate ({fmt(planPricing.monthly)}/user/month) = {fmt(extraMonthly)}/month additionally.
-                                    </p>
-                                </div>
-                            )}
-
-                            <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl border border-violet-200/50 dark:border-violet-900/50">
-                                <p className="text-[11px] text-violet-600 dark:text-violet-400">
-                                    💡 Institution commits to {predefinedUsers} users for 6 months regardless of actual usage. Any additional users beyond this count will be charged at monthly rate (₹{planPricing.monthly}/user/month).
-                                </p>
-                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-3">
+                                💡 Minimum 200 users billed per month. Beyond 200, actual active users count.
+                            </p>
                         </div>
                     )}
                 </SectionCard>
             )}
 
-            {/* ── 3. User Count ── */}
-            <SectionCard title="Current Users">
-                <div className="grid grid-cols-4 gap-3">
-                    {[
-                        { label: 'Admin', value: 1, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-100 dark:bg-violet-950/50' },
-                        { label: 'Teachers', value: inst.totalTeachers ?? 0, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-950/50' },
-                        { label: 'Students', value: inst.totalStudents ?? 0, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-950/50' },
-                        { label: 'Total', value: activeUsers, color: 'text-foreground', bg: 'bg-muted/50' },
-                    ].map(({ label, value, color, bg }) => (
-                        <div key={label} className={`${bg} rounded-xl p-3 text-center`}>
-                            <p className={`text-xl font-black ${color}`}>{value}</p>
-                            <p className="text-[11px] text-muted-foreground mt-0.5">{label}</p>
+            {plan !== 'TRIAL' && (
+                <SectionCard title={
+                    <span className="flex items-center gap-2">
+                        <span
+                            onDoubleClick={() => setShowDiscount(v => !v)}
+                            className="cursor-default select-none"
+                        >
+                            <Landmark size={15} className="text-muted-foreground/100 hover:text-muted-foreground/70 transition-colors" />
+                        </span>
+                        One-time Licence Fee
+                    </span>
+                }>
+                    <div className="bg-muted/40 rounded-xl p-4 mb-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <p className="text-xs font-semibold">Licence Cost</p>
+                                <p className="text-xl font-black mt-0.5">{fmt(finalLicence)}</p>
+                            </div>
                         </div>
-                    ))}
-                </div>
-            </SectionCard>
 
-            {/* ── 4. Feature Controls ── */}
-            <SectionCard title="Feature Controls">
-                <p className="text-xs text-muted-foreground mb-4">Enable or disable features for this institution</p>
+                        {showDiscount && (
+                            <div className="border-t border-border/50 pt-3 mt-3">
+                                <div className="flex items-center gap-3 mb-1">
+                                    <input type="range" min={0} max={50} step={1} value={discount}
+                                        onChange={e => { setDiscount(Number(e.target.value)); setDiscountInput(e.target.value); }}
+                                        className="flex-1 accent-[#DA7756] h-1.5 cursor-pointer" />
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <input type="number" min={0} max={50} value={discountInput}
+                                            onChange={e => { setDiscountInput(e.target.value); setDiscount(Math.min(50, Math.max(0, Number(e.target.value) || 0))); }}
+                                            className="w-14 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-[#DA7756]" />
+                                        <span className="text-xs text-muted-foreground">% off</span>
+                                    </div>
+                                </div>
+                                {discount > 0 && (
+                                    <p className="text-[11px] text-[#DA7756] font-medium">
+                                        Saving {fmt(discountAmt)} · Final: {fmt(finalLicence)}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                    </div>
+                </SectionCard>
+            )}
+
+            {/* Step 4 — Features */}
+            <SectionCard title={
+                <span className="flex items-center gap-2">
+                    <SlidersHorizontal size={15} className="text-muted-foreground/100" />
+                    Feature Controls
+                </span>
+            }>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {ALL_FEATURES.map(({ key, label, desc }) => (
-                        <div key={key}
-                            className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? 'border-[#DA7756]/30 bg-[#DA7756]/5' : 'border-border/50 bg-muted/20'}`}>
+                        <div key={key} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? 'border-[#DA7756]/30 bg-[#DA7756]/5' : 'border-border/50 bg-muted/20'}`}>
                             <div className="min-w-0 mr-3">
                                 <p className="text-xs font-medium truncate">{label}</p>
                                 <p className="text-[11px] text-muted-foreground">{desc}</p>
                             </div>
-                            <Toggle on={features[key]} onToggle={() => toggleFeature(key)} />
+                            <Toggle on={features[key]} onToggle={() => setFeatures(p => ({ ...p, [key]: !p[key] }))} />
                         </div>
                     ))}
                 </div>
             </SectionCard>
 
-            {/* ── 5. Payment Status ── */}
-            <SectionCard title="Payment Status">
-                <div className="flex items-center gap-3 mb-4">
-                    {([
-                        { s: 'PAID', icon: CheckCircle, cls: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50 dark:text-emerald-400' },
-                        { s: 'PENDING', icon: Clock, cls: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50 dark:text-amber-400' },
-                        { s: 'FAILED', icon: XCircle, cls: 'text-red-600 bg-red-50 dark:bg-red-950/50 dark:text-red-400' },
-                    ] as const).map(({ s, icon: Icon, cls }) => (
-                        <button key={s} onClick={() => setPaymentStatus(s)}
-                            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${paymentStatus === s ? `border-current ${cls}` : 'border-border/50 text-muted-foreground hover:bg-muted/50'}`}>
-                            <Icon size={13} />{s}
-                        </button>
-                    ))}
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                    <InfoBox label="Last Payment" value="14 Apr 2026" />
-                    <InfoBox label="Next Due" value={billing === 'MONTHLY' ? '14 May 2026' : '14 Oct 2026'} />
-                    <InfoBox label="Amount Due" value={billing === 'MONTHLY' ? fmt(monthlyBill) : fmt(sixMonthBill)} />
-                </div>
-            </SectionCard>
+            {/* Activate */}
+            <div className={`p-5 rounded-2xl border-2 transition-all mb-6 ${canActivate ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' : 'border-border/50 bg-muted/20'}`}>
 
-            {/* ── Save ── */}
-            <div className="flex justify-end">
-                <button onClick={handleSave} disabled={saving}
-                    className="flex items-center gap-2 h-10 px-6 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-60"
-                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                    <Save size={15} />
-                    {saving ? 'Saving...' : 'Save Changes'}
-                </button>
+                {/* Payment confirmations */}
+                {plan !== 'TRIAL' && (
+                    <div className="space-y-2 mb-4">
+                        <div className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${licencePaid ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' : 'border-border/50 bg-card'}`}>
+                            <div>
+                                <p className="text-xs font-semibold">Licence Payment Received</p>
+                                <p className="text-[11px] text-muted-foreground">Mark once one-time licence payment confirmed</p>
+                            </div>
+                            <Toggle on={licencePaid} onToggle={() => setLicencePaid(v => !v)} />
+                        </div>
+
+                        {billing === 'SIX_MONTH' && (
+                            <div className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${upfrontPaid ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' : 'border-border/50 bg-card'}`}>
+                                <div>
+                                    <p className="text-xs font-semibold">6 Month Upfront Payment Received</p>
+                                    <p className="text-[11px] text-muted-foreground">{fmt(sixMonthBill)} upfront confirmed for 6 months</p>
+                                </div>
+                                <Toggle on={upfrontPaid} onToggle={() => setUpfrontPaid(v => !v)} />
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                {/* Activate button row */}
+                <div className="flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-bold">
+                            {canActivate ? '✅ Ready to Activate' : '⏳ Complete steps to activate'}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            {!licencePaid && plan !== 'TRIAL' ? 'Mark licence payment as received · ' : ''}
+                            {billing === 'SIX_MONTH' && !upfrontPaid ? 'Mark upfront payment as received' : ''}
+                            {canActivate ? `${plan} · ${billing === 'MONTHLY' ? 'Monthly' : '6 Month'} billing` : ''}
+                        </p>
+                    </div>
+                    <button onClick={handleActivate} disabled={!canActivate || activating}
+                        className="flex items-center gap-2 h-10 px-6 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+                        style={{ background: canActivate ? 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' : 'hsl(var(--muted))' }}>
+                        {activating
+                            ? <><div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Activating...</>
+                            : <><Zap size={15} /> Activate Plan</>
+                        }
+                    </button>
+                </div>
             </div>
         </motion.div>
     );
@@ -693,7 +880,6 @@ export default function InstitutionDetailPage() {
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'details' | 'plan'>('details');
 
-    // Check if opened from Manage Plan button
     useEffect(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
@@ -708,7 +894,7 @@ export default function InstitutionDetailPage() {
                 const res = await api.get(`/superadmin/institutions/${id}`);
                 setInstitution(res.data.data);
             } catch {
-                setInstitution(MOCK_INST); // fallback to mock
+                setInstitution(MOCK_INST);
             } finally {
                 setLoading(false);
             }
@@ -724,7 +910,7 @@ export default function InstitutionDetailPage() {
             toast.success(`Institution ${newStatus === 'ACTIVE' ? 'activated' : 'suspended'}`);
             setInstitution(prev => prev ? { ...prev, status: newStatus } : prev);
         } catch {
-            setInstitution(prev => prev ? { ...prev, status: newStatus } : prev); // mock toggle
+            setInstitution(prev => prev ? { ...prev, status: newStatus } : prev);
             toast.success(`Institution ${newStatus === 'ACTIVE' ? 'activated' : 'suspended'}`);
         }
     };
@@ -735,7 +921,7 @@ export default function InstitutionDetailPage() {
             await api.post(`/superadmin/institutions/${id}/resend-invite`, { email: institution.users?.[0]?.email });
             toast.success('Invite resent successfully');
         } catch {
-            toast.success('Invite resent successfully'); // mock
+            toast.success('Invite resent successfully');
         }
     };
 
@@ -764,8 +950,7 @@ export default function InstitutionDetailPage() {
 
     return (
         <div className="space-y-5">
-
-            {/* ── Header ── */}
+            {/* Header */}
             <div className="flex items-center gap-3">
                 <button onClick={() => router.back()}
                     className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
@@ -779,7 +964,7 @@ export default function InstitutionDetailPage() {
                 </div>
             </div>
 
-            {/* ── Tabs ── */}
+            {/* Tabs */}
             <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                 {TABS.map(tab => {
                     const isActive = activeTab === tab.key;
@@ -800,7 +985,7 @@ export default function InstitutionDetailPage() {
                 })}
             </div>
 
-            {/* ── Tab Content ── */}
+            {/* Tab Content */}
             <AnimatePresence mode="wait">
                 {activeTab === 'details' ? (
                     <ViewDetailsTab
