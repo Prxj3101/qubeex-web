@@ -3,8 +3,9 @@
 import { ThemeToggle } from './ThemeToggle';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bell, LucideIcon } from 'lucide-react';
+import { Bell, LucideIcon, Settings, User, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { NotificationsBell } from './NotificationsBell'
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -80,6 +81,29 @@ function AvatarMenu() {
     const router = useRouter();
     const pathname = usePathname();
 
+    const role =
+        user?.role ??
+        (pathname.startsWith('/superadmin') ? 'SUPER_ADMIN' :
+            pathname.startsWith('/admin') ? 'ADMIN' :
+                pathname.startsWith('/teacher') ? 'TEACHER' :
+                    'STUDENT');
+
+    const roleLabelMap = {
+        SUPER_ADMIN: 'Super Admin',
+        ADMIN: 'Admin',
+        TEACHER: 'Teacher',
+        STUDENT: 'Student',
+    } as const;
+
+    const roleInitialMap = {
+        SUPER_ADMIN: 'SA',
+        ADMIN: 'A',
+        TEACHER: 'T',
+        STUDENT: 'S',
+    } as const;
+
+    const currentRole = (role && role in roleLabelMap ? role : 'STUDENT') as keyof typeof roleLabelMap;
+
     const settingsHref =
         pathname.startsWith('/superadmin') ? '/superadmin/settings' :
             pathname.startsWith('/admin') ? '/admin/settings' :
@@ -95,23 +119,44 @@ function AvatarMenu() {
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
                 <button className="outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full">
-                    <Avatar className="h-7 w-7 cursor-pointer">
-                        <AvatarFallback className="text-[11px] bg-primary text-white">
-                            {user?.email?.[0]?.toUpperCase() ?? 'U'}
+                    <Avatar className="h-8 w-8 cursor-pointer ring-2 ring-border">
+                        <AvatarFallback className="text-[11px] font-semibold bg-violet-100 dark:bg-[#7C3AED]/25 text-violet-700 dark:text-violet-300">
+                            {roleInitialMap[currentRole]}
                         </AvatarFallback>
                     </Avatar>
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuLabel className="truncate text-xs">
-                    {user?.email ?? 'Signed in'}
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => router.push(settingsHref)}>
-                    Settings
+            <DropdownMenuContent align="end" className="w-52 p-2 rounded-2xl border border-border/50 shadow-lg bg-card">
+                {/* User info header */}
+                <div className="flex items-center gap-3 px-2 py-2.5 mb-1">
+                    <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-[#7C3AED]/25 flex items-center justify-center text-sm font-bold text-violet-700 dark:text-violet-300 shrink-0">
+                        {roleInitialMap[currentRole]}
+                    </div>
+                    <div className="min-w-0">
+                        <p className="text-xs font-semibold truncate">{user?.email ?? 'Signed in'}</p>
+                        <p className="text-[11px] text-muted-foreground">{roleLabelMap[currentRole]}</p>
+                    </div>
+                </div>
+
+                <div className="h-px bg-border/50 mx-1 mb-1" />
+
+                <DropdownMenuItem
+                    onClick={() => router.push(settingsHref)}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted/50 transition-colors">
+                    {/* My Profile icon box */}
+                    <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-[#7C3AED]/25 flex items-center justify-center shrink-0">
+                        <User size={13} className="text-violet-600 dark:text-violet-400" />
+                    </div>
+                    <span className="text-sm font-medium">My Profile</span>
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} variant="destructive">
-                    Logout
+
+                <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors mt-0.5">
+                    <div className="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-950 flex items-center justify-center shrink-0">
+                        <LogOut size={13} className="text-red-500" />
+                    </div>
+                    <span className="text-sm font-medium text-red-500">Logout</span>
                 </DropdownMenuItem>
             </DropdownMenuContent>
         </DropdownMenu>
@@ -138,11 +183,8 @@ export function Topbar({ navItems }: TopbarProps) {
                     </span>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <Button variant="ghost" size="icon" className="relative h-8 w-8">
-                        <Bell className="h-4 w-4 text-muted-foreground" />
-                        <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />
-                    </Button>
+                <div className="flex items-center gap-2">
+                    <NotificationsBell />
                     <ThemeToggle />
                     <AvatarMenu />
                 </div>

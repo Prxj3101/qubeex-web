@@ -1,7 +1,7 @@
 'use client';
 
-import { Building2, Users, BookOpen, Mail, ArrowUpRight, ArrowDownRight, Activity, Zap, Clock } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Building2, Users, TicketIcon, BookOpen, Mail, ArrowUpRight, ArrowDownRight, Activity, Zap, Clock } from 'lucide-react';
+import { ComposedChart, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line } from 'recharts';
 import { useAuthStore } from '@/store/authStore';
 import { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -14,7 +14,7 @@ const CHARACTERS = [
 
 const STATS = [
     {
-        label: 'Total institutions',
+        label: 'Total Institutions',
         value: '48',
         sub: '+3 this month',
         trend: 'up',
@@ -23,7 +23,7 @@ const STATS = [
         iconColor: 'text-violet-600 dark:text-violet-400',
     },
     {
-        label: 'Active students',
+        label: 'Total Users',
         value: '3,241',
         sub: '+124 this week',
         trend: 'up',
@@ -32,22 +32,22 @@ const STATS = [
         iconColor: 'text-emerald-600 dark:text-emerald-400',
     },
     {
-        label: 'Tests conducted',
-        value: '1,892',
-        sub: '+87 today',
-        trend: 'up',
-        icon: BookOpen,
-        iconBg: 'bg-amber-100 dark:bg-amber-950',
-        iconColor: 'text-amber-600 dark:text-amber-400',
-    },
-    {
         label: 'Pending Invites',
         value: '6',
         sub: '2 expiring soon',
         trend: 'down',
         icon: Mail,
-        iconBg: 'bg-sky-100 dark:bg-sky-950',
-        iconColor: 'text-sky-600 dark:text-sky-400',
+        iconBg: 'bg-amber-100 dark:bg-amber-950',
+        iconColor: 'text-amber-600 dark:text-amber-400',
+    },
+    {
+        label: 'Tickets Open',
+        value: '4',
+        sub: '1 urgent',
+        trend: 'down',
+        icon: TicketIcon,
+        iconBg: 'bg-red-100 dark:bg-red-950',
+        iconColor: 'text-red-600 dark:text-red-400',
     },
 ];
 
@@ -180,22 +180,37 @@ export default function SuperAdminOverview() {
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-sm font-medium">Institution growth</p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-violet-500 inline-block" />Active</span>
-                            <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm bg-border inline-block" />Trial</span>
+                            <span className="flex items-center gap-1.5">
+                                <span className="w-2.5 h-2.5 rounded-sm bg-violet-500 inline-block" />Active
+                            </span>
+                            <span className="flex items-center gap-1.5">
+                                <span className="w-6 h-0.5 bg-amber-400 inline-block rounded-full" />Trial
+                            </span>
                         </div>
                     </div>
                     <ResponsiveContainer width="100%" height={180}>
-                        <BarChart data={GROWTH_DATA} barGap={4}>
-                            <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
+                        <ComposedChart data={GROWTH_DATA} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
+                            <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.4} />
                             <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                             <Tooltip
-                                contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                                cursor={{ fill: 'hsl(var(--muted))', radius: 4 }}
+                                contentStyle={{
+                                    background: 'hsl(var(--card))',
+                                    border: '1px solid hsl(var(--border))',
+                                    borderRadius: 8,
+                                    fontSize: 12,
+                                    color: 'hsl(var(--foreground))',
+                                }}
+                                cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
                             />
-                            <Bar dataKey="active" fill="#7C3AED" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                            <Bar dataKey="trial" fill="hsl(var(--border))" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                        </BarChart>
+                            <Bar dataKey="active" fill="#7C3AED" radius={[6, 6, 0, 0]} maxBarSize={28} opacity={0.9} />
+                            <Line
+                                type="monotone" dataKey="trial"
+                                stroke="#F59E0B" strokeWidth={2.5}
+                                dot={{ r: 4, fill: '#F59E0B', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+                                activeDot={{ r: 6, fill: '#F59E0B', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+                            />
+                        </ComposedChart>
                     </ResponsiveContainer>
                 </div>
 
