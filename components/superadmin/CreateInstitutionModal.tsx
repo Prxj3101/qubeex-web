@@ -81,38 +81,24 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     };
 
     const handleCreate = async () => {
-        if (!form.name || !form.email || !form.adminEmail) {
+        if (!form.name || !form.email || !form.adminEmail || !form.adminName) {
             toast.error('Please fill in all required fields');
             return;
         }
         try {
             setLoading(true);
-            let newInst: Institution;
-            try {
-                const res = await api.post('/superadmin/institutions', {
-                    ...form,
-                    phone: form.phone ? `${countryCode} ${form.phone}` : '',
-                });
-                newInst = res.data.data;
-            } catch {
-                newInst = {
-                    id: `mock-${Date.now()}`, name: form.name, email: form.email,
-                    phone: form.phone ? `${countryCode} ${form.phone}` : undefined,
-                    type: form.type, city: form.city || undefined,
-                    status: 'PENDING',
-                    createdAt: new Date().toISOString(),
-                    updatedAt: new Date().toISOString(),
-                    users: form.adminEmail
-                        ? [{ id: `u-${Date.now()}`, email: form.adminEmail, role: 'ADMIN' as const, createdAt: new Date().toISOString() }]
-                        : [],
-                };
-            }
-            toast.success('Institution created 🚀');
+            const res = await api.post('/superadmin/institutions', {
+                ...form,
+                phone: form.phone ? `${countryCode} ${form.phone}` : undefined,
+            });
+            const newInst: Institution = res.data.data;
+            toast.success('Institution created! Invite email sent 🚀');
             onSuccess(newInst);
             onClose();
             resetForm();
-        } catch {
-            toast.error('Failed to create institution');
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Failed to create institution';
+            toast.error(msg);
         } finally {
             setLoading(false);
         }

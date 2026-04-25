@@ -62,16 +62,16 @@ export default function SetPasswordPage() {
     // Verify token on mount
     useEffect(() => {
         const verify = async () => {
+            if (!token) {
+                setTokenExpired(true);
+                setTokenLoading(false);
+                return;
+            }
             try {
                 const res = await api.get(`/auth/verify-invite?token=${token}`);
                 setTokenData(res.data.data);
             } catch {
-                // Mock — in real app check expiry from API
-                if (!token) {
-                    setTokenExpired(true);
-                } else {
-                    setTokenData(MOCK_TOKEN_DATA);
-                }
+                setTokenExpired(true);
             } finally {
                 setTokenLoading(false);
             }
@@ -95,10 +95,9 @@ export default function SetPasswordPage() {
             });
             setDone(true);
             setTimeout(() => router.push('/login'), 2500);
-        } catch {
-            // Mock success for now
-            setDone(true);
-            setTimeout(() => router.push('/login'), 2500);
+        } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Failed to set password. Please try again.';
+            toast.error(msg);
         } finally {
             setSubmitting(false);
         }
