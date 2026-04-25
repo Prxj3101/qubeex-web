@@ -19,7 +19,7 @@
 }
 
 :root {
-  --background: #FAF8FF;
+  --background: #F3F0FA;
   --foreground: #0F172A;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
@@ -27,9 +27,8 @@
   --primary-foreground: #FFFFFF;
   --muted: #EDE9FE;
   --muted-foreground: #64748B;
-  --border: #EDE9FE;
+  --border: #C4B5FD;
   --radius: 0.625rem;
-
   --purple: #7C3AED;
   --purple-light: #EDE9FE;
   --amber: #F59E0B;

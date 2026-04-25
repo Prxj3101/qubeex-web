@@ -32,7 +32,7 @@ export function CursorWave() {
 
         const COLS = 48;
         const ROWS = 30;
-        const LIFT_RADIUS = 200;
+        const LIFT_RADIUS = 180;
         const MAX_LIFT = 95;
         const THRESHOLD = 2;
         const BG = '#0F0A1E';

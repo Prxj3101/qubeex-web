@@ -11,6 +11,8 @@ import { PlanUsageCard } from '@/components/admin/PlanUsageCard';
 import { RecentActivityCard } from '@/components/admin/RecentActivityCard';
 import { NotificationsPreviewCard } from '@/components/admin/NotificationsPreviewCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { WelcomeBanner } from '@/components/admin/WelcomeBanner';
+
 
 // TODO: wire to API — backend endpoint /admin/overview not confirmed ready.
 const MOCK_OVERVIEW: AdminOverview = {
@@ -99,6 +101,12 @@ export default function AdminOverviewPage() {
                 adminName={adminName}
                 institutionName={overview.institution.name}
                 institutionType={overview.institution.type}
+            />
+            <WelcomeBanner
+                adminName={adminName}
+                institutionName={overview.institution.name}
+                institutionType={overview.institution.type}
+                plan="PRO"
             />
 
             <StatCards

@@ -168,7 +168,7 @@ export function Topbar({ navItems }: TopbarProps) {
 
     return (
         <div className="flex flex-col gap-2 px-2">
-            <header className="h-17 rounded-4xl border bg-card shadow-sm flex items-center justify-between px-5">
+            <header className="h-17 rounded-4xl bg-card shadow-sm flex items-center justify-between px-5">
                 <div className="flex items-center gap-2.5">
                     <Image
                         src="/QubeEx_darkmode_DA7756.png"
@@ -191,40 +191,39 @@ export function Topbar({ navItems }: TopbarProps) {
             </header>
 
             {navItems && (
-                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit items-center">
-                    {navItems.map((item) => {
-                        const isActive =
-                            pathname === item.href || pathname.startsWith(item.href + "/");
+                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/10 w-fit items-center">                    {navItems.map((item) => {
+                    const isActive =
+                        pathname === item.href || pathname.startsWith(item.href + "/");
 
-                        const Icon = item.icon;
+                    const Icon = item.icon;
 
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                className="relative flex-1 min-w-fit"
-                            >
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="activeTab"
-                                        className="absolute inset-0 bg-primary rounded-4xl"
-                                        transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
-                                    />
+                    return (
+                        <Link
+                            key={item.href}
+                            href={item.href}
+                            className="relative flex-1 min-w-fit"
+                        >
+                            {isActive && (
+                                <motion.div
+                                    layoutId="activeTab"
+                                    className="absolute inset-0 bg-primary rounded-4xl"
+                                    transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                                />
+                            )}
+                            <div
+                                className={cn(
+                                    "relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl",
+                                    isActive
+                                        ? "text-white"
+                                        : "text-muted-foreground hover:text-foreground"
                                 )}
-                                <div
-                                    className={cn(
-                                        "relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl",
-                                        isActive
-                                            ? "text-white"
-                                            : "text-muted-foreground hover:text-foreground"
-                                    )}
-                                >
-                                    {Icon && <Icon size={15} />}
-                                    {item.label}
-                                </div>
-                            </Link>
-                        );
-                    })}
+                            >
+                                {Icon && <Icon size={15} />}
+                                {item.label}
+                            </div>
+                        </Link>
+                    );
+                })}
 
                     <div className="h-5 w-px bg-border mx-1.5" />
 

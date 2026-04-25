@@ -154,10 +154,9 @@ export default function SuperAdminOverview() {
                 {STATS.map((s) => {
                     const Icon = s.icon;
                     return (
-                        <div key={s.label} className="bg-muted/50 rounded-xl p-4 relative">
-                            <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
-                                <Icon size={15} className={s.iconColor} />
-                            </div>
+                        <div key={s.label} className="bg-white dark:bg-muted/50 rounded-xl p-4 relative shadow-sm border border-border/50">                            <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
+                            <Icon size={15} className={s.iconColor} />
+                        </div>
                             <p className="text-xs text-muted-foreground mb-2">{s.label}</p>
                             <p className="text-3xl font-semibold tracking-tight">{s.value}</p>
                             <div className="flex items-center gap-1 mt-1.5">

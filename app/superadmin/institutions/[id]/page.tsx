@@ -3,20 +3,17 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { RadialBarChart, RadialBar, PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import {
-    ArrowLeft, Landmark, LayoutGrid, RefreshCcw, SlidersHorizontal, Building2, Mail, Calendar, Phone, MapPin,
+    ArrowLeft, Landmark, LayoutGrid, SlidersHorizontal, Building2, Mail, Calendar, Phone, MapPin,
     User, Send, ToggleLeft, ToggleRight, Hash, Globe, IndianRupee,
-    BookOpen, School, GraduationCap, CreditCard, HardDrive, Sparkles, Users,
-    Tag, Zap, CheckCircle, XCircle, Clock, ShieldCheck,
-    FileText, Percent, Save, ChevronRight, Pencil, X, Check
+    BookOpen, School, GraduationCap, HardDrive, Sparkles, Users,
+    Zap, CheckCircle, XCircle, ShieldCheck, FileText, ChevronRight, Pencil, X, Check,
+    BookMarked, ClipboardList, Bell, Trophy, Upload, Play, Pause, Flag, Wallet, BarChart2, Calendar as CalendarIcon, Cpu
 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Institution } from '@/types';
 import api from '@/lib/api';
 import { toast } from 'sonner';
-
-// ─── Mock Institution ─────────────────────────────────────────────────────────
 
 const MOCK_INST: Institution & {
     phone?: string; city?: string; state?: string; address?: string;
@@ -24,63 +21,81 @@ const MOCK_INST: Institution & {
     plan?: string; joinedAt?: string; adminName?: string;
     totalStudents?: number; totalTeachers?: number;
 } = {
-    id: 's1',
-    name: 'Delhi Public School',
-    type: 'SCHOOL',
-    email: 'admin@dps.edu.in',
-    phone: '+91 98100 11223',
-    city: 'New Delhi',
-    state: 'Delhi',
-    address: 'Mathura Road, Near Siri Fort',
-    pincode: '110003',
-    country: 'India',
-    board: 'CBSE',
-    medium: 'English',
-    status: 'ACTIVE',
-    plan: 'PRO',
-    joinedAt: '2025-11-14T09:00:00Z',
-    adminName: 'Rohit Sharma',
-    totalStudents: 342,
-    totalTeachers: 28,
-    createdAt: '2025-11-14T09:00:00Z',
-    updatedAt: '2026-04-10T12:00:00Z',
+    id: 's1', name: 'Delhi Public School', type: 'SCHOOL', email: 'admin@dps.edu.in',
+    phone: '+91 98100 11223', city: 'New Delhi', state: 'Delhi',
+    address: 'Mathura Road, Near Siri Fort', pincode: '110003', country: 'India',
+    board: 'CBSE', medium: 'English', status: 'ACTIVE', plan: 'PRO',
+    joinedAt: '2025-11-14T09:00:00Z', adminName: 'Rohit Sharma',
+    totalStudents: 342, totalTeachers: 28,
+    createdAt: '2025-11-14T09:00:00Z', updatedAt: '2026-04-10T12:00:00Z',
     users: [{ id: 'u1', email: 'rohit.sharma@dps.edu.in', role: 'ADMIN', createdAt: '2025-11-14T09:30:00Z' }],
 };
 
-// ─── Features list ────────────────────────────────────────────────────────────
-
 const PRICING = {
     SCHOOL: {
-        BASIC: { licence: 39999, monthly: 20, sixMonth: 17 },
-        PRO: { licence: 69999, monthly: 25, sixMonth: 22 },
-        TRIAL: { licence: 0, monthly: 0, sixMonth: 0 },
+        BASIC: { licence: 39999, tiers: [{ min: 200, max: 999, rate: 20 }, { min: 1000, max: 1999, rate: 17 }, { min: 2000, max: Infinity, rate: 15 }] },
+        PRO: { licence: 69999, tiers: [{ min: 200, max: 999, rate: 25 }, { min: 1000, max: 1999, rate: 22 }, { min: 2000, max: Infinity, rate: 19 }] },
+        TRIAL: { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] },
     },
     COLLEGE: {
-        BASIC: { licence: 59999, monthly: 30, sixMonth: 27 },
-        PRO: { licence: 89999, monthly: 35, sixMonth: 32 },
-        TRIAL: { licence: 0, monthly: 0, sixMonth: 0 },
+        BASIC: { licence: 59999, tiers: [{ min: 200, max: 999, rate: 30 }, { min: 1000, max: 1999, rate: 27 }, { min: 2000, max: Infinity, rate: 24 }] },
+        PRO: { licence: 89999, tiers: [{ min: 200, max: 999, rate: 35 }, { min: 1000, max: 1999, rate: 32 }, { min: 2000, max: Infinity, rate: 28 }] },
+        TRIAL: { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] },
     },
     COACHING: {
-        BASIC: { licence: 39999, monthly: 20, sixMonth: 17 },
-        PRO: { licence: 69999, monthly: 25, sixMonth: 22 },
-        TRIAL: { licence: 0, monthly: 0, sixMonth: 0 },
+        BASIC: { licence: 39999, tiers: [{ min: 200, max: 999, rate: 20 }, { min: 1000, max: 1999, rate: 17 }, { min: 2000, max: Infinity, rate: 15 }] },
+        PRO: { licence: 69999, tiers: [{ min: 200, max: 999, rate: 25 }, { min: 1000, max: 1999, rate: 22 }, { min: 2000, max: Infinity, rate: 19 }] },
+        TRIAL: { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] },
     },
 };
 
-const ALL_FEATURES = [
-    { key: 'tests', label: 'Tests & Assessments', desc: 'Create and conduct tests' },
-    { key: 'question_bank', label: 'Question Bank', desc: 'Manage question repository' },
-    { key: 'attendance', label: 'Attendance Tracking', desc: 'Student attendance management' },
-    { key: 'results', label: 'Results & Analytics', desc: 'Performance reports & analytics' },
-    { key: 'fees', label: 'Fees Management', desc: 'Track fee payments' },
-    { key: 'announcements', label: 'Announcements', desc: 'Post notices & updates' },
-    { key: 'tasks', label: 'Tasks & Homework', desc: 'Assign & track tasks' },
-    { key: 'leaderboard', label: 'Leaderboard', desc: 'Student ranking system' },
-    { key: 'pdf_upload', label: 'PDF / Material Upload', desc: 'Share study materials' },
-    { key: 'flags', label: 'Flags & Warnings', desc: 'Student disciplinary tracking' },
-];
-
+function getRate(tiers: { min: number; max: number; rate: number }[], users: number) {
+    return tiers.find(t => users >= t.min && users <= t.max)?.rate ?? tiers[0].rate;
+}
 function fmt(n: number) { return `₹${n.toLocaleString('en-IN')}`; }
+
+const ALL_FEATURES: {
+    key: string; label: string; desc: string; icon: React.ElementType;
+    inBasic: boolean; inPro: boolean; addOnBasic: boolean; addOnPro: boolean;
+}[] = [
+        { key: 'student_mgmt', label: 'Student Management', desc: 'Enroll & manage students', icon: Users, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'teacher_mgmt', label: 'Teacher Management', desc: 'Add & assign teachers', icon: User, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'course_mgmt', label: 'Course Management', desc: 'Manage subjects & courses', icon: BookMarked, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'attendance', label: 'Attendance Tracking', desc: 'Student attendance management', icon: ClipboardList, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'tests', label: 'Question & Test Generation', desc: 'Create & conduct assessments', icon: FileText, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'results', label: 'Results & Marksheet', desc: 'Generate result reports', icon: BarChart2, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'calendar', label: 'Academic Calendar', desc: 'Schedule academic events', icon: CalendarIcon, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'announcements', label: 'Announcements & Feed', desc: 'Post notices & updates', icon: Bell, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'submissions', label: 'Submissions & Resource Sharing', desc: 'Homework & material sharing', icon: BookMarked, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'flags', label: 'Remarks: Flags & Warning', desc: 'Student disciplinary tracking', icon: Flag, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'fees', label: 'Fees Management', desc: 'Track fee payments', icon: Wallet, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'timetable_manual', label: 'Timetable Scheduling (Manual)', desc: 'Manual timetable management', icon: CalendarIcon, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'student_app', label: "Student's App", desc: 'Mobile app for students', icon: Upload, inBasic: true, inPro: false, addOnBasic: false, addOnPro: false },
+        { key: 'student_app_pro', label: 'Student App with Parent Portal', desc: 'Mobile app + parent access', icon: Users, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'leaderboard', label: 'Leaderboard System', desc: 'Student ranking & gamification', icon: Trophy, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: 'whitelabeling', label: 'Whitelabelling (logo+brandname)', desc: 'Custom logo & brand name', icon: ShieldCheck, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
+        // Add-ons
+        { key: 'timetable_auto', label: 'Timetable Scheduling (Auto)', desc: 'AI-powered auto scheduling', icon: Cpu, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
+        { key: 'analytics', label: 'Performance Insights & Analytics', desc: 'Advanced insights & reports', icon: BarChart2, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
+        { key: 'smart_board', label: 'Smart Board Screen with AI', desc: 'Interactive AI smart board', icon: Sparkles, inBasic: true, inPro: true, addOnBasic: true, addOnPro: true },
+    ];
+
+function getDefaultFeatures(plan: 'BASIC' | 'PRO' | 'TRIAL'): Record<string, boolean> {
+    if (plan === 'TRIAL') return {};
+    return ALL_FEATURES.reduce((acc, f) => {
+        const inPlan = plan === 'PRO' ? f.inPro : f.inBasic;
+        if (inPlan) acc[f.key] = true;
+        return acc;
+    }, {} as Record<string, boolean>);
+}
+
+function getPlanFeatures(plan: 'BASIC' | 'PRO' | 'TRIAL') {
+    if (plan === 'TRIAL') return { defaults: [], addons: [] };
+    return {
+        defaults: ALL_FEATURES.filter(f => plan === 'PRO' ? f.inPro && !f.addOnPro : f.inBasic && !f.addOnBasic),
+        addons: ALL_FEATURES.filter(f => plan === 'PRO' ? f.inPro && f.addOnPro : f.inBasic && f.addOnBasic),
+    };
+}
 
 function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
     return (
@@ -103,21 +118,13 @@ function InfoBox({ label, value, sub, highlight }: { label: string; value: strin
     );
 }
 
-
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
 const statusCfg: Record<string, { label: string; cls: string }> = {
     ACTIVE: { label: 'Active', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
     PENDING: { label: 'Pending', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
     SUSPENDED: { label: 'Suspended', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
 };
 
-function SectionCard({ title, children, editBtn }: {
-    title: React.ReactNode;
-    children: React.ReactNode;
-    editBtn?: React.ReactNode;
-}) {
+function SectionCard({ title, children, editBtn }: { title: React.ReactNode; children: React.ReactNode; editBtn?: React.ReactNode }) {
     return (
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-muted/30">
@@ -139,206 +146,119 @@ function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label:
     );
 }
 
-function EditableField({ label, value, onChange }: {
-    label: string; value: string; onChange: (v: string) => void;
-}) {
+function EditableField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
     return (
         <div className="flex items-center gap-3 py-2 border-b border-border/40 last:border-none">
             <span className="text-xs text-muted-foreground w-28 shrink-0">{label}</span>
-            <input
-                value={value}
-                onChange={e => onChange(e.target.value)}
-                className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all"
-            />
+            <input value={value} onChange={e => onChange(e.target.value)}
+                className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all" />
         </div>
     );
 }
 
-// ─── View Details Tab ─────────────────────────────────────────────────────────
-
 function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
-    inst: typeof MOCK_INST;
-    onStatusToggle: () => void;
-    onResendInvite: () => void;
+    inst: typeof MOCK_INST; onStatusToggle: () => void; onResendInvite: () => void;
 }) {
     const status = statusCfg[inst.status] ?? statusCfg['PENDING'];
     const TypeIcon = inst.type === 'SCHOOL' ? School : inst.type === 'COLLEGE' ? GraduationCap : BookOpen;
     const initials = inst.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-    const joinDate = inst.joinedAt
-        ? new Date(inst.joinedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' })
-        : '—';
+    const joinDate = inst.joinedAt ? new Date(inst.joinedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
 
     const [editingSection, setEditingSection] = useState<string | null>(null);
-
     const [instDraft, setInstDraft] = useState({ name: inst.name, email: inst.email, phone: inst.phone ?? '', board: inst.board ?? '', medium: inst.medium ?? '' });
     const [instSaved, setInstSaved] = useState({ ...instDraft });
-
     const [locDraft, setLocDraft] = useState({ address: inst.address ?? '', city: inst.city ?? '', state: inst.state ?? '', country: inst.country ?? '', pincode: inst.pincode ?? '' });
     const [locSaved, setLocSaved] = useState({ ...locDraft });
-
     const [adminDraft, setAdminDraft] = useState({ adminName: inst.adminName ?? '' });
     const [adminSaved, setAdminSaved] = useState({ ...adminDraft });
 
-    const cancelEdit = (section: string) => {
-        if (section === 'inst') setInstDraft({ ...instSaved });
-        if (section === 'loc') setLocDraft({ ...locSaved });
-        if (section === 'admin') setAdminDraft({ ...adminSaved });
+    const cancelEdit = (s: string) => {
+        if (s === 'inst') setInstDraft({ ...instSaved });
+        if (s === 'loc') setLocDraft({ ...locSaved });
+        if (s === 'admin') setAdminDraft({ ...adminSaved });
         setEditingSection(null);
     };
-    const saveEdit = (section: string) => {
-        if (section === 'inst') setInstSaved({ ...instDraft });
-        if (section === 'loc') setLocSaved({ ...locDraft });
-        if (section === 'admin') setAdminSaved({ ...adminDraft });
+    const saveEdit = (s: string) => {
+        if (s === 'inst') setInstSaved({ ...instDraft });
+        if (s === 'loc') setLocSaved({ ...locDraft });
+        if (s === 'admin') setAdminSaved({ ...adminDraft });
         setEditingSection(null);
         toast.success('Changes saved');
     };
+    const editBtns = (s: string) => editingSection === s ? (
+        <div className="flex gap-1.5">
+            <button onClick={() => cancelEdit(s)} className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground hover:opacity-80 transition-all"><X size={11} /> Cancel</button>
+            <button onClick={() => saveEdit(s)} className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg text-white hover:opacity-90 transition-all" style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}><Check size={11} /> Save</button>
+        </div>
+    ) : (
+        <button onClick={() => setEditingSection(s)} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all"><Pencil size={11} /> Edit</button>
+    );
 
     return (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
-            className="space-y-4">
-
-            {/* Profile banner */}
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
             <div className="bg-card border border-border/50 rounded-2xl p-5">
                 <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-muted text-muted-foreground ring-2 ring-border flex items-center justify-center text-xl font-bold shrink-0 select-none">
-                        {initials}
-                    </div>
+                    <div className="w-16 h-16 rounded-2xl bg-muted text-muted-foreground ring-2 ring-border flex items-center justify-center text-xl font-bold shrink-0 select-none">{initials}</div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3">
                             <div>
                                 <h2 className="text-lg font-bold leading-tight">{instSaved.name}</h2>
                                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                                        <TypeIcon size={11} />{inst.type}
-                                    </span>
-                                    <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${status.cls}`}>
-                                        {status.label}
-                                    </span>
-                                    {inst.plan && (
-                                        <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
-                                            style={{ background: inst.plan === 'PRO' ? '#DA775620' : '#7C3AED20', color: inst.plan === 'PRO' ? '#DA7756' : '#7C3AED' }}>
-                                            {inst.plan}
-                                        </span>
-                                    )}
+                                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full"><TypeIcon size={11} />{inst.type}</span>
+                                    <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${status.cls}`}>{status.label}</span>
+                                    {inst.plan && <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: inst.plan === 'PRO' ? '#DA775620' : '#7C3AED20', color: inst.plan === 'PRO' ? '#DA7756' : '#7C3AED' }}>{inst.plan}</span>}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                <button onClick={onResendInvite}
-                                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                                    <Send size={12} /> Resend Invite
-                                </button>
-                                <button onClick={onStatusToggle}
-                                    className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all
-                                        ${inst.status === 'ACTIVE'
-                                            ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950 dark:text-red-400'
-                                            : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-400'
-                                        }`}>
-                                    {inst.status === 'ACTIVE'
-                                        ? <><ToggleLeft size={13} /> Suspend</>
-                                        : <><ToggleRight size={13} /> Activate</>
-                                    }
+                                <button onClick={onResendInvite} className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all"><Send size={12} /> Resend Invite</button>
+                                <button onClick={onStatusToggle} className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all ${inst.status === 'ACTIVE' ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950 dark:text-red-400' : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-400'}`}>
+                                    {inst.status === 'ACTIVE' ? <><ToggleLeft size={13} /> Suspend</> : <><ToggleRight size={13} /> Activate</>}
                                 </button>
                             </div>
                         </div>
                         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
-                            {[
-                                { label: 'Students', value: inst.totalStudents ?? '—' },
-                                { label: 'Teachers', value: inst.totalTeachers ?? '—' },
-                                { label: 'Joined', value: joinDate },
-                            ].map(({ label, value }) => (
-                                <div key={label}>
-                                    <p className="text-lg font-bold leading-tight">{value}</p>
-                                    <p className="text-[11px] text-muted-foreground">{label}</p>
-                                </div>
+                            {[{ label: 'Students', value: inst.totalStudents ?? '—' }, { label: 'Teachers', value: inst.totalTeachers ?? '—' }, { label: 'Joined', value: joinDate }].map(({ label, value }) => (
+                                <div key={label}><p className="text-lg font-bold leading-tight">{value}</p><p className="text-[11px] text-muted-foreground">{label}</p></div>
                             ))}
                         </div>
                     </div>
                 </div>
             </div>
-
-            {/* Details grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                {/* Institution Info */}
-                <SectionCard title="Institution Info"
-                    editBtn={
-                        editingSection === 'inst'
-                            ? <div className="flex gap-1.5">
-                                <button onClick={() => cancelEdit('inst')} className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground hover:opacity-80 transition-all"><X size={11} /> Cancel</button>
-                                <button onClick={() => saveEdit('inst')}
-                                    className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg text-white hover:opacity-90 transition-all"
-                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                    <Check size={11} /> Save
-                                </button>                            </div>
-                            : <button onClick={() => setEditingSection('inst')} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all"><Pencil size={11} /> Edit</button>
-                    }>
-                    {editingSection === 'inst' ? (
-                        <>
-                            <EditableField label="Name" value={instDraft.name} onChange={v => setInstDraft(d => ({ ...d, name: v }))} />
-                            <EditableField label="Email" value={instDraft.email} onChange={v => setInstDraft(d => ({ ...d, email: v }))} />
-                            <EditableField label="Phone" value={instDraft.phone} onChange={v => setInstDraft(d => ({ ...d, phone: v }))} />
-                            <EditableField label="Board" value={instDraft.board} onChange={v => setInstDraft(d => ({ ...d, board: v }))} />
-                            <EditableField label="Medium" value={instDraft.medium} onChange={v => setInstDraft(d => ({ ...d, medium: v }))} />
-                        </>
-                    ) : (
-                        <>
-                            <InfoRow icon={Hash} label="Institute ID" value={<span className="italic text-muted-foreground/60 text-[11px]">Auto generated</span>} />
-                            <InfoRow icon={Building2} label="Name" value={instSaved.name} />
-                            <InfoRow icon={TypeIcon} label="Type" value={inst.type} />
-                            <InfoRow icon={Mail} label="Email" value={instSaved.email} />
-                            <InfoRow icon={Phone} label="Phone" value={instSaved.phone || '—'} />
-                            <InfoRow icon={BookOpen} label="Board" value={instSaved.board || '—'} />
-                            <InfoRow icon={Globe} label="Medium" value={instSaved.medium || '—'} />
-                            <InfoRow icon={Calendar} label="Joined" value={joinDate} />
-                        </>
-                    )}
+                <SectionCard title="Institution Info" editBtn={editBtns('inst')}>
+                    {editingSection === 'inst' ? (<>
+                        <EditableField label="Name" value={instDraft.name} onChange={v => setInstDraft(d => ({ ...d, name: v }))} />
+                        <EditableField label="Email" value={instDraft.email} onChange={v => setInstDraft(d => ({ ...d, email: v }))} />
+                        <EditableField label="Phone" value={instDraft.phone} onChange={v => setInstDraft(d => ({ ...d, phone: v }))} />
+                        <EditableField label="Board" value={instDraft.board} onChange={v => setInstDraft(d => ({ ...d, board: v }))} />
+                        <EditableField label="Medium" value={instDraft.medium} onChange={v => setInstDraft(d => ({ ...d, medium: v }))} />
+                    </>) : (<>
+                        <InfoRow icon={Hash} label="Institute ID" value={<span className="italic text-muted-foreground/60 text-[11px]">Auto generated</span>} />
+                        <InfoRow icon={Building2} label="Name" value={instSaved.name} />
+                        <InfoRow icon={TypeIcon} label="Type" value={inst.type} />
+                        <InfoRow icon={Mail} label="Email" value={instSaved.email} />
+                        <InfoRow icon={Phone} label="Phone" value={instSaved.phone || '—'} />
+                        <InfoRow icon={BookOpen} label="Board" value={instSaved.board || '—'} />
+                        <InfoRow icon={Globe} label="Medium" value={instSaved.medium || '—'} />
+                        <InfoRow icon={Calendar} label="Joined" value={joinDate} />
+                    </>)}
                 </SectionCard>
-
-                {/* Location */}
-                <SectionCard title="Location"
-                    editBtn={
-                        editingSection === 'loc'
-                            ? <div className="flex gap-1.5">
-                                <button onClick={() => cancelEdit('loc')} className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground hover:opacity-80 transition-all"><X size={11} /> Cancel</button>
-                                <button onClick={() => saveEdit('inst')}
-                                    className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg text-white hover:opacity-90 transition-all"
-                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                    <Check size={11} /> Save
-                                </button>                            </div>
-                            : <button onClick={() => setEditingSection('loc')} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all"><Pencil size={11} /> Edit</button>
-                    }>
-                    {editingSection === 'loc' ? (
-                        <>
-                            <EditableField label="Address" value={locDraft.address} onChange={v => setLocDraft(d => ({ ...d, address: v }))} />
-                            <EditableField label="City" value={locDraft.city} onChange={v => setLocDraft(d => ({ ...d, city: v }))} />
-                            <EditableField label="State" value={locDraft.state} onChange={v => setLocDraft(d => ({ ...d, state: v }))} />
-                            <EditableField label="Country" value={locDraft.country} onChange={v => setLocDraft(d => ({ ...d, country: v }))} />
-                            <EditableField label="Pincode" value={locDraft.pincode} onChange={v => setLocDraft(d => ({ ...d, pincode: v }))} />
-                        </>
-                    ) : (
-                        <>
-                            <InfoRow icon={MapPin} label="Address" value={locSaved.address || '—'} />
-                            <InfoRow icon={MapPin} label="City" value={locSaved.city || '—'} />
-                            <InfoRow icon={MapPin} label="State" value={locSaved.state || '—'} />
-                            <InfoRow icon={Globe} label="Country" value={locSaved.country || '—'} />
-                            <InfoRow icon={Hash} label="Pincode" value={locSaved.pincode || '—'} />
-                        </>
-                    )}
+                <SectionCard title="Location" editBtn={editBtns('loc')}>
+                    {editingSection === 'loc' ? (<>
+                        <EditableField label="Address" value={locDraft.address} onChange={v => setLocDraft(d => ({ ...d, address: v }))} />
+                        <EditableField label="City" value={locDraft.city} onChange={v => setLocDraft(d => ({ ...d, city: v }))} />
+                        <EditableField label="State" value={locDraft.state} onChange={v => setLocDraft(d => ({ ...d, state: v }))} />
+                        <EditableField label="Country" value={locDraft.country} onChange={v => setLocDraft(d => ({ ...d, country: v }))} />
+                        <EditableField label="Pincode" value={locDraft.pincode} onChange={v => setLocDraft(d => ({ ...d, pincode: v }))} />
+                    </>) : (<>
+                        <InfoRow icon={MapPin} label="Address" value={locSaved.address || '—'} />
+                        <InfoRow icon={MapPin} label="City" value={locSaved.city || '—'} />
+                        <InfoRow icon={MapPin} label="State" value={locSaved.state || '—'} />
+                        <InfoRow icon={Globe} label="Country" value={locSaved.country || '—'} />
+                        <InfoRow icon={Hash} label="Pincode" value={locSaved.pincode || '—'} />
+                    </>)}
                 </SectionCard>
-
-                {/* Admin Info */}
-                <SectionCard title="Admin Info"
-                    editBtn={
-                        editingSection === 'admin'
-                            ? <div className="flex gap-1.5">
-                                <button onClick={() => cancelEdit('admin')} className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground hover:opacity-80 transition-all"><X size={11} /> Cancel</button>
-                                <button onClick={() => saveEdit('inst')}
-                                    className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg text-white hover:opacity-90 transition-all"
-                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                    <Check size={11} /> Save
-                                </button>                            </div>
-                            : <button onClick={() => setEditingSection('admin')} className="flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all"><Pencil size={11} /> Edit</button>
-                    }>
+                <SectionCard title="Admin Info" editBtn={editBtns('admin')}>
                     {inst.users && inst.users.length > 0 ? inst.users.map(user => (
                         <div key={user.id}>
                             {editingSection === 'admin'
@@ -349,12 +269,8 @@ function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
                             <InfoRow icon={ShieldCheck} label="Role" value={user.role} />
                             <InfoRow icon={Calendar} label="Invite Sent" value={new Date(user.createdAt).toLocaleDateString('en-IN')} />
                         </div>
-                    )) : (
-                        <p className="text-sm text-muted-foreground">No admin assigned yet</p>
-                    )}
+                    )) : <p className="text-sm text-muted-foreground">No admin assigned yet</p>}
                 </SectionCard>
-
-                {/* Platform Stats — read only */}
                 <SectionCard title="Platform Stats">
                     <InfoRow icon={Users} label="Total Students" value={inst.totalStudents ?? '—'} />
                     <InfoRow icon={User} label="Total Teachers" value={inst.totalTeachers ?? '—'} />
@@ -366,7 +282,6 @@ function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
         </motion.div>
     );
 }
-// ─── Manage Plan Tab ──────────────────────────────────────────────────────────
 
 function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
     const instType = (inst.type as keyof typeof PRICING) in PRICING ? inst.type as keyof typeof PRICING : 'SCHOOL';
@@ -374,40 +289,38 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
 
     const [planActive, setPlanActive] = useState(false);
     const [plan, setPlan] = useState<'BASIC' | 'PRO' | 'TRIAL'>((inst.plan as any) ?? 'BASIC');
-    const [billing, setBilling] = useState<'MONTHLY' | 'SIX_MONTH'>('MONTHLY');
-    const [predefinedUsers, setPredefinedUsers] = useState(200);
-    const [predefinedInput, setPredefinedInput] = useState('200');
     const [discount, setDiscount] = useState(0);
     const [showDiscount, setShowDiscount] = useState(false);
     const [discountInput, setDiscountInput] = useState('0');
     const [licencePaid, setLicencePaid] = useState(false);
-    const [upfrontPaid, setUpfrontPaid] = useState(false);
     const [activating, setActivating] = useState(false);
-    const [features, setFeatures] = useState<Record<string, boolean>>({
-        tests: true, question_bank: true, attendance: true, results: true,
-        fees: false, announcements: true, tasks: true, leaderboard: true,
-        pdf_upload: true, flags: false,
-    });
+    const [features, setFeatures] = useState<Record<string, boolean>>(getDefaultFeatures('BASIC'));
+
+    // Add-on states
+    const [storageAddGb, setStorageAddGb] = useState(0);
+    const [storageAddInput, setStorageAddInput] = useState('0');
+    const [storagePricePerGb, setStoragePricePerGb] = useState<number | ''>('');
+    const [storageAdded, setStorageAdded] = useState(false);
+    const [tokenAddK, setTokenAddK] = useState(0);
+    const [tokenAddInput, setTokenAddInput] = useState('0');
+    const [tokenPricePer10k, setTokenPricePer10k] = useState<number | ''>('');
+    const [tokenAdded, setTokenAdded] = useState(false);
+    const [planPaused, setPlanPaused] = useState(false);
+    const [confirmDialog, setConfirmDialog] = useState<'deactivate' | 'pause' | 'resume' | null>(null);
+
+    useEffect(() => { setFeatures(getDefaultFeatures(plan)); }, [plan]);
 
     const activeUsers = (inst.totalStudents ?? 0) + (inst.totalTeachers ?? 0) + 1;
     const planPricing = pricing[plan] ?? pricing.BASIC;
+    const currentRate = getRate(planPricing.tiers, activeUsers);
     const licenceCost = planPricing.licence;
     const discountAmt = Math.round(licenceCost * (discount / 100));
     const finalLicence = licenceCost - discountAmt;
-    const monthlyBill = activeUsers * planPricing.monthly;
-    const sixMonthBill = predefinedUsers * planPricing.sixMonth * 6;
-    const extraUsers = Math.max(0, activeUsers - predefinedUsers);
-    const extraAddon = extraUsers * planPricing.monthly;
-
+    const monthlyBill = activeUsers * currentRate;
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
-    const nextSix = new Date(today.getFullYear(), today.getMonth() + 6, today.getDate());
+    const canActivate = plan === 'TRIAL' || licencePaid;
 
-    const canActivate = !!plan && (
-        plan === 'TRIAL' || (
-            licencePaid && (billing === 'MONTHLY' || upfrontPaid)
-        )
-    );
     const handleActivate = async () => {
         setActivating(true);
         await new Promise(r => setTimeout(r, 1000));
@@ -421,11 +334,13 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
             key: 'BASIC' as const, label: 'Basic',
             activeColor: 'text-primary', dot: 'bg-primary', border: 'border-primary bg-primary/5',
             features: [
-                { icon: IndianRupee, label: `₹${pricing.BASIC.monthly}/user/mo` },
+                { icon: IndianRupee, label: `₹${pricing.BASIC.tiers[0].rate}/user/mo (200–999 users)` },
+                { icon: IndianRupee, label: `₹${pricing.BASIC.tiers[1].rate}/user/mo (1000–1999 users)` },
+                { icon: IndianRupee, label: `₹${pricing.BASIC.tiers[2].rate}/user/mo (2000+ users)` },
                 { icon: Users, label: 'Min. 200 users' },
-                { icon: HardDrive, label: '5GB Storage' },
-                { icon: Sparkles, label: '100k AI Tokens/mo' },
-                { icon: LayoutGrid, label: '5 Default Features' },
+                { icon: Sparkles, label: '10M AI Tokens/month' },
+                { icon: HardDrive, label: '500GB Storage' },
+                { icon: Sparkles, label: '13 Default Features' },
                 { icon: XCircle, label: 'No Whitelabeling' },
             ],
         },
@@ -433,11 +348,13 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
             key: 'PRO' as const, label: 'Pro',
             activeColor: 'text-[#DA7756]', dot: 'bg-[#DA7756]', border: 'border-[#DA7756] bg-[#DA7756]/5',
             features: [
-                { icon: IndianRupee, label: `₹${pricing.PRO.monthly}/user/mo` },
+                { icon: IndianRupee, label: `₹${pricing.PRO.tiers[0].rate}/user/mo (200–999 users)` },
+                { icon: IndianRupee, label: `₹${pricing.PRO.tiers[1].rate}/user/mo (1000–1999 users)` },
+                { icon: IndianRupee, label: `₹${pricing.PRO.tiers[2].rate}/user/mo (2000+ users)` },
                 { icon: Users, label: 'Min. 200 users' },
-                { icon: HardDrive, label: '10GB Storage' },
-                { icon: Sparkles, label: '200k AI Tokens/mo' },
-                { icon: LayoutGrid, label: '7 Default Features' },
+                { icon: Sparkles, label: '10M AI Tokens/month' },
+                { icon: HardDrive, label: '1TB Storage' },
+                { icon: Sparkles, label: '16 Default Features' },
                 { icon: CheckCircle, label: 'Whitelabeling' },
             ],
         },
@@ -450,20 +367,25 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
 
     // ── ACTIVE VIEW ──
     if (planActive) {
+        const activationDate = new Date('2025-11-14');
+        const expiryDate = new Date(activationDate);
+        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+        const today2 = new Date();
+        const isExpired = (date: Date) => today2 > date;
+        const daysLeft = (date: Date) => Math.max(0, Math.ceil((date.getTime() - today2.getTime()) / (1000 * 60 * 60 * 24)));
+
         const paymentHistory = [
             { date: '14 Apr 2026', amount: licenceCost, type: 'One-time Licence', status: 'PAID' },
             { date: '01 Apr 2026', amount: monthlyBill, type: 'Monthly Bill', status: 'PAID' },
             { date: '01 Mar 2026', amount: monthlyBill, type: 'Monthly Bill', status: 'PAID' },
         ];
+
         const CustomTooltip = ({ active, payload }: any) => {
             if (!active || !payload?.length) return null;
             const { name, value } = payload[0];
-            const colorMap: Record<string, string> = {
-                Admin: '#7C3AED', Teachers: '#F59E0B', Students: '#10B981',
-            };
+            const colorMap: Record<string, string> = { Admin: '#7C3AED', Teachers: '#F59E0B', Students: '#10B981' };
             return (
-                <div className="px-3 py-2 rounded-xl shadow-xl"
-                    style={{ background: '#1A1030', border: '1px solid #2D1F50' }}>
+                <div className="px-3 py-2 rounded-xl shadow-xl" style={{ background: '#1A1030', border: '1px solid #2D1F50' }}>
                     <div className="flex items-center gap-2">
                         <div className="w-2 h-2 rounded-full" style={{ background: colorMap[name] }} />
                         <span style={{ color: '#F1F5F9', fontSize: 12, fontWeight: 600 }}>{name}</span>
@@ -473,9 +395,30 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
             );
         };
 
+        const tierBreakdown = planPricing.tiers.map(tier => ({
+            ...tier,
+            label: tier.max === Infinity ? `${tier.min}+ users` : `${tier.min}–${tier.max} users`,
+            isActive: activeUsers >= tier.min && activeUsers <= tier.max,
+        }));
+
+        const storageBase = plan === 'PRO' ? 1024 : 500;
+        const storageUsed = 312;
+        const storageUsedPct = Math.min(100, Math.round((storageUsed / storageBase) * 100));
+        const storagePriceNum = typeof storagePricePerGb === 'number' ? storagePricePerGb : 0;
+        const storageAddTotal = storageAddGb * storagePriceNum;
+
+        const tokenBase = 10000000;
+        const tokenUsed = plan === 'PRO' ? 180000 : 44000;
+        const tokenUsedPct = Math.min(100, Math.round((tokenUsed / tokenBase) * 100));
+        const tokenPriceNum = typeof tokenPricePer10k === 'number' ? tokenPricePer10k : 0;
+        const tokenAddTotal = tokenAddK * tokenPriceNum;
+
+
+        const addonBill = (storageAdded ? storageAddTotal : 0) + (tokenAdded ? tokenAddTotal : 0);
+        const { defaults: defFeatures, addons: addonFeatures } = getPlanFeatures(plan);
+
         return (
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
-                className="space-y-4">
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
 
                 {/* Active Banner */}
                 <div className="bg-card border border-border/50 rounded-2xl p-5">
@@ -486,41 +429,40 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                 <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Plan Active</span>
                             </div>
                             <h2 className="text-2xl font-black" style={{ color: plan === 'PRO' ? '#DA7756' : '#7C3AED' }}>{plan}</h2>
-                            <p className="text-sm text-muted-foreground mt-0.5">
-                                {instType} · {billing === 'MONTHLY' ? 'Monthly Billing' : '6 Month Billing'}
-                            </p>
+                            <p className="text-sm text-muted-foreground mt-0.5">{instType} · Monthly Billing · {fmt(currentRate)}/user</p>
+                            {planPaused && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/50 px-2 py-0.5 rounded-full mt-1">
+                                    <Pause size={10} /> Operations Paused
+                                </span>
+                            )}
                         </div>
-                        <button onClick={() => { setPlanActive(false); toast.success('Plan deactivated'); }}
-                            className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 text-xs font-semibold hover:opacity-80 transition-all">
-                            <XCircle size={13} /> Deactivate
-                        </button>
+                        <div className="flex items-center gap-2 shrink-0">
+                            {/* Pause / Resume */}
+                            <button
+                                onClick={() => setConfirmDialog(planPaused ? 'resume' : 'pause')}
+                                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all ${planPaused
+                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                                    }`}>
+                                {planPaused ? <><Play size={13} /> Resume</> : <><Pause size={13} /> Pause</>}
+                            </button>
+                            {/* Deactivate */}
+                            <button
+                                onClick={() => setConfirmDialog('deactivate')}
+                                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 text-xs font-semibold hover:opacity-80 transition-all">
+                                <XCircle size={13} /> Deactivate
+                            </button>
+                        </div>
                     </div>
                     <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/50">
-
-                        {/* Left — Donut with center total */}
                         <div className="relative w-[90px] h-[90px] shrink-0" style={{ overflow: 'visible' }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
-                                    <Pie
-                                        data={[
-                                            { name: 'Admin', value: 1 },
-                                            { name: 'Teachers', value: inst.totalTeachers ?? 0 },
-                                            { name: 'Students', value: inst.totalStudents ?? 0 },
-                                        ]}
-                                        cx="50%" cy="50%"
-                                        innerRadius={28} outerRadius={42}
-                                        dataKey="value"
-                                        strokeWidth={2} stroke="hsl(var(--card))"
-                                        paddingAngle={3} minAngle={8}
-                                    >
-                                        <Cell fill="#7C3AED" />
-                                        <Cell fill="#F59E0B" />
-                                        <Cell fill="#10B981" />
+                                    <Pie data={[{ name: 'Admin', value: 1 }, { name: 'Teachers', value: inst.totalTeachers ?? 0 }, { name: 'Students', value: inst.totalStudents ?? 0 }]}
+                                        cx="50%" cy="50%" innerRadius={28} outerRadius={42} dataKey="value" strokeWidth={2} stroke="hsl(var(--card))" paddingAngle={3} minAngle={8}>
+                                        <Cell fill="#7C3AED" /><Cell fill="#F59E0B" /><Cell fill="#10B981" />
                                     </Pie>
-                                    <Tooltip
-                                        content={<CustomTooltip />}
-                                        position={{ x: 95, y: 0 }}
-                                    />
+                                    <Tooltip content={<CustomTooltip />} position={{ x: 95, y: 0 }} />
                                 </PieChart>
                             </ResponsiveContainer>
                             <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
@@ -528,8 +470,6 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                 <p className="text-[9px] text-muted-foreground mt-0.5">Total</p>
                             </div>
                         </div>
-
-                        {/* Labels */}
                         <div className="space-y-2 shrink-0">
                             {[
                                 { label: 'Admin', value: 1, color: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500' },
@@ -538,10 +478,7 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                             ].map(({ label, value, color, dot }) => (
                                 <div key={label} className="flex items-center gap-2">
                                     <div className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
-                                    <div>
-                                        <p className={`text-sm font-black leading-none ${color}`}>{value}</p>
-                                        <p className="text-[10px] text-muted-foreground">{label}</p>
-                                    </div>
+                                    <div><p className={`text-sm font-black leading-none ${color}`}>{value}</p><p className="text-[10px] text-muted-foreground">{label}</p></div>
                                 </div>
                             ))}
                         </div>
@@ -550,44 +487,157 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
 
                 {/* Billing Summary */}
                 <SectionCard title="Billing Summary">
-                    {billing === 'MONTHLY' ? (
-                        <div className="space-y-3">
-                            <div className="grid grid-cols-3 gap-3">
-                                <InfoBox label="Active Users" value={String(activeUsers)} sub="billed this month" />
-                                <InfoBox label="Rate" value={fmt(planPricing.monthly)} sub="per user / month" />
-                                <InfoBox label="Next Bill" value={fmt(monthlyBill)} sub={nextMonth.toLocaleDateString('en-IN')} highlight />
+                    <div className="space-y-3">
+                        <div className="grid grid-cols-3 gap-3">
+                            <InfoBox label="Active Users" value={String(activeUsers)} sub="billed this month" />
+                            <InfoBox label="Current Rate" value={fmt(currentRate)} sub="per user / month" />
+                            <InfoBox label="Next Bill" value={fmt(monthlyBill + addonBill)} sub={nextMonth.toLocaleDateString('en-IN')} highlight />
+                        </div>
+                        <div className="rounded-xl border border-border/50 overflow-hidden">
+                            <div className="px-3 py-2 bg-muted/30 border-b border-border/40">
+                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Pricing Tiers</p>
                             </div>
-                            <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl border border-violet-200/50 dark:border-violet-900/50">
-                                <p className="text-[11px] text-violet-600 dark:text-violet-400">
-                                    💡 Bill calculated on active users at end of each month. Estimate: {fmt(monthlyBill)}
-                                </p>
+                            <div className="divide-y divide-border/30">
+                                {tierBreakdown.map((tier, i) => (
+                                    <div key={i} className={`flex items-center justify-between px-3 py-2 ${tier.isActive ? 'bg-[#DA7756]/5' : ''}`}>
+                                        <div className="flex items-center gap-2">
+                                            {tier.isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#DA7756]" />}
+                                            <span className={`text-xs ${tier.isActive ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>{tier.label}</span>
+                                            {tier.isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#DA7756]/15 text-[#DA7756] font-semibold">Current</span>}
+                                        </div>
+                                        <span className={`text-xs font-bold ${tier.isActive ? 'text-[#DA7756]' : 'text-muted-foreground'}`}>{fmt(tier.rate)}/user</span>
+                                    </div>
+                                ))}
                             </div>
                         </div>
-                    ) : (
+                        <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl border border-violet-200/50 dark:border-violet-900/50">
+                            <p className="text-[11px] text-violet-600 dark:text-violet-400">
+                                💡 Bill calculated on active users at end of each month. More users = better rate automatically.
+                            </p>
+                        </div>
+                    </div>
+                </SectionCard>
+
+                {/* Add-Ons */}
+                <SectionCard title={
+                    <span className="flex items-center gap-2">
+                        <Sparkles size={15} />
+                        Add-Ons
+                        {addonBill > 0 && <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">+{fmt(addonBill)} this month</span>}
+                    </span>
+                }>
+                    <div className="space-y-5">
+
+                        {/* Storage */}
                         <div className="space-y-3">
-                            <div className="grid grid-cols-3 gap-3">
-                                <InfoBox label="Committed Users" value={String(predefinedUsers)} sub="for 6 months" />
-                                <InfoBox label="Upfront Paid" value={fmt(sixMonthBill)} sub="already paid" />
-                                <InfoBox label="Next Renewal" value={nextSix.toLocaleDateString('en-IN')} sub="6 month cycle" />
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <HardDrive size={14} className="text-muted-foreground" />
+                                    <p className="text-xs font-semibold">Storage</p>
+                                </div>
+                                <span className="text-xs text-muted-foreground">{storageUsed}GB / {storageBase}GB used</span>
                             </div>
-                            {extraUsers > 0 ? (
-                                <div className="p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200/50 dark:border-amber-900/50 space-y-2">
-                                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">⚡ Add-on: {extraUsers} extra user{extraUsers > 1 ? 's' : ''}</p>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        <InfoBox label="Extra Users" value={String(extraUsers)} sub="beyond committed" />
-                                        <InfoBox label="Rate" value={fmt(planPricing.monthly)} sub="per user / month" />
-                                        <InfoBox label="Add-on / Month" value={fmt(extraAddon)} highlight />
+                            <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${storageUsedPct}%`, background: storageUsedPct > 85 ? '#ef4444' : storageUsedPct > 70 ? '#f59e0b' : '#7C3AED' }} />
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                <span>{storageUsedPct}% used</span>
+                                <span>{storageBase - storageUsed}GB remaining</span>
+                            </div>
+                            <div className="bg-muted/40 rounded-xl p-4 space-y-3">
+                                <p className="text-xs font-semibold">Add Storage</p>
+                                <div className="flex items-center gap-3">
+                                    <input type="range" min={0} max={500} step={10} value={storageAddGb}
+                                        onChange={e => { setStorageAddGb(Number(e.target.value)); setStorageAddInput(e.target.value); }}
+                                        className="flex-1 accent-[#7C3AED] h-1.5 cursor-pointer" />
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <input type="number" min={0} max={500} value={storageAddInput}
+                                            onChange={e => { setStorageAddInput(e.target.value); setStorageAddGb(Math.max(0, Number(e.target.value) || 0)); }}
+                                            className="w-16 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-primary" />
+                                        <span className="text-xs text-muted-foreground">GB</span>
                                     </div>
                                 </div>
-                            ) : (
-                                <div className="p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-xl border border-emerald-200/50 dark:border-emerald-900/50">
-                                    <p className="text-[11px] text-emerald-600 dark:text-emerald-400">
-                                        ✅ Active users ({activeUsers}) within committed count ({predefinedUsers}). No add-on charges.
-                                    </p>
+                                {/* Manual rate input */}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground shrink-0">Rate ₹</span>
+                                    <input type="number" min={0} value={storagePricePerGb}
+                                        onChange={e => setStoragePricePerGb(e.target.value === '' ? '' : Number(e.target.value))}
+                                        placeholder="Enter rate"
+                                        className="w-28 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-primary" />
+                                    <span className="text-xs text-muted-foreground">/ GB</span>
                                 </div>
-                            )}
+                                <div className="grid grid-cols-3 gap-2">
+                                    <InfoBox label="Add" value={`${storageAddGb} GB`} sub="one-time" />
+                                    <InfoBox label="Rate" value={storagePricePerGb !== '' ? `₹${storagePricePerGb}/GB` : '—'} sub="per GB" />
+                                    <InfoBox label="This Month" value={storagePricePerGb !== '' ? fmt(storageAddTotal) : '—'} highlight />
+                                </div>
+                                <button
+                                    disabled={storageAddGb === 0 || storagePricePerGb === '' || storageAdded}
+                                    onClick={() => { setStorageAdded(true); toast.success(`${storageAddGb}GB storage added — added to this month's bill`); }}
+                                    className="w-full h-9 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                    {storageAdded ? '✅ Storage Added to Bill' : "Add Storage to This Month's Bill"}
+                                </button>
+                            </div>
                         </div>
-                    )}
+
+                        <div className="h-px bg-border/50" />
+
+                        {/* AI Tokens */}
+                        <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                    <Zap size={14} className="text-muted-foreground" />
+                                    <p className="text-xs font-semibold">AI Tokens</p>
+                                    <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">Monthly limit</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">{(tokenUsed / 1000000).toFixed(1)}M / {(tokenBase / 1000000).toFixed(0)}M used</span>                            </div>
+                            <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full rounded-full transition-all duration-500"
+                                    style={{ width: `${tokenUsedPct}%`, background: tokenUsedPct > 85 ? '#ef4444' : tokenUsedPct > 70 ? '#f59e0b' : '#DA7756' }} />
+                            </div>
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                                <span>{tokenUsedPct}% used this month</span>
+                                <span>{((tokenBase - tokenUsed) / 1000000).toFixed(1)}M remaining</span>
+                            </div>
+                            <div className="bg-muted/40 rounded-xl p-4 space-y-3">
+                                <p className="text-xs font-semibold">Add AI Tokens</p>
+                                <div className="flex items-center gap-3">
+                                    <input type="range" min={0} max={100} step={1} value={tokenAddK}
+                                        onChange={e => { setTokenAddK(Number(e.target.value)); setTokenAddInput(e.target.value); }}
+                                        className="flex-1 accent-[#DA7756] h-1.5 cursor-pointer" />
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <input type="number" min={0} max={100} value={tokenAddInput}
+                                            onChange={e => { setTokenAddInput(e.target.value); setTokenAddK(Math.max(0, Number(e.target.value) || 0)); }}
+                                            className="w-16 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-primary" />
+                                        <span className="text-xs text-muted-foreground">×1M</span>
+                                    </div>
+                                </div>
+                                {/* Manual rate input */}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-muted-foreground shrink-0">Rate ₹</span>
+                                    <input type="number" min={0} value={tokenPricePer10k}
+                                        onChange={e => setTokenPricePer10k(e.target.value === '' ? '' : Number(e.target.value))}
+                                        placeholder="Enter rate"
+                                        className="w-28 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-primary" />
+                                    <span className="text-xs text-muted-foreground">/ 1M tokens</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <InfoBox label="Add" value={`${tokenAddK}M tokens`} sub="this month" />
+                                    <InfoBox label="Rate" value={tokenPricePer10k !== '' ? `₹${tokenPricePer10k}/1M` : '—'} sub="per 1M tokens" />
+                                    <InfoBox label="This Month" value={tokenPricePer10k !== '' ? fmt(tokenAddTotal) : '—'} highlight />
+                                </div>
+                                <button
+                                    disabled={tokenAddK === 0 || tokenPricePer10k === '' || tokenAdded}
+                                    onClick={() => { setTokenAdded(true); toast.success(`${tokenAddK * 10}k tokens added — added to this month's bill`); }}
+                                    className="w-full h-9 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                    {tokenAdded ? '✅ Tokens Added to Bill' : "Add Tokens to This Month's Bill"}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </SectionCard>
 
                 {/* Payment History */}
@@ -595,10 +645,7 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                     <div className="divide-y divide-border/40">
                         {paymentHistory.map((p, i) => (
                             <div key={i} className="flex items-center justify-between py-3">
-                                <div>
-                                    <p className="text-xs font-semibold">{p.type}</p>
-                                    <p className="text-[11px] text-muted-foreground">{p.date}</p>
-                                </div>
+                                <div><p className="text-xs font-semibold">{p.type}</p><p className="text-[11px] text-muted-foreground">{p.date}</p></div>
                                 <div className="flex items-center gap-3">
                                     <p className="text-sm font-bold">{fmt(p.amount)}</p>
                                     <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">{p.status}</span>
@@ -608,30 +655,127 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                     </div>
                 </SectionCard>
 
-                {/* Feature Controls */}
+                {/* Feature Controls — active view with expiry */}
                 <SectionCard title="Feature Controls">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {ALL_FEATURES.map(({ key, label, desc }) => (
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Default Features</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-5">
+                        {defFeatures.map(({ key, label, desc, icon: Icon }) => (
                             <div key={key} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? 'border-[#DA7756]/30 bg-[#DA7756]/5' : 'border-border/50 bg-muted/20'}`}>
-                                <div className="min-w-0 mr-3">
-                                    <p className="text-xs font-medium truncate">{label}</p>
-                                    <p className="text-[11px] text-muted-foreground">{desc}</p>
+                                <div className="flex items-center gap-2 min-w-0 mr-3">
+                                    <Icon size={13} className="text-muted-foreground shrink-0" />
+                                    <div className="min-w-0">
+                                        <p className="text-xs font-medium truncate">{label}</p>
+                                        <p className="text-[11px] text-muted-foreground">{desc}</p>
+                                    </div>
                                 </div>
-                                <Toggle on={features[key]} onToggle={() => setFeatures(p => ({ ...p, [key]: !p[key] }))} />
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">Default</span>
+                                    <Toggle on={features[key] ?? true} onToggle={() => setFeatures(p => ({ ...p, [key]: !p[key] }))} />
+                                </div>
                             </div>
                         ))}
                     </div>
+                    {addonFeatures.length > 0 && (
+                        <>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                                Add-On Features
+                                <span className="text-[10px] text-amber-600 dark:text-amber-400 normal-case font-normal ml-2">Year 1 free · Year 2+ billed monthly if enabled</span>
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                {addonFeatures.map(({ key, label, desc, icon: Icon }) => {
+                                    const expired = isExpired(expiryDate);
+                                    const enabled = features[key] ?? false;
+                                    const days = daysLeft(expiryDate);
+                                    return (
+                                        <div key={key} className={`flex items-start justify-between p-3 rounded-xl border transition-all ${expired && !enabled ? 'border-red-200/50 bg-red-50/30 dark:bg-red-950/10 opacity-70' : enabled ? 'border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/20' : 'border-border/50 bg-muted/20'}`}>
+                                            <div className="flex items-start gap-2 min-w-0 mr-3">
+                                                <Icon size={13} className="text-muted-foreground shrink-0 mt-0.5" />
+                                                <div className="min-w-0">
+                                                    <p className="text-xs font-medium truncate">{label}</p>
+                                                    <p className="text-[11px] text-muted-foreground">{desc}</p>
+                                                    {expired
+                                                        ? <p className="text-[10px] text-red-500 font-semibold mt-0.5">⚠ Expired — enabling will add to monthly bill</p>
+                                                        : <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">{days}d free remaining</p>
+                                                    }
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2 shrink-0">
+                                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">Add-On</span>
+                                                <Toggle on={enabled} onToggle={() => {
+                                                    const newVal = !enabled;
+                                                    setFeatures(p => ({ ...p, [key]: newVal }));
+                                                    if (newVal && expired) toast.success(`${label} enabled — will be added to this month's bill`);
+                                                }} />
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </>
+                    )}
                 </SectionCard>
+                {/* Confirm Dialog */}
+                {confirmDialog && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            <h3 className="text-base font-bold mb-2">
+                                {confirmDialog === 'deactivate' ? '⚠️ Deactivate Plan?' :
+                                    confirmDialog === 'pause' ? '⏸ Pause Operations?' : '▶️ Resume Operations?'}
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-5">
+                                {confirmDialog === 'deactivate'
+                                    ? 'This will permanently deactivate the plan. Institution will lose access immediately.'
+                                    : confirmDialog === 'pause'
+                                        ? 'Institution access will be temporarily suspended. All data will be preserved. You can resume anytime.'
+                                        : 'Institution access will be restored immediately.'
+                                }
+                            </p>
+                            <div className="flex gap-2 justify-end">
+                                <button
+                                    onClick={() => setConfirmDialog(null)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => {
+                                        if (confirmDialog === 'deactivate') {
+                                            setPlanActive(false);
+                                            toast.success('Plan deactivated');
+                                        } else if (confirmDialog === 'pause') {
+                                            setPlanPaused(true);
+                                            toast.success('Operations paused');
+                                        } else {
+                                            setPlanPaused(false);
+                                            toast.success('Operations resumed');
+                                        }
+                                        setConfirmDialog(null);
+                                    }}
+                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                                    style={{
+                                        background: confirmDialog === 'deactivate'
+                                            ? '#ef4444'
+                                            : confirmDialog === 'pause'
+                                                ? '#f59e0b'
+                                                : '#10b981'
+                                    }}>
+                                    {confirmDialog === 'deactivate' ? 'Yes, Deactivate' :
+                                        confirmDialog === 'pause' ? 'Yes, Pause' : 'Yes, Resume'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
             </motion.div>
         );
     }
 
     // ── SETUP VIEW ──
     return (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
-            className="space-y-4">
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
 
-            {/* Pending Banner */}
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
                 <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
                 <div>
@@ -640,13 +784,7 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                 </div>
             </div>
 
-            {/* Step 1 — Plan */}
-            <SectionCard title={
-                <span className="flex items-center gap-2">
-                    <LayoutGrid size={15} className="text-muted-foreground/100" />
-                    Select Plan
-                </span>
-            }>
+            <SectionCard title={<span className="flex items-center gap-2"><LayoutGrid size={15} />Select Plan</span>}>
                 <div className="grid grid-cols-3 gap-3">
                     {PLAN_OPTS.map(p => {
                         const isActive = plan === p.key;
@@ -654,29 +792,21 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                         return (
                             <button key={p.key} onClick={() => setPlan(p.key)}
                                 className={`flex flex-col gap-2 p-4 rounded-xl border-2 text-left transition-all ${isActive ? p.border : 'border-border/50 bg-muted/30 hover:border-border'}`}>
-
-                                {/* Header */}
                                 <div className="flex items-center justify-between w-full">
                                     <p className={`text-sm font-bold ${isActive ? p.activeColor : 'text-foreground'}`}>{p.label}</p>
                                     <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${isActive ? 'border-current' : 'border-muted-foreground/40'}`}>
                                         {isActive && <div className={`w-2 h-2 rounded-full ${p.dot}`} />}
                                     </div>
                                 </div>
-
-                                {/* Price */}
-                                {price ? (
-                                    <p className="text-xs font-bold">{fmt(price.licence)} <span className="font-normal text-muted-foreground">one-time</span></p>
-                                ) : (
-                                    <p className="text-xs text-muted-foreground">Free — no charge</p>
-                                )}
-
-                                {/* Features */}
+                                {price
+                                    ? <p className="text-xs font-bold">{fmt(price.licence)} <span className="font-normal text-muted-foreground">one-time</span></p>
+                                    : <p className="text-xs text-muted-foreground">Free — no charge</p>
+                                }
                                 {p.features.length > 0 && (
                                     <div className="space-y-1.5 mt-1 pt-2 border-t border-border/40 w-full">
                                         {p.features.map(({ icon: Icon, label }) => (
                                             <div key={label} className="flex items-center gap-1.5">
-                                                <Icon size={11} className={`shrink-0 ${label.startsWith('No') ? 'text-muted-foreground/50' : isActive ? 'text-current' : 'text-muted-foreground'
-                                                    }`} />
+                                                <Icon size={11} className={`shrink-0 ${label.startsWith('No') ? 'text-muted-foreground/50' : isActive ? 'text-current' : 'text-muted-foreground'}`} />
                                                 <span className={`text-[11px] ${label.startsWith('No') ? 'text-muted-foreground/50' : ''}`}>{label}</span>
                                             </div>
                                         ))}
@@ -688,93 +818,48 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                 </div>
             </SectionCard>
 
-            {/* Step 2 — Billing (not trial) */}
             {plan !== 'TRIAL' && (
-                <SectionCard title={
-                    <span className="flex items-center gap-2">
-                        <RefreshCcw size={15} className="text-muted-foreground/100" />
-                        Billing Cycle
-                    </span>
-                }>                    <div className="grid grid-cols-2 gap-3 mb-4">
-                        {[
-                            { key: 'MONTHLY' as const, label: 'Monthly', sub: 'Billed end of each month · Flexible user count', rate: planPricing.monthly },
-                            { key: 'SIX_MONTH' as const, label: '6 Months', sub: 'Predefined user count · Paid upfront', rate: planPricing.sixMonth },
-                        ].map(b => (
-                            <button key={b.key} onClick={() => setBilling(b.key)}
-                                className={`flex flex-col gap-1 p-4 rounded-xl border-2 text-left transition-all ${billing === b.key ? 'border-primary bg-primary/5' : 'border-border/50 hover:border-border'}`}>
-                                <div className="flex items-center justify-between">
-                                    <p className={`text-sm font-bold ${billing === b.key ? 'text-primary' : 'text-foreground'}`}>{b.label}</p>
-                                    <div className={`w-4 h-4 rounded-full border-2 flex items-center justify-center ${billing === b.key ? 'border-primary' : 'border-muted-foreground/40'}`}>
-                                        {billing === b.key && <div className="w-2 h-2 rounded-full bg-primary" />}
+                <SectionCard title={<span className="flex items-center gap-2"><IndianRupee size={15} />Monthly Billing</span>}>
+                    <div className="space-y-3">
+                        <div className="rounded-xl border border-border/50 overflow-hidden">
+                            <div className="px-4 py-2.5 bg-muted/30 border-b border-border/40">
+                                <p className="text-xs font-semibold">Pricing Tiers — {plan}</p>
+                            </div>
+                            <div className="divide-y divide-border/30">
+                                {planPricing.tiers.map((tier, i) => (
+                                    <div key={i} className="flex items-center justify-between px-4 py-2.5">
+                                        <span className="text-xs text-muted-foreground">
+                                            {tier.max === Infinity ? `${tier.min}+ users` : `${tier.min}–${tier.max} users`}
+                                        </span>
+                                        <span className="text-xs font-bold text-muted-foreground">{fmt(tier.rate)}/user/mo</span>
                                     </div>
-                                </div>
-                                <p className="text-[11px] text-muted-foreground">{b.sub}</p>
-                                <p className="text-xs font-semibold text-primary mt-1">{fmt(b.rate)}/user</p>
-                            </button>
-                        ))}
+                                ))}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                            <InfoBox label="Min. Users" value="200" sub="minimum billed" />
+                            <InfoBox label="Base Rate" value={`${fmt(planPricing.tiers[0].rate)}/user`} sub="200–999 users" />
+                            <InfoBox label="Min. First Bill" value={fmt(200 * planPricing.tiers[0].rate)} sub="minimum amount" highlight />
+                        </div>
+                        <p className="text-[11px] text-muted-foreground px-1">
+                            💡 Min. 200 users billed. Rate drops automatically as your institution grows.
+                        </p>
                     </div>
-
-                    {billing === 'SIX_MONTH' && (
-                        <div className="bg-muted/40 rounded-xl p-4 space-y-3">
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs font-semibold">Predefined User Count</p>
-                                <div className="flex items-center gap-1.5">
-                                    <input type="number" min={200} value={predefinedInput}
-                                        onChange={e => { setPredefinedInput(e.target.value); setPredefinedUsers(Math.max(200, Number(e.target.value) || 200)); }}
-                                        className="w-16 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-primary" />
-                                    <span className="text-xs text-muted-foreground">users</span>
-                                </div>
-                            </div>
-                            <input type="range" min={200} max={2000} step={1} value={predefinedUsers}
-                                onChange={e => { setPredefinedUsers(Number(e.target.value)); setPredefinedInput(e.target.value); }}
-                                className="w-full accent-[#7C3AED] h-1.5 cursor-pointer" />
-                            <div className="grid grid-cols-3 gap-3">
-                                <InfoBox label="Users" value={String(predefinedUsers)} sub="committed for 6mo" />
-                                <InfoBox label="Rate" value={fmt(planPricing.sixMonth)} sub="per user" />
-                                <InfoBox label="Upfront Total" value={fmt(sixMonthBill)} highlight />
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">
-                                Extra users beyond {predefinedUsers} → ₹{planPricing.monthly}/user/month (monthly billing)
-                            </p>
-                        </div>
-                    )}
-
-                    {billing === 'MONTHLY' && (
-                        <div className="bg-muted/40 rounded-xl p-4">
-                            <p className="text-xs font-semibold mb-3">Minimum First Bill</p>
-                            <div className="grid grid-cols-3 gap-3">
-                                <InfoBox label="Min. Users" value="200" sub="minimum commitment" />
-                                <InfoBox label="Rate" value={fmt(planPricing.monthly)} sub="per user / month" />
-                                <InfoBox label="Min. First Bill" value={fmt(200 * planPricing.monthly)} sub="minimum amount" highlight />
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-3">
-                                💡 Minimum 200 users billed per month. Beyond 200, actual active users count.
-                            </p>
-                        </div>
-                    )}
                 </SectionCard>
             )}
 
             {plan !== 'TRIAL' && (
                 <SectionCard title={
                     <span className="flex items-center gap-2">
-                        <span
-                            onDoubleClick={() => setShowDiscount(v => !v)}
-                            className="cursor-default select-none"
-                        >
+                        <span onDoubleClick={() => setShowDiscount(v => !v)} className="cursor-default select-none">
                             <Landmark size={15} className="text-muted-foreground/100 hover:text-muted-foreground/70 transition-colors" />
                         </span>
                         One-time Licence Fee
                     </span>
                 }>
-                    <div className="bg-muted/40 rounded-xl p-4 mb-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs font-semibold">Licence Cost</p>
-                                <p className="text-xl font-black mt-0.5">{fmt(finalLicence)}</p>
-                            </div>
-                        </div>
-
+                    <div className="bg-muted/40 rounded-xl p-4">
+                        <p className="text-xs font-semibold">Licence Cost</p>
+                        <p className="text-xl font-black mt-0.5">{fmt(finalLicence)}</p>
                         {showDiscount && (
                             <div className="border-t border-border/50 pt-3 mt-3">
                                 <div className="flex items-center gap-3 mb-1">
@@ -788,43 +873,72 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                         <span className="text-xs text-muted-foreground">% off</span>
                                     </div>
                                 </div>
-                                {discount > 0 && (
-                                    <p className="text-[11px] text-[#DA7756] font-medium">
-                                        Saving {fmt(discountAmt)} · Final: {fmt(finalLicence)}
-                                    </p>
-                                )}
+                                {discount > 0 && <p className="text-[11px] text-[#DA7756] font-medium">Saving {fmt(discountAmt)} · Final: {fmt(finalLicence)}</p>}
                             </div>
                         )}
                     </div>
                 </SectionCard>
             )}
 
-            {/* Step 4 — Features */}
-            <SectionCard title={
-                <span className="flex items-center gap-2">
-                    <SlidersHorizontal size={15} className="text-muted-foreground/100" />
-                    Feature Controls
-                </span>
-            }>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {ALL_FEATURES.map(({ key, label, desc }) => (
-                        <div key={key} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? 'border-[#DA7756]/30 bg-[#DA7756]/5' : 'border-border/50 bg-muted/20'}`}>
-                            <div className="min-w-0 mr-3">
-                                <p className="text-xs font-medium truncate">{label}</p>
-                                <p className="text-[11px] text-muted-foreground">{desc}</p>
+            <SectionCard title={<span className="flex items-center gap-2"><SlidersHorizontal size={15} />Feature Controls</span>}>
+                {(() => {
+                    const { defaults: defFeatures, addons: addonFeatures } = getPlanFeatures(plan);
+                    return (
+                        <>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                                Default Features
+                                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 normal-case font-normal ml-2">Year 1 — all enabled</span>
+                            </p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-5">
+                                {defFeatures.map(({ key, label, desc, icon: Icon }) => (
+                                    <div key={key} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? 'border-[#DA7756]/30 bg-[#DA7756]/5' : 'border-border/50 bg-muted/20'}`}>
+                                        <div className="flex items-center gap-2 min-w-0 mr-3">
+                                            <Icon size={13} className="text-muted-foreground shrink-0" />
+                                            <div className="min-w-0">
+                                                <p className="text-xs font-medium truncate">{label}</p>
+                                                <p className="text-[11px] text-muted-foreground">{desc}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">Default</span>
+                                            <Toggle on={features[key] ?? true} onToggle={() => setFeatures(p => ({ ...p, [key]: !p[key] }))} />
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                            <Toggle on={features[key]} onToggle={() => setFeatures(p => ({ ...p, [key]: !p[key] }))} />
-                        </div>
-                    ))}
-                </div>
+                            {addonFeatures.length > 0 && (
+                                <>
+                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                                        Add-On Features
+                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 normal-case font-normal ml-2">(Year 2 onwards — billed separately)</span>
+                                    </p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                        {addonFeatures.map(({ key, label, desc, icon: Icon }) => (
+                                            <div key={key} className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? 'border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/20' : 'border-border/50 bg-muted/20'}`}>
+                                                <div className="flex items-center gap-2 min-w-0 mr-3">
+                                                    <Icon size={13} className="text-muted-foreground shrink-0" />
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-medium truncate">{label}</p>
+                                                        <p className="text-[11px] text-muted-foreground">{desc}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-2 shrink-0">
+                                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">Add-On</span>
+                                                    <Toggle on={features[key] ?? false} onToggle={() => setFeatures(p => ({ ...p, [key]: !p[key] }))} />
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </>
+                            )}
+                        </>
+                    );
+                })()}
             </SectionCard>
 
-            {/* Activate */}
             <div className={`p-5 rounded-2xl border-2 transition-all mb-6 ${canActivate ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' : 'border-border/50 bg-muted/20'}`}>
-
-                {/* Payment confirmations */}
                 {plan !== 'TRIAL' && (
-                    <div className="space-y-2 mb-4">
+                    <div className="mb-4">
                         <div className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${licencePaid ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' : 'border-border/50 bg-card'}`}>
                             <div>
                                 <p className="text-xs font-semibold">Licence Payment Received</p>
@@ -832,29 +946,13 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                             </div>
                             <Toggle on={licencePaid} onToggle={() => setLicencePaid(v => !v)} />
                         </div>
-
-                        {billing === 'SIX_MONTH' && (
-                            <div className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${upfrontPaid ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' : 'border-border/50 bg-card'}`}>
-                                <div>
-                                    <p className="text-xs font-semibold">6 Month Upfront Payment Received</p>
-                                    <p className="text-[11px] text-muted-foreground">{fmt(sixMonthBill)} upfront confirmed for 6 months</p>
-                                </div>
-                                <Toggle on={upfrontPaid} onToggle={() => setUpfrontPaid(v => !v)} />
-                            </div>
-                        )}
                     </div>
                 )}
-
-                {/* Activate button row */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <p className="text-sm font-bold">
-                            {canActivate ? '✅ Ready to Activate' : '⏳ Complete steps to activate'}
-                        </p>
+                        <p className="text-sm font-bold">{canActivate ? '✅ Ready to Activate' : '⏳ Complete steps to activate'}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
-                            {!licencePaid && plan !== 'TRIAL' ? 'Mark licence payment as received · ' : ''}
-                            {billing === 'SIX_MONTH' && !upfrontPaid ? 'Mark upfront payment as received' : ''}
-                            {canActivate ? `${plan} · ${billing === 'MONTHLY' ? 'Monthly' : '6 Month'} billing` : ''}
+                            {!licencePaid && plan !== 'TRIAL' ? 'Mark licence payment as received' : canActivate ? `${plan} · Monthly billing · ${fmt(currentRate)}/user` : ''}
                         </p>
                     </div>
                     <button onClick={handleActivate} disabled={!canActivate || activating}
@@ -870,8 +968,6 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
         </motion.div>
     );
 }
-
-// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function InstitutionDetailPage() {
     const { id } = useParams();
@@ -950,53 +1046,33 @@ export default function InstitutionDetailPage() {
 
     return (
         <div className="space-y-5">
-            {/* Header */}
             <div className="flex items-center gap-3">
-                <button onClick={() => router.back()}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
+                <button onClick={() => router.back()} className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
                     <ArrowLeft size={16} />
                 </button>
                 <div>
                     <h1 className="text-xl font-bold">{institution.name}</h1>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        Institutions <ChevronRight size={11} /> {institution.name}
-                    </p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">Institutions <ChevronRight size={11} /> {institution.name}</p>
                 </div>
             </div>
-
-            {/* Tabs */}
             <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                 {TABS.map(tab => {
                     const isActive = activeTab === tab.key;
                     return (
                         <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="relative">
-                            {isActive && (
-                                <motion.div layoutId="instDetailTab"
-                                    className="absolute inset-0 rounded-4xl bg-primary"
-                                    transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
-                                />
-                            )}
-                            <div className={`relative z-10 px-5 py-2 text-sm font-medium rounded-4xl transition-colors
-                                ${isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+                            {isActive && <motion.div layoutId="instDetailTab" className="absolute inset-0 rounded-4xl bg-primary" transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }} />}
+                            <div className={`relative z-10 px-5 py-2 text-sm font-medium rounded-4xl transition-colors ${isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                                 {tab.label}
                             </div>
                         </button>
                     );
                 })}
             </div>
-
-            {/* Tab Content */}
             <AnimatePresence mode="wait">
-                {activeTab === 'details' ? (
-                    <ViewDetailsTab
-                        key="details"
-                        inst={institution}
-                        onStatusToggle={handleStatusToggle}
-                        onResendInvite={handleResendInvite}
-                    />
-                ) : (
-                    <ManagePlanTab key="plan" inst={institution} />
-                )}
+                {activeTab === 'details'
+                    ? <ViewDetailsTab key="details" inst={institution} onStatusToggle={handleStatusToggle} onResendInvite={handleResendInvite} />
+                    : <ManagePlanTab key="plan" inst={institution} />
+                }
             </AnimatePresence>
         </div>
     );

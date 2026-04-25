@@ -1,6 +1,7 @@
 'use client';
 
 import { Topbar } from '@/components/shared/Topbar';
+import { WelcomeBanner } from '@/components/admin/WelcomeBanner';
 import { useEffect, useState } from 'react';
 import {
     LayoutDashboard,
@@ -37,4 +38,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </main>
         </div>
     );
-}
+}   
