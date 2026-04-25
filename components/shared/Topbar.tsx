@@ -1,5 +1,6 @@
 'use client';
 
+import api from '@/lib/api';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -110,7 +111,8 @@ function AvatarMenu() {
                 pathname.startsWith('/teacher') ? '/teacher/settings' :
                     '/student/settings';
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        try { await api.post('/auth/logout'); } catch { /* ignore */ }
         clearAuth();
         router.replace('/login');
     };
@@ -133,7 +135,7 @@ function AvatarMenu() {
                         {roleInitialMap[currentRole]}
                     </div>
                     <div className="min-w-0">
-                        <p className="text-xs font-semibold truncate">{user?.email ?? 'Signed in'}</p>
+                        <p className="text-xs font-semibold truncate">{user?.name || user?.email || 'Signed in'}</p>
                         <p className="text-[11px] text-muted-foreground">{roleLabelMap[currentRole]}</p>
                     </div>
                 </div>

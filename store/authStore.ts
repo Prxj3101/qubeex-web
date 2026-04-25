@@ -3,9 +3,10 @@ import { persist } from 'zustand/middleware';
 
 interface User {
     id: string;
+    name?: string | null;
     email: string;
     role: 'SUPER_ADMIN' | 'ADMIN' | 'TEACHER' | 'STUDENT';
-    institutionId?: string;
+    institutionId?: string | null;
 }
 
 interface AuthStore {

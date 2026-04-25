@@ -62,23 +62,17 @@ export function LoginForm() {
         if (!canSubmit) return;
         setLoading(true);
         try {
-            const payload = isEmail
-                ? { email: identifier.trim(), password }
-                : { identifier: identifier.trim(), password };
-
-            const res = await api.post('/auth/login', payload);
+            const res = await api.post('/auth/login', {
+                email: identifier.trim(),
+                password,
+            });
             const { token, user } = res.data.data;
             setAuth(user, token);
-            toast.success(`Welcome back!`);
+            toast.success(`Welcome back, ${user.name || user.email}!`);
             router.push(ROLE_REDIRECT[user.role] || '/login');
         } catch (err: any) {
-            // Mock login for development
-            const mockRole = identifier.includes('sa') ? 'SUPER_ADMIN'
-                : identifier.includes('adm') ? 'ADMIN'
-                    : identifier.includes('tch') ? 'TEACHER'
-                        : 'STUDENT';
-            toast.success('Welcome back!');
-            router.push(ROLE_REDIRECT[mockRole]);
+            const msg = err?.response?.data?.message || 'Invalid credentials';
+            toast.error(msg);
         } finally {
             setLoading(false);
         }
