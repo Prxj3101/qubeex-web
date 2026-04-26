@@ -118,9 +118,9 @@ export default function SuperAdminOverview() {
 
                 {/* Left — Greeting */}
                 <div className="space-y-1 z-10">
-                    <p className="text-white/70 text-base">{greeting}👋, Boss</p>
+                    <p className="text-white/70 text-base">{greeting}👋, Bosses</p>
                     <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
-                        Prajwal Kotian
+                        Prajwal & Anshu
                     </p>
                     <p className="text-white/60 text-sm">Here's what's happening across your platform today.</p>
                     <p className="text-white/50 text-xs mt-2">{dateStr}</p>

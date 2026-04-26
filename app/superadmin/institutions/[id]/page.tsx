@@ -173,20 +173,20 @@ function EditableField({ label, value, onChange }: { label: string; value: strin
 function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
     inst: InstData; onStatusToggle: () => void; onResendInvite: () => void;
 }) {
-    const status  = statusCfg[inst.status] ?? statusCfg['PENDING'];
+    const status = statusCfg[inst.status] ?? statusCfg['PENDING'];
     const TypeIcon = inst.type === 'SCHOOL' ? School : inst.type === 'COLLEGE' ? GraduationCap : BookOpen;
     const initials = inst.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
     const joinDate = toIST(inst.createdAt);
     const [logoErr, setLogoErr] = useState(false);
 
     // Enrich admin info from either dedicated field or users array
-    const adminUser   = inst.admin ?? inst.users?.find(u => u.role === 'ADMIN') ?? null;
-    const adminName   = adminUser?.name ?? adminUser?.email?.split('@')[0] ?? '—';
+    const adminUser = inst.admin ?? inst.users?.find(u => u.role === 'ADMIN') ?? null;
+    const adminName = adminUser?.name ?? adminUser?.email?.split('@')[0] ?? '—';
     const studentCount = inst.studentCount ?? 0;
     const teacherCount = inst.teacherCount ?? 0;
-    const planName    = inst.subscription?.plan?.name ?? '—';
-    const instCode    = inst.institutionCode ?? null;
-    const logoUrl     = inst.logoUrl ?? null;
+    const planName = inst.subscription?.plan?.name ?? '—';
+    const instCode = inst.institutionCode ?? null;
+    const logoUrl = inst.logoUrl ?? null;
 
     const [editingSection, setEditingSection] = useState<string | null>(null);
     const [instDraft, setInstDraft] = useState({ name: inst.name, email: inst.email, phone: inst.phone ?? '', board: inst.board ?? '', medium: inst.medium ?? '' });
@@ -323,7 +323,7 @@ function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
 
 function ManagePlanTab({ inst }: { inst: InstData }) {
     const instType = (inst.type as keyof typeof PRICING) in PRICING ? inst.type as keyof typeof PRICING : 'SCHOOL';
-    const pricing  = PRICING[instType];
+    const pricing = PRICING[instType];
     const initialPlan = (inst.subscription?.plan?.name as 'BASIC' | 'PRO' | 'TRIAL') ?? 'BASIC';
     const [planActive, setPlanActive] = useState(false);
     const [plan, setPlan] = useState<'BASIC' | 'PRO' | 'TRIAL'>(initialPlan);
@@ -587,7 +587,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                         <div className="relative w-[90px] h-[90px] shrink-0" style={{ overflow: 'visible' }}>
                             <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
-                                    <Pie data={[{ name: 'Admin', value: 1 }, { name: 'Teachers', value: inst.totalTeachers ?? 0 }, { name: 'Students', value: inst.totalStudents ?? 0 }]}
+                                    <Pie data={[{ name: 'Admin', value: 1 }, { name: 'Teachers', value: inst.teacherCount ?? 0 }, { name: 'Students', value: inst.studentCount ?? 0 }]}
                                         cx="50%" cy="50%" innerRadius={28} outerRadius={42} dataKey="value" strokeWidth={2} stroke="hsl(var(--card))" paddingAngle={3} minAngle={8}>
                                         <Cell fill="#7C3AED" /><Cell fill="#F59E0B" /><Cell fill="#10B981" />
                                     </Pie>
@@ -602,8 +602,8 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                         <div className="space-y-2 shrink-0">
                             {[
                                 { label: 'Admin', value: 1, color: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500' },
-                                { label: 'Teachers', value: inst.totalTeachers ?? 0, color: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' },
-                                { label: 'Students', value: inst.totalStudents ?? 0, color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
+                                { label: 'Teachers', value: inst.teacherCount ?? 0, color: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500' },
+                                { label: 'Students', value: inst.studentCount ?? 0, color: 'text-emerald-600 dark:text-emerald-400', dot: 'bg-emerald-500' },
                             ].map(({ label, value, color, dot }) => (
                                 <div key={label} className="flex items-center gap-2">
                                     <div className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
@@ -1582,10 +1582,10 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
 
 export default function InstitutionDetailPage() {
     const { id } = useParams();
-    const router  = useRouter();
+    const router = useRouter();
     const [institution, setInstitution] = useState<InstData | null>(null);
-    const [loading, setLoading]   = useState(true);
-    const [error, setError]       = useState(false);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
     const [activeTab, setActiveTab] = useState<'details' | 'plan'>('details');
 
     useEffect(() => {
@@ -1603,7 +1603,7 @@ export default function InstitutionDetailPage() {
                 const res = await api.get(`/superadmin/institutions/${id}`);
                 // Enrich with role counts (same logic as list page)
                 const data: InstData = res.data.data;
-                const admin    = data.users?.find(u => u.role === 'ADMIN') ?? null;
+                const admin = data.users?.find(u => u.role === 'ADMIN') ?? null;
                 const teacherCount = data.users?.filter(u => u.role === 'TEACHER').length ?? 0;
                 const studentCount = data.users?.filter(u => u.role === 'STUDENT').length ?? 0;
                 setInstitution({ ...data, admin, teacherCount, studentCount });
