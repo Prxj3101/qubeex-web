@@ -218,7 +218,7 @@ export default function AuditLogsPage() {
 
                 <div className="h-px bg-border/60" />
 
-                <div className="space-y-2.5">
+                <div className="flex items-center gap-2 flex-wrap">
                     {/* Search */}
                     <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -226,45 +226,30 @@ export default function AuditLogsPage() {
                             type="text"
                             value={search}
                             onChange={e => { setSearch(e.target.value); setPage(1); }}
-                            placeholder="Search by email, institution, or details..."
-                            className="w-full max-w-lg h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
+                            placeholder="Search..."
+                            className="w-120 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
                         />
                         {search && (
                             <button onClick={() => { setSearch(''); setPage(1); }}
-                                className="absolute left-[28rem] top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                                 <X size={13} />
                             </button>
                         )}
                     </div>
 
-                    {/* Filters row */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <CustomDropdown
-                            value={actionFilter}
-                            onChange={v => { setActionFilter(v); setPage(1); }}
-                            options={ACTION_LIST}
-                            getLabel={v => v === 'All Action Types' ? 'All Action Types' : (ACTION_CONFIG[v]?.label ?? v)}
-                        />
-                        <CustomDropdown
-                            value={instFilter}
-                            onChange={v => { setInstFilter(v); setPage(1); }}
-                            options={INSTITUTIONS_LIST}
-                        />
-                        <CustomDropdown
-                            value={roleFilter}
-                            onChange={v => { setRoleFilter(v); setPage(1); }}
-                            options={ROLES_LIST}
-                        />
-                        <DateInput label="From" value={fromDate} onChange={v => { setFromDate(v); setPage(1); }} />
-                        <DateInput label="To" value={toDate} onChange={v => { setToDate(v); setPage(1); }} />
+                    <CustomDropdown value={actionFilter} onChange={v => { setActionFilter(v); setPage(1); }} options={ACTION_LIST}
+                        getLabel={v => v === 'All Action Types' ? 'All Action Types' : (ACTION_CONFIG[v]?.label ?? v)} />
+                    <CustomDropdown value={instFilter} onChange={v => { setInstFilter(v); setPage(1); }} options={INSTITUTIONS_LIST} />
+                    <CustomDropdown value={roleFilter} onChange={v => { setRoleFilter(v); setPage(1); }} options={ROLES_LIST} />
+                    <DateInput label="From" value={fromDate} onChange={v => { setFromDate(v); setPage(1); }} />
+                    <DateInput label="To" value={toDate} onChange={v => { setToDate(v); setPage(1); }} />
 
-                        {hasFilters && (
-                            <button onClick={clearFilters}
-                                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors ml-1">
-                                <X size={11} /> Clear all
-                            </button>
-                        )}
-                    </div>
+                    {hasFilters && (
+                        <button onClick={clearFilters}
+                            className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                            <X size={11} /> Clear all
+                        </button>
+                    )}
                 </div>
             </div>
 

@@ -84,11 +84,11 @@ function InstitutionCard({ inst, index }: { inst: Institution; index: number }) 
                             ? <span className="font-mono text-[12px] font-semibold tracking-wider" style={{ color: '#DA7756' }}>{(inst as any).institutionCode}</span>
                             : <span className="italic text-muted-foreground/40 text-[11px]">—</span>,
                     },
-                    { icon: Mail,  label: 'Email',      value: inst.email },
-                    { icon: User,  label: 'Admin',      value: inst.users?.[0]?.name ?? inst.users?.[0]?.email?.split('@')[0] ?? '—' },
+                    { icon: Mail, label: 'Email', value: inst.email },
+                    { icon: User, label: 'Admin', value: inst.users?.[0]?.name ?? inst.users?.[0]?.email?.split('@')[0] ?? '—' },
                     { icon: AtSign, label: 'Admin Email', value: inst.users?.[0]?.email ?? '—' },
-                    { icon: Phone, label: 'Phone',      value: inst.phone ?? '—' },
-                    { icon: MapPin, label: 'Location',  value: inst.city ?? '—' },
+                    { icon: Phone, label: 'Phone', value: inst.phone ?? '—' },
+                    { icon: MapPin, label: 'Location', value: inst.city ?? '—' },
                     {
                         icon: CreditCard,
                         label: 'Plan',
@@ -235,79 +235,75 @@ export default function InstitutionsPage() {
                 {/* Separator */}
                 <div className="h-px bg-border/60" />
 
-                {/* Tab pills + Publish button — same row */}
-                <div className="flex items-center justify-between">
-
-                    {/* Tab pills — same as before */}
-                    <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
-                        {tabs.map((tab) => {
-                            const isActive = activeTab === tab.value;
-                            return (
-                                <button key={tab.value} onClick={() => setActiveTab(tab.value)} className="relative">
-                                    {isActive && (
-                                        <motion.div layoutId="instTab"
-                                            className="absolute inset-0 bg-primary rounded-4xl"
-                                            transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
-                                        />
-                                    )}
-                                    <div className={`relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl
-                        ${isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'}`}>
-                                        <tab.icon size={14} />
-                                        {tab.label}
-                                    </div>
-                                </button>
-                            );
-                        })}
+                {/* Tab pills + Search + Filters + Publish — same row */}
+                <div className="flex items-center gap-115 ">
+                    {/* Left — Tabs + Publish */}
+                    <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
+                            {tabs.map((tab) => {
+                                const isActive = activeTab === tab.value;
+                                return (
+                                    <button key={tab.value} onClick={() => setActiveTab(tab.value)} className="relative">
+                                        {isActive && (
+                                            <motion.div layoutId="instTab"
+                                                className="absolute inset-0 bg-primary rounded-4xl"
+                                                transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                                            />
+                                        )}
+                                        <div className={`relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl
+                            ${isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            <tab.icon size={14} />
+                                            {tab.label}
+                                        </div>
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <button
+                            onClick={() => setPublishOpen(true)}
+                            className="w-10 h-10 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 active:scale-95 transition-all"
+                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                            title="Broadcast Notification"
+                        >
+                            <Megaphone size={20} />
+                        </button>
                     </div>
 
-                    {/* Publish / Broadcast button */}
-                    <button
-                        onClick={() => setPublishOpen(true)}
-                        className="w-11 h-11 rounded-full flex items-center justify-center text-white shadow-lg hover:scale-105 active:scale-95 transition-all mr-4"
-                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                        title="Broadcast Notification"
-                    >
-                        <Megaphone size={19} />
-                    </button>
-
-                </div>
-
-                {/* Search + Filters */}
-                <div className="space-y-2 px-1">
-                    <div className="relative">
-                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={e => setSearch(e.target.value)}
-                            placeholder="Search by name, email, admin or ID..."
-                            className="w-full max-w-xl h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
-                        />
-                        {search && (
-                            <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                                <X size={13} />
-                            </button>
-                        )}
-                    </div>
-
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[11px] text-muted-foreground font-medium">Filter:</span>
-                        {FILTERS.map(f => {
-                            const isOn = activeFilters.includes(f.value);
-                            return (
-                                <button key={f.value} onClick={() => toggleFilter(f.value)}
-                                    className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all duration-150
-                                        ${isOn ? f.cls : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'}`}>
-                                    {f.label}
+                    {/* Right — Search + Filters */}
+                    <div className="flex items-center gap-2">
+                        <div className="relative">
+                            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            <input
+                                type="text"
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                                placeholder="Search institutions..."
+                                className="w-56 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
+                            />
+                            {search && (
+                                <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                    <X size={13} />
                                 </button>
-                            );
-                        })}
-                        {activeFilters.length > 0 && (
-                            <button onClick={() => setActiveFilters([])}
-                                className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 ml-1">
-                                <X size={11} /> Clear
-                            </button>
-                        )}
+                            )}
+                        </div>
+                        <div className="flex items-center gap-1 flex-wrap">
+                            {FILTERS.map(f => {
+                                const isOn = activeFilters.includes(f.value);
+                                return (
+                                    <button key={f.value} onClick={() => toggleFilter(f.value)}
+                                        className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all duration-150
+                            ${isOn ? f.cls : 'border-border/50 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'}`}>
+                                        {f.label}
+                                    </button>
+                                );
+                            })}
+                            {activeFilters.length > 0 && (
+                                <button onClick={() => setActiveFilters([])}
+                                    className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5">
+                                    <X size={11} /> Clear
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

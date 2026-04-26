@@ -15,6 +15,14 @@ import { Institution } from '@/types';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
+type BillItem = { label: string; desc: string; amount: number; type: 'base' | 'addon' | 'licence' };
+type Bill = {
+    id: string; type: 'LICENCE' | 'MONTHLY';
+    month: string; dateRange: string;
+    items: BillItem[]; total: number;
+    status: 'PAID' | 'PENDING'; generatedOn: string;
+};
+
 const MOCK_INST: Institution & {
     phone?: string; city?: string; state?: string; address?: string;
     pincode?: string; country?: string; board?: string; medium?: string;
@@ -33,18 +41,18 @@ const MOCK_INST: Institution & {
 
 const PRICING = {
     SCHOOL: {
-        BASIC: { licence: 39999, tiers: [{ min: 200, max: 999, rate: 20 }, { min: 1000, max: 1999, rate: 17 }, { min: 2000, max: Infinity, rate: 15 }] },
-        PRO: { licence: 69999, tiers: [{ min: 200, max: 999, rate: 25 }, { min: 1000, max: 1999, rate: 22 }, { min: 2000, max: Infinity, rate: 19 }] },
+        BASIC: { licence: 39999, tiers: [{ min: 200, max: 1499, rate: 20 }, { min: 1500, max: Infinity, rate: 17 }] },
+        PRO: { licence: 69999, tiers: [{ min: 200, max: 1499, rate: 25 }, { min: 1500, max: Infinity, rate: 22 }] },
         TRIAL: { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] },
     },
     COLLEGE: {
-        BASIC: { licence: 59999, tiers: [{ min: 200, max: 999, rate: 30 }, { min: 1000, max: 1999, rate: 27 }, { min: 2000, max: Infinity, rate: 24 }] },
-        PRO: { licence: 89999, tiers: [{ min: 200, max: 999, rate: 35 }, { min: 1000, max: 1999, rate: 32 }, { min: 2000, max: Infinity, rate: 28 }] },
+        BASIC: { licence: 59999, tiers: [{ min: 200, max: 1499, rate: 30 }, { min: 1500, max: Infinity, rate: 27 }] },
+        PRO: { licence: 89999, tiers: [{ min: 200, max: 1499, rate: 35 }, { min: 1500, max: Infinity, rate: 32 }] },
         TRIAL: { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] },
     },
     COACHING: {
-        BASIC: { licence: 39999, tiers: [{ min: 200, max: 999, rate: 20 }, { min: 1000, max: 1999, rate: 17 }, { min: 2000, max: Infinity, rate: 15 }] },
-        PRO: { licence: 69999, tiers: [{ min: 200, max: 999, rate: 25 }, { min: 1000, max: 1999, rate: 22 }, { min: 2000, max: Infinity, rate: 19 }] },
+        BASIC: { licence: 39999, tiers: [{ min: 200, max: 1499, rate: 20 }, { min: 1500, max: Infinity, rate: 17 }] },
+        PRO: { licence: 69999, tiers: [{ min: 200, max: 1499, rate: 25 }, { min: 1500, max: Infinity, rate: 22 }] },
         TRIAL: { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] },
     },
 };
@@ -74,7 +82,6 @@ const ALL_FEATURES: {
         { key: 'student_app_pro', label: 'Student App with Parent Portal', desc: 'Mobile app + parent access', icon: Users, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
         { key: 'leaderboard', label: 'Leaderboard System', desc: 'Student ranking & gamification', icon: Trophy, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
         { key: 'whitelabeling', label: 'Whitelabelling (logo+brandname)', desc: 'Custom logo & brand name', icon: ShieldCheck, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
-        // Add-ons
         { key: 'timetable_auto', label: 'Timetable Scheduling (Auto)', desc: 'AI-powered auto scheduling', icon: Cpu, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
         { key: 'analytics', label: 'Performance Insights & Analytics', desc: 'Advanced insights & reports', icon: BarChart2, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
         { key: 'smart_board', label: 'Smart Board Screen with AI', desc: 'Interactive AI smart board', icon: Sparkles, inBasic: true, inPro: true, addOnBasic: true, addOnPro: true },
@@ -286,7 +293,6 @@ function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
 function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
     const instType = (inst.type as keyof typeof PRICING) in PRICING ? inst.type as keyof typeof PRICING : 'SCHOOL';
     const pricing = PRICING[instType];
-
     const [planActive, setPlanActive] = useState(false);
     const [plan, setPlan] = useState<'BASIC' | 'PRO' | 'TRIAL'>((inst.plan as any) ?? 'BASIC');
     const [discount, setDiscount] = useState(0);
@@ -295,8 +301,6 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
     const [licencePaid, setLicencePaid] = useState(false);
     const [activating, setActivating] = useState(false);
     const [features, setFeatures] = useState<Record<string, boolean>>(getDefaultFeatures('BASIC'));
-
-    // Add-on states
     const [storageAddGb, setStorageAddGb] = useState(0);
     const [storageAddInput, setStorageAddInput] = useState('0');
     const [storagePricePerGb, setStoragePricePerGb] = useState<number | ''>('');
@@ -306,9 +310,36 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
     const [tokenPricePer10k, setTokenPricePer10k] = useState<number | ''>('');
     const [tokenAdded, setTokenAdded] = useState(false);
     const [planPaused, setPlanPaused] = useState(false);
-    const [confirmDialog, setConfirmDialog] = useState<'deactivate' | 'pause' | 'resume' | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState<'deactivate' | 'pause' | 'resume' | 'upgrade' | 'enable_addon' | null>(null); const [upgradePaid, setUpgradePaid] = useState(false);
+    const [upgradeDate, setUpgradeDate] = useState<Date | null>(null);
+    const [upgradeModalTab, setUpgradeModalTab] = useState<'current' | 'after'>('current');
+    const [addonExpiries, setAddonExpiries] = useState<Record<string, Date>>({});
+    const [pendingEnableKey, setPendingEnableKey] = useState<string | null>(null);
+    const [addonExtraBill, setAddonExtraBill] = useState(0);
+    const [billModal, setBillModal] = useState<Bill | null>(null);
+    const [bills, setBills] = useState<Bill[]>([]);
+    const [activationDate] = useState(new Date('2025-11-14'));    // Plan change pe — sirf non-active state mein
+    useEffect(() => {
+        if (!planActive) {
+            setFeatures(getDefaultFeatures(plan));
+            return;
+        }
+        const today2 = new Date();
+        const basicExpiry = new Date(activationDate);
+        basicExpiry.setFullYear(basicExpiry.getFullYear() + 1);
 
-    useEffect(() => { setFeatures(getDefaultFeatures(plan)); }, [plan]);
+        setFeatures(prev => {
+            const updated = { ...getDefaultFeatures(plan) };
+            ALL_FEATURES
+                .filter(f => plan === 'PRO' ? f.inPro && f.addOnPro : f.inBasic && f.addOnBasic)
+                .forEach(f => {
+                    const finalExpiry = addonExpiries[f.key] ?? basicExpiry;
+                    updated[f.key] = today2 <= finalExpiry;
+                });
+            return updated;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [planActive, plan]);
 
     const activeUsers = (inst.totalStudents ?? 0) + (inst.totalTeachers ?? 0) + 1;
     const planPricing = pricing[plan] ?? pricing.BASIC;
@@ -316,7 +347,8 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
     const licenceCost = planPricing.licence;
     const discountAmt = Math.round(licenceCost * (discount / 100));
     const finalLicence = licenceCost - discountAmt;
-    const monthlyBill = activeUsers * currentRate;
+    const billedUsers = Math.max(200, activeUsers);
+    const monthlyBill = billedUsers * currentRate;
     const today = new Date();
     const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
     const canActivate = plan === 'TRIAL' || licencePaid;
@@ -334,9 +366,8 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
             key: 'BASIC' as const, label: 'Basic',
             activeColor: 'text-primary', dot: 'bg-primary', border: 'border-primary bg-primary/5',
             features: [
-                { icon: IndianRupee, label: `₹${pricing.BASIC.tiers[0].rate}/user/mo (200–999 users)` },
-                { icon: IndianRupee, label: `₹${pricing.BASIC.tiers[1].rate}/user/mo (1000–1999 users)` },
-                { icon: IndianRupee, label: `₹${pricing.BASIC.tiers[2].rate}/user/mo (2000+ users)` },
+                { icon: IndianRupee, label: `₹${pricing.BASIC.tiers[0].rate}/user/mo (200–1499 users)` },
+                { icon: IndianRupee, label: `₹${pricing.BASIC.tiers[1].rate}/user/mo (1500+ users)` },
                 { icon: Users, label: 'Min. 200 users' },
                 { icon: Sparkles, label: '10M AI Tokens/month' },
                 { icon: HardDrive, label: '500GB Storage' },
@@ -348,9 +379,8 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
             key: 'PRO' as const, label: 'Pro',
             activeColor: 'text-[#DA7756]', dot: 'bg-[#DA7756]', border: 'border-[#DA7756] bg-[#DA7756]/5',
             features: [
-                { icon: IndianRupee, label: `₹${pricing.PRO.tiers[0].rate}/user/mo (200–999 users)` },
-                { icon: IndianRupee, label: `₹${pricing.PRO.tiers[1].rate}/user/mo (1000–1999 users)` },
-                { icon: IndianRupee, label: `₹${pricing.PRO.tiers[2].rate}/user/mo (2000+ users)` },
+                { icon: IndianRupee, label: `₹${pricing.PRO.tiers[0].rate}/user/mo (200–1499 users)` },
+                { icon: IndianRupee, label: `₹${pricing.PRO.tiers[1].rate}/user/mo (1500+ users)` },
                 { icon: Users, label: 'Min. 200 users' },
                 { icon: Sparkles, label: '10M AI Tokens/month' },
                 { icon: HardDrive, label: '1TB Storage' },
@@ -367,12 +397,48 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
 
     // ── ACTIVE VIEW ──
     if (planActive) {
-        const activationDate = new Date('2025-11-14');
-        const expiryDate = new Date(activationDate);
-        expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+
+        const basicExpiryDate = new Date(activationDate);
+        basicExpiryDate.setFullYear(basicExpiryDate.getFullYear() + 1);
         const today2 = new Date();
         const isExpired = (date: Date) => today2 > date;
         const daysLeft = (date: Date) => Math.max(0, Math.ceil((date.getTime() - today2.getTime()) / (1000 * 60 * 60 * 24)));
+
+        const isAfter12Months = upgradeDate
+            ? (upgradeDate.getTime() - activationDate.getTime()) > (365 * 24 * 60 * 60 * 1000)
+            : false;
+
+        const getFeatureExpiry = (key: string) => {
+            const proOnlyKeys = ['leaderboard', 'whitelabeling', 'student_app_pro'];
+            if (proOnlyKeys.includes(key) && upgradeDate && isAfter12Months) {
+                const exp = new Date(upgradeDate);
+                exp.setFullYear(exp.getFullYear() + 1);
+                return exp;
+            }
+
+            return basicExpiryDate;
+        };
+
+
+        // Upgrade modal calculations
+        const upgradeActivationDate = new Date('2025-11-14'); // 12+ months used
+        const today3 = new Date();
+        const monthsUsed = Math.min(12, Math.floor((today3.getTime() - upgradeActivationDate.getTime()) / (1000 * 60 * 60 * 24 * 30)));
+        const monthsRemaining = Math.max(0, 12 - monthsUsed);
+        const proLicence = pricing.PRO.licence;
+        const basicLicence = pricing.BASIC.licence;
+        const remainingCredit = Math.round((monthsRemaining / 12) * basicLicence);
+        const upgradeIsAfter12 = monthsUsed >= 12;
+        const loyaltyDiscount = upgradeIsAfter12 ? Math.round(proLicence * 0.10) : 0;
+        const finalUpgradeCharge = upgradeIsAfter12 ? proLicence - loyaltyDiscount : proLicence - remainingCredit;
+        const newMonthlyRate = getRate(pricing.PRO.tiers, activeUsers);
+
+        // Basic features for "Current" tab
+        const basicDefaults = ALL_FEATURES.filter(f => f.inBasic && !f.addOnBasic);
+        const basicAddons = ALL_FEATURES.filter(f => f.inBasic && f.addOnBasic);
+        // PRO new features for "After" tab
+        const proNewFeatures = ALL_FEATURES.filter(f => f.inPro && !f.inBasic);
+        const proNewAddons = ALL_FEATURES.filter(f => f.inPro && f.addOnPro && !f.addOnBasic);
 
         const paymentHistory = [
             { date: '14 Apr 2026', amount: licenceCost, type: 'One-time Licence', status: 'PAID' },
@@ -406,17 +472,35 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
         const storageUsedPct = Math.min(100, Math.round((storageUsed / storageBase) * 100));
         const storagePriceNum = typeof storagePricePerGb === 'number' ? storagePricePerGb : 0;
         const storageAddTotal = storageAddGb * storagePriceNum;
-
         const tokenBase = 10000000;
         const tokenUsed = plan === 'PRO' ? 180000 : 44000;
         const tokenUsedPct = Math.min(100, Math.round((tokenUsed / tokenBase) * 100));
         const tokenPriceNum = typeof tokenPricePer10k === 'number' ? tokenPricePer10k : 0;
         const tokenAddTotal = tokenAddK * tokenPriceNum;
+        const addonBill = (storageAdded ? storageAddTotal : 0) + (tokenAdded ? tokenAddTotal : 0) + addonExtraBill; const { defaults: defFeatures, addons: addonFeatures } = getPlanFeatures(plan);
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+        const currentMonthDateRange = `${monthStart.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })} – ${monthEnd.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
 
+        const currentMonthItems: BillItem[] = [
+            { label: 'Monthly User Bill', desc: `${billedUsers} users × ${fmt(currentRate)}/user`, amount: monthlyBill, type: 'base' },
+            ...(storageAdded ? [{ label: 'Storage Add-On', desc: `${storageAddGb}GB × ₹${storagePricePerGb}/GB`, amount: storageAddTotal, type: 'addon' as const }] : []),
+            ...(tokenAdded ? [{ label: 'AI Tokens Add-On', desc: `${tokenAddK}M tokens × ₹${tokenPricePer10k}/1M`, amount: tokenAddTotal, type: 'addon' as const }] : []),
+            ...(addonExtraBill > 0 ? [{ label: 'Feature Re-enable Charges', desc: 'Expired add-on features renewed', amount: addonExtraBill, type: 'addon' as const }] : []),
+        ];
+        const currentMonthTotal = currentMonthItems.reduce((sum, i) => sum + i.amount, 0);
 
-        const addonBill = (storageAdded ? storageAddTotal : 0) + (tokenAdded ? tokenAddTotal : 0);
-        const { defaults: defFeatures, addons: addonFeatures } = getPlanFeatures(plan);
-
+        const mockBills: Bill[] = [
+            { id: 'b6', type: 'MONTHLY', month: 'Mar 2026', dateRange: '01 Mar – 31 Mar 2026', items: [{ label: 'Monthly User Bill', desc: `${billedUsers} users × ${fmt(currentRate)}/user`, amount: monthlyBill, type: 'base' as const }], total: monthlyBill, status: 'PAID' as const, generatedOn: '31 Mar 2026' },
+            { id: 'b5', type: 'MONTHLY', month: 'Feb 2026', dateRange: '01 Feb – 28 Feb 2026', items: [{ label: 'Monthly User Bill', desc: `${billedUsers} users × ${fmt(currentRate)}/user`, amount: monthlyBill, type: 'base' as const }], total: monthlyBill, status: 'PAID' as const, generatedOn: '28 Feb 2026' },
+            { id: 'b4', type: 'MONTHLY', month: 'Jan 2026', dateRange: '01 Jan – 31 Jan 2026', items: [{ label: 'Monthly User Bill', desc: `${billedUsers} users × ${fmt(currentRate)}/user`, amount: monthlyBill, type: 'base' as const }], total: monthlyBill, status: 'PENDING' as const, generatedOn: '31 Jan 2026' },
+            { id: 'b3', type: 'MONTHLY', month: 'Dec 2025', dateRange: '01 Dec – 31 Dec 2025', items: [{ label: 'Monthly User Bill', desc: `${billedUsers} users × ${fmt(currentRate)}/user`, amount: monthlyBill, type: 'base' as const }], total: monthlyBill, status: 'PAID' as const, generatedOn: '31 Dec 2025' },
+            { id: 'b2', type: 'MONTHLY', month: 'Nov 2025', dateRange: '01 Nov – 30 Nov 2025', items: [{ label: 'Monthly User Bill', desc: `${billedUsers} users × ${fmt(currentRate)}/user`, amount: monthlyBill, type: 'base' as const }], total: monthlyBill, status: 'PAID' as const, generatedOn: '30 Nov 2025' },
+            { id: 'b1', type: 'MONTHLY', month: 'Dec 2024', dateRange: '01 Dec – 31 Dec 2024', items: [{ label: 'Monthly User Bill', desc: `${billedUsers} users × ${fmt(currentRate)}/user`, amount: monthlyBill, type: 'base' as const }], total: monthlyBill, status: 'PAID' as const, generatedOn: '31 Dec 2024' },
+            { id: 'b0', type: 'LICENCE', month: 'Nov 2024', dateRange: '14 Nov 2024', items: [{ label: 'One-time Licence Fee', desc: `${plan} Plan — ${instType}`, amount: licenceCost, type: 'licence' as const }], total: licenceCost, status: 'PAID' as const, generatedOn: '14 Nov 2024' },
+        ];
+        const allBills = bills.length > 0 ? bills : mockBills;
         return (
             <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
 
@@ -430,6 +514,19 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                             </div>
                             <h2 className="text-2xl font-black" style={{ color: plan === 'PRO' ? '#DA7756' : '#7C3AED' }}>{plan}</h2>
                             <p className="text-sm text-muted-foreground mt-0.5">{instType} · Monthly Billing · {fmt(currentRate)}/user</p>
+
+                            {/* Dates */}
+                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                    <CalendarIcon size={11} /> Activated: <span className="font-medium text-foreground ml-1">{activationDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                </span>
+                                {upgradeDate && (
+                                    <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                        <Zap size={11} className="text-[#DA7756]" /> Upgraded to PRO: <span className="font-medium text-[#DA7756] ml-1">{upgradeDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</span>
+                                    </span>
+                                )}
+                            </div>
+
                             {planPaused && (
                                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/50 px-2 py-0.5 rounded-full mt-1">
                                     <Pause size={10} /> Operations Paused
@@ -437,18 +534,18 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                             )}
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                            {/* Pause / Resume */}
-                            <button
-                                onClick={() => setConfirmDialog(planPaused ? 'resume' : 'pause')}
-                                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all ${planPaused
-                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
-                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
-                                    }`}>
+                            {plan === 'BASIC' && (
+                                <button onClick={() => { setUpgradeModalTab('current'); setConfirmDialog('upgrade'); }}
+                                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-white transition-all hover:opacity-90"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                    <Zap size={13} /> Upgrade to Pro
+                                </button>
+                            )}
+                            <button onClick={() => setConfirmDialog(planPaused ? 'resume' : 'pause')}
+                                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all ${planPaused ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
                                 {planPaused ? <><Play size={13} /> Resume</> : <><Pause size={13} /> Pause</>}
                             </button>
-                            {/* Deactivate */}
-                            <button
-                                onClick={() => setConfirmDialog('deactivate')}
+                            <button onClick={() => setConfirmDialog('deactivate')}
                                 className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 text-xs font-semibold hover:opacity-80 transition-all">
                                 <XCircle size={13} /> Deactivate
                             </button>
@@ -512,7 +609,7 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                         </div>
                         <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl border border-violet-200/50 dark:border-violet-900/50">
                             <p className="text-[11px] text-violet-600 dark:text-violet-400">
-                                💡 Bill calculated on active users at end of each month. More users = better rate automatically.
+                                💡 Minimum 200 users billed per month. Current active: {activeUsers} users — billed as {billedUsers} users. {fmt(monthlyBill)} est. next bill.
                             </p>
                         </div>
                     </div>
@@ -527,8 +624,6 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                     </span>
                 }>
                     <div className="space-y-5">
-
-                        {/* Storage */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -558,7 +653,6 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                         <span className="text-xs text-muted-foreground">GB</span>
                                     </div>
                                 </div>
-                                {/* Manual rate input */}
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground shrink-0">Rate ₹</span>
                                     <input type="number" min={0} value={storagePricePerGb}
@@ -572,8 +666,7 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                     <InfoBox label="Rate" value={storagePricePerGb !== '' ? `₹${storagePricePerGb}/GB` : '—'} sub="per GB" />
                                     <InfoBox label="This Month" value={storagePricePerGb !== '' ? fmt(storageAddTotal) : '—'} highlight />
                                 </div>
-                                <button
-                                    disabled={storageAddGb === 0 || storagePricePerGb === '' || storageAdded}
+                                <button disabled={storageAddGb === 0 || storagePricePerGb === '' || storageAdded}
                                     onClick={() => { setStorageAdded(true); toast.success(`${storageAddGb}GB storage added — added to this month's bill`); }}
                                     className="w-full h-9 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                                     style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
@@ -581,10 +674,7 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                 </button>
                             </div>
                         </div>
-
                         <div className="h-px bg-border/50" />
-
-                        {/* AI Tokens */}
                         <div className="space-y-3">
                             <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2">
@@ -592,7 +682,8 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                     <p className="text-xs font-semibold">AI Tokens</p>
                                     <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">Monthly limit</span>
                                 </div>
-                                <span className="text-xs text-muted-foreground">{(tokenUsed / 1000000).toFixed(1)}M / {(tokenBase / 1000000).toFixed(0)}M used</span>                            </div>
+                                <span className="text-xs text-muted-foreground">{(tokenUsed / 1000000).toFixed(1)}M / {(tokenBase / 1000000).toFixed(0)}M used</span>
+                            </div>
                             <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
                                 <div className="h-full rounded-full transition-all duration-500"
                                     style={{ width: `${tokenUsedPct}%`, background: tokenUsedPct > 85 ? '#ef4444' : tokenUsedPct > 70 ? '#f59e0b' : '#DA7756' }} />
@@ -614,7 +705,6 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                         <span className="text-xs text-muted-foreground">×1M</span>
                                     </div>
                                 </div>
-                                {/* Manual rate input */}
                                 <div className="flex items-center gap-2">
                                     <span className="text-xs text-muted-foreground shrink-0">Rate ₹</span>
                                     <input type="number" min={0} value={tokenPricePer10k}
@@ -628,9 +718,8 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                     <InfoBox label="Rate" value={tokenPricePer10k !== '' ? `₹${tokenPricePer10k}/1M` : '—'} sub="per 1M tokens" />
                                     <InfoBox label="This Month" value={tokenPricePer10k !== '' ? fmt(tokenAddTotal) : '—'} highlight />
                                 </div>
-                                <button
-                                    disabled={tokenAddK === 0 || tokenPricePer10k === '' || tokenAdded}
-                                    onClick={() => { setTokenAdded(true); toast.success(`${tokenAddK * 10}k tokens added — added to this month's bill`); }}
+                                <button disabled={tokenAddK === 0 || tokenPricePer10k === '' || tokenAdded}
+                                    onClick={() => { setTokenAdded(true); toast.success(`${tokenAddK}M tokens added — added to this month's bill`); }}
                                     className="w-full h-9 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
                                     style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                     {tokenAdded ? '✅ Tokens Added to Bill' : "Add Tokens to This Month's Bill"}
@@ -640,22 +729,278 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                     </div>
                 </SectionCard>
 
-                {/* Payment History */}
-                <SectionCard title="Payment History">
-                    <div className="divide-y divide-border/40">
-                        {paymentHistory.map((p, i) => (
-                            <div key={i} className="flex items-center justify-between py-3">
-                                <div><p className="text-xs font-semibold">{p.type}</p><p className="text-[11px] text-muted-foreground">{p.date}</p></div>
-                                <div className="flex items-center gap-3">
-                                    <p className="text-sm font-bold">{fmt(p.amount)}</p>
-                                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">{p.status}</span>
+                {/* Bill Modal */}
+                {billModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                            className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full mx-4 shadow-2xl">
+                            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/50">
+                                <div>
+                                    <h3 className="text-base font-bold">Invoice — {billModal.month}</h3>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{billModal.dateRange}</p>
+                                </div>
+                                <button onClick={() => setBillModal(null)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
+                                    <X size={14} />
+                                </button>
+                            </div>
+
+                            <div className="p-6 space-y-4" id="bill-print-area">
+                                {/* Institution info */}
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="text-sm font-bold">{inst.name}</p>
+                                        <p className="text-[11px] text-muted-foreground">{inst.type} · {instType}</p>
+                                        <p className="text-[11px] text-muted-foreground">{inst.email}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[11px] text-muted-foreground">Plan</p>
+                                        <p className="text-sm font-bold" style={{ color: plan === 'PRO' ? '#DA7756' : '#7C3AED' }}>{plan}</p>
+                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${billModal.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                                            {billModal.status}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="h-px bg-border/50" />
+
+                                {/* Line items */}
+                                {billModal.items.length > 0 ? (
+                                    <div className="space-y-2">
+                                        {billModal.items.map((item, i) => (
+                                            <div key={i} className="flex items-center justify-between">
+                                                <div>
+                                                    <p className="text-xs font-medium">{item.label}</p>
+                                                    <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                                                </div>
+                                                <p className="text-xs font-bold">{fmt(item.amount)}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs text-muted-foreground">Monthly Bill</p>
+                                        <p className="text-xs font-bold">{fmt(billModal.total)}</p>
+                                    </div>
+                                )}
+
+                                <div className="h-px bg-border/50" />
+
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-bold">Total Amount</p>
+                                    <p className="text-lg font-black" style={{ color: '#DA7756' }}>{fmt(billModal.total)}</p>
                                 </div>
                             </div>
-                        ))}
+
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
+                                <button onClick={() => setBillModal(null)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Close
+                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => { toast.success(`Bill resent to admin for ${billModal.month}`); }}
+                                        className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                        Resend to Admin
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            // TODO: backend PDF endpoint
+                                            window.print();
+                                        }}
+                                        className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                        Download PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* Payment History */}
+                <SectionCard title={
+                    <span className="flex items-center gap-2">
+                        <FileText size={15} /> Bills & Payments
+                    </span>
+                }>
+                    <div className="space-y-4">
+                        {/* Current Month */}
+                        <div>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                Current Month
+                                <span className="text-[10px] font-normal normal-case ml-2 text-violet-600 dark:text-violet-400">
+                                    {now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })} · Generates {monthEnd.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                                </span>
+                            </p>
+                            <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2">
+                                <span>📅 {currentMonthDateRange}</span>
+                                <span className="font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                    Generates on {monthEnd.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                                </span>
+                            </div>
+                            <div className="rounded-xl border border-border/50 overflow-hidden">
+                                <div className="px-3 py-2 bg-muted/30 border-b border-border/40">
+                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Bill Breakdown</p>
+                                </div>
+                                <div className="divide-y divide-border/30">
+                                    {currentMonthItems.map((item, i) => (
+                                        <div key={i} className="flex items-center justify-between px-3 py-2.5">
+                                            <div>
+                                                <p className="text-xs font-medium">{item.label}</p>
+                                                <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {item.type === 'addon' && <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">Add-On</span>}
+                                                <span className="text-xs font-bold">{fmt(item.amount)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="flex items-center justify-between px-3 py-2.5 bg-muted/20 border-t border-border/50">
+                                    <p className="text-xs font-bold">Total</p>
+                                    <p className="text-sm font-black" style={{ color: '#DA7756' }}>{fmt(currentMonthTotal)}</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center justify-between mt-2">
+                                <p className="text-[11px] text-muted-foreground">
+                                    💡 Bill will be sent to admin dashboard on {new Date(now.getFullYear(), now.getMonth() + 1, 1).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                </p>
+                                <button onClick={() => setBillModal({
+                                    id: 'current', type: 'MONTHLY' as const,
+                                    month: now.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' }),
+                                    dateRange: currentMonthDateRange,
+                                    items: currentMonthItems, total: currentMonthTotal,
+                                    status: 'PENDING' as const,
+                                    generatedOn: monthEnd.toLocaleDateString('en-IN'),
+                                })}
+                                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border text-[11px] font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    <FileText size={11} /> View Bill
+                                </button>
+                            </div>
+                        </div>
+                        <div className="h-px bg-border/50" />
+
+                        {/* Bill History */}
+                        <div>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Bill History</p>
+                            <div className="divide-y divide-border/40 max-h-[300px] overflow-y-auto">
+                                {allBills.map((bill, idx) => (
+                                    <div key={bill.id} className="flex items-center justify-between py-3">
+                                        <div>
+                                            <div className="flex items-center gap-2">
+                                                <p className="text-xs font-semibold">{bill.month}</p>
+                                                {bill.type === 'LICENCE' && (
+                                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400">Licence</span>
+                                                )}
+                                                {idx === 0 && (
+                                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400">New</span>
+                                                )}
+                                            </div>
+                                            <p className="text-[11px] text-muted-foreground">{bill.dateRange}</p>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <p className="text-sm font-bold">{fmt(bill.total)}</p>
+                                            {/* Status toggle */}
+                                            <button onClick={() => {
+                                                const updated = allBills.map(b => b.id === bill.id
+                                                    ? { ...b, status: b.status === 'PAID' ? 'PENDING' as const : 'PAID' as const }
+                                                    : b
+                                                );
+                                                setBills(updated);
+                                                toast.success(`Bill marked as ${bill.status === 'PAID' ? 'Pending' : 'Paid'}`);
+                                            }}
+                                                className={`text-[11px] font-semibold px-2 py-0.5 rounded-full transition-all cursor-pointer ${bill.status === 'PAID'
+                                                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 hover:bg-emerald-200'
+                                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 hover:bg-amber-200'}`}>
+                                                {bill.status}
+                                            </button>
+                                            <button onClick={() => setBillModal(bill)}
+                                                className="h-7 px-2.5 rounded-lg border border-border text-[11px] font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                                View
+                                            </button>
+                                            <button onClick={() => toast.success(`Bill resent to admin for ${bill.month}`)}
+                                                className="h-7 px-2.5 rounded-lg text-[11px] font-semibold text-white transition-all hover:opacity-90"
+                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                Resend
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
                     </div>
                 </SectionCard>
 
-                {/* Feature Controls — active view with expiry */}
+                {/* Bill Modal */}
+                {billModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                            className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full mx-4 shadow-2xl">
+                            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/50">
+                                <div>
+                                    <h3 className="text-base font-bold">Invoice — {billModal.month}</h3>
+                                    <p className="text-xs text-muted-foreground mt-0.5">{billModal.dateRange}</p>
+                                </div>
+                                <button onClick={() => setBillModal(null)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                            <div className="p-6 space-y-4">
+                                <div className="flex items-start justify-between">
+                                    <div>
+                                        <p className="text-sm font-bold">{inst.name}</p>
+                                        <p className="text-[11px] text-muted-foreground">{inst.type} · {instType}</p>
+                                        <p className="text-[11px] text-muted-foreground">{inst.email}</p>
+                                    </div>
+                                    <div className="text-right">
+                                        <p className="text-[11px] text-muted-foreground">Plan</p>
+                                        <p className="text-sm font-bold" style={{ color: plan === 'PRO' ? '#DA7756' : '#7C3AED' }}>{plan}</p>
+                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${billModal.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                                            {billModal.status}
+                                        </span>
+                                    </div>
+                                </div>
+                                <div className="h-px bg-border/50" />
+                                <div className="space-y-2.5">
+                                    {billModal.items.map((item, i) => (
+                                        <div key={i} className="flex items-center justify-between">
+                                            <div>
+                                                <p className="text-xs font-medium">{item.label}</p>
+                                                <p className="text-[11px] text-muted-foreground">{item.desc}</p>
+                                            </div>
+                                            <p className="text-xs font-bold">{fmt(item.amount)}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="h-px bg-border/50" />
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-bold">Total Amount</p>
+                                    <p className="text-lg font-black" style={{ color: '#DA7756' }}>{fmt(billModal.total)}</p>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground">Generated: {billModal.generatedOn}</p>
+                            </div>
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
+                                <button onClick={() => setBillModal(null)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Close
+                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => toast.success(`Bill resent to admin for ${billModal.month}`)}
+                                        className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                        Resend to Admin
+                                    </button>
+                                    <button onClick={() => window.print()}
+                                        className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                        Download PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+
+                {/* Feature Controls */}
                 <SectionCard title="Feature Controls">
                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Default Features</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-5">
@@ -683,9 +1028,10 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                             </p>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                                 {addonFeatures.map(({ key, label, desc, icon: Icon }) => {
-                                    const expired = isExpired(expiryDate);
+                                    const featureExpiry = addonExpiries[key] ?? getFeatureExpiry(key);
+                                    const expired = isExpired(featureExpiry);
+                                    const days = daysLeft(featureExpiry);
                                     const enabled = features[key] ?? false;
-                                    const days = daysLeft(expiryDate);
                                     return (
                                         <div key={key} className={`flex items-start justify-between p-3 rounded-xl border transition-all ${expired && !enabled ? 'border-red-200/50 bg-red-50/30 dark:bg-red-950/10 opacity-70' : enabled ? 'border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/20' : 'border-border/50 bg-muted/20'}`}>
                                             <div className="flex items-start gap-2 min-w-0 mr-3">
@@ -694,8 +1040,8 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                                     <p className="text-xs font-medium truncate">{label}</p>
                                                     <p className="text-[11px] text-muted-foreground">{desc}</p>
                                                     {expired
-                                                        ? <p className="text-[10px] text-red-500 font-semibold mt-0.5">⚠ Expired — enabling will add to monthly bill</p>
-                                                        : <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">{days}d free remaining</p>
+                                                        ? <p className="text-[10px] text-red-500 font-semibold mt-0.5">⚠ Expired — ₹10,000/yr to enable</p>
+                                                        : <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">Free until {featureExpiry.toLocaleDateString('en-IN')} ({days}d)</p>
                                                     }
                                                 </div>
                                             </div>
@@ -703,8 +1049,12 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                                 <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">Add-On</span>
                                                 <Toggle on={enabled} onToggle={() => {
                                                     const newVal = !enabled;
-                                                    setFeatures(p => ({ ...p, [key]: newVal }));
-                                                    if (newVal && expired) toast.success(`${label} enabled — will be added to this month's bill`);
+                                                    if (newVal && expired) {
+                                                        setPendingEnableKey(key);
+                                                        setConfirmDialog('enable_addon');
+                                                    } else {
+                                                        setFeatures(p => ({ ...p, [key]: newVal }));
+                                                    }
                                                 }} />
                                             </div>
                                         </div>
@@ -714,57 +1064,293 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                         </>
                     )}
                 </SectionCard>
-                {/* Confirm Dialog */}
+
+                {/* ── Confirm Dialog ── */}
                 {confirmDialog && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
-                            <h3 className="text-base font-bold mb-2">
-                                {confirmDialog === 'deactivate' ? '⚠️ Deactivate Plan?' :
-                                    confirmDialog === 'pause' ? '⏸ Pause Operations?' : '▶️ Resume Operations?'}
-                            </h3>
-                            <p className="text-sm text-muted-foreground mb-5">
-                                {confirmDialog === 'deactivate'
-                                    ? 'This will permanently deactivate the plan. Institution will lose access immediately.'
-                                    : confirmDialog === 'pause'
-                                        ? 'Institution access will be temporarily suspended. All data will be preserved. You can resume anytime.'
-                                        : 'Institution access will be restored immediately.'
-                                }
-                            </p>
-                            <div className="flex gap-2 justify-end">
-                                <button
-                                    onClick={() => setConfirmDialog(null)}
-                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={() => {
-                                        if (confirmDialog === 'deactivate') {
-                                            setPlanActive(false);
-                                            toast.success('Plan deactivated');
-                                        } else if (confirmDialog === 'pause') {
-                                            setPlanPaused(true);
-                                            toast.success('Operations paused');
-                                        } else {
-                                            setPlanPaused(false);
-                                            toast.success('Operations resumed');
-                                        }
-                                        setConfirmDialog(null);
-                                    }}
-                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
-                                    style={{
-                                        background: confirmDialog === 'deactivate'
-                                            ? '#ef4444'
-                                            : confirmDialog === 'pause'
-                                                ? '#f59e0b'
-                                                : '#10b981'
-                                    }}>
-                                    {confirmDialog === 'deactivate' ? 'Yes, Deactivate' :
-                                        confirmDialog === 'pause' ? 'Yes, Pause' : 'Yes, Resume'}
-                                </button>
-                            </div>
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                            className="bg-card border border-border rounded-2xl overflow-hidden max-w-2xl w-full mx-4 shadow-2xl">
+
+                            {confirmDialog === 'upgrade' ? (
+                                <>
+                                    {/* Upgrade modal header */}
+                                    <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/50">
+                                        <div>
+                                            <h3 className="text-base font-bold">⚡ Upgrade to PRO</h3>
+                                            <p className="text-xs text-muted-foreground mt-0.5">Review your current plan and what you'll get after upgrading</p>
+                                        </div>
+                                        <button onClick={() => setConfirmDialog(null)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
+                                            <X size={14} />
+                                        </button>
+                                    </div>
+
+                                    {/* Tabs */}
+                                    <div className="flex gap-1 bg-muted/50 p-1 mx-6 mt-4 rounded-xl border border-border/50 w-fit">
+                                        {[{ key: 'current' as const, label: '📋 Current (Basic)' }, { key: 'after' as const, label: '⚡ After Upgrade (PRO)' }].map(tab => (
+                                            <button key={tab.key} onClick={() => setUpgradeModalTab(tab.key)}
+                                                className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${upgradeModalTab === tab.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                {tab.label}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {/* Tab content */}
+                                    <div className="p-6 max-h-[60vh] overflow-y-auto space-y-3">
+                                        {upgradeModalTab === 'current' ? (
+                                            <>
+                                                {/* Plan info */}
+                                                <div className="bg-muted/40 rounded-xl p-4 space-y-2">
+                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Plan Info</p>
+                                                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Plan</span><span className="font-semibold text-primary">BASIC</span></div>
+                                                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Activated</span><span className="font-medium">14 Nov 2025</span></div>
+                                                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Months used</span><span className="font-medium">{monthsUsed} months</span></div>
+                                                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Months remaining</span><span className="font-medium">{monthsRemaining} months</span></div>
+                                                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Monthly rate</span><span className="font-medium">{fmt(getRate(pricing.BASIC.tiers, activeUsers))}/user</span></div>
+                                                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">Storage</span><span className="font-medium">500GB</span></div>
+                                                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">AI Tokens</span><span className="font-medium">10M/month</span></div>
+                                                </div>
+
+                                                {/* Default features */}
+                                                <div>
+                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Default Features (always on)</p>
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                        {basicDefaults.map(f => (
+                                                            <div key={f.key} className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/40">
+                                                                <f.icon size={12} className="text-muted-foreground shrink-0" />
+                                                                <span className="text-[11px] font-medium truncate">{f.label}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                                {/* Add-on features — Basic add-ons with expiry */}
+                                                <div>
+                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                                        Add-On Features
+                                                        <span className="text-[10px] text-amber-600 dark:text-amber-400 normal-case font-normal ml-2">
+                                                            Free until {basicExpiryDate.toLocaleDateString('en-IN')}
+                                                        </span>
+                                                    </p>
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                        {basicAddons.map(f => {
+                                                            const expired = isExpired(basicExpiryDate);
+                                                            const days = daysLeft(basicExpiryDate);
+                                                            return (
+                                                                <div key={f.key} className={`flex items-center gap-2 p-2 rounded-lg border ${expired ? 'border-red-200/50 bg-red-50/30 dark:bg-red-950/10' : 'border-amber-200/50 bg-amber-50/30 dark:bg-amber-950/10'}`}>
+                                                                    <f.icon size={12} className="text-muted-foreground shrink-0" />
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-[11px] font-medium truncate">{f.label}</p>
+                                                                        <p className={`text-[10px] ${expired ? 'text-red-500' : 'text-amber-600 dark:text-amber-400'}`}>
+                                                                            {expired ? '⚠ Expired' : `${days}d remaining`}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                {/* Upgrade charge */}
+                                                <div className="bg-muted/40 rounded-xl p-4 space-y-2.5">
+                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Upgrade Charge</p>
+                                                    <div className="flex justify-between text-xs"><span className="text-muted-foreground">PRO Licence</span><span className="font-medium">{fmt(proLicence)}</span></div>
+                                                    {!upgradeIsAfter12
+                                                        ? <div className="flex justify-between text-xs"><span className="text-muted-foreground">Basic credit ({monthsRemaining}/12 months)</span><span className="font-medium text-emerald-600 dark:text-emerald-400">- {fmt(remainingCredit)}</span></div>
+                                                        : <div className="flex justify-between text-xs"><span className="text-muted-foreground">Loyalty discount (10%)</span><span className="font-medium text-emerald-600 dark:text-emerald-400">- {fmt(loyaltyDiscount)}</span></div>
+                                                    }
+                                                    <div className="h-px bg-border/50" />
+                                                    <div className="flex justify-between text-sm font-bold"><span>You Pay</span><span style={{ color: '#DA7756' }}>{fmt(finalUpgradeCharge)}</span></div>
+                                                </div>
+
+                                                {/* Monthly rate change */}
+                                                <div className="bg-violet-50 dark:bg-violet-950/20 rounded-xl p-3 border border-violet-200/50 dark:border-violet-900/50">
+                                                    <p className="text-[11px] font-semibold text-violet-700 dark:text-violet-400 mb-2">What Changes (next month)</p>
+                                                    <div className="space-y-1.5">
+                                                        <div className="flex justify-between text-xs">
+                                                            <span className="text-muted-foreground">Monthly rate</span>
+                                                            <span className="font-medium">{fmt(getRate(pricing.BASIC.tiers, activeUsers))}/user <span className="text-muted-foreground">→</span> <span className="font-bold text-violet-600 dark:text-violet-400">{fmt(newMonthlyRate)}/user</span></span>
+                                                        </div>
+                                                        <div className="flex justify-between text-xs">
+                                                            <span className="text-muted-foreground">Storage</span>
+                                                            <span className="font-medium">500GB <span className="text-muted-foreground">→</span> <span className="font-bold text-violet-600 dark:text-violet-400">1TB</span></span>
+                                                        </div>
+                                                        <div className="flex justify-between text-xs">
+                                                            <span className="text-muted-foreground">AI Tokens</span>
+                                                            <span className="font-medium text-violet-600 dark:text-violet-400">10M/month (same)</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* All PRO default features — new ones badged */}
+                                                <div>
+                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Default Features</p>
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                        {ALL_FEATURES.filter(f => f.inPro && !f.addOnPro).sort((a, b) => {
+                                                            if (!a.inBasic && b.inBasic) return 1;
+                                                            if (a.inBasic && !b.inBasic) return -1;
+                                                            return 0;
+                                                        }).map(f => {
+                                                            const isNew = !f.inBasic;
+                                                            return (
+                                                                <div key={f.key} className={`flex items-center gap-2 p-2 rounded-lg border ${isNew ? 'border-emerald-200/50 bg-emerald-50/30 dark:bg-emerald-950/10' : 'border-border/40 bg-muted/30'}`}>
+                                                                    <f.icon size={12} className={`shrink-0 ${isNew ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`} />
+                                                                    <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
+                                                                        <span className={`text-[11px] font-medium truncate ${isNew ? 'text-emerald-700 dark:text-emerald-300' : ''}`}>{f.label}</span>
+                                                                        {isNew && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 shrink-0">NEW</span>}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+
+                                                {/* Add-on — only smart_board */}
+                                                <div>
+                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Add-On Features</p>
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                        {ALL_FEATURES.filter(f => f.inPro && f.addOnPro).map(f => {
+                                                            const exp = upgradeIsAfter12
+                                                                ? new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+                                                                : basicExpiryDate;
+                                                            const days = daysLeft(exp);
+                                                            const expired = isExpired(exp);
+                                                            return (
+                                                                <div key={f.key} className={`flex items-center gap-2 p-2 rounded-lg border ${expired ? 'border-red-200/50 bg-red-50/30 dark:bg-red-950/10' : 'border-amber-200/50 bg-amber-50/30 dark:bg-amber-950/10'}`}>
+                                                                    <f.icon size={12} className="text-muted-foreground shrink-0" />
+                                                                    <div className="min-w-0">
+                                                                        <p className="text-[11px] font-medium truncate">{f.label}</p>
+                                                                        <p className={`text-[10px] ${expired ? 'text-red-500' : 'text-amber-600 dark:text-amber-400'}`}>
+                                                                            {expired ? '⚠ Expired' : `Free until ${exp.toLocaleDateString('en-IN')} (${days}d)`}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                                {/* Feature expiry info */}
+                                                <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-3 border border-amber-200/50 dark:border-amber-900/50">
+                                                    <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 mb-1">Feature Free Period</p>
+                                                    {!upgradeIsAfter12 ? (
+                                                        <p className="text-[11px] text-amber-600 dark:text-amber-500">
+                                                            All features (Basic + PRO) free until <span className="font-semibold">{basicExpiryDate.toLocaleDateString('en-IN')}</span> (original activation + 1 year)
+                                                        </p>
+                                                    ) : (
+                                                        <p className="text-[11px] text-amber-600 dark:text-amber-500">
+                                                            Basic add-ons expired. New PRO features free for 1 year from upgrade date.
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {/* Payment toggle */}
+                                                <div className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${upgradePaid ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20' : 'border-border/50 bg-card'}`}>
+                                                    <div>
+                                                        <p className="text-xs font-semibold">Upgrade Payment Received</p>
+                                                        <p className="text-[11px] text-muted-foreground">Mark once upgrade charge of {fmt(finalUpgradeCharge)} is confirmed</p>
+                                                    </div>
+                                                    <Toggle on={upgradePaid} onToggle={() => setUpgradePaid(v => !v)} />
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+
+                                    {/* Footer */}
+                                    <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
+                                        <button onClick={() => setConfirmDialog(null)}
+                                            className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                            Cancel
+                                        </button>
+                                        <div className="flex items-center gap-2">
+                                            {upgradeModalTab === 'current' && (
+                                                <button onClick={() => setUpgradeModalTab('after')}
+                                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                                                    style={{ background: '#7C3AED' }}>
+                                                    See After Upgrade →
+                                                </button>
+                                            )}
+                                            {upgradeModalTab === 'after' && (
+                                                <button disabled={!upgradePaid}
+                                                    onClick={() => { setPlan('PRO'); setFeatures(getDefaultFeatures('PRO')); setUpgradeDate(new Date()); toast.success('Upgraded to PRO! Features updated.'); setConfirmDialog(null); setUpgradePaid(false); }}
+                                                    className="h-9 px-5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                    Confirm Upgrade — {fmt(finalUpgradeCharge)}
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                </>
+                            ) : confirmDialog === 'enable_addon' && pendingEnableKey ? (
+                                <div className="p-6">
+                                    <h3 className="text-base font-bold mb-2">🔓 Enable Add-On Feature?</h3>
+                                    <p className="text-sm text-muted-foreground mb-2">
+                                        <span className="font-semibold text-foreground">
+                                            {ALL_FEATURES.find(f => f.key === pendingEnableKey)?.label}
+                                        </span> ka free period expire ho gaya hai.
+                                    </p>
+                                    <div className="bg-muted/40 rounded-xl p-3 mb-4 space-y-1.5">
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-muted-foreground">Annual charge</span>
+                                            <span className="font-bold text-[#DA7756]">₹10,000/year</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-muted-foreground">New expiry</span>
+                                            <span className="font-medium">
+                                                {new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString('en-IN')}
+                                            </span>
+                                        </div>
+                                        <div className="h-px bg-border/50" />
+                                        <div className="flex justify-between text-xs">
+                                            <span className="text-muted-foreground">Added to this month's bill</span>
+                                            <span className="font-bold">₹10,000</span>
+                                        </div>
+                                    </div>
+                                    <div className="flex gap-2 justify-end">
+                                        <button onClick={() => { setConfirmDialog(null); setPendingEnableKey(null); }}
+                                            className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                            Cancel
+                                        </button>
+                                        <button onClick={() => {
+                                            if (!pendingEnableKey) return;
+                                            setFeatures(p => ({ ...p, [pendingEnableKey]: true }));
+                                            const newExpiry = new Date();
+                                            newExpiry.setFullYear(newExpiry.getFullYear() + 1);
+                                            setAddonExpiries(p => ({ ...p, [pendingEnableKey]: newExpiry }));
+                                            setAddonExtraBill(p => p + 10000);
+                                            toast.success(`Feature enabled — ₹10,000 added to this month's bill`);
+                                            setConfirmDialog(null);
+                                            setPendingEnableKey(null);
+                                        }}
+                                            className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                            Yes, Enable & Add to Bill
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-6">
+                                    <h3 className="text-base font-bold mb-2">
+                                        {confirmDialog === 'deactivate' ? '⚠️ Deactivate Plan?' : confirmDialog === 'pause' ? '⏸ Pause Operations?' : '▶️ Resume Operations?'}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground mb-5">
+                                        {confirmDialog === 'deactivate' ? 'This will permanently deactivate the plan. Institution will lose access immediately.'
+                                            : confirmDialog === 'pause' ? 'Institution access will be temporarily suspended. All data will be preserved. You can resume anytime.'
+                                                : 'Institution access will be restored immediately.'}
+                                    </p>
+                                    <div className="flex gap-2 justify-end">
+                                        <button onClick={() => setConfirmDialog(null)} className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">Cancel</button>
+                                        <button onClick={() => {
+                                            if (confirmDialog === 'deactivate') { setPlanActive(false); toast.success('Plan deactivated'); }
+                                            else if (confirmDialog === 'pause') { setPlanPaused(true); toast.success('Operations paused'); }
+                                            else { setPlanPaused(false); toast.success('Operations resumed'); }
+                                            setConfirmDialog(null);
+                                        }} className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                                            style={{ background: confirmDialog === 'deactivate' ? '#ef4444' : confirmDialog === 'pause' ? '#f59e0b' : '#10b981' }}>
+                                            {confirmDialog === 'deactivate' ? 'Yes, Deactivate' : confirmDialog === 'pause' ? 'Yes, Pause' : 'Yes, Resume'}
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </motion.div>
                     </div>
                 )}
@@ -775,7 +1361,6 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
     // ── SETUP VIEW ──
     return (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
-
             <div className="flex items-center gap-3 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50">
                 <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
                 <div>
@@ -798,10 +1383,8 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                                         {isActive && <div className={`w-2 h-2 rounded-full ${p.dot}`} />}
                                     </div>
                                 </div>
-                                {price
-                                    ? <p className="text-xs font-bold">{fmt(price.licence)} <span className="font-normal text-muted-foreground">one-time</span></p>
-                                    : <p className="text-xs text-muted-foreground">Free — no charge</p>
-                                }
+                                {price ? <p className="text-xs font-bold">{fmt(price.licence)} <span className="font-normal text-muted-foreground">one-time</span></p>
+                                    : <p className="text-xs text-muted-foreground">Free — no charge</p>}
                                 {p.features.length > 0 && (
                                     <div className="space-y-1.5 mt-1 pt-2 border-t border-border/40 w-full">
                                         {p.features.map(({ icon: Icon, label }) => (
@@ -828,9 +1411,7 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                             <div className="divide-y divide-border/30">
                                 {planPricing.tiers.map((tier, i) => (
                                     <div key={i} className="flex items-center justify-between px-4 py-2.5">
-                                        <span className="text-xs text-muted-foreground">
-                                            {tier.max === Infinity ? `${tier.min}+ users` : `${tier.min}–${tier.max} users`}
-                                        </span>
+                                        <span className="text-xs text-muted-foreground">{tier.max === Infinity ? `${tier.min}+ users` : `${tier.min}–${tier.max} users`}</span>
                                         <span className="text-xs font-bold text-muted-foreground">{fmt(tier.rate)}/user/mo</span>
                                     </div>
                                 ))}
@@ -838,12 +1419,10 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
                         </div>
                         <div className="grid grid-cols-3 gap-3">
                             <InfoBox label="Min. Users" value="200" sub="minimum billed" />
-                            <InfoBox label="Base Rate" value={`${fmt(planPricing.tiers[0].rate)}/user`} sub="200–999 users" />
+                            <InfoBox label="Base Rate" value={`${fmt(planPricing.tiers[0].rate)}/user`} sub="200–1499 users" />
                             <InfoBox label="Min. First Bill" value={fmt(200 * planPricing.tiers[0].rate)} sub="minimum amount" highlight />
                         </div>
-                        <p className="text-[11px] text-muted-foreground px-1">
-                            💡 Min. 200 users billed. Rate drops automatically as your institution grows.
-                        </p>
+                        <p className="text-[11px] text-muted-foreground px-1">💡 Min. 200 users billed. Rate drops automatically as your institution grows.</p>
                     </div>
                 </SectionCard>
             )}
@@ -1039,10 +1618,7 @@ export default function InstitutionDetailPage() {
         </div>
     );
 
-    const TABS = [
-        { key: 'details' as const, label: 'View Details' },
-        { key: 'plan' as const, label: 'Manage Plan' },
-    ];
+    const TABS = [{ key: 'details' as const, label: 'View Details' }, { key: 'plan' as const, label: 'Manage Plan' }];
 
     return (
         <div className="space-y-5">
