@@ -236,7 +236,7 @@ export default function InstitutionsPage() {
                 <div className="h-px bg-border/60" />
 
                 {/* Tab pills + Search + Filters + Publish — same row */}
-                <div className="flex items-center gap-115 ">
+                <div className="flex items-center justify-between gap-2">
                     {/* Left — Tabs + Publish */}
                     <div className="flex items-center gap-2 shrink-0">
                         <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
@@ -270,7 +270,7 @@ export default function InstitutionsPage() {
                     </div>
 
                     {/* Right — Search + Filters */}
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 mr-4">
                         <div className="relative">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             <input
