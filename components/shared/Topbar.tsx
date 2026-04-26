@@ -193,7 +193,7 @@ export function Topbar({ navItems }: TopbarProps) {
             </header>
 
             {navItems && (
-                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/10 w-fit items-center">                    {navItems.map((item) => {
+                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/30 w-fit items-center">                    {navItems.map((item) => {
                     const isActive =
                         pathname === item.href || pathname.startsWith(item.href + "/");
 

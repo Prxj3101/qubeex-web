@@ -389,53 +389,28 @@ export default function TicketsPage() {
                         {openCount} open · {inProgressCount} in progress · {MOCK_TICKETS.length} total
                     </p>
                 </div>
-            </div>
-
-            {/* ── Search + Filters ── */}
-            <div className="space-y-2 px-1">
-                {/* Search */}
-                <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Search by title, institution, email or ticket ID..."
-                        className="w-full max-w-xl h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
-                    />
-                    {search && (
-                        <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                            <X size={13} />
-                        </button>
-                    )}
-                </div>
-
-                {/* Status + Category filters */}
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] text-muted-foreground font-medium">Status:</span>
+                {/* Search + Filters — right side */}
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                            placeholder="Search tickets..."
+                            className="w-100 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all" />
+                        {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X size={13} /></button>}
+                    </div>
                     {STATUS_FILTERS.map(f => (
                         <button key={f.value} onClick={() => setActiveStatus(f.value)}
-                            className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeStatus === f.value
-                                ? 'bg-primary text-white border-primary'
-                                : 'border-border/50 text-muted-foreground hover:text-foreground'
-                                }`}>
+                            className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeStatus === f.value ? 'bg-primary text-white border-primary' : 'border-border/50 text-muted-foreground hover:text-foreground'}`}>
                             {f.label}
                         </button>
                     ))}
-                    <span className="text-[11px] text-muted-foreground font-medium ml-2">Category:</span>
                     {CATEGORY_FILTERS.map(f => (
                         <button key={f.value} onClick={() => toggleCategory(f.value)}
-                            className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeCategories.includes(f.value) ? f.cls : 'border-border/50 text-muted-foreground hover:text-foreground'
-                                }`}>
+                            className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeCategories.includes(f.value) ? f.cls : 'border-border/50 text-muted-foreground hover:text-foreground'}`}>
                             {f.label}
                         </button>
                     ))}
-                    {(activeCategories.length > 0) && (
-                        <button onClick={() => setActiveCategories([])}
-                            className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 ml-1">
-                            <X size={11} /> Clear
-                        </button>
-                    )}
+                    {activeCategories.length > 0 && <button onClick={() => setActiveCategories([])} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5"><X size={11} /> Clear</button>}
                 </div>
             </div>
 

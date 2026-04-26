@@ -198,7 +198,7 @@ export default function AuditLogsPage() {
     const hasFilters = search || actionFilter !== 'All Action Types' || instFilter !== 'All Institutions' || roleFilter !== 'All Roles' || fromDate || toDate;
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full overflow-hidden">
 
             {/* ── Sticky Header ── */}
             <div className="sticky top-0 z-20 bg-background pb-3 space-y-3">
@@ -254,18 +254,17 @@ export default function AuditLogsPage() {
             </div>
 
             {/* ── Table ── */}
-            <div className="flex-1 overflow-y-auto pb-6">
+            <div className="flex-1 flex flex-col min-h-0 pb-6">
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
-
-                    {/* Table header */}
-                    <div className="grid grid-cols-[140px_190px_180px_1fr_170px] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30">
+                    {/* Sticky Table header */}
+                    <div className="grid grid-cols-[140px_190px_180px_1fr_170px] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30 sticky top-0 z-10">
                         {['TIMESTAMP', 'ACTION', 'ACTOR', 'CONTEXT / DETAILS', 'INSTITUTION'].map(h => (
                             <p key={h} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</p>
                         ))}
                     </div>
 
-                    {/* Rows */}
-                    {loading ? (
+                    {/* Scrollable body */}
+                    <div className="overflow-y-auto flex-1 min-h-0" style={{ maxHeight: 'calc(100vh - 320px)' }}>                        {loading ? (
                         <div>
                             {[...Array(8)].map((_, i) => (
                                 <div key={i} className="grid grid-cols-[140px_190px_180px_1fr_170px] gap-4 px-5 py-4 border-b border-border/40 last:border-none animate-pulse">
@@ -325,6 +324,7 @@ export default function AuditLogsPage() {
                             );
                         })
                     )}
+                    </div>
                 </div>
 
                 {/* ── Pagination ── */}

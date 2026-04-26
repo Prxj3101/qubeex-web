@@ -29,7 +29,7 @@ interface Review {
     likes: number;
     reply?: ReviewReply;
 }
-
+<div className="overflow-y-auto flex-1 min-h-0" style={{ maxHeight: 'calc(100vh - 320px)' }}></div>
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
 const MOCK_REVIEWS: Review[] = [
@@ -316,57 +316,30 @@ export default function ReviewsPage() {
                         <span className="text-sm text-muted-foreground">{avgRating} avg · {MOCK_REVIEWS.length} reviews</span>
                     </div>
                 </div>
-            </div>
-
-            {/* ── Search + Filters ── */}
-            <div className="space-y-2 px-1">
-                <div className="relative">
-                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Search reviews by title, institution or admin..."
-                        className="w-full max-w-xl h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
-                    />
-                    {search && (
-                        <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
-                            <X size={13} />
-                        </button>
-                    )}
-                </div>
-
-                <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[11px] text-muted-foreground font-medium">Type:</span>
+                {/* Search + Filters — right side */}
+                <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <div className="relative">
+                        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+                            placeholder="Search reviews..."
+                            className="w-100 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all" />
+                        {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X size={13} /></button>}
+                    </div>
                     {TYPE_FILTERS.map(f => (
                         <button key={f} onClick={() => setActiveType(f)}
-                            className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeType === f
-                                ? 'bg-primary text-white border-primary'
-                                : 'border-border/50 text-muted-foreground hover:text-foreground'
-                                }`}>
+                            className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeType === f ? 'bg-primary text-white border-primary' : 'border-border/50 text-muted-foreground hover:text-foreground'}`}>
                             {f}
                         </button>
                     ))}
-                    <span className="text-[11px] text-muted-foreground font-medium ml-2">Stars:</span>
                     {STAR_FILTERS.map(s => (
                         <button key={s} onClick={() => toggleStar(s)}
-                            className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeStars.includes(s)
-                                ? 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400'
-                                : 'border-border/50 text-muted-foreground hover:text-foreground'
-                                }`}>
-                            <Star size={10} className={activeStars.includes(s) ? 'fill-amber-500 text-amber-500' : ''} />
-                            {s}
+                            className={`flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${activeStars.includes(s) ? 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400' : 'border-border/50 text-muted-foreground hover:text-foreground'}`}>
+                            <Star size={10} className={activeStars.includes(s) ? 'fill-amber-500 text-amber-500' : ''} />{s}
                         </button>
                     ))}
-                    {activeStars.length > 0 && (
-                        <button onClick={() => setActiveStars([])}
-                            className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5 ml-1">
-                            <X size={11} /> Clear
-                        </button>
-                    )}
+                    {activeStars.length > 0 && <button onClick={() => setActiveStars([])} className="text-[11px] text-muted-foreground hover:text-foreground flex items-center gap-0.5"><X size={11} /> Clear</button>}
                 </div>
             </div>
-
             {/* ── Reviews Grid ── */}
             {filtered.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-24 text-center">
