@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Topbar } from '@/components/shared/Topbar';
 import { useAuthStore } from '@/store/authStore';
@@ -15,29 +15,41 @@ const NAV_ITEMS = [
     { label: 'My Vault',     href: '/superadmin/vault',        icon: KeyRound },
 ];
 
+const Spinner = () => (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0F0A1E' }}>
+        <div className="w-8 h-8 border-2 border-[#DA7756]/30 border-t-[#DA7756] rounded-full animate-spin" />
+    </div>
+);
+
 export default function SuperAdminLayout({ children }: { children: React.ReactNode }) {
-    const router  = useRouter();
+    const router = useRouter();
+
+    // ── Hydration gate ──────────────────────────────────────────────────────────
+    // Zustand `persist` rehydrates asynchronously from localStorage.
+    // We must not read the store until the client has mounted and hydration is done,
+    // otherwise the initial null state causes a spurious redirect to /login.
+    const [hydrated, setHydrated] = useState(false);
+
+    useEffect(() => {
+        // `useAuthStore.persist.hasHydrated()` becomes true after the store
+        // replays persisted state. If it's already done (fast path), set immediately.
+        const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true));
+        if (useAuthStore.persist.hasHydrated()) setHydrated(true);
+        return unsub;
+    }, []);
+
     const { user, token } = useAuthStore();
 
     useEffect(() => {
-        // Not logged in at all
-        if (!token || !user) {
-            router.replace('/login');
-            return;
-        }
-        // Logged in but not a SuperAdmin
-        if (user.role !== 'SUPER_ADMIN') {
+        if (!hydrated) return; // wait for localStorage → store sync before checking
+        if (!token || !user || user.role !== 'SUPER_ADMIN') {
             router.replace('/login');
         }
-    }, [user, token, router]);
+    }, [hydrated, token, user, router]);
 
-    // Don't render the layout until we've confirmed the role
-    if (!token || !user || user.role !== 'SUPER_ADMIN') {
-        return (
-            <div className="min-h-screen flex items-center justify-center" style={{ background: '#0F0A1E' }}>
-                <div className="w-8 h-8 border-2 border-[#DA7756]/30 border-t-[#DA7756] rounded-full animate-spin" />
-            </div>
-        );
+    // Show spinner while: (a) store hasn't hydrated yet, or (b) not authorized
+    if (!hydrated || !token || !user || user.role !== 'SUPER_ADMIN') {
+        return <Spinner />;
     }
 
     return (

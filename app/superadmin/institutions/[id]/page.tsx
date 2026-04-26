@@ -23,21 +23,28 @@ type Bill = {
     status: 'PAID' | 'PENDING'; generatedOn: string;
 };
 
-const MOCK_INST: Institution & {
-    phone?: string; city?: string; state?: string; address?: string;
-    pincode?: string; country?: string; board?: string; medium?: string;
-    plan?: string; joinedAt?: string; adminName?: string;
-    totalStudents?: number; totalTeachers?: number;
-} = {
-    id: 's1', name: 'Delhi Public School', type: 'SCHOOL', email: 'admin@dps.edu.in',
-    phone: '+91 98100 11223', city: 'New Delhi', state: 'Delhi',
-    address: 'Mathura Road, Near Siri Fort', pincode: '110003', country: 'India',
-    board: 'CBSE', medium: 'English', status: 'ACTIVE', plan: 'PRO',
-    joinedAt: '2025-11-14T09:00:00Z', adminName: 'Rohit Sharma',
-    totalStudents: 342, totalTeachers: 28,
-    createdAt: '2025-11-14T09:00:00Z', updatedAt: '2026-04-10T12:00:00Z',
-    users: [{ id: 'u1', email: 'rohit.sharma@dps.edu.in', role: 'ADMIN', createdAt: '2025-11-14T09:30:00Z' }],
+// ─── Types ─────────────────────────────────────────────────────────────────
+
+type AdminUser = { id: string; name?: string | null; email: string; role: string; isActive: boolean; createdAt: string; };
+type InstData = {
+    id: string; institutionCode?: string; name: string; email: string;
+    type: 'SCHOOL' | 'COLLEGE' | 'COACHING'; status: string;
+    phone?: string | null; city?: string | null; state?: string | null;
+    address?: string | null; pincode?: string | null; country?: string | null;
+    board?: string | null; medium?: string | null; logoUrl?: string | null;
+    createdAt: string; updatedAt: string;
+    users?: AdminUser[];
+    admin?: AdminUser | null;
+    teacherCount?: number;
+    studentCount?: number;
+    subscription?: { plan?: { name: string }; status?: string; startDate?: string; endDate?: string; } | null;
 };
+
+/** Format UTC ISO → IST */
+function toIST(iso?: string | null, opts?: Intl.DateTimeFormatOptions) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'long', year: 'numeric', ...opts });
+}
 
 const PRICING = {
     SCHOOL: {
@@ -164,20 +171,30 @@ function EditableField({ label, value, onChange }: { label: string; value: strin
 }
 
 function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
-    inst: typeof MOCK_INST; onStatusToggle: () => void; onResendInvite: () => void;
+    inst: InstData; onStatusToggle: () => void; onResendInvite: () => void;
 }) {
-    const status = statusCfg[inst.status] ?? statusCfg['PENDING'];
+    const status  = statusCfg[inst.status] ?? statusCfg['PENDING'];
     const TypeIcon = inst.type === 'SCHOOL' ? School : inst.type === 'COLLEGE' ? GraduationCap : BookOpen;
     const initials = inst.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
-    const joinDate = inst.joinedAt ? new Date(inst.joinedAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'long', year: 'numeric' }) : '—';
+    const joinDate = toIST(inst.createdAt);
+    const [logoErr, setLogoErr] = useState(false);
+
+    // Enrich admin info from either dedicated field or users array
+    const adminUser   = inst.admin ?? inst.users?.find(u => u.role === 'ADMIN') ?? null;
+    const adminName   = adminUser?.name ?? adminUser?.email?.split('@')[0] ?? '—';
+    const studentCount = inst.studentCount ?? 0;
+    const teacherCount = inst.teacherCount ?? 0;
+    const planName    = inst.subscription?.plan?.name ?? '—';
+    const instCode    = inst.institutionCode ?? null;
+    const logoUrl     = inst.logoUrl ?? null;
 
     const [editingSection, setEditingSection] = useState<string | null>(null);
     const [instDraft, setInstDraft] = useState({ name: inst.name, email: inst.email, phone: inst.phone ?? '', board: inst.board ?? '', medium: inst.medium ?? '' });
     const [instSaved, setInstSaved] = useState({ ...instDraft });
     const [locDraft, setLocDraft] = useState({ address: inst.address ?? '', city: inst.city ?? '', state: inst.state ?? '', country: inst.country ?? '', pincode: inst.pincode ?? '' });
     const [locSaved, setLocSaved] = useState({ ...locDraft });
-    const [adminDraft, setAdminDraft] = useState({ adminName: inst.adminName ?? '' });
-    const [adminSaved, setAdminSaved] = useState({ ...adminDraft });
+    const [adminDraft, setAdminDraft] = useState({ adminName });
+    const [adminSaved, setAdminSaved] = useState({ adminName });
 
     const cancelEdit = (s: string) => {
         if (s === 'inst') setInstDraft({ ...instSaved });
@@ -205,7 +222,13 @@ function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
             <div className="bg-card border border-border/50 rounded-2xl p-5">
                 <div className="flex items-start gap-4">
-                    <div className="w-16 h-16 rounded-2xl bg-muted text-muted-foreground ring-2 ring-border flex items-center justify-center text-xl font-bold shrink-0 select-none">{initials}</div>
+                    {/* Logo / initials */}
+                    <div className="w-16 h-16 rounded-2xl bg-muted ring-2 ring-border shrink-0 overflow-hidden flex items-center justify-center">
+                        {logoUrl && !logoErr
+                            ? <img src={logoUrl} alt={inst.name} className="w-full h-full object-cover" onError={() => setLogoErr(true)} />
+                            : <span className="text-xl font-bold text-muted-foreground select-none">{initials}</span>
+                        }
+                    </div>
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3">
                             <div>
@@ -213,7 +236,7 @@ function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
                                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted px-2 py-0.5 rounded-full"><TypeIcon size={11} />{inst.type}</span>
                                     <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${status.cls}`}>{status.label}</span>
-                                    {inst.plan && <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: inst.plan === 'PRO' ? '#DA775620' : '#7C3AED20', color: inst.plan === 'PRO' ? '#DA7756' : '#7C3AED' }}>{inst.plan}</span>}
+                                    {planName !== '—' && <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full" style={{ background: planName === 'PRO' ? '#DA775620' : '#7C3AED20', color: planName === 'PRO' ? '#DA7756' : '#7C3AED' }}>{planName}</span>}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
@@ -224,7 +247,11 @@ function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
                             </div>
                         </div>
                         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
-                            {[{ label: 'Students', value: inst.totalStudents ?? '—' }, { label: 'Teachers', value: inst.totalTeachers ?? '—' }, { label: 'Joined', value: joinDate }].map(({ label, value }) => (
+                            {[
+                                { label: 'Students', value: studentCount },
+                                { label: 'Teachers', value: teacherCount },
+                                { label: 'Joined', value: joinDate },
+                            ].map(({ label, value }) => (
                                 <div key={label}><p className="text-lg font-bold leading-tight">{value}</p><p className="text-[11px] text-muted-foreground">{label}</p></div>
                             ))}
                         </div>
@@ -240,14 +267,17 @@ function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
                         <EditableField label="Board" value={instDraft.board} onChange={v => setInstDraft(d => ({ ...d, board: v }))} />
                         <EditableField label="Medium" value={instDraft.medium} onChange={v => setInstDraft(d => ({ ...d, medium: v }))} />
                     </>) : (<>
-                        <InfoRow icon={Hash} label="Institute ID" value={<span className="italic text-muted-foreground/60 text-[11px]">Auto generated</span>} />
+                        <InfoRow icon={Hash} label="Institute ID" value={instCode
+                            ? <span className="font-mono text-xs font-semibold tracking-wider" style={{ color: '#DA7756' }}>{instCode}</span>
+                            : <span className="italic text-muted-foreground/50 text-[11px]">—</span>
+                        } />
                         <InfoRow icon={Building2} label="Name" value={instSaved.name} />
                         <InfoRow icon={TypeIcon} label="Type" value={inst.type} />
                         <InfoRow icon={Mail} label="Email" value={instSaved.email} />
                         <InfoRow icon={Phone} label="Phone" value={instSaved.phone || '—'} />
                         <InfoRow icon={BookOpen} label="Board" value={instSaved.board || '—'} />
                         <InfoRow icon={Globe} label="Medium" value={instSaved.medium || '—'} />
-                        <InfoRow icon={Calendar} label="Joined" value={joinDate} />
+                        <InfoRow icon={Calendar} label="Joined (IST)" value={joinDate} />
                     </>)}
                 </SectionCard>
                 <SectionCard title="Location" editBtn={editBtns('loc')}>
@@ -266,38 +296,40 @@ function ViewDetailsTab({ inst, onStatusToggle, onResendInvite }: {
                     </>)}
                 </SectionCard>
                 <SectionCard title="Admin Info" editBtn={editBtns('admin')}>
-                    {inst.users && inst.users.length > 0 ? inst.users.map(user => (
-                        <div key={user.id}>
+                    {adminUser ? (
+                        <div>
                             {editingSection === 'admin'
                                 ? <EditableField label="Admin Name" value={adminDraft.adminName} onChange={v => setAdminDraft(d => ({ ...d, adminName: v }))} />
                                 : <InfoRow icon={User} label="Admin Name" value={adminSaved.adminName || '—'} />
                             }
-                            <InfoRow icon={Mail} label="Admin Email" value={user.email} />
-                            <InfoRow icon={ShieldCheck} label="Role" value={user.role} />
-                            <InfoRow icon={Calendar} label="Invite Sent" value={new Date(user.createdAt).toLocaleDateString('en-IN')} />
+                            <InfoRow icon={Mail} label="Admin Email" value={adminUser.email} />
+                            <InfoRow icon={ShieldCheck} label="Role" value={adminUser.role} />
+                            <InfoRow icon={CheckCircle} label="Account Active" value={adminUser.isActive ? 'Yes' : 'Pending setup'} />
+                            <InfoRow icon={Calendar} label="Created (IST)" value={toIST(adminUser.createdAt)} />
                         </div>
-                    )) : <p className="text-sm text-muted-foreground">No admin assigned yet</p>}
+                    ) : <p className="text-sm text-muted-foreground">No admin assigned yet</p>}
                 </SectionCard>
                 <SectionCard title="Platform Stats">
-                    <InfoRow icon={Users} label="Total Students" value={inst.totalStudents ?? '—'} />
-                    <InfoRow icon={User} label="Total Teachers" value={inst.totalTeachers ?? '—'} />
-                    <InfoRow icon={FileText} label="Tests Conducted" value="124" />
-                    <InfoRow icon={Zap} label="Last Active" value="Today, 2:30 PM" />
-                    <InfoRow icon={Calendar} label="Last Updated" value={new Date(inst.updatedAt).toLocaleDateString('en-IN')} />
+                    <InfoRow icon={Users} label="Total Students" value={studentCount} />
+                    <InfoRow icon={User} label="Total Teachers" value={teacherCount} />
+                    <InfoRow icon={FileText} label="Tests Conducted" value="—" />
+                    <InfoRow icon={Zap} label="Last Active" value="—" />
+                    <InfoRow icon={Calendar} label="Last Updated (IST)" value={toIST(inst.updatedAt)} />
                 </SectionCard>
             </div>
         </motion.div>
     );
 }
 
-function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
+function ManagePlanTab({ inst }: { inst: InstData }) {
     const instType = (inst.type as keyof typeof PRICING) in PRICING ? inst.type as keyof typeof PRICING : 'SCHOOL';
-    const pricing = PRICING[instType];
+    const pricing  = PRICING[instType];
+    const initialPlan = (inst.subscription?.plan?.name as 'BASIC' | 'PRO' | 'TRIAL') ?? 'BASIC';
     const [planActive, setPlanActive] = useState(false);
-    const [plan, setPlan] = useState<'BASIC' | 'PRO' | 'TRIAL'>((inst.plan as any) ?? 'BASIC');
-    const [discount, setDiscount] = useState(0);
+    const [plan, setPlan] = useState<'BASIC' | 'PRO' | 'TRIAL'>(initialPlan);
     const [showDiscount, setShowDiscount] = useState(false);
     const [discountInput, setDiscountInput] = useState('0');
+    const [discount, setDiscount] = useState(0);
     const [licencePaid, setLicencePaid] = useState(false);
     const [activating, setActivating] = useState(false);
     const [features, setFeatures] = useState<Record<string, boolean>>(getDefaultFeatures('BASIC'));
@@ -341,7 +373,7 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [planActive, plan]);
 
-    const activeUsers = (inst.totalStudents ?? 0) + (inst.totalTeachers ?? 0) + 1;
+    const activeUsers = (inst.studentCount ?? 0) + (inst.teacherCount ?? 0) + 1;
     const planPricing = pricing[plan] ?? pricing.BASIC;
     const currentRate = getRate(planPricing.tiers, activeUsers);
     const licenceCost = planPricing.licence;
@@ -1550,9 +1582,10 @@ function ManagePlanTab({ inst }: { inst: typeof MOCK_INST }) {
 
 export default function InstitutionDetailPage() {
     const { id } = useParams();
-    const router = useRouter();
-    const [institution, setInstitution] = useState<typeof MOCK_INST | null>(null);
-    const [loading, setLoading] = useState(true);
+    const router  = useRouter();
+    const [institution, setInstitution] = useState<InstData | null>(null);
+    const [loading, setLoading]   = useState(true);
+    const [error, setError]       = useState(false);
     const [activeTab, setActiveTab] = useState<'details' | 'plan'>('details');
 
     useEffect(() => {
@@ -1566,10 +1599,16 @@ export default function InstitutionDetailPage() {
         const load = async () => {
             try {
                 setLoading(true);
+                setError(false);
                 const res = await api.get(`/superadmin/institutions/${id}`);
-                setInstitution(res.data.data);
+                // Enrich with role counts (same logic as list page)
+                const data: InstData = res.data.data;
+                const admin    = data.users?.find(u => u.role === 'ADMIN') ?? null;
+                const teacherCount = data.users?.filter(u => u.role === 'TEACHER').length ?? 0;
+                const studentCount = data.users?.filter(u => u.role === 'STUDENT').length ?? 0;
+                setInstitution({ ...data, admin, teacherCount, studentCount });
             } catch {
-                setInstitution(MOCK_INST);
+                setError(true);
             } finally {
                 setLoading(false);
             }
@@ -1582,21 +1621,21 @@ export default function InstitutionDetailPage() {
         const newStatus = institution.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
         try {
             await api.patch(`/superadmin/institutions/${id}/status`, { status: newStatus });
-            toast.success(`Institution ${newStatus === 'ACTIVE' ? 'activated' : 'suspended'}`);
-            setInstitution(prev => prev ? { ...prev, status: newStatus } : prev);
-        } catch {
             setInstitution(prev => prev ? { ...prev, status: newStatus } : prev);
             toast.success(`Institution ${newStatus === 'ACTIVE' ? 'activated' : 'suspended'}`);
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message ?? 'Failed to update status');
         }
     };
 
     const handleResendInvite = async () => {
         if (!institution) return;
+        const adminEmail = institution.admin?.email ?? institution.users?.find(u => u.role === 'ADMIN')?.email;
         try {
-            await api.post(`/superadmin/institutions/${id}/resend-invite`, { email: institution.users?.[0]?.email });
+            await api.post(`/superadmin/institutions/${id}/resend-invite`, { email: adminEmail });
             toast.success('Invite resent successfully');
-        } catch {
-            toast.success('Invite resent successfully');
+        } catch (err: any) {
+            toast.error(err?.response?.data?.message ?? 'Failed to resend invite');
         }
     };
 
@@ -1608,6 +1647,14 @@ export default function InstitutionDetailPage() {
                 <div className="h-48 bg-muted rounded-2xl" />
                 <div className="h-48 bg-muted rounded-2xl" />
             </div>
+        </div>
+    );
+
+    if (error) return (
+        <div className="flex flex-col items-center justify-center py-24 text-center">
+            <Building2 size={40} className="text-muted-foreground/30 mb-3" />
+            <p className="text-sm font-medium text-muted-foreground">Failed to load institution</p>
+            <button onClick={() => window.location.reload()} className="mt-3 text-xs text-primary hover:underline">Try again</button>
         </div>
     );
 

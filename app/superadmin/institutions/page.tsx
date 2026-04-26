@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { Plus, Megaphone, RefreshCw, Hash, AtSign, Building2, ArrowUpRight, CreditCard, School, GraduationCap, BookOpen, Phone, Mail, MapPin, User, Eye, Search, X } from 'lucide-react';
+import { Plus, Megaphone, RefreshCw, Hash, AtSign, Building2, ArrowUpRight, CreditCard, School, GraduationCap, BookOpen, Phone, Mail, MapPin, User, Eye, Search, X, Users, UserCheck, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateInstitutionModal } from '@/components/superadmin/CreateInstitutionModal';
 import { Institution } from '@/types';
@@ -13,28 +13,49 @@ import { PublishNotificationModal } from '@/components/superadmin/PublishNotific
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+/** Format a UTC ISO date string to IST (Asia/Kolkata, UTC+5:30) */
+function toIST(iso: string | null | undefined, opts?: Intl.DateTimeFormatOptions): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        day: 'numeric', month: 'short', year: 'numeric',
+        ...opts,
+    });
+}
+
 const statusConfig: Record<string, { label: string; className: string }> = {
-    ACTIVE: { label: 'Active', className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-    PENDING: { label: 'Pending', className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
+    ACTIVE:    { label: 'Active',    className: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
+    PENDING:   { label: 'Pending',   className: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
     SUSPENDED: { label: 'Suspended', className: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
 };
 
 const FILTERS = [
-    { label: 'Active', value: 'ACTIVE', cls: 'text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-400' },
-    { label: 'Pending', value: 'PENDING', cls: 'text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400' },
+    { label: 'Active',    value: 'ACTIVE',    cls: 'text-emerald-600 border-emerald-300 bg-emerald-50 dark:bg-emerald-950/50 dark:border-emerald-800 dark:text-emerald-400' },
+    { label: 'Pending',   value: 'PENDING',   cls: 'text-amber-600 border-amber-300 bg-amber-50 dark:bg-amber-950/50 dark:border-amber-800 dark:text-amber-400' },
     { label: 'Suspended', value: 'SUSPENDED', cls: 'text-red-600 border-red-300 bg-red-50 dark:bg-red-950/50 dark:border-red-800 dark:text-red-400' },
-    { label: 'Basic', value: 'BASIC', cls: 'text-violet-600 border-violet-300 bg-violet-50 dark:bg-violet-950/50 dark:border-violet-800 dark:text-violet-400' },
-    { label: 'Pro', value: 'PRO', cls: 'text-[#DA7756] border-[#DA7756]/50 bg-[#DA7756]/8' },
+    { label: 'Basic',     value: 'BASIC',     cls: 'text-violet-600 border-violet-300 bg-violet-50 dark:bg-violet-950/50 dark:border-violet-800 dark:text-violet-400' },
+    { label: 'Pro',       value: 'PRO',       cls: 'text-[#DA7756] border-[#DA7756]/50 bg-[#DA7756]/8' },
 ];
 
 // ─── Institution Card ─────────────────────────────────────────────────────────
 
-function InstitutionCard({ inst, index }: { inst: Institution; index: number }) {
+function InstitutionCard({ inst, index }: { inst: any; index: number }) {
     const router = useRouter();
     const [showTooltip, setShowTooltip] = useState(false);
+    const [imgError, setImgError]       = useState(false);
     const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const initials = inst.name.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase();
-    const status = statusConfig[inst.status] ?? statusConfig['PENDING'];
+    const status   = statusConfig[inst.status] ?? statusConfig['PENDING'];
+
+    // Enriched fields from updated API
+    const adminUser     = inst.admin ?? inst.users?.find((u: any) => u.role === 'ADMIN');
+    const adminName     = adminUser?.name  ?? adminUser?.email?.split('@')[0] ?? '—';
+    const adminEmail    = adminUser?.email ?? '—';
+    const teacherCount  = inst.teacherCount ?? 0;
+    const studentCount  = inst.studentCount ?? 0;
+    const planName      = inst.subscription?.plan?.name ?? 'Basic';
+    const instCode      = inst.institutionCode ?? null;
+    const logoUrl       = inst.logoUrl ?? null;
 
     return (
         <motion.div
@@ -43,11 +64,22 @@ function InstitutionCard({ inst, index }: { inst: Institution; index: number }) 
             transition={{ delay: index * 0.06, duration: 0.3, ease: 'easeOut' }}
             className="bg-card border border-border/50 rounded-2xl hover:border-primary/30 hover:shadow-md transition-all duration-200 group flex flex-col overflow-visible"
         >
-            {/* Top */}
+            {/* Top — logo / avatar + name */}
             <div className="flex items-start gap-3 p-4 pb-3">
-                <div className="w-12 h-12 rounded-xl bg-muted text-muted-foreground ring-2 ring-border flex items-center justify-center text-base font-bold shrink-0 select-none">
-                    {initials}
+                {/* Logo or initials */}
+                <div className="w-12 h-12 rounded-xl bg-muted ring-2 ring-border shrink-0 overflow-hidden flex items-center justify-center">
+                    {logoUrl && !imgError ? (
+                        <img
+                            src={logoUrl}
+                            alt={inst.name}
+                            className="w-full h-full object-cover"
+                            onError={() => setImgError(true)}
+                        />
+                    ) : (
+                        <span className="text-base font-bold text-muted-foreground select-none">{initials}</span>
+                    )}
                 </div>
+
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-semibold leading-snug truncate pr-1">{inst.name}</p>
@@ -60,8 +92,8 @@ function InstitutionCard({ inst, index }: { inst: Institution; index: number }) 
                         >
                             <CreditCard size={17} />
                             <ArrowUpRight size={15} />
-
-                            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-md text-[11px] font-medium text-white bg-gray-900 whitespace-nowrap pointer-events-none z-[100] transition-opacity duration-300 ${showTooltip ? 'opacity-100' : 'opacity-0'}`}>                                Manage Plan
+                            <div className={`absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 rounded-md text-[11px] font-medium text-white bg-gray-900 whitespace-nowrap pointer-events-none z-[100] transition-opacity duration-300 ${showTooltip ? 'opacity-100' : 'opacity-0'}`}>
+                                Manage Plan
                                 <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
                             </div>
                         </button>
@@ -74,33 +106,38 @@ function InstitutionCard({ inst, index }: { inst: Institution; index: number }) 
 
             <div className="h-px bg-border/50 mx-4" />
 
+            {/* Stats row — students / teachers */}
+            <div className="flex items-center gap-3 px-4 py-2.5">
+                <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                    <Users size={13} className="text-muted-foreground/60" />
+                    <span className="font-semibold text-foreground">{studentCount}</span> students
+                </div>
+                <div className="w-px h-3 bg-border" />
+                <div className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                    <UserCheck size={13} className="text-muted-foreground/60" />
+                    <span className="font-semibold text-foreground">{teacherCount}</span> teachers
+                </div>
+            </div>
+
+            <div className="h-px bg-border/50 mx-4" />
+
             {/* Details */}
             <div className="px-4 py-3 space-y-2.5 flex-1">
                 {([
                     {
                         icon: Hash,
                         label: 'Institute ID',
-                        value: (inst as any).institutionCode
-                            ? <span className="font-mono text-[12px] font-semibold tracking-wider" style={{ color: '#DA7756' }}>{(inst as any).institutionCode}</span>
+                        value: instCode
+                            ? <span className="font-mono text-[12px] font-semibold tracking-wider" style={{ color: '#DA7756' }}>{instCode}</span>
                             : <span className="italic text-muted-foreground/40 text-[11px]">—</span>,
                     },
-                    { icon: Mail, label: 'Email', value: inst.email },
-                    { icon: User, label: 'Admin', value: inst.users?.[0]?.name ?? inst.users?.[0]?.email?.split('@')[0] ?? '—' },
-                    { icon: AtSign, label: 'Admin Email', value: inst.users?.[0]?.email ?? '—' },
-                    { icon: Phone, label: 'Phone', value: inst.phone ?? '—' },
-                    { icon: MapPin, label: 'Location', value: inst.city ?? '—' },
-                    {
-                        icon: CreditCard,
-                        label: 'Plan',
-                        value: (inst as any).subscription?.plan?.name ?? (inst as any).plan ?? 'Basic',
-                    },
-                    {
-                        icon: Eye,
-                        label: 'Joined',
-                        value: inst.createdAt
-                            ? new Date(inst.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-                            : '—',
-                    },
+                    { icon: User,         label: 'Admin',       value: adminName },
+                    { icon: AtSign,       label: 'Admin Email',  value: adminEmail },
+                    { icon: Mail,         label: 'Email',        value: inst.email },
+                    { icon: Phone,        label: 'Phone',        value: inst.phone ?? '—' },
+                    { icon: MapPin,       label: 'Location',     value: inst.city ? `${inst.city}${inst.state ? ', ' + inst.state : ''}` : '—' },
+                    { icon: CreditCard,   label: 'Plan',         value: planName },
+                    { icon: CalendarDays, label: 'Joined',       value: toIST(inst.createdAt) },
                 ] as { icon: React.ElementType; label: string; value: React.ReactNode }[]).map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-center gap-2">
                         <Icon size={15} className="shrink-0 text-muted-foreground/60" />
