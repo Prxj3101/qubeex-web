@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useMemo } from 'react';
+import { useState, useRef, useMemo, useEffect } from 'react';
 import { Plus, Megaphone, RefreshCw, Hash, AtSign, Building2, ArrowUpRight, CreditCard, School, GraduationCap, BookOpen, Phone, Mail, MapPin, User, Eye, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateInstitutionModal } from '@/components/superadmin/CreateInstitutionModal';
@@ -10,37 +10,6 @@ import { toast } from 'sonner';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { PublishNotificationModal } from '@/components/superadmin/PublishNotificationModal';
-
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-
-const mockUser = (email: string) => ({
-    id: `u-${email}`, email, role: 'ADMIN' as const,
-    createdAt: new Date().toISOString(),
-});
-
-const MOCK_SCHOOLS: Institution[] = [
-    { id: 's1', name: 'Delhi Public School', type: 'SCHOOL', email: 'admin@dps.edu.in', phone: '+91 98100 11223', city: 'New Delhi', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('rohit.sharma@dps.edu.in')] },
-    { id: 's2', name: 'Modern High School', type: 'SCHOOL', email: 'info@modernhs.in', phone: '+91 99001 45678', city: 'Mumbai', status: 'PENDING', createdAt: '', updatedAt: '', users: [mockUser('priya.menon@modernhs.in')] },
-    { id: 's3', name: 'Kendriya Vidyalaya No. 3', type: 'SCHOOL', email: 'kv3@kv.edu.in', phone: '+91 80045 67890', city: 'Bengaluru', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('suresh.k@kv.edu.in')] },
-    { id: 's4', name: "St. Xavier's High School", type: 'SCHOOL', email: 'admin@stxaviers.in', phone: '+91 22100 98765', city: 'Kolkata', status: 'SUSPENDED', createdAt: '', updatedAt: '', users: [mockUser('father.alves@stxaviers.in')] },
-    { id: 's5', name: 'Ryan International School', type: 'SCHOOL', email: 'ryan@ryan.edu', phone: '+91 98765 43210', city: 'Pune', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('meena.pillai@ryan.edu')] },
-    { id: 's6', name: 'DAV Public School', type: 'SCHOOL', email: 'admin@dav.edu.in', phone: '+91 92100 33445', city: 'Chandigarh', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('amit.singh@dav.edu.in')] },
-    { id: 's7', name: 'Bal Bharati School', type: 'SCHOOL', email: 'info@balbharati.in', phone: '+91 98001 22334', city: 'Delhi', status: 'PENDING', createdAt: '', updatedAt: '', users: [mockUser('sunita.rao@balbharati.in')] },
-    { id: 's8', name: 'The Heritage School', type: 'SCHOOL', email: 'admin@heritage.edu', phone: '+91 33100 55667', city: 'Kolkata', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('ravi.das@heritage.edu')] },
-    { id: 's9', name: 'Podar International School', type: 'SCHOOL', email: 'info@podar.edu.in', phone: '+91 22001 44556', city: 'Mumbai', status: 'SUSPENDED', createdAt: '', updatedAt: '', users: [mockUser('neha.joshi@podar.edu.in')] },
-];
-
-const MOCK_COLLEGES: Institution[] = [
-    { id: 'c1', name: 'DY Patil College of Engineering', type: 'COLLEGE', email: 'admin@dypatil.edu', phone: '+91 20100 11223', city: 'Pune', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('rajesh.patil@dypatil.edu')] },
-    { id: 'c2', name: 'Aakash Institute', type: 'COLLEGE', email: 'admin@aakash.ac.in', phone: '+91 11456 78901', city: 'New Delhi', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('anita.verma@aakash.ac.in')] },
-    { id: 'c3', name: 'Shree Vidya College', type: 'COLLEGE', email: 'info@shreevidya.edu', phone: '+91 79001 23456', city: 'Ahmedabad', status: 'PENDING', createdAt: '', updatedAt: '', users: [mockUser('dinesh.shah@shreevidya.edu')] },
-    { id: 'c4', name: 'MES College of Arts', type: 'COLLEGE', email: 'mes@mesarts.in', phone: '+91 80123 45678', city: 'Bengaluru', status: 'SUSPENDED', createdAt: '', updatedAt: '', users: [mockUser('lakshmi.r@mesarts.in')] },
-    { id: 'c5', name: 'Fergusson College', type: 'COLLEGE', email: 'admin@fergusson.edu', phone: '+91 20987 65432', city: 'Pune', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('vivek.joshi@fergusson.edu')] },
-    { id: 'c6', name: 'St. Xavier\'s College', type: 'COLLEGE', email: 'admin@xaviers.edu', phone: '+91 22100 77889', city: 'Mumbai', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('joseph.d@xaviers.edu')] },
-    { id: 'c7', name: 'Presidency College', type: 'COLLEGE', email: 'info@presidency.ac.in', phone: '+91 33001 88990', city: 'Kolkata', status: 'PENDING', createdAt: '', updatedAt: '', users: [mockUser('tapan.ghosh@presidency.ac.in')] },
-    { id: 'c8', name: 'Hansraj College', type: 'COLLEGE', email: 'admin@hansraj.edu.in', phone: '+91 11001 99001', city: 'New Delhi', status: 'ACTIVE', createdAt: '', updatedAt: '', users: [mockUser('kavita.sharma@hansraj.edu.in')] },
-    { id: 'c9', name: 'Symbiosis College of Arts', type: 'COLLEGE', email: 'info@symbiosis.edu', phone: '+91 20001 11223', city: 'Pune', status: 'SUSPENDED', createdAt: '', updatedAt: '', users: [mockUser('preethi.nair@symbiosis.edu')] },
-];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -108,17 +77,34 @@ function InstitutionCard({ inst, index }: { inst: Institution; index: number }) 
             {/* Details */}
             <div className="px-4 py-3 space-y-2.5 flex-1">
                 {([
-                    { icon: Hash, label: 'Institute ID', value: <span className="italic text-muted-foreground/50 text-[11px]">Auto generated</span> },
-                    { icon: Mail, label: 'Email', value: inst.email },
-                    { icon: User, label: 'Admin', value: inst.users?.[0]?.email?.split('@')[0] ?? 'N/A' },
-                    { icon: AtSign, label: 'Admin Email', value: inst.users?.[0]?.email ?? 'N/A' },
-                    { icon: Phone, label: 'Phone', value: inst.phone ?? 'N/A' },
-                    { icon: MapPin, label: 'Location', value: inst.city ?? 'N/A' },
-                    { icon: CreditCard, label: 'Plan', value: (inst as any).plan ?? 'Basic' },
+                    {
+                        icon: Hash,
+                        label: 'Institute ID',
+                        value: (inst as any).institutionCode
+                            ? <span className="font-mono text-[12px] font-semibold tracking-wider" style={{ color: '#DA7756' }}>{(inst as any).institutionCode}</span>
+                            : <span className="italic text-muted-foreground/40 text-[11px]">—</span>,
+                    },
+                    { icon: Mail,  label: 'Email',      value: inst.email },
+                    { icon: User,  label: 'Admin',      value: inst.users?.[0]?.name ?? inst.users?.[0]?.email?.split('@')[0] ?? '—' },
+                    { icon: AtSign, label: 'Admin Email', value: inst.users?.[0]?.email ?? '—' },
+                    { icon: Phone, label: 'Phone',      value: inst.phone ?? '—' },
+                    { icon: MapPin, label: 'Location',  value: inst.city ?? '—' },
+                    {
+                        icon: CreditCard,
+                        label: 'Plan',
+                        value: (inst as any).subscription?.plan?.name ?? (inst as any).plan ?? 'Basic',
+                    },
+                    {
+                        icon: Eye,
+                        label: 'Joined',
+                        value: inst.createdAt
+                            ? new Date(inst.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+                            : '—',
+                    },
                 ] as { icon: React.ElementType; label: string; value: React.ReactNode }[]).map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-center gap-2">
                         <Icon size={15} className="shrink-0 text-muted-foreground/60" />
-                        <span className="text-[13px] text-muted-foreground w-20 shrink-0">{label}</span>
+                        <span className="text-[13px] text-muted-foreground w-24 shrink-0">{label}</span>
                         <span className="text-[13px] font-medium truncate">{value}</span>
                     </div>
                 ))}
@@ -163,7 +149,7 @@ export default function InstitutionsPage() {
     const [activeFilters, setActiveFilters] = useState<string[]>([]);
     const [publishOpen, setPublishOpen] = useState(false);
 
-    const allInstitutions = [...MOCK_SCHOOLS, ...MOCK_COLLEGES, ...institutions];
+    const allInstitutions = institutions;
 
     const filteredInstitutions = useMemo(() => {
         let list = allInstitutions.filter(inst => inst.type === activeTab);
@@ -205,6 +191,9 @@ export default function InstitutionsPage() {
             setLoading(false);
         }
     };
+
+    // Fetch on mount
+    useEffect(() => { fetchInstitutions(); }, []);
 
     const tabs = [
         { label: 'School', value: 'SCHOOL' as const, icon: School },
@@ -325,22 +314,16 @@ export default function InstitutionsPage() {
 
             {/* ── SCROLLABLE CARDS ── */}
             <div className="flex-1 overflow-y-auto pb-6">
-                {activeTab === 'COACHING' ? (
-                    <div className="flex flex-col items-center justify-center py-24 text-center">
-                        <div className="w-14 h-14 rounded-2xl bg-muted flex items-center justify-center mb-3">
-                            <BookOpen size={24} className="text-muted-foreground" />
-                        </div>
-                        <p className="text-sm font-medium text-muted-foreground">Coaching institutes coming soon</p>
-                        <p className="text-xs text-muted-foreground/60 mt-1">This section will be available in a future update</p>
-                    </div>
-                ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-3">
-                        {filteredInstitutions.length > 0
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-3">
+                    {loading
+                        ? Array.from({ length: 6 }).map((_, i) => (
+                            <div key={i} className="bg-card border border-border/50 rounded-2xl h-48 animate-pulse" />
+                        ))
+                        : filteredInstitutions.length > 0
                             ? filteredInstitutions.map((inst, i) => <InstitutionCard key={inst.id} inst={inst} index={i} />)
                             : <EmptyState label={activeTab.toLowerCase()} />
-                        }
-                    </div>
-                )}
+                    }
+                </div>
             </div>
 
             <CreateInstitutionModal
@@ -348,12 +331,10 @@ export default function InstitutionsPage() {
                 onClose={() => setModalOpen(false)}
                 onSuccess={(newInst) => {
                     setModalOpen(false);
-                    if (newInst) {
-                        setInstitutions(prev => [...prev, newInst]);
-                        setActiveTab(newInst.type as 'SCHOOL' | 'COLLEGE' | 'COACHING');
-                    } else {
-                        fetchInstitutions();
-                    }
+                    // Switch to the tab matching the new institution type
+                    if (newInst?.type) setActiveTab(newInst.type as 'SCHOOL' | 'COLLEGE' | 'COACHING');
+                    // Re-fetch full list from backend to get all fields (users, subscription, etc.)
+                    fetchInstitutions();
                 }}
             />
             <PublishNotificationModal

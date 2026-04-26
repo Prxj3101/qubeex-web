@@ -31,13 +31,14 @@ const RULES = [
     { label: 'One special character', test: (pw: string) => /[^A-Za-z0-9]/.test(pw) },
 ];
 
-// ─── Mock token data (replace with real API call) ────────────────────────────
+// ─── Token data type ─────────────────────────────────────────────────────────
 
-const MOCK_TOKEN_DATA = {
-    institutionName: 'Delhi Public School',
-    adminName: 'Rohit Sharma',
-    email: 'rohit.sharma@dps.edu.in',
-    valid: true,
+type TokenData = {
+    institutionName: string;
+    institutionCode: string;
+    adminName: string;
+    email: string;
+    valid: boolean;
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -47,7 +48,7 @@ export default function SetPasswordPage() {
     const router = useRouter();
     const token = searchParams.get('token');
 
-    const [tokenData, setTokenData] = useState<typeof MOCK_TOKEN_DATA | null>(null);
+    const [tokenData, setTokenData] = useState<TokenData | null>(null);
     const [tokenLoading, setTokenLoading] = useState(true);
     const [tokenExpired, setTokenExpired] = useState(false);
 
@@ -59,7 +60,7 @@ export default function SetPasswordPage() {
     const [submitting, setSubmitting] = useState(false);
     const [done, setDone] = useState(false);
 
-    // Verify token on mount
+    // Verify token on mount, then autofill institution code
     useEffect(() => {
         const verify = async () => {
             if (!token) {
@@ -69,7 +70,10 @@ export default function SetPasswordPage() {
             }
             try {
                 const res = await api.get(`/auth/verify-invite?token=${token}`);
-                setTokenData(res.data.data);
+                const data: TokenData = res.data.data;
+                setTokenData(data);
+                // Autofill institution code — admin just verifies
+                if (data.institutionCode) setInstituteId(data.institutionCode);
             } catch {
                 setTokenExpired(true);
             } finally {
@@ -233,26 +237,36 @@ export default function SetPasswordPage() {
                                 </div>
                             </div>
                         ))}
+
+                        {/* Institution Code highlight */}
+                        {tokenData.institutionCode && (
+                            <div className="mt-3 pt-3 border-t border-white/8">
+                                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">Institution ID</p>
+                                <p className="text-lg font-bold tracking-widest font-mono" style={{ color: '#DA7756' }}>
+                                    {tokenData.institutionCode}
+                                </p>
+                                <p className="text-[10px] text-white/30 mt-1">This has been pre-filled below. Keep it safe for future logins.</p>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Institute ID */}
+                    {/* Institute ID — pre-filled, read-only */}
                     <div className="mb-5">
                         <label className="block text-xs font-semibold text-white/60 mb-2">
-                            Institute ID <span className="text-[#DA7756]">*</span>
+                            Institution ID <span className="text-[#DA7756]">*</span>
                         </label>
                         <div className="relative">
                             <Hash size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
                             <input
                                 type="text"
                                 value={instituteId}
-                                onChange={e => setInstituteId(e.target.value)}
-                                placeholder="Enter your Institute ID"
-                                className="w-full h-11 pl-10 pr-4 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#7C3AED]/60 focus:bg-white/8 transition-all"
+                                readOnly
+                                className="w-full h-11 pl-10 pr-4 rounded-xl bg-[#DA7756]/8 border border-[#DA7756]/30 text-sm font-mono font-semibold tracking-wider text-[#DA7756] focus:outline-none cursor-default select-all"
                             />
                         </div>
                         <p className="text-[11px] text-white/30 mt-1.5 flex items-center gap-1">
                             <ShieldCheck size={11} />
-                            Provided to you separately by your QubeEx representative
+                            Auto-filled from your invite — use this to log in after setup
                         </p>
                     </div>
 

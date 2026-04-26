@@ -4,6 +4,7 @@ export type InstitutionStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING';
 
 export interface User {
     id: string;
+    name?: string;
     email: string;
     role: Role;
     institutionId?: string;
@@ -12,6 +13,7 @@ export interface User {
 
 export interface Institution {
     id: string;
+    institutionCode?: string;
     name: string;
     email: string;
     type: InstitutionType;
@@ -22,6 +24,10 @@ export interface Institution {
     phone?: string;
     city?: string;
     logoUrl?: string;
+    subscription?: {
+        plan?: { name: string };
+        status?: string;
+    };
 }
 
 export interface AuditLog {
