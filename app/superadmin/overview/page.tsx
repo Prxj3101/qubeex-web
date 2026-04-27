@@ -1,10 +1,53 @@
 'use client';
 
-import { Building2, Users, TicketIcon, BookOpen, Mail, ArrowUpRight, ArrowDownRight, Activity, Zap, Clock } from 'lucide-react';
-import { ComposedChart, AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line } from 'recharts';
+import {
+    Building2, Users, TicketIcon, Mail, ArrowUpRight, ArrowDownRight,
+    Activity, Zap, Clock, RefreshCw,
+} from 'lucide-react';
+import {
+    ComposedChart, Bar, XAxis, YAxis, CartesianGrid,
+    Tooltip, ResponsiveContainer, Line,
+} from 'recharts';
 import { useAuthStore } from '@/store/authStore';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import api from '@/lib/api';
+import { toast } from 'sonner';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+type OverviewStats = {
+    totalInstitutions: number;
+    newInstitutionsThisMonth: number;
+    pendingInvites: number;
+    activeStudents: number;
+    newStudentsThisWeek: number;
+};
+
+type GrowthPoint    = { month: string; active: number; trial: number };
+type PlanDist       = { plan: string; count: number };
+type RecentInst     = {
+    id: string; name: string; status: string;
+    institutionCode?: string;
+    users?: { role: string }[];
+    teacherCount?: number; studentCount?: number;
+    subscription?: { plan?: { name: string } } | null;
+};
+type RecentLog      = {
+    id: string; action: string; details?: string | null;
+    createdAt: string;
+    institution?: { name: string } | null;
+};
+
+type OverviewData = {
+    stats: OverviewStats;
+    institutionGrowth: GrowthPoint[];
+    planDistribution: PlanDist[];
+    recentInstitutions: RecentInst[];
+    recentAuditLogs: RecentLog[];
+};
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const CHARACTERS = [
     '/images/superadmin1.png',
@@ -12,134 +55,173 @@ const CHARACTERS = [
     '/images/superadmin3.png',
 ];
 
-const STATS = [
-    {
-        label: 'Total Institutions',
-        value: '48',
-        sub: '+3 this month',
-        trend: 'up',
-        icon: Building2,
-        iconBg: 'bg-violet-100 dark:bg-violet-950',
-        iconColor: 'text-violet-600 dark:text-violet-400',
-    },
-    {
-        label: 'Total Users',
-        value: '3,241',
-        sub: '+124 this week',
-        trend: 'up',
-        icon: Users,
-        iconBg: 'bg-emerald-100 dark:bg-emerald-950',
-        iconColor: 'text-emerald-600 dark:text-emerald-400',
-    },
-    {
-        label: 'Pending Invites',
-        value: '6',
-        sub: '2 expiring soon',
-        trend: 'down',
-        icon: Mail,
-        iconBg: 'bg-amber-100 dark:bg-amber-950',
-        iconColor: 'text-amber-600 dark:text-amber-400',
-    },
-    {
-        label: 'Tickets Open',
-        value: '4',
-        sub: '1 urgent',
-        trend: 'down',
-        icon: TicketIcon,
-        iconBg: 'bg-red-100 dark:bg-red-950',
-        iconColor: 'text-red-600 dark:text-red-400',
-    },
-];
-
-const GROWTH_DATA = [
-    { month: 'Nov', active: 28, trial: 4 },
-    { month: 'Dec', active: 31, trial: 3 },
-    { month: 'Jan', active: 35, trial: 5 },
-    { month: 'Feb', active: 38, trial: 4 },
-    { month: 'Mar', active: 42, trial: 3 },
-    { month: 'Apr', active: 46, trial: 2 },
-];
-
-const PLAN_DATA = [
-    { label: 'Pro', count: 29, total: 48, color: 'bg-violet-500' },
-    { label: 'Basic', count: 17, total: 48, color: 'bg-emerald-500' },
-    { label: 'Trial', count: 2, total: 48, color: 'bg-amber-400' },
-];
-
-const INSTITUTIONS = [
-    { abbr: 'DPS', name: 'Delhi Public School', meta: '42 students · 3 teachers', status: 'Active', avatarBg: 'bg-violet-100 dark:bg-violet-950', avatarColor: 'text-violet-700 dark:text-violet-300' },
-    { abbr: 'AKC', name: 'Aakash Coaching', meta: '210 students · 8 teachers', status: 'Active', avatarBg: 'bg-emerald-100 dark:bg-emerald-950', avatarColor: 'text-emerald-700 dark:text-emerald-300' },
-    { abbr: 'SVC', name: 'Shree Vidya College', meta: '89 students · 5 teachers', status: 'Trial', avatarBg: 'bg-amber-100 dark:bg-amber-950', avatarColor: 'text-amber-700 dark:text-amber-300' },
-    { abbr: 'MHS', name: 'Modern High School', meta: '0 students · 0 teachers', status: 'Suspended', avatarBg: 'bg-red-100 dark:bg-red-950', avatarColor: 'text-red-700 dark:text-red-300' },
-];
-
-const LOGS = [
-    { dot: 'bg-violet-500', text: 'New institution Ryan International created', time: '2 min ago' },
-    { dot: 'bg-emerald-500', text: 'Admin invite accepted by rohit@aakash.com', time: '18 min ago' },
-    { dot: 'bg-amber-500', text: 'Sunrise Academy upgraded to Pro plan', time: '1 hr ago' },
-    { dot: 'bg-red-500', text: 'Login failed (5×) for admin@mhs.edu', time: '2 hr ago' },
-    { dot: 'bg-violet-500', text: 'Super admin logged in from new device', time: '3 hr ago' },
-];
-
 const statusStyle: Record<string, string> = {
-    Active: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-    Trial: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
-    Suspended: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
+    ACTIVE:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
+    PENDING:   'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+    TRIAL:     'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+    SUSPENDED: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
 };
 
-const now = new Date();
-const hour = now.getHours();
-const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-const dateStr = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const ACTION_DOT: Record<string, string> = {
+    INSTITUTION_CREATED:   'bg-violet-500',
+    INSTITUTION_SUSPENDED: 'bg-red-500',
+    INSTITUTION_ACTIVATED: 'bg-sky-500',
+    INVITE_SENT:           'bg-violet-400',
+    INVITE_ACCEPTED:       'bg-emerald-500',
+    PLAN_ASSIGNED:         'bg-amber-500',
+    LOGIN_SUCCESS:         'bg-teal-500',
+    LOGIN_FAILED:          'bg-rose-500',
+    NOTIFICATION_SENT:     'bg-purple-500',
+};
+
+function timeAgo(iso: string) {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60)   return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
+    return `${Math.floor(diff / 86400)} days ago`;
+}
+
+function planColor(plan: string) {
+    if (plan === 'PRO')   return 'bg-violet-500';
+    if (plan === 'TRIAL') return 'bg-amber-400';
+    return 'bg-emerald-500';
+}
+
+const PLAN_ORDER = ['PRO', 'BASIC', 'TRIAL'];
+
+// ─── Skeleton ─────────────────────────────────────────────────────────────────
+
+function Skeleton({ className = '' }: { className?: string }) {
+    return <div className={`animate-pulse bg-muted rounded-lg ${className}`} />;
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function SuperAdminOverview() {
+    const { user } = useAuthStore();
     const [currentChar, setCurrentChar] = useState(0);
+    const [data, setData]     = useState<OverviewData | null>(null);
+    const [loading, setLoading] = useState(true);
 
+    // Rotating character animation
     useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentChar(prev => (prev + 1) % CHARACTERS.length);
-        }, 7000);
-        return () => clearInterval(interval);
+        const iv = setInterval(() => setCurrentChar(p => (p + 1) % CHARACTERS.length), 7000);
+        return () => clearInterval(iv);
     }, []);
-    return (
 
+    // Greeting
+    const now  = new Date();
+    const hour = now.getHours();
+    const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    const dateStr  = now.toLocaleDateString('en-IN', {
+        timeZone: 'Asia/Kolkata',
+        weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
+    });
+    const displayName = user?.name ?? user?.email?.split('@')[0] ?? 'Boss';
+
+    const fetchOverview = useCallback(async () => {
+        try {
+            setLoading(true);
+            const res = await api.get('/superadmin/overview');
+            setData(res.data.data);
+        } catch {
+            toast.error('Failed to load overview');
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => { fetchOverview(); }, [fetchOverview]);
+
+    // Build stat cards from live data
+    const stats = data?.stats;
+    const STAT_CARDS = [
+        {
+            label: 'Total Institutions',
+            value: stats ? stats.totalInstitutions.toLocaleString('en-IN') : '—',
+            sub: stats ? `+${stats.newInstitutionsThisMonth} this month` : '…',
+            trend: 'up' as const,
+            icon: Building2,
+            iconBg: 'bg-violet-100 dark:bg-violet-950',
+            iconColor: 'text-violet-600 dark:text-violet-400',
+        },
+        {
+            label: 'Total Users',
+            value: stats ? stats.activeStudents.toLocaleString('en-IN') : '—',
+            sub: stats ? `+${stats.newStudentsThisWeek} this week` : '…',
+            trend: 'up' as const,
+            icon: Users,
+            iconBg: 'bg-emerald-100 dark:bg-emerald-950',
+            iconColor: 'text-emerald-600 dark:text-emerald-400',
+        },
+        {
+            label: 'Pending Invites',
+            value: stats ? String(stats.pendingInvites) : '—',
+            sub: stats?.pendingInvites === 0 ? 'All clear' : 'Awaiting acceptance',
+            trend: stats?.pendingInvites === 0 ? 'up' as const : 'down' as const,
+            icon: Mail,
+            iconBg: 'bg-amber-100 dark:bg-amber-950',
+            iconColor: 'text-amber-600 dark:text-amber-400',
+        },
+        {
+            label: 'Tickets Open',
+            value: '—',
+            sub: 'Support queue',
+            trend: 'down' as const,
+            icon: TicketIcon,
+            iconBg: 'bg-red-100 dark:bg-red-950',
+            iconColor: 'text-red-600 dark:text-red-400',
+        },
+    ];
+
+    // Plan distribution sorted
+    const planDist = (data?.planDistribution ?? [])
+        .filter(p => p.count > 0)
+        .sort((a, b) => PLAN_ORDER.indexOf(a.plan) - PLAN_ORDER.indexOf(b.plan));
+    const planTotal = planDist.reduce((s, p) => s + p.count, 0) || 1;
+
+    return (
         <div className="space-y-6">
 
-            {/* Header */}
-            <div className="-mx-4 relative overflow-visible rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-5 flex items-center justify-between min-h-[160px]">                {/* Orbs */}
+            {/* ── Header ── */}
+            <div className="-mx-4 relative overflow-visible rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-5 flex items-center justify-between min-h-[160px]">
+                {/* Orbs */}
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
-
-                {/* Twinkling stars */}
+                {/* Stars */}
                 <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-5 left-16 animate-pulse" />
                 <div className="absolute w-1 h-1 rounded-full bg-white/70 top-27 left-36 animate-pulse delay-300" />
                 <div className="absolute w-1 h-1 rounded-full bg-white/70 top-22 left-5 animate-pulse delay-600" />
                 <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-4 left-52 animate-pulse delay-700" />
 
-                {/* Left — Greeting */}
                 <div className="space-y-1 z-10">
                     <p className="text-white/70 text-base">{greeting}👋, Bosses</p>
                     <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
-                        Prajwal & Anshu
+                        {displayName}
                     </p>
                     <p className="text-white/60 text-sm">Here's what's happening across your platform today.</p>
                     <p className="text-white/50 text-xs mt-2">{dateStr}</p>
                 </div>
 
-                {/* Right — Rotating 3D Characters */}
+                {/* Refresh */}
+                <button
+                    onClick={fetchOverview}
+                    disabled={loading}
+                    className="absolute top-4 right-4 p-2 rounded-lg bg-white/10 hover:bg-white/20 text-white transition-all"
+                >
+                    <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+                </button>
+
+                {/* Character */}
                 <div className="z-10 relative w-[200px] h-[200px] hidden sm:block self-end mb-[-40px]">
-                    <motion.div
-                        animate={{ y: [0, -12, 0] }}
-                        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-                    >
+                    <motion.div animate={{ y: [0, -12, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}>
                         <AnimatePresence mode="wait">
                             <motion.img
                                 key={currentChar}
                                 src={CHARACTERS[currentChar]}
                                 alt="superadmin character"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                exit={{ opacity: 0 }}
+                                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                                 transition={{ duration: 1.2 }}
                                 className="w-[188px] h-[187px] object-contain"
                                 style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3))' }}
@@ -149,29 +231,34 @@ export default function SuperAdminOverview() {
                 </div>
             </div>
 
-            {/* Stat Cards */}
+            {/* ── Stat Cards ── */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {STATS.map((s) => {
+                {STAT_CARDS.map((s) => {
                     const Icon = s.icon;
                     return (
-                        <div key={s.label} className="bg-white dark:bg-muted/50 rounded-xl p-4 relative shadow-sm border border-border/50">                            <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
-                            <Icon size={15} className={s.iconColor} />
-                        </div>
+                        <div key={s.label} className="bg-white dark:bg-muted/50 rounded-xl p-4 relative shadow-sm border border-border/50">
+                            <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
+                                <Icon size={15} className={s.iconColor} />
+                            </div>
                             <p className="text-xs text-muted-foreground mb-2">{s.label}</p>
-                            <p className="text-3xl font-semibold tracking-tight">{s.value}</p>
+                            {loading
+                                ? <Skeleton className="h-8 w-20 mb-2" />
+                                : <p className="text-3xl font-semibold tracking-tight">{s.value}</p>
+                            }
                             <div className="flex items-center gap-1 mt-1.5">
                                 {s.trend === 'up'
                                     ? <ArrowUpRight size={13} className="text-emerald-600 dark:text-emerald-400" />
-                                    : <ArrowDownRight size={13} className="text-red-500" />
-                                }
-                                <span className={`text-xs ${s.trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{s.sub}</span>
+                                    : <ArrowDownRight size={13} className="text-red-500" />}
+                                <span className={`text-xs ${s.trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                                    {loading ? '…' : s.sub}
+                                </span>
                             </div>
                         </div>
                     );
                 })}
             </div>
 
-            {/* Mid: Chart + Plan Distribution */}
+            {/* ── Chart + Plan Distribution ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
 
                 {/* Growth Chart */}
@@ -187,88 +274,80 @@ export default function SuperAdminOverview() {
                             </span>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height={180}>
-                        <ComposedChart data={GROWTH_DATA} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
-                            <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.4} />
-                            <XAxis
-                                dataKey="month"
-                                tick={{ fontSize: 11, fill: '#94A3B8' }}
-                                axisLine={false}
-                                tickLine={false}
-                            />
-                            <YAxis
-                                tick={{ fontSize: 11, fill: '#94A3B8' }}
-                                axisLine={false}
-                                tickLine={false}
-                            />
-                            <Tooltip
-                                contentStyle={{
-                                    background: 'hsl(var(--card))',
-                                    border: '1px solid hsl(var(--border))',
-                                    borderRadius: 8,
-                                    fontSize: 12,
-                                    color: 'hsl(var(--foreground))',
-                                }}
-                                itemStyle={{ color: 'hsl(var(--foreground))' }}
-                                labelStyle={{ color: 'hsl(var(--foreground))' }}
-                                cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
-                            />
-                            <Bar dataKey="active" fill="#7C3AED" radius={[6, 6, 0, 0]} maxBarSize={28} opacity={0.9} />
-                            <Line
-                                type="monotone" dataKey="trial"
-                                stroke="#F59E0B" strokeWidth={2.5}
-                                dot={{ r: 4, fill: '#F59E0B', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
-                                activeDot={{ r: 6, fill: '#F59E0B', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
-                            />
-                        </ComposedChart>
-                    </ResponsiveContainer>
+                    {loading ? (
+                        <Skeleton className="h-[180px] w-full" />
+                    ) : (
+                        <ResponsiveContainer width="100%" height={180}>
+                            <ComposedChart data={data?.institutionGrowth ?? []} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
+                                <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.4} />
+                                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                                <Tooltip
+                                    contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12, color: 'hsl(var(--foreground))' }}
+                                    itemStyle={{ color: 'hsl(var(--foreground))' }}
+                                    labelStyle={{ color: 'hsl(var(--foreground))' }}
+                                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
+                                />
+                                <Bar dataKey="active" fill="#7C3AED" radius={[6, 6, 0, 0]} maxBarSize={28} opacity={0.9} />
+                                <Line
+                                    type="monotone" dataKey="trial" stroke="#F59E0B" strokeWidth={2.5}
+                                    dot={{ r: 4, fill: '#F59E0B', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+                                    activeDot={{ r: 6, fill: '#F59E0B', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+                                />
+                            </ComposedChart>
+                        </ResponsiveContainer>
+                    )}
                 </div>
 
                 {/* Plan Distribution + Health */}
                 <div className="bg-card border border-border/50 rounded-xl p-5 flex flex-col gap-5">
                     <div>
                         <p className="text-sm font-medium mb-4">Plan distribution</p>
-                        <div className="space-y-3">
-                            {PLAN_DATA.map((p) => (
-                                <div key={p.label} className="flex items-center gap-3">
-                                    <span className="text-xs text-muted-foreground w-8">{p.label}</span>
-                                    <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full ${p.color}`} style={{ width: `${Math.round((p.count / p.total) * 100)}%` }} />
+                        {loading ? (
+                            <div className="space-y-3">
+                                {[1,2,3].map(i => <Skeleton key={i} className="h-4 w-full" />)}
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {planDist.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground">No subscriptions yet</p>
+                                ) : planDist.map((p) => (
+                                    <div key={p.plan} className="flex items-center gap-3">
+                                        <span className="text-xs text-muted-foreground w-10 capitalize">{p.plan}</span>
+                                        <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                            <div className={`h-full rounded-full ${planColor(p.plan)}`}
+                                                style={{ width: `${Math.round((p.count / planTotal) * 100)}%` }} />
+                                        </div>
+                                        <span className="text-xs font-medium w-5 text-right">{p.count}</span>
                                     </div>
-                                    <span className="text-xs font-medium w-5 text-right">{p.count}</span>
-                                </div>
-                            ))}
-                        </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="border-t border-border/50 pt-4">
                         <p className="text-sm font-medium mb-3">Platform health</p>
                         <div className="space-y-2.5">
                             <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <Activity size={13} />API uptime
-                                </div>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Activity size={13} />API uptime</div>
                                 <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">99.9%</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <Zap size={13} />Avg response
-                                </div>
-                                <span className="text-xs font-medium">142ms</span>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Zap size={13} />Avg response</div>
+                                <span className="text-xs font-medium">—</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                    <Clock size={13} />Active sessions
-                                </div>
-                                <span className="text-xs font-medium">318</span>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground"><Clock size={13} />Active sessions</div>
+                                <span className="text-xs font-medium">—</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Bottom: Institutions + Audit Logs */}
+            {/* ── Bottom: Recent Institutions + Audit Logs ── */}
             <div className="flex flex-col gap-3">
+
                 {/* Recent Institutions */}
                 <div className="bg-card border border-border/50 rounded-xl p-5">
                     <div className="flex items-center justify-between mb-4">
@@ -276,44 +355,99 @@ export default function SuperAdminOverview() {
                         <a href="/superadmin/institutions" className="text-xs text-primary hover:underline">View all</a>
                     </div>
                     <div className="space-y-0.5">
-                        {INSTITUTIONS.map((inst, i) => (
-                            <div key={i} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-none">
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-8 h-8 rounded-lg ${inst.avatarBg} flex items-center justify-center text-[11px] font-semibold ${inst.avatarColor}`}>
-                                        {inst.abbr}
+                        {loading ? (
+                            [...Array(4)].map((_, i) => (
+                                <div key={i} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-none">
+                                    <div className="flex items-center gap-3">
+                                        <Skeleton className="w-8 h-8 rounded-lg" />
+                                        <div className="space-y-1">
+                                            <Skeleton className="h-3 w-32" />
+                                            <Skeleton className="h-2.5 w-24" />
+                                        </div>
                                     </div>
-                                    <div>
-                                        <p className="text-sm font-medium leading-tight">{inst.name}</p>
-                                        <p className="text-xs text-muted-foreground">{inst.meta}</p>
-                                    </div>
+                                    <Skeleton className="h-5 w-16 rounded-full" />
                                 </div>
-                                <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${statusStyle[inst.status]}`}>
-                                    {inst.status}
-                                </span>
-                            </div>
-                        ))}
+                            ))
+                        ) : data?.recentInstitutions.length === 0 ? (
+                            <p className="text-xs text-muted-foreground py-4 text-center">No institutions yet</p>
+                        ) : (
+                            data?.recentInstitutions.map((inst) => {
+                                const abbr = inst.name.split(' ').slice(0, 3).map(w => w[0]).join('').toUpperCase();
+                                const plan = inst.subscription?.plan?.name ?? '';
+                                const AVATAR_COLORS = [
+                                    'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',
+                                    'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300',
+                                    'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300',
+                                    'bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300',
+                                    'bg-pink-100 dark:bg-pink-950 text-pink-700 dark:text-pink-300',
+                                ];
+                                const colorClass = AVATAR_COLORS[inst.name.charCodeAt(0) % AVATAR_COLORS.length];
+                                const studentCount = inst.users?.filter(u => u.role === 'STUDENT').length ?? 0;
+                                const teacherCount = inst.users?.filter(u => u.role === 'TEACHER').length ?? 0;
+
+                                return (
+                                    <div key={inst.id} className="flex items-center justify-between py-2.5 border-b border-border/40 last:border-none">
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-semibold ${colorClass}`}>
+                                                {abbr}
+                                            </div>
+                                            <div>
+                                                <p className="text-sm font-medium leading-tight">{inst.name}</p>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {studentCount} students · {teacherCount} teachers
+                                                    {plan && ` · ${plan}`}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-medium ${statusStyle[inst.status] ?? statusStyle['PENDING']}`}>
+                                            {inst.status === 'ACTIVE' ? 'Active' : inst.status === 'SUSPENDED' ? 'Suspended' : 'Pending'}
+                                        </span>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
 
-                {/* Audit Logs */}
+                {/* Recent Audit Logs */}
                 <div className="bg-card border border-border/50 rounded-xl p-5">
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-sm font-medium">Recent audit logs</p>
                         <a href="/superadmin/audit-logs" className="text-xs text-primary hover:underline">View all</a>
                     </div>
                     <div className="space-y-0.5">
-                        {LOGS.map((log, i) => (
-                            <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
-                                <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${log.dot}`} />
-                                <div className="flex-1 min-w-0">
-                                    <p className="text-xs text-foreground leading-relaxed">{log.text}</p>
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">{log.time}</p>
+                        {loading ? (
+                            [...Array(5)].map((_, i) => (
+                                <div key={i} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
+                                    <Skeleton className="w-2 h-2 rounded-full mt-1.5 shrink-0" />
+                                    <div className="flex-1 space-y-1">
+                                        <Skeleton className="h-3 w-full" />
+                                        <Skeleton className="h-2.5 w-16" />
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            ))
+                        ) : data?.recentAuditLogs.length === 0 ? (
+                            <p className="text-xs text-muted-foreground py-4 text-center">No activity yet</p>
+                        ) : (
+                            data?.recentAuditLogs.map((log) => {
+                                const dot = ACTION_DOT[log.action] ?? 'bg-muted-foreground';
+                                const instName = log.institution?.name ? ` · ${log.institution.name}` : '';
+                                return (
+                                    <div key={log.id} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
+                                        <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${dot}`} />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs text-foreground leading-relaxed">
+                                                {log.details ?? log.action.replace(/_/g, ' ')}
+                                                {instName && <span className="text-muted-foreground">{instName}</span>}
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">{timeAgo(log.createdAt)}</p>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
                 </div>
-
             </div>
         </div>
     );
