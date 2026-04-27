@@ -59,6 +59,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     const [countryCode, setCountryCode] = useState('+91');
     const [showCCDropdown, setShowCCDropdown] = useState(false);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
     const [form, setForm] = useState({
@@ -72,9 +73,28 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
 
     const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
 
+    const initials = form.name
+        .trim()
+        .split(/\s+/)
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join('')
+        .toUpperCase();
+
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
+
+        if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+            toast.error('Only PNG, JPG, or WEBP images are allowed');
+            return;
+        }
+        if (file.size > 2 * 1024 * 1024) {
+            toast.error('Logo must be 2 MB or smaller');
+            return;
+        }
+
+        setLogoFile(file);
         const reader = new FileReader();
         reader.onload = () => setLogoPreview(reader.result as string);
         reader.readAsDataURL(file);
@@ -87,9 +107,19 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
         }
         try {
             setLoading(true);
+            let logoUrl: string | undefined;
+
+            if (logoFile) {
+                const uploadRes = await api.post('/superadmin/institutions/logo', logoFile, {
+                    headers: { 'Content-Type': logoFile.type },
+                });
+                logoUrl = uploadRes.data?.data?.logoUrl;
+            }
+
             const res = await api.post('/superadmin/institutions', {
                 ...form,
                 phone: form.phone ? `${countryCode} ${form.phone}` : undefined,
+                logoUrl,
             });
             const newInst: Institution = res.data.data;
             toast.success('Institution created! Invite email sent 🚀');
@@ -108,6 +138,8 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
         setForm({ name: '', email: '', phone: '', type: 'SCHOOL', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', plan: 'BASIC', board: '', medium: '' });
         setCountryCode('+91');
         setLogoPreview(null);
+        setLogoFile(null);
+        if (fileRef.current) fileRef.current.value = '';
     };
 
     const selectedCC = COUNTRY_CODES.find(c => c.code === countryCode) ?? COUNTRY_CODES[0];
@@ -167,6 +199,15 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                                 <Camera size={14} className="text-white" />
                                             </div>
                                         </>
+                                    ) : initials ? (
+                                        <>
+                                            <span className="text-base font-bold text-muted-foreground select-none group-hover:opacity-0 transition-opacity">
+                                                {initials}
+                                            </span>
+                                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                                <Camera size={16} className="text-primary" />
+                                            </div>
+                                        </>
                                     ) : (
                                         <Camera size={18} className="text-muted-foreground group-hover:text-primary transition-colors" />
                                     )}
@@ -180,7 +221,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                             <>
                                                 <span className="text-muted-foreground/40">·</span>
                                                 <button type="button"
-                                                    onClick={() => { setLogoPreview(null); if (fileRef.current) fileRef.current.value = ''; }}
+                                                    onClick={() => { setLogoPreview(null); setLogoFile(null); if (fileRef.current) fileRef.current.value = ''; }}
                                                     className="text-[11px] text-red-500 hover:underline flex items-center gap-0.5">
                                                     <X size={10} /> Remove
                                                 </button>
