@@ -7,6 +7,7 @@ interface User {
     email: string;
     role: 'SUPER_ADMIN' | 'ADMIN' | 'TEACHER' | 'STUDENT';
     institutionId?: string | null;
+    institutionType?: 'SCHOOL' | 'COLLEGE' | 'COACHING' | null;
 }
 
 interface AuthStore {

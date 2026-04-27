@@ -1,6 +1,9 @@
 'use client';
 
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+    ComposedChart, Bar, Line, XAxis, YAxis,
+    CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
 import type { AdminOverview, InstitutionType } from '@/types';
 import { getInstitutionAccent } from '@/lib/getInstitutionAccent';
 
@@ -22,23 +25,53 @@ export function EnrollmentGrowthChart({ data, institutionType }: EnrollmentGrowt
                         Students
                     </span>
                     <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm bg-border inline-block" />
+                        <span className="w-6 h-0.5 bg-amber-400 inline-block rounded-full" />
                         Teachers
                     </span>
                 </div>
             </div>
             <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={data} barGap={4}>
-                    <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                        contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }}
-                        cursor={{ fill: 'hsl(var(--muted))', radius: 4 }}
+                <ComposedChart data={data} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
+                    <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.4} />
+                    <XAxis
+                        dataKey="month"
+                        tick={{ fontSize: 11, fill: '#94A3B8' }}
+                        axisLine={false}
+                        tickLine={false}
                     />
-                    <Bar dataKey="students" fill={accent.bg} radius={[4, 4, 0, 0]} maxBarSize={32} />
-                    <Bar dataKey="teachers" fill="hsl(var(--border))" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                </BarChart>
+                    <YAxis
+                        tick={{ fontSize: 11, fill: '#94A3B8' }}
+                        axisLine={false}
+                        tickLine={false}
+                    />
+                    <Tooltip
+                        contentStyle={{
+                            background: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: 8,
+                            fontSize: 12,
+                            color: 'hsl(var(--foreground))',
+                        }}
+                        itemStyle={{ color: 'hsl(var(--foreground))' }}
+                        labelStyle={{ color: 'hsl(var(--foreground))' }}
+                        cursor={{ fill: 'hsl(var(--muted))', opacity: 0.3 }}
+                    />
+                    <Bar
+                        dataKey="students"
+                        fill={accent.bg}
+                        radius={[6, 6, 0, 0]}
+                        maxBarSize={28}
+                        opacity={0.9}
+                    />
+                    <Line
+                        type="monotone"
+                        dataKey="teachers"
+                        stroke="#F59E0B"
+                        strokeWidth={2.5}
+                        dot={{ r: 4, fill: '#F59E0B', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+                        activeDot={{ r: 6, fill: '#F59E0B', stroke: 'hsl(var(--card))', strokeWidth: 2 }}
+                    />
+                </ComposedChart>
             </ResponsiveContainer>
         </div>
     );

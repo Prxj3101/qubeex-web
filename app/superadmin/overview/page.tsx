@@ -24,16 +24,16 @@ type OverviewStats = {
     newStudentsThisWeek: number;
 };
 
-type GrowthPoint    = { month: string; active: number; trial: number };
-type PlanDist       = { plan: string; count: number };
-type RecentInst     = {
+type GrowthPoint = { month: string; active: number; trial: number };
+type PlanDist = { plan: string; count: number };
+type RecentInst = {
     id: string; name: string; status: string;
     institutionCode?: string;
     users?: { role: string }[];
     teacherCount?: number; studentCount?: number;
     subscription?: { plan?: { name: string } } | null;
 };
-type RecentLog      = {
+type RecentLog = {
     id: string; action: string; details?: string | null;
     createdAt: string;
     institution?: { name: string } | null;
@@ -56,34 +56,34 @@ const CHARACTERS = [
 ];
 
 const statusStyle: Record<string, string> = {
-    ACTIVE:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-    PENDING:   'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
-    TRIAL:     'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+    ACTIVE: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
+    PENDING: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+    TRIAL: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
     SUSPENDED: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
 };
 
 const ACTION_DOT: Record<string, string> = {
-    INSTITUTION_CREATED:   'bg-violet-500',
+    INSTITUTION_CREATED: 'bg-violet-500',
     INSTITUTION_SUSPENDED: 'bg-red-500',
     INSTITUTION_ACTIVATED: 'bg-sky-500',
-    INVITE_SENT:           'bg-violet-400',
-    INVITE_ACCEPTED:       'bg-emerald-500',
-    PLAN_ASSIGNED:         'bg-amber-500',
-    LOGIN_SUCCESS:         'bg-teal-500',
-    LOGIN_FAILED:          'bg-rose-500',
-    NOTIFICATION_SENT:     'bg-purple-500',
+    INVITE_SENT: 'bg-violet-400',
+    INVITE_ACCEPTED: 'bg-emerald-500',
+    PLAN_ASSIGNED: 'bg-amber-500',
+    LOGIN_SUCCESS: 'bg-teal-500',
+    LOGIN_FAILED: 'bg-rose-500',
+    NOTIFICATION_SENT: 'bg-purple-500',
 };
 
 function timeAgo(iso: string) {
     const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
-    if (diff < 60)   return `${diff}s ago`;
+    if (diff < 60) return `${diff}s ago`;
     if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
     if (diff < 86400) return `${Math.floor(diff / 3600)} hr ago`;
     return `${Math.floor(diff / 86400)} days ago`;
 }
 
 function planColor(plan: string) {
-    if (plan === 'PRO')   return 'bg-violet-500';
+    if (plan === 'PRO') return 'bg-violet-500';
     if (plan === 'TRIAL') return 'bg-amber-400';
     return 'bg-emerald-500';
 }
@@ -101,7 +101,7 @@ function Skeleton({ className = '' }: { className?: string }) {
 export default function SuperAdminOverview() {
     const { user } = useAuthStore();
     const [currentChar, setCurrentChar] = useState(0);
-    const [data, setData]     = useState<OverviewData | null>(null);
+    const [data, setData] = useState<OverviewData | null>(null);
     const [loading, setLoading] = useState(true);
 
     // Rotating character animation
@@ -111,10 +111,10 @@ export default function SuperAdminOverview() {
     }, []);
 
     // Greeting
-    const now  = new Date();
+    const now = new Date();
     const hour = now.getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
-    const dateStr  = now.toLocaleDateString('en-IN', {
+    const dateStr = now.toLocaleDateString('en-IN', {
         timeZone: 'Asia/Kolkata',
         weekday: 'short', day: 'numeric', month: 'short', year: 'numeric',
     });
@@ -196,7 +196,7 @@ export default function SuperAdminOverview() {
                 <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-4 left-52 animate-pulse delay-700" />
 
                 <div className="space-y-1 z-10">
-                    <p className="text-white/70 text-base">{greeting}👋, Bosses</p>
+                    <p className="text-white/70 text-base">{greeting}👋, Boss</p>
                     <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
                         {displayName}
                     </p>
@@ -264,7 +264,7 @@ export default function SuperAdminOverview() {
                 {/* Growth Chart */}
                 <div className="lg:col-span-2 bg-card border border-border/50 rounded-xl p-5">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm font-medium">Institution growth</p>
+                        <p className="text-sm font-medium">Software growth</p>
                         <div className="flex items-center gap-3 text-xs text-muted-foreground">
                             <span className="flex items-center gap-1.5">
                                 <span className="w-2.5 h-2.5 rounded-sm bg-violet-500 inline-block" />Active
@@ -305,7 +305,7 @@ export default function SuperAdminOverview() {
                         <p className="text-sm font-medium mb-4">Plan distribution</p>
                         {loading ? (
                             <div className="space-y-3">
-                                {[1,2,3].map(i => <Skeleton key={i} className="h-4 w-full" />)}
+                                {[1, 2, 3].map(i => <Skeleton key={i} className="h-4 w-full" />)}
                             </div>
                         ) : (
                             <div className="space-y-3">
