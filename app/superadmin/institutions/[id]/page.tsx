@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
@@ -41,6 +41,7 @@ import {
   Bell,
   Trophy,
   Upload,
+  Camera,
   Play,
   Pause,
   Flag,
@@ -563,6 +564,38 @@ function ViewDetailsTab({
     .toUpperCase();
   const joinDate = toIST(inst.createdAt);
   const [logoErr, setLogoErr] = useState(false);
+  const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(inst.logoUrl ?? null);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
+      toast.error("Only PNG, JPG, or WEBP images are allowed");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Logo must be 2 MB or smaller");
+      return;
+    }
+    try {
+      setLogoUploading(true);
+      const uploadRes = await api.post("/superadmin/institutions/logo", file, {
+        headers: { "Content-Type": file.type },
+      });
+      const newLogoUrl: string = uploadRes.data?.data?.logoUrl;
+      await api.put(`/superadmin/institutions/${inst.id}`, { logoUrl: newLogoUrl });
+      setCurrentLogoUrl(newLogoUrl);
+      setLogoErr(false);
+      toast.success("Logo updated");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? "Failed to upload logo");
+    } finally {
+      setLogoUploading(false);
+      if (logoFileRef.current) logoFileRef.current.value = "";
+    }
+  };
 
   // Enrich admin info from either dedicated field or users array
   const adminUser =
@@ -645,11 +678,15 @@ function ViewDetailsTab({
     >
       <div className="bg-card border border-border/50 rounded-2xl p-5">
         <div className="flex items-start gap-4">
-          {/* Logo / initials */}
-          <div className="w-16 h-16 rounded-2xl bg-muted ring-2 ring-border shrink-0 overflow-hidden flex items-center justify-center">
-            {logoUrl && !logoErr ? (
+          {/* Logo / initials — click to upload */}
+          <div
+            onClick={() => !logoUploading && logoFileRef.current?.click()}
+            className="relative w-16 h-16 rounded-2xl bg-muted ring-2 ring-border shrink-0 overflow-hidden flex items-center justify-center cursor-pointer group"
+            title="Click to change logo"
+          >
+            {currentLogoUrl && !logoErr ? (
               <img
-                src={logoUrl}
+                src={currentLogoUrl}
                 alt={inst.name}
                 className="w-full h-full object-cover"
                 onError={() => setLogoErr(true)}
@@ -659,6 +696,23 @@ function ViewDetailsTab({
                 {initials}
               </span>
             )}
+            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-0.5">
+              {logoUploading ? (
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Camera size={14} className="text-white" />
+                  <span className="text-[9px] text-white font-medium leading-none">Change</span>
+                </>
+              )}
+            </div>
+            <input
+              ref={logoFileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={handleLogoUpload}
+            />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-3">
