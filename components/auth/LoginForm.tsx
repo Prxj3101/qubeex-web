@@ -229,6 +229,7 @@ export function LoginForm() {
                                 <button
                                     type="submit"
                                     disabled={!canSubmit}
+                                    suppressHydrationWarning
                                     className="relative w-full h-12 rounded-xl text-sm font-semibold text-white overflow-hidden transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed group"
                                     style={{ background: canSubmit ? 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' : 'rgba(255,255,255,0.06)' }}
                                 >

@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
-    User, Mail, Phone, Shield, KeyRound, Eye, EyeOff, Check, X,
+    User, Mail, Shield, KeyRound, Eye, EyeOff, Check, X,
     Calendar, Clock, Monitor, MapPin, LogOut, AlertTriangle,
     Bell, Globe, Edit3, Save, RefreshCw, ShieldCheck, Smartphone,
-    Building2, Hash, BadgeCheck, Activity, Lock
+    Hash, BadgeCheck, Activity, Lock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -54,22 +55,14 @@ const strengthConfig = {
     'very-strong': { label: 'Very Strong', color: 'bg-violet-500', text: 'text-violet-500', width: '100%' },
 };
 
-// ─── Mock data (TODO: replace with API) ──────────────────────────────────────
-
-const MOCK_LOGIN_HISTORY = [
-    { id: '1', device: 'Chrome on macOS', ip: '103.21.58.142', location: 'Mumbai, IN', time: '2026-04-27T09:14:00Z', current: true },
-    { id: '2', device: 'Safari on iPhone', ip: '103.21.58.140', location: 'Mumbai, IN', time: '2026-04-26T18:42:00Z', current: false },
-    { id: '3', device: 'Chrome on Windows', ip: '49.36.218.91', location: 'Pune, IN', time: '2026-04-25T11:20:00Z', current: false },
-    { id: '4', device: 'Chrome on macOS', ip: '103.21.58.142', location: 'Mumbai, IN', time: '2026-04-24T08:05:00Z', current: false },
-    { id: '5', device: 'Firefox on Linux', ip: '157.45.62.18', location: 'Bangalore, IN', time: '2026-04-22T15:30:00Z', current: false },
-];
-
-const MOCK_ACCOUNT = {
-    superAdminId: 'SA-2024-0001',
-    createdAt: '2024-08-15T10:00:00Z',
-    lastLogin: '2026-04-27T09:14:00Z',
-    lastLoginIp: '103.21.58.142',
-    lastLoginDevice: 'Chrome on macOS',
+type LoginActivity = {
+    id: string;
+    device: string;
+    ip: string;
+    location: string;
+    time: string;
+    latest: boolean;
+    userAgent?: string | null;
 };
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -164,17 +157,25 @@ function PasswordInput({ value, onChange, placeholder, show, onToggleShow, autoF
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function SuperAdminProfilePage() {
-    const { user, setUser } = useAuthStore() as any;
+    const { user, setUser, clearAuth } = useAuthStore() as any;
+    const router = useRouter();
 
-    // ── Personal details ──
+    // ── Profile data ──
+    const [profileLoading, setProfileLoading] = useState(true);
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [profileCreatedAt, setProfileCreatedAt] = useState<string | null>(null);
+
+    // ── Personal details edit ──
     const [editing, setEditing] = useState(false);
     const [savingProfile, setSavingProfile] = useState(false);
-    const [name, setName] = useState(user?.name ?? 'Prajwal');
-    const [email, setEmail] = useState(user?.email ?? 'prajwal@qubeex.com');
-    const [phone, setPhone] = useState(user?.phone ?? '+91 98765 43210');
 
     // Snapshot to revert on cancel
-    const [snapshot, setSnapshot] = useState({ name, email, phone });
+    const [snapshot, setSnapshot] = useState({ name, email });
+
+    // ── Login activity ──
+    const [loginActivity, setLoginActivity] = useState<LoginActivity[]>([]);
+    const [activityLoading, setActivityLoading] = useState(true);
 
     // ── Password change ──
     const [oldPwd, setOldPwd] = useState('');
@@ -206,17 +207,52 @@ export default function SuperAdminProfilePage() {
         loginAlerts: true,
     });
 
+    // ── Fetch profile on mount ──
+    useEffect(() => {
+        const load = async () => {
+            try {
+                setProfileLoading(true);
+                const res = await api.get('/superadmin/profile');
+                const p = res.data.data;
+                setName(p.name ?? '');
+                setEmail(p.email ?? '');
+                setProfileCreatedAt(p.createdAt ?? null);
+                setSnapshot({ name: p.name ?? '', email: p.email ?? '' });
+                if (setUser) setUser((prev: any) => ({ ...prev, name: p.name, email: p.email }));
+            } catch {
+                toast.error('Failed to load profile');
+            } finally {
+                setProfileLoading(false);
+            }
+        };
+        load();
+    }, []);
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                setActivityLoading(true);
+                const res = await api.get('/superadmin/profile/login-activity?limit=5');
+                setLoginActivity(res.data.data ?? []);
+            } catch {
+                // non-blocking
+            } finally {
+                setActivityLoading(false);
+            }
+        };
+        load();
+    }, []);
+
     // ── Handlers ──
 
     const handleStartEdit = () => {
-        setSnapshot({ name, email, phone });
+        setSnapshot({ name, email });
         setEditing(true);
     };
 
     const handleCancelEdit = () => {
         setName(snapshot.name);
         setEmail(snapshot.email);
-        setPhone(snapshot.phone);
         setEditing(false);
     };
 
@@ -225,13 +261,13 @@ export default function SuperAdminProfilePage() {
         if (!email.trim()) return toast.error('Email is required');
         try {
             setSavingProfile(true);
-            // await api.put('/superadmin/profile', { name, email, phone });
-            await new Promise(r => setTimeout(r, 600)); // mock
+            await api.put('/superadmin/profile', { name, email });
             setEditing(false);
-            setSnapshot({ name, email, phone });
+            setSnapshot({ name, email });
+            if (setUser) setUser((prev: any) => ({ ...prev, name, email }));
             toast.success('Profile updated successfully');
-        } catch {
-            toast.error('Failed to update profile');
+        } catch (e: any) {
+            toast.error(e?.response?.data?.message ?? 'Failed to update profile');
         } finally {
             setSavingProfile(false);
         }
@@ -241,8 +277,7 @@ export default function SuperAdminProfilePage() {
         if (!canSubmitPwd) return;
         try {
             setSavingPwd(true);
-            // await api.put('/superadmin/profile/password', { oldPassword: oldPwd, newPassword: newPwd });
-            await new Promise(r => setTimeout(r, 800)); // mock
+            await api.put('/superadmin/profile/password', { oldPassword: oldPwd, newPassword: newPwd });
             setOldPwd(''); setNewPwd(''); setConfirmPwd('');
             setShowOld(false); setShowNew(false); setShowConfirm(false);
             toast.success('Password changed successfully');
@@ -253,23 +288,16 @@ export default function SuperAdminProfilePage() {
         }
     };
 
-    const handleSignOutDevice = async (id: string) => {
-        try {
-            // await api.delete(`/superadmin/sessions/${id}`);
-            toast.success('Device signed out');
-        } catch {
-            toast.error('Failed to sign out device');
-        }
+    const handleSignOutAll = () => {
+        if (!confirm('This will sign you out. Continue?')) return;
+        handleLogout();
     };
 
-    const handleSignOutAll = async () => {
-        if (!confirm('Sign out from all other devices? You will remain signed in here.')) return;
-        try {
-            // await api.post('/superadmin/sessions/revoke-all');
-            toast.success('Signed out from all other devices');
-        } catch {
-            toast.error('Failed to sign out from all devices');
-        }
+    const handleLogout = () => {
+        // Clear local session and redirect immediately — blacklist token in background
+        clearAuth();
+        router.replace('/login');
+        api.post('/auth/logout').catch(() => {});
     };
 
     const initials = (name || 'SA').split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase();
@@ -286,6 +314,13 @@ export default function SuperAdminProfilePage() {
                         </h1>
                         <p className="text-muted-foreground text-sm">Manage your account, security, and preferences</p>
                     </div>
+                    <button
+                        onClick={handleLogout}
+                        className="flex items-center gap-2 h-9 px-4 rounded-xl border border-red-200 dark:border-red-900/50 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all active:scale-95"
+                    >
+                        <LogOut size={14} />
+                        Log out
+                    </button>
                 </div>
                 <div className="h-px bg-border/60 mt-3" />
             </div>
@@ -334,7 +369,7 @@ export default function SuperAdminProfilePage() {
                                 <Mail size={13} />{email}
                             </p>
                             <p className="text-white/60 text-xs flex items-center gap-1.5">
-                                <Calendar size={12} />Member since {toIST(MOCK_ACCOUNT.createdAt, { hour: undefined, minute: undefined })}
+                                <Calendar size={12} />Member since {toIST(profileCreatedAt, { hour: undefined, minute: undefined })}
                             </p>
                         </div>
                     </div>
@@ -390,11 +425,16 @@ export default function SuperAdminProfilePage() {
                                     )
                                 }
                             >
-                                <div className="space-y-0">
-                                    <FieldRow icon={User} label="Full Name" value={name} editing={editing} onChange={setName} placeholder="Enter your name" />
-                                    <FieldRow icon={Mail} label="Email" value={email} editing={editing} onChange={setEmail} type="email" placeholder="you@example.com" />
-                                    <FieldRow icon={Phone} label="Phone" value={phone} editing={editing} onChange={setPhone} type="tel" placeholder="+91 98765 43210" />
-                                </div>
+                                {profileLoading ? (
+                                    <div className="space-y-3 py-1">
+                                        {[1, 2].map(i => <div key={i} className="h-9 rounded-lg bg-muted animate-pulse" />)}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-0">
+                                        <FieldRow icon={User} label="Full Name" value={name} editing={editing} onChange={setName} placeholder="Enter your name" />
+                                        <FieldRow icon={Mail} label="Email" value={email} editing={editing} onChange={setEmail} type="email" placeholder="you@example.com" />
+                                    </div>
+                                )}
                             </SectionCard>
                         </motion.div>
 
@@ -409,35 +449,34 @@ export default function SuperAdminProfilePage() {
                                 icon={Hash}
                                 description="Read-only system details"
                             >
-                                <div className="space-y-0">
-                                    <div className="flex items-center gap-3 py-2.5 border-b border-border/40">
-                                        <Hash size={15} className="shrink-0 text-muted-foreground/60" />
-                                        <span className="text-[13px] text-muted-foreground w-28 shrink-0">Admin ID</span>
-                                        <span className="text-[13px] font-mono font-semibold tracking-wider" style={{ color: '#DA7756' }}>
-                                            {MOCK_ACCOUNT.superAdminId}
-                                        </span>
+                                {profileLoading ? (
+                                    <div className="space-y-3 py-1">
+                                        {[1, 2, 3].map(i => <div key={i} className="h-8 rounded-lg bg-muted animate-pulse" />)}
                                     </div>
-                                    <div className="flex items-center gap-3 py-2.5 border-b border-border/40">
-                                        <Calendar size={15} className="shrink-0 text-muted-foreground/60" />
-                                        <span className="text-[13px] text-muted-foreground w-28 shrink-0">Created</span>
-                                        <span className="text-[13px] font-medium">{toIST(MOCK_ACCOUNT.createdAt)}</span>
+                                ) : (
+                                    <div className="space-y-0">
+                                        <div className="flex items-center gap-3 py-2.5 border-b border-border/40">
+                                            <Calendar size={15} className="shrink-0 text-muted-foreground/60" />
+                                            <span className="text-[13px] text-muted-foreground w-28 shrink-0">Member Since</span>
+                                            <span className="text-[13px] font-medium">{toIST(profileCreatedAt)}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 py-2.5 border-b border-border/40">
+                                            <Activity size={15} className="shrink-0 text-muted-foreground/60" />
+                                            <span className="text-[13px] text-muted-foreground w-28 shrink-0">Last Login</span>
+                                            <span className="text-[13px] font-medium">{loginActivity[0] ? toIST(loginActivity[0].time) : '—'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 py-2.5 border-b border-border/40">
+                                            <Monitor size={15} className="shrink-0 text-muted-foreground/60" />
+                                            <span className="text-[13px] text-muted-foreground w-28 shrink-0">Last Device</span>
+                                            <span className="text-[13px] font-medium truncate">{loginActivity[0]?.device ?? '—'}</span>
+                                        </div>
+                                        <div className="flex items-center gap-3 py-2.5">
+                                            <Globe size={15} className="shrink-0 text-muted-foreground/60" />
+                                            <span className="text-[13px] text-muted-foreground w-28 shrink-0">Last IP</span>
+                                            <span className="text-[13px] font-mono">{loginActivity[0]?.ip ?? '—'}</span>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-3 py-2.5 border-b border-border/40">
-                                        <Activity size={15} className="shrink-0 text-muted-foreground/60" />
-                                        <span className="text-[13px] text-muted-foreground w-28 shrink-0">Last Login</span>
-                                        <span className="text-[13px] font-medium">{toIST(MOCK_ACCOUNT.lastLogin)}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 py-2.5 border-b border-border/40">
-                                        <Monitor size={15} className="shrink-0 text-muted-foreground/60" />
-                                        <span className="text-[13px] text-muted-foreground w-28 shrink-0">Last Device</span>
-                                        <span className="text-[13px] font-medium truncate">{MOCK_ACCOUNT.lastLoginDevice}</span>
-                                    </div>
-                                    <div className="flex items-center gap-3 py-2.5">
-                                        <Globe size={15} className="shrink-0 text-muted-foreground/60" />
-                                        <span className="text-[13px] text-muted-foreground w-28 shrink-0">Last IP</span>
-                                        <span className="text-[13px] font-mono">{MOCK_ACCOUNT.lastLoginIp}</span>
-                                    </div>
-                                </div>
+                                )}
                             </SectionCard>
                         </motion.div>
 
@@ -726,7 +765,19 @@ export default function SuperAdminProfilePage() {
                                 }
                             >
                                 <div className="space-y-0">
-                                    {MOCK_LOGIN_HISTORY.map(session => (
+                                    {activityLoading ? (
+                                        [...Array(3)].map((_, i) => (
+                                            <div key={i} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-none">
+                                                <div className="w-8 h-8 rounded-lg bg-muted animate-pulse shrink-0" />
+                                                <div className="flex-1 space-y-1.5">
+                                                    <div className="h-3 bg-muted animate-pulse rounded w-40" />
+                                                    <div className="h-2.5 bg-muted animate-pulse rounded w-56" />
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : loginActivity.length === 0 ? (
+                                        <p className="text-xs text-muted-foreground py-4 text-center">No login activity found</p>
+                                    ) : loginActivity.map((session, idx) => (
                                         <div key={session.id} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-none">
                                             <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
                                                 <Monitor size={14} className="text-muted-foreground" />
@@ -734,13 +785,13 @@ export default function SuperAdminProfilePage() {
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2">
                                                     <p className="text-[13px] font-medium truncate">{session.device}</p>
-                                                    {session.current && (
+                                                    {idx === 0 && (
                                                         <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 shrink-0">
-                                                            CURRENT
+                                                            LATEST
                                                         </span>
                                                     )}
                                                 </div>
-                                                <p className="text-[11px] text-muted-foreground flex items-center gap-2">
+                                                <p className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap">
                                                     <span className="flex items-center gap-1"><MapPin size={10} />{session.location}</span>
                                                     <span className="text-muted-foreground/40">·</span>
                                                     <span className="font-mono">{session.ip}</span>
@@ -748,14 +799,6 @@ export default function SuperAdminProfilePage() {
                                                     <span className="flex items-center gap-1"><Clock size={10} />{toIST(session.time)}</span>
                                                 </p>
                                             </div>
-                                            {!session.current && (
-                                                <button
-                                                    onClick={() => handleSignOutDevice(session.id)}
-                                                    className="text-[11px] text-red-500 hover:text-red-600 font-medium shrink-0"
-                                                >
-                                                    Sign out
-                                                </button>
-                                            )}
                                         </div>
                                     ))}
                                 </div>
@@ -782,17 +825,14 @@ export default function SuperAdminProfilePage() {
                                 <div className="flex items-center justify-between gap-4">
                                     <div className="min-w-0">
                                         <p className="text-sm font-medium">Sign out from all devices</p>
-                                        <p className="text-[11px] text-muted-foreground">You'll need to sign in again everywhere — including this device</p>
+                                        <p className="text-[11px] text-muted-foreground">Invalidates your session everywhere — you'll need to sign in again</p>
                                     </div>
                                     <button
-                                        onClick={() => {
-                                            if (confirm('Sign out from ALL devices including this one? You will need to sign in again.')) {
-                                                toast.success('Signed out everywhere');
-                                            }
-                                        }}
+                                        onClick={handleSignOutAll}
                                         className="flex items-center gap-1.5 h-9 px-3 rounded-md text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-all active:scale-95 shrink-0"
                                     >
-                                        <LogOut size={13} /> Sign out everywhere
+                                        <LogOut size={13} />
+                                        Sign out everywhere
                                     </button>
                                 </div>
                             </div>
