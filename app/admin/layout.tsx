@@ -14,8 +14,8 @@ import {
 
 const ADMIN_NAV_ITEMS = [
     { label: 'Overview', href: '/admin/overview', icon: LayoutDashboard },
-    { label: 'Structure', href: '/admin/structure', icon: Building2 },
     { label: 'People', href: '/admin/people', icon: Users },
+    { label: 'Structure', href: '/admin/structure', icon: Building2 },
     { label: 'Insights', href: '/admin/insights/analytics', icon: LineChart },
     { label: 'Support', href: '/admin/support/notifications', icon: Headset },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: ScrollText },
