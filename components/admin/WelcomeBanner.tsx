@@ -316,7 +316,7 @@ function StorageTokenRow({ plan, color, colorBg, colorBgStrong }: {
 export function WelcomeBanner({ adminName, institutionName, institutionType, plan }: WelcomeBannerProps) {
     const router = useRouter();
     const [visible, setVisible] = useState(false);
-    const [expanded, setExpanded] = useState(true);
+    const [expanded, setExpanded] = useState(false);
     const [completedSteps, setCompletedSteps] = useState<string[]>([]);
     const [showAll, setShowAll] = useState(false);
 

@@ -44,17 +44,17 @@ const MOCK_OVERVIEW: AdminOverview = {
             tests: { used: 142, limit: 1000 },
         },
     },
-    recentActivity: [
-        { id: '1', dot: 'violet', text: 'Teacher Ritu Sharma added to Class 10-A', time: '12 min ago' },
-        { id: '2', dot: 'emerald', text: '24 new students enrolled in Class 9', time: '1 hr ago' },
-        { id: '3', dot: 'amber', text: 'Plan usage crossed 80% for storage', time: '3 hr ago' },
-        { id: '4', dot: 'sky', text: 'Monthly test results published', time: '1 day ago' },
-        { id: '5', dot: 'violet', text: 'Admin settings updated', time: '2 days ago' },
+    auditLogs: [
+        { id: '1', dot: 'violet', action: 'Teacher Added', actor: 'Admin', detail: 'Ritu Sharma added to Class 10-A', time: '12 min ago' },
+        { id: '2', dot: 'emerald', action: 'Students Enrolled', actor: 'Admin', detail: '24 students enrolled in Class 9', time: '1 hr ago' },
+        { id: '3', dot: 'amber', action: 'Plan Usage Alert', actor: 'System', detail: 'Storage usage crossed 80%', time: '3 hr ago' },
+        { id: '4', dot: 'sky', action: 'Results Published', actor: 'Admin', detail: 'Monthly test results published', time: '1 day ago' },
+        { id: '5', dot: 'violet', action: 'Settings Updated', actor: 'Admin', detail: 'Admin settings updated', time: '2 days ago' },
     ],
-    notifications: [
-        { id: 'n1', title: 'Upgrade available', body: 'A new plan tier is available with more storage.', time: '2 hr ago' },
-        { id: 'n2', title: 'Maintenance window', body: 'Scheduled maintenance on 2026-04-22 from 2-4 AM IST.', time: '1 day ago' },
-        { id: 'n3', title: 'New feature: Bulk imports', body: 'You can now import students via CSV.', time: '3 days ago' },
+    tickets: [
+        { id: 'TKT-001', title: 'Test submissions not saving', category: 'BUG', priority: 'URGENT', status: 'IN_PROGRESS', createdAt: '2 hrs ago' },
+        { id: 'TKT-002', title: 'Request for CSV bulk import', category: 'FEATURE', priority: 'MEDIUM', status: 'OPEN', createdAt: '1 day ago' },
+        { id: 'TKT-003', title: 'March invoice incorrect amount', category: 'BILLING', priority: 'HIGH', status: 'OPEN', createdAt: '3 days ago' },
     ],
 };
 
@@ -125,8 +125,8 @@ export default function AdminOverviewPage() {
             </div>
 
             <div className="flex flex-col gap-3">
-                <RecentActivityCard activity={overview.recentActivity} />
-                <NotificationsPreviewCard notifications={overview.notifications} />
+                <RecentActivityCard auditLogs={overview.auditLogs} />
+                <NotificationsPreviewCard tickets={overview.tickets} />
             </div>
         </div>
     );

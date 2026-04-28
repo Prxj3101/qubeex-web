@@ -78,8 +78,22 @@ export interface AdminOverview {
             tests: { used: number; limit: number };
         };
     };
-    recentActivity: { id: string; dot: string; text: string; time: string }[];
-    notifications: { id: string; title: string; body: string; time: string }[];
+    auditLogs: {
+        id: string;
+        dot: 'violet' | 'emerald' | 'amber' | 'red' | 'sky';
+        action: string;
+        actor: string;
+        detail: string;
+        time: string;
+    }[];
+    tickets: {
+        id: string;
+        title: string;
+        category: 'BUG' | 'FEATURE' | 'BILLING' | 'OTHER';
+        priority: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+        status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+        createdAt: string;
+    }[];
 }
 
 // ── Phase 2: Institution Structure ──
@@ -132,9 +146,11 @@ export interface TeacherAssignment {
 
 export interface Teacher {
     id: string;
+    teacherId?: string;
     name: string;
     email: string;
     phone?: string;
+    avatarUrl?: string;
     status: TeacherStatus;
     joinedAt: string;
     assignments: TeacherAssignment[];
