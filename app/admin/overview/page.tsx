@@ -96,7 +96,7 @@ export default function AdminOverviewPage() {
     const adminName = user?.email?.split('@')[0] ?? 'Admin';
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
             <OverviewHero
                 adminName={adminName}
                 institutionName={overview.institution.name}

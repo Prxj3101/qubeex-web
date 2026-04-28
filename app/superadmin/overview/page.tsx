@@ -182,7 +182,7 @@ export default function SuperAdminOverview() {
     const planTotal = planDist.reduce((s, p) => s + p.count, 0) || 1;
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-3">
 
             {/* ── Header ── */}
             <div className="-mx-4 relative overflow-visible rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-5 flex items-center justify-between min-h-[160px]">
