@@ -14,10 +14,11 @@ import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
 import { motion } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import {
     Plus, Search, X, Users, Mail, Phone,
     CalendarDays, BookOpen, Edit2, PowerOff, Power,
-    GraduationCap, Hash, Layers,
+    GraduationCap, Hash, Layers, Eye, Sparkles, MapPin, Briefcase
 } from 'lucide-react';
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
@@ -149,6 +150,7 @@ function TeacherCard({
     const avatarColor = getAvatarColor(teacher.id);
     const isActive = teacher.status === 'ACTIVE';
     const labels = getStructureLabels(instType);
+    const router = useRouter();
 
     // Group assignments by level1 (Class/Dept/Batch)
     const grouped = teacher.assignments.reduce<Record<string, TeacherAssignment[]>>((acc, a) => {
@@ -222,21 +224,11 @@ function TeacherCard({
                             ? <span className="font-mono text-[12px] font-semibold tracking-wider" style={{ color: '#DA7756' }}>{teacher.teacherId}</span>
                             : <span className="italic text-muted-foreground/40 text-[11px]">—</span>,
                     },
-                    {
-                        icon: Mail,
-                        label: 'Email',
-                        value: teacher.email,
-                    },
-                    {
-                        icon: Phone,
-                        label: 'Phone',
-                        value: teacher.phone ?? '—',
-                    },
-                    {
-                        icon: CalendarDays,
-                        label: 'Joined',
-                        value: formatDate(teacher.joinedAt),
-                    },
+                    { icon: Mail, label: 'Email', value: teacher.email },
+                    { icon: Phone, label: 'Phone', value: teacher.phone ?? '—' },
+                    { icon: CalendarDays, label: 'Joined', value: formatDate(teacher.joinedAt) },
+                    { icon: Briefcase, label: 'Experience', value: teacher.experience ?? '—' },
+                    { icon: MapPin, label: 'Location', value: teacher.city ? `${teacher.city}${teacher.state ? ', ' + teacher.state : ''}` : '—' },
                 ] as { icon: React.ElementType; label: string; value: React.ReactNode }[]).map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-center gap-2">
                         <Icon size={15} className="shrink-0 text-muted-foreground/60" />
@@ -244,6 +236,21 @@ function TeacherCard({
                         <span className="text-[13px] font-medium truncate">{value}</span>
                     </div>
                 ))}
+
+                {/* AI Token bar */}
+                <div className="pt-2 border-t border-border/40">
+                    <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[12px] text-muted-foreground flex items-center gap-1.5">
+                            <Sparkles size={12} className="text-muted-foreground/60" />
+                            AI Tokens
+                        </span>
+                        <span className="text-[11px] font-semibold">1.2M <span className="text-muted-foreground font-normal">/ 10M</span></span>
+                    </div>
+                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: '12%', background: '#7C3AED' }} />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">12% of institution pool</p>
+                </div>
             </div>
 
             {/* ── Assignments ── */}
@@ -291,11 +298,11 @@ function TeacherCard({
             {/* ── Footer buttons ── */}
             <div className="px-4 pb-4 pt-2 flex gap-2 mt-auto">
                 <button
-                    onClick={() => onEdit(teacher)}
+                    onClick={() => router.push(`/admin/people/teachers/${teacher.id}`)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all duration-150"
                 >
-                    <Edit2 size={12} />
-                    Edit
+                    <Eye size={12} />
+                    View Details
                 </button>
                 <button
                     onClick={() => onToggleStatus(teacher)}
@@ -445,7 +452,7 @@ export default function TeachersPage() {
                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
                         >
                             <Plus size={15} />
-                            Add Teacher
+                            New Teacher
                         </button>
                     </div>
                 </div>

@@ -301,6 +301,7 @@ export default function StaffroomPage() {
     const activeThread = dms.find(d => d.id === activeDm);
     const [feedSearch, setFeedSearch] = useState('');
     const [showFeedSearch, setShowFeedSearch] = useState(false);
+    const [showDmSearch, setShowDmSearch] = useState(false);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -389,12 +390,22 @@ export default function StaffroomPage() {
                 <div className="w-[60%] flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card">
 
                     {/* Feed header */}
-                    <div className="px-4 pt-4 pb-3 border-b border-border/40 shrink-0">
+                    <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-base font-bold flex items-center gap-2">
+                            <div className="flex items-center gap-2">
                                 <Users size={16} />
-                                Staffroom
-                            </h2>
+                                <h2 className="text-base font-bold">Staffroom</h2>
+                                {/* Tooltip */}
+                                <div className="relative group">
+                                    <div className="w-3 h-3 rounded-full border border-muted-foreground/40 flex items-center justify-center cursor-default">
+                                        <span className="text-[10px] text-muted-foreground font-semibold">i</span>
+                                    </div>
+                                    <div className="absolute left-1/2 -translate-x-1/2 top-full mt-2 px-2.5 py-1.5 rounded-lg bg-black/90 text-white text-[11px] whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+                                        Shared announcements & updates
+                                        <div className="absolute bottom-full left-1/2 -translate-x-1/2 border-4 border-transparent border-b-black/90" />
+                                    </div>
+                                </div>
+                            </div>
                             <button
                                 onClick={() => { setShowFeedSearch(v => !v); setFeedSearch(''); }}
                                 className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
@@ -402,7 +413,6 @@ export default function StaffroomPage() {
                                 {showFeedSearch ? <X size={14} /> : <Search size={14} />}
                             </button>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">Shared announcements & updates</p>
 
                         {/* Search input */}
                         <AnimatePresence>
@@ -422,7 +432,7 @@ export default function StaffroomPage() {
                                             onChange={e => setFeedSearch(e.target.value)}
                                             placeholder="Search posts..."
                                             autoFocus
-                                            className="w-full h-8 pl-8 pr-3 rounded-xl border border-border bg-muted/40 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-all"
+                                            className="w-full h-8 pl-8 pr-3 rounded-4xl border border-border bg-muted/40 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-all"
                                         />
                                     </div>
                                 </motion.div>
@@ -439,43 +449,40 @@ export default function StaffroomPage() {
                     </div>
 
                     {/* Composer — fixed bottom */}
-                    <div className="border-t border-border/40 px-4 py-3 shrink-0">
-                        <div className="flex items-start gap-2.5">
-                            <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-950 flex items-center justify-center text-[11px] font-bold text-violet-700 dark:text-violet-300 shrink-0">
+                    <div className="border-t border-border/40 px-3 py-1.5 shrink-0">
+                        <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-950 flex items-center justify-center text-[10px] font-bold text-violet-700 dark:text-violet-300 shrink-0">
                                 AD
                             </div>
-                            <div className="flex-1">
-                                <textarea
+                            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                                <input
+                                    type="text"
                                     value={postInput}
                                     onChange={e => setPostInput(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handlePost(); } }}
-                                    placeholder="Write an announcement or update..."
-                                    rows={2}
-                                    className="w-full bg-muted/30 rounded-xl px-3 py-2 text-sm placeholder:text-muted-foreground/60 focus:outline-none border border-border/40 focus:border-primary/50 resize-none transition-all"
+                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handlePost(); } }}
+                                    placeholder="Write an announcement..."
+                                    className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground/60 focus:outline-none"
                                 />
-                                <div className="flex items-center justify-between mt-2">
-                                    <div className="flex items-center gap-1">
-                                        <button className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                                            <ImageIcon size={14} />
-                                        </button>
-                                        <button className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                                            <Paperclip size={14} />
-                                        </button>
-                                        <button className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                                            <AtSign size={14} />
-                                        </button>
-                                    </div>
-                                    <button
-                                        onClick={handlePost}
-                                        disabled={!postInput.trim()}
-                                        className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-white text-[11px] font-semibold disabled:opacity-40 transition-all hover:opacity-90"
-                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                                    >
-                                        <Send size={11} />
-                                        Post
+                                <div className="flex items-center gap-1 shrink-0">
+                                    <button className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                                        <ImageIcon size={13} />
+                                    </button>
+                                    <button className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                                        <Paperclip size={13} />
+                                    </button>
+                                    <button className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                                        <AtSign size={13} />
                                     </button>
                                 </div>
                             </div>
+                            <button
+                                onClick={handlePost}
+                                disabled={!postInput.trim()}
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:opacity-90 shrink-0"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                            >
+                                <Send size={13} />
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -484,21 +491,43 @@ export default function StaffroomPage() {
                 <div className="w-[40%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0">
 
                     {/* Chats header — fixed */}
-                    <div className="px-4 pt-4 pb-3 border-b border-border/40 shrink-0">
-                        <h2 className="text-base font-bold mb-2 flex items-center gap-2">
-                            <User size={16} />
-                            DM's
-                        </h2>
-                        <div className="relative">
-                            <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                            <input
-                                type="text"
-                                value={dmSearch}
-                                onChange={e => setDmSearch(e.target.value)}
-                                placeholder="Search teachers..."
-                                className="w-full h-8 pl-8 pr-3 rounded-xl border border-border bg-muted/40 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-all"
-                            />
+                    <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-base font-bold flex items-center gap-2">
+                                <User size={16} />
+                                DM's
+                            </h2>
+                            <button
+                                onClick={() => { setShowDmSearch(v => !v); setDmSearch(''); }}
+                                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                            >
+                                {showDmSearch ? <X size={14} /> : <Search size={14} />}
+                            </button>
                         </div>
+
+                        <AnimatePresence>
+                            {showDmSearch && (
+                                <motion.div
+                                    initial={{ height: 0, opacity: 0 }}
+                                    animate={{ height: 'auto', opacity: 1 }}
+                                    exit={{ height: 0, opacity: 0 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="overflow-hidden mt-2"
+                                >
+                                    <div className="relative">
+                                        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                        <input
+                                            type="text"
+                                            value={dmSearch}
+                                            onChange={e => setDmSearch(e.target.value)}
+                                            placeholder="Search teachers..."
+                                            autoFocus
+                                            className="w-full h-8 pl-8 pr-3 rounded-4xl border border-border bg-muted/40 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
+                                        />
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
                     </div>
 
                     {/* DM list / Chat — scrollable */}
@@ -599,20 +628,33 @@ export default function StaffroomPage() {
                                 </div>
 
                                 {/* DM Input — fixed */}
-                                <div className="px-3 py-2.5 border-t border-border/40 shrink-0">
+                                <div className="px-3 py-1.5 border-t border-border/40 shrink-0">
                                     <div className="flex items-center gap-2">
-                                        <input
-                                            type="text"
-                                            value={dmInput}
-                                            onChange={e => setDmInput(e.target.value)}
-                                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSendDm(); } }}
-                                            placeholder={`Message ${activeThread?.name}...`}
-                                            className="flex-1 h-8 px-3 rounded-xl bg-muted/40 border border-border/40 text-xs placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 transition-all"
-                                        />
+                                        <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                                            <input
+                                                type="text"
+                                                value={dmInput}
+                                                onChange={e => setDmInput(e.target.value)}
+                                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSendDm(); } }}
+                                                placeholder={`Message ${activeThread?.name}...`}
+                                                className="flex-1 bg-transparent text-xs placeholder:text-muted-foreground/60 focus:outline-none"
+                                            />
+                                            <div className="flex items-center gap-1 shrink-0">
+                                                <button className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                                                    <ImageIcon size={13} />
+                                                </button>
+                                                <button className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                                                    <Paperclip size={13} />
+                                                </button>
+                                                <button className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                                                    <AtSign size={13} />
+                                                </button>
+                                            </div>
+                                        </div>
                                         <button
                                             onClick={handleSendDm}
                                             disabled={!dmInput.trim()}
-                                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:opacity-90"
+                                            className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:opacity-90 shrink-0"
                                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
                                         >
                                             <Send size={13} />

@@ -12,7 +12,7 @@ import { RecentActivityCard } from '@/components/admin/RecentActivityCard';
 import { NotificationsPreviewCard } from '@/components/admin/NotificationsPreviewCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WelcomeBanner } from '@/components/admin/WelcomeBanner';
-
+import { Sparkles } from 'lucide-react';
 
 // TODO: wire to API — backend endpoint /admin/overview not confirmed ready.
 const MOCK_OVERVIEW: AdminOverview = {
@@ -114,14 +114,61 @@ export default function AdminOverviewPage() {
                 institutionType={overview.institution.type}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-stretch">
+
+                {/* Graph — 2 cols */}
                 <div className="lg:col-span-2">
                     <EnrollmentGrowthChart
                         data={overview.enrollmentGrowth}
                         institutionType={overview.institution.type}
                     />
                 </div>
-                <PlanUsageCard plan={overview.plan} />
+
+                {/* AI Tokens — 2 cols */}
+                <div className="lg:col-span-2 bg-card border border-border/50 rounded-xl p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Sparkles size={15} className="text-muted-foreground" />
+                        <p className="text-sm font-medium">AI Token Usage</p>
+                    </div>
+                    <div className="space-y-1.5 mb-4">
+                        <div className="flex items-center justify-between text-xs">
+                            <span className="text-muted-foreground">Institution pool</span>
+                            <span className="font-semibold">4.4M <span className="text-muted-foreground font-normal">/ 10M</span></span>
+                        </div>
+                        <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                            <div className="h-full rounded-full" style={{ width: '44%', background: '#DA7757' }} />
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span>44% used</span>
+                            <span>5.6M remaining</span>
+                        </div>
+                    </div>
+                    <p className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/60 mb-2">Per Teacher</p>
+                    <div className="space-y-2">
+                        {[
+                            { name: 'Ritu Sharma', used: 1.2 },
+                            { name: 'Ankit Verma', used: 0.8 },
+                            { name: 'Priya Nair', used: 0.6 },
+                            { name: 'Meena Patel', used: 1.4 },
+                            { name: 'Suresh Iyer', used: 0.4 },
+                        ].map(t => (
+                            <div key={t.name} className="flex items-center gap-3">
+                                <span className="text-[11px] text-muted-foreground w-20 shrink-0 truncate">{t.name}</span>
+                                <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full" style={{ width: `${(t.used / 10) * 100}%`, background: '#7C3AED' }} />
+                                </div>
+                                <span className="text-[11px] font-semibold w-8 text-right">{t.used}M</span>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-3">🔄 Resets 1st of every month</p>
+                </div>
+
+                {/* Plan — 1 col */}
+                <div className="lg:col-span-1">
+                    <PlanUsageCard plan={overview.plan} />
+                </div>
+
             </div>
 
             <div className="flex flex-col gap-3">

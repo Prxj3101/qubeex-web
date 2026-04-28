@@ -154,5 +154,12 @@ export interface Teacher {
     status: TeacherStatus;
     joinedAt: string;
     assignments: TeacherAssignment[];
+    experience?: string;
+    city?: string;
+    state?: string;
+    qualification?: string;
+    dob?: string;
+    gender?: string;
+    address?: string;
 }
 
