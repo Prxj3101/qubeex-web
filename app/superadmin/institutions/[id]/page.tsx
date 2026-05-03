@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
@@ -108,6 +108,8 @@ type InstData = {
     status?: string;
     startDate?: string;
     endDate?: string;
+    trialDays?: number | null;
+    trialOutcome?: string | null;
   } | null;
 };
 
@@ -1565,8 +1567,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 <p className="text-sm font-black leading-none">{activeUsers}</p>
                 <p className="text-[9px] text-muted-foreground mt-0.5">Total</p>
               </div>
-            </div>
-            <div className="space-y-2 shrink-0">
+            </div><div className="space-y-2 shrink-0">
               {[
                 {
                   label: "Admin",
@@ -2658,126 +2659,15 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                             Upgrade Charge
                           </p>
                           <div className="flex justify-between text-xs">
-                            <span className="text-muted-foreground">
-                              PRO Licence
-                            </span>
-                            <span className="font-medium">
-                              {fmt(proLicence)}
-                            </span>
+                            <span className="text-muted-foreground">PRO upgrade charge</span>
+                            <span className="font-bold text-[#DA7756]">{fmt(finalUpgradeCharge)}</span>
                           </div>
-                          {!upgradeIsAfter12 ? (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">
-                                Basic credit ({monthsRemaining}/12 months)
-                              </span>
-                              <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                - {fmt(remainingCredit)}
-                              </span>
-                            </div>
-                          ) : (
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">
-                                Loyalty discount (10%)
-                              </span>
-                              <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                                - {fmt(loyaltyDiscount)}
-                              </span>
-                            </div>
-                          )}
-                          <div className="h-px bg-border/50" />
-                          <div className="flex justify-between text-sm font-bold">
-                            <span>You Pay</span>
-                            <span style={{ color: "#DA7756" }}>
-                              {fmt(finalUpgradeCharge)}
-                            </span>
+                          <div className="h-px bg-border/50 my-1" />
+                          <div className="flex justify-between text-xs font-bold">
+                            <span>Total due now</span>
+                            <span className="text-[#DA7756]">{fmt(finalUpgradeCharge)}</span>
                           </div>
                         </div>
-
-                        {/* Monthly rate change */}
-                        <div className="bg-violet-50 dark:bg-violet-950/20 rounded-xl p-3 border border-violet-200/50 dark:border-violet-900/50">
-                          <p className="text-[11px] font-semibold text-violet-700 dark:text-violet-400 mb-2">
-                            What Changes (next month)
-                          </p>
-                          <div className="space-y-1.5">
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">
-                                Monthly rate
-                              </span>
-                              <span className="font-medium">
-                                {fmt(getRate(pricing.BASIC.tiers, activeUsers))}
-                                /user{" "}
-                                <span className="text-muted-foreground">
-                                  →
-                                </span>{" "}
-                                <span className="font-bold text-violet-600 dark:text-violet-400">
-                                  {fmt(newMonthlyRate)}/user
-                                </span>
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">
-                                Storage
-                              </span>
-                              <span className="font-medium">
-                                500GB{" "}
-                                <span className="text-muted-foreground">→</span>{" "}
-                                <span className="font-bold text-violet-600 dark:text-violet-400">
-                                  1TB
-                                </span>
-                              </span>
-                            </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-muted-foreground">
-                                AI Tokens
-                              </span>
-                              <span className="font-medium text-violet-600 dark:text-violet-400">
-                                10M/month (same)
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* All PRO default features — new ones badged */}
-                        <div>
-                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                            Default Features
-                          </p>
-                          <div className="grid grid-cols-2 gap-1.5">
-                            {ALL_FEATURES.filter((f) => f.inPro && !f.addOnPro)
-                              .sort((a, b) => {
-                                if (!a.inBasic && b.inBasic) return 1;
-                                if (a.inBasic && !b.inBasic) return -1;
-                                return 0;
-                              })
-                              .map((f) => {
-                                const isNew = !f.inBasic;
-                                return (
-                                  <div
-                                    key={f.key}
-                                    className={`flex items-center gap-2 p-2 rounded-lg border ${isNew ? "border-emerald-200/50 bg-emerald-50/30 dark:bg-emerald-950/10" : "border-border/40 bg-muted/30"}`}
-                                  >
-                                    <f.icon
-                                      size={12}
-                                      className={`shrink-0 ${isNew ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground"}`}
-                                    />
-                                    <div className="min-w-0 flex items-center gap-1.5 flex-wrap">
-                                      <span
-                                        className={`text-[11px] font-medium truncate ${isNew ? "text-emerald-700 dark:text-emerald-300" : ""}`}
-                                      >
-                                        {f.label}
-                                      </span>
-                                      {isNew && (
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 shrink-0">
-                                          NEW
-                                        </span>
-                                      )}
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                          </div>
-                        </div>
-
                         {/* Add-on — only smart_board */}
                         <div>
                           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
@@ -3427,6 +3317,7 @@ export default function InstitutionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "plan">("details");
+  const [showPlanSelection, setShowPlanSelection] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -3435,28 +3326,28 @@ export default function InstitutionDetailPage() {
     }
   }, []);
 
-  useEffect(() => {
-    const load = async () => {
-      try {
-        setLoading(true);
-        setError(false);
-        const res = await api.get(`/superadmin/institutions/${id}`);
-        // Enrich with role counts (same logic as list page)
-        const data: InstData = res.data.data;
-        const admin = data.users?.find((u) => u.role === "ADMIN") ?? null;
-        const teacherCount =
-          data.users?.filter((u) => u.role === "TEACHER").length ?? 0;
-        const studentCount =
-          data.users?.filter((u) => u.role === "STUDENT").length ?? 0;
-        setInstitution({ ...data, admin, teacherCount, studentCount });
-      } catch {
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    };
-    load();
+  const fetchInstitution = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(false);
+      const res = await api.get(`/superadmin/institutions/${id}`);
+      const data: InstData = res.data.data;
+      const admin = data.users?.find((u) => u.role === "ADMIN") ?? null;
+      const teacherCount =
+        data.users?.filter((u) => u.role === "TEACHER").length ?? 0;
+      const studentCount =
+        data.users?.filter((u) => u.role === "STUDENT").length ?? 0;
+      setInstitution({ ...data, admin, teacherCount, studentCount });
+    } catch {
+      setError(true);
+    } finally {
+      setLoading(false);
+    }
   }, [id]);
+
+  useEffect(() => {
+    fetchInstitution();
+  }, [fetchInstitution]);
 
   const handleStatusToggle = async () => {
     if (!institution) return;
