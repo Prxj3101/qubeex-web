@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -27,6 +28,7 @@ const INST_TYPES = [
 const PLANS = [
     { value: 'BASIC', label: 'Basic' },
     { value: 'PRO', label: 'Pro' },
+    { value: 'TRIAL', label: 'Trial' },
 ] as const;
 
 const COUNTRY_CODES = [
@@ -55,6 +57,7 @@ function FL({ children }: { children: React.ReactNode }) {
 }
 
 export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [countryCode, setCountryCode] = useState('+91');
     const [showCCDropdown, setShowCCDropdown] = useState(false);
@@ -67,7 +70,8 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
         type: 'SCHOOL' as 'SCHOOL' | 'COLLEGE' | 'COACHING',
         address: '', city: '', state: '', country: 'India', pincode: '',
         adminName: '', adminEmail: '',
-        plan: 'BASIC' as 'BASIC' | 'PRO',
+        plan: 'BASIC' as 'BASIC' | 'PRO' | 'TRIAL',
+        trialDays: '14',
         board: '', medium: '',
     });
 
@@ -105,6 +109,11 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
             toast.error('Please fill in all required fields');
             return;
         }
+        const trialDays = Number(form.trialDays);
+        if (form.plan === 'TRIAL' && (!Number.isInteger(trialDays) || trialDays < 1 || trialDays > 365)) {
+            toast.error('Trial duration must be between 1 and 365 days');
+            return;
+        }
         try {
             setLoading(true);
             let logoUrl: string | undefined;
@@ -120,12 +129,20 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                 ...form,
                 phone: form.phone ? `${countryCode} ${form.phone}` : undefined,
                 logoUrl,
+                plan: form.plan,
+                trialDays: Number.isInteger(trialDays) ? trialDays : 14,
             });
             const newInst: Institution = res.data.data;
             toast.success('Institution created! Invite email sent 🚀');
-            onSuccess(newInst);
-            onClose();
-            resetForm();
+            if (form.plan === 'TRIAL') {
+                router.push(`/superadmin/institutions/${newInst.id}?tab=plan`);
+                onClose();
+                resetForm();
+            } else {
+                onSuccess(newInst);
+                onClose();
+                resetForm();
+            }
         } catch (err: any) {
             const msg = err?.response?.data?.message || 'Failed to create institution';
             toast.error(msg);
@@ -135,7 +152,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     };
 
     const resetForm = () => {
-        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', plan: 'BASIC', board: '', medium: '' });
+        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', plan: 'BASIC', trialDays: '14', board: '', medium: '' });
         setCountryCode('+91');
         setLogoPreview(null);
         setLogoFile(null);
@@ -326,25 +343,49 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                         {/* Plan */}
                         <div>
                             <SectionLabel icon={CreditCard} label="Subscription Plan" />
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                                 {PLANS.map(({ value, label }) => {
                                     const on = form.plan === value;
                                     const isPro = value === 'PRO';
-                                    const borderCls = on ? (isPro ? 'border-[#DA7756] bg-[#DA7756]/8' : 'border-primary bg-primary/5') : 'border-border/50 bg-muted/30 hover:border-border hover:bg-muted/50';
-                                    const radioB = on ? (isPro ? 'border-[#DA7756]' : 'border-primary') : 'border-muted-foreground/40';
-                                    const dot = isPro ? 'bg-[#DA7756]' : 'bg-primary';
-                                    const txtCls = on ? (isPro ? 'text-[#DA7756]' : 'text-primary') : 'text-foreground';
+                                    const isTrial = value === 'TRIAL';
+                                    const activeColor = isPro ? '#DA7756' : isTrial ? '#F59E0B' : 'hsl(var(--primary))';
+                                    const borderCls = on
+                                        ? isPro
+                                            ? 'border-[#DA7756] bg-[#DA7756]/8'
+                                            : isTrial
+                                                ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/20'
+                                                : 'border-primary bg-primary/5'
+                                        : 'border-border/50 bg-muted/30 hover:border-border hover:bg-muted/50';
                                     return (
-                                        <button key={value} type="button" onClick={() => set('plan', value)}
+                                        <button key={`plan-${value}`} type="button" onClick={() => set('plan', value)}
                                             className={`flex items-center gap-2.5 p-3 rounded-xl border-2 text-left transition-all ${borderCls}`}>
-                                            <div className={`w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 ${radioB}`}>
-                                                {on && <div className={`w-1.5 h-1.5 rounded-full ${dot}`} />}
+                                            <div className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0"
+                                                style={{ borderColor: on ? activeColor : 'hsl(var(--muted-foreground) / 0.4)' }}>
+                                                {on && <div className="w-1.5 h-1.5 rounded-full" style={{ background: activeColor }} />}
                                             </div>
-                                            <p className={`text-sm font-semibold ${txtCls}`}>{label}</p>
+                                            <p className="text-sm font-semibold" style={{ color: on ? activeColor : undefined }}>{label}</p>
                                         </button>
                                     );
                                 })}
                             </div>
+                            {form.plan === 'TRIAL' && (
+                                <div className="mt-3">
+                                    <FL>Trial Duration *</FL>
+                                    <Input
+                                        type="number"
+                                        min={1}
+                                        max={365}
+                                        placeholder="14"
+                                        value={form.trialDays}
+                                        onChange={e => set('trialDays', e.target.value)}
+                                        className="h-8 text-sm"
+                                    />
+                                    <p className="text-[10px] text-muted-foreground mt-1">
+                                        Trial starts today · ends in {form.trialDays || '14'} days.
+                                        Max 500 users, 10 GB storage, 2M AI tokens/month.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
