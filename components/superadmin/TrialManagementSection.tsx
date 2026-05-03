@@ -447,7 +447,7 @@ export function TrialManagementSection({
               ) : (
                 <div className="space-y-2">
                   <p className="text-xs text-red-400 font-medium">
-                    Are you sure? This cannot be undone.
+                    Are you sure you want to churn {institutionName}? This cannot be undone.
                   </p>
                   <div className="flex gap-2">
                     <button
