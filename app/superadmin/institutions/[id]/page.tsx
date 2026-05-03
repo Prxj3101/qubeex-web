@@ -53,6 +53,7 @@ import {
 import { Institution } from "@/types";
 import api from "@/lib/api";
 import { toast } from "sonner";
+import { TrialManagementSection } from "@/components/superadmin/TrialManagementSection";
 
 type BillItem = {
   label: string;
@@ -972,7 +973,7 @@ function ViewDetailsTab({
   );
 }
 
-function ManagePlanTab({ inst }: { inst: InstData }) {
+function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?: boolean }) {
   const instType =
     (inst.type as keyof typeof PRICING) in PRICING
       ? (inst.type as keyof typeof PRICING)
@@ -2967,7 +2968,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
         }
       >
         <div className="grid grid-cols-3 gap-3">
-          {PLAN_OPTS.map((p) => {
+          {(hideTrial ? PLAN_OPTS.filter((p) => p.key !== "TRIAL") : PLAN_OPTS).map((p) => {
             const isActive = plan === p.key;
             const price = p.key !== "TRIAL" ? pricing[p.key] : null;
             return (
@@ -3472,9 +3473,53 @@ export default function InstitutionDetailPage() {
             onStatusToggle={handleStatusToggle}
             onResendInvite={handleResendInvite}
           />
-        ) : (
-          <ManagePlanTab key="plan" inst={institution} />
-        )}
+        ) : (() => {
+          const isTrialLifecycle =
+            institution.subscription?.status === "TRIAL" ||
+            institution.subscription?.status === "LOCKED";
+
+          if (isTrialLifecycle && !showPlanSelection) {
+            return (
+              <TrialManagementSection
+                key="trial"
+                institutionId={institution.id}
+                institutionName={institution.name}
+                institutionStatus={institution.status as "PENDING" | "ACTIVE" | "SUSPENDED"}
+                subscription={{
+                  status: institution.subscription?.status ?? "",
+                  endDate: institution.subscription?.endDate ?? null,
+                  trialDays: institution.subscription?.trialDays ?? null,
+                  trialOutcome: institution.subscription?.trialOutcome ?? null,
+                }}
+                onRefresh={fetchInstitution}
+                onSelectPlan={() => setShowPlanSelection(true)}
+              />
+            );
+          }
+
+          if (isTrialLifecycle && showPlanSelection) {
+            return (
+              <motion.div
+                key="plan-select"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-4"
+              >
+                {institution.subscription?.status === "TRIAL" && (
+                  <button
+                    onClick={() => setShowPlanSelection(false)}
+                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <ArrowLeft size={14} /> Back to Trial
+                  </button>
+                )}
+                <ManagePlanTab key="plan" inst={institution} hideTrial />
+              </motion.div>
+            );
+          }
+
+          return <ManagePlanTab key="plan" inst={institution} />;
+        })()}
       </AnimatePresence>
     </div>
   );
