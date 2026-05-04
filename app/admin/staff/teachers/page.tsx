@@ -21,6 +21,8 @@ import {
     GraduationCap, Hash, Layers, Eye, Sparkles, MapPin, Briefcase
 } from 'lucide-react';
 
+import { useMockInstType } from '@/context/MockInstTypeContext';
+
 // ── Mock data ─────────────────────────────────────────────────────────────────
 const MOCK_TEACHERS: Teacher[] = [
     {
@@ -298,7 +300,7 @@ function TeacherCard({
             {/* ── Footer buttons ── */}
             <div className="px-4 pb-4 pt-2 flex gap-2 mt-auto">
                 <button
-                    onClick={() => router.push(`/admin/people/teachers/${teacher.id}`)}
+                    onClick={() => router.push(`/admin/staff/teachers/${teacher.id}`)}
                     className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all duration-150"
                 >
                     <Eye size={12} />
@@ -350,7 +352,8 @@ export default function TeachersPage() {
         return () => { cancelled = true; };
     }, []);
 
-    const instType: InstitutionType = structure?.institutionType ?? 'SCHOOL';
+    const { instType: mockInstType } = useMockInstType();
+    const instType: InstitutionType = mockInstType ?? structure?.institutionType ?? 'SCHOOL';
     const activeCount = teachers.filter(t => t.status === 'ACTIVE').length;
 
     const filtered = search.trim()
@@ -413,17 +416,17 @@ export default function TeachersPage() {
         <div className="flex flex-col" style={{ height: '100%' }}>
 
             {/* ── STICKY SECTION ── */}
-            <div className="sticky top-0 z-20 bg-background space-y-3 pb-3">
+            <div className="sticky top-0 z-20 bg-background space-y-3 pt-0 pb-3">
 
                 {/* Header row */}
-                <div className="flex items-center justify-between px-1">
+                <div className="flex items-center justify-between pt-0 px-1">
                     <div className="flex items-center gap-3">
                         <div>
-                            <h1 className="text-2xl font-bold flex items-center gap-2">
-                                <Users size={26} />
+                            <h1 className="text-xl font-bold flex items-center gap-2">
+                                <Users size={21} />
                                 Teachers
                             </h1>
-                            <p className="text-muted-foreground text-sm">
+                            <p className="text-muted-foreground text-[13px]">
                                 {activeCount} active · {teachers.length - activeCount} inactive
                             </p>
                         </div>
@@ -452,7 +455,7 @@ export default function TeachersPage() {
                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
                         >
                             <Plus size={15} />
-                            New Teacher
+                            Add New Teacher
                         </button>
                     </div>
                 </div>
@@ -503,10 +506,16 @@ export default function TeachersPage() {
             <DeleteConfirmDialog
                 open={modal.type === 'deactivate'}
                 onOpenChange={v => !v && setModal({ type: 'closed' })}
-                label={modal.type === 'deactivate' && modal.teacher.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                label={modal.type === 'deactivate' && modal.teacher.status === 'ACTIVE' ? 'Teacher' : 'Teacher'}
                 name={modal.type === 'deactivate' ? modal.teacher.name : ''}
                 loading={actionLoading}
                 onConfirm={handleToggleStatus}
+                confirmLabel={modal.type === 'deactivate' && modal.teacher.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
+                description={
+                    modal.type === 'deactivate' && modal.teacher.status === 'ACTIVE'
+                        ? 'Teacher will lose access immediately. You can reactivate anytime.'
+                        : 'Teacher will regain access to the platform.'
+                }
             />
         </div>
     );

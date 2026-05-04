@@ -95,21 +95,21 @@ const SETUP_STEPS_MAP: Record<InstitutionType, {
     id: string; icon: React.ElementType; title: string; desc: string; href: string;
 }[]> = {
     SCHOOL: [
-        { id: 'structure', icon: Building2, title: 'Set up structure', desc: 'Classes, subjects & sections', href: '/admin/structure' },
-        { id: 'teachers', icon: User, title: 'Add teachers', desc: 'Invite & assign teachers', href: '/admin/people/teachers' },
-        { id: 'students', icon: GraduationCap, title: 'Enroll students', desc: 'Add students to classes', href: '/admin/people/students' },
+        { id: 'structure', icon: Building2, title: 'Set up structure', desc: 'Classes, subjects & sections', href: '/admin/campus' },
+        { id: 'teachers', icon: User, title: 'Add teachers', desc: 'Invite & assign teachers', href: '/admin/staff/teachers' },
+        { id: 'students', icon: GraduationCap, title: 'Enroll students', desc: 'Add students to classes', href: '/admin/staff/students' },
         { id: 'announcement', icon: Bell, title: 'First announcement', desc: 'Welcome your institution', href: '/admin/support/notifications' },
     ],
     COLLEGE: [
-        { id: 'structure', icon: Building2, title: 'Set up departments', desc: 'Departments, courses & batches', href: '/admin/structure' },
-        { id: 'teachers', icon: User, title: 'Add faculty', desc: 'Invite & assign faculty', href: '/admin/people/teachers' },
-        { id: 'students', icon: GraduationCap, title: 'Enroll students', desc: 'Add students to batches', href: '/admin/people/students' },
+        { id: 'structure', icon: Building2, title: 'Set up departments', desc: 'Departments, courses & batches', href: '/admin/campus' },
+        { id: 'teachers', icon: User, title: 'Add faculty', desc: 'Invite & assign faculty', href: '/admin/staff/teachers' },
+        { id: 'students', icon: GraduationCap, title: 'Enroll students', desc: 'Add students to batches', href: '/admin/staff/students' },
         { id: 'announcement', icon: Bell, title: 'First announcement', desc: 'Welcome your college', href: '/admin/support/notifications' },
     ],
     COACHING: [
-        { id: 'structure', icon: Building2, title: 'Set up batches', desc: 'Batches & subjects', href: '/admin/structure' },
-        { id: 'teachers', icon: User, title: 'Add educators', desc: 'Invite & assign educators', href: '/admin/people/teachers' },
-        { id: 'students', icon: GraduationCap, title: 'Enroll students', desc: 'Add students to batches', href: '/admin/people/students' },
+        { id: 'structure', icon: Building2, title: 'Set up batches', desc: 'Batches & subjects', href: '/admin/campus' },
+        { id: 'teachers', icon: User, title: 'Add educators', desc: 'Invite & assign educators', href: '/admin/staff/teachers' },
+        { id: 'students', icon: GraduationCap, title: 'Enroll students', desc: 'Add students to batches', href: '/admin/staff/students' },
         { id: 'announcement', icon: FlaskConical, title: 'First test', desc: 'Launch your first assessment', href: '/admin/support/notifications' },
     ],
 };

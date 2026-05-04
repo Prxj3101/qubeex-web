@@ -12,6 +12,8 @@ import {
 import { toast } from 'sonner';
 import type { Teacher, InstitutionType } from '@/types';
 import { getStructureLabels } from '@/lib/getInstitutionAccent';
+import { useMockInstType } from '@/context/MockInstTypeContext';
+
 
 // ── Mock teacher data ─────────────────────────────────────────────────────────
 const MOCK_TEACHERS: (Teacher & {
@@ -590,7 +592,7 @@ export default function TeacherDetailPage() {
                 <div>
                     <h1 className="text-xl font-bold">{teacher.name}</h1>
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        Teachers <ChevronRight size={11} /> {teacher.name}
+                        Teachers <ChevronRight /> {teacher.name}
                     </p>
                 </div>
             </div>

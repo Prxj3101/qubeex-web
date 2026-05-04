@@ -19,6 +19,8 @@ interface DeleteConfirmDialogProps {
     childrenLabel?: string;
     loading?: boolean;
     onConfirm: () => void;
+    confirmLabel?: string;
+    description?: string;
 }
 
 export function DeleteConfirmDialog({
@@ -29,21 +31,23 @@ export function DeleteConfirmDialog({
     childrenLabel,
     loading,
     onConfirm,
+    confirmLabel,
+    description,
 }: DeleteConfirmDialogProps) {
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-sm">
+            <DialogContent className="sm:max-w-sm bg-card">
                 <DialogHeader>
                     <div className="mx-auto w-12 h-12 rounded-xl bg-red-100 dark:bg-red-950 flex items-center justify-center mb-2">
                         <TriangleAlert size={22} className="text-red-600 dark:text-red-400" />
                     </div>
                     <DialogTitle className="text-center">
-                        Delete {label} &ldquo;{name}&rdquo;?
+                        {confirmLabel ?? 'Delete'} {label} &ldquo;{name}&rdquo;?
                     </DialogTitle>
                     <DialogDescription className="text-center">
-                        {childrenLabel
+                        {description ?? (childrenLabel
                             ? `This will remove all associated ${childrenLabel} and assignments. This action cannot be undone.`
-                            : 'This action cannot be undone.'}
+                            : 'This action cannot be undone.')}
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter className="flex-row gap-2 sm:justify-center">
@@ -57,14 +61,16 @@ export function DeleteConfirmDialog({
                         Cancel
                     </Button>
                     <Button
-                        variant="destructive"
                         size="sm"
                         onClick={onConfirm}
                         disabled={loading}
-                        className="flex-1"
+                        className={`flex-1 ${confirmLabel === 'Activate'
+                            ? 'bg-emerald-500 hover:bg-emerald-600 text-white'
+                            : 'bg-red-500 hover:bg-red-600 text-white'
+                            }`}
                         id="confirm-delete-btn"
                     >
-                        {loading ? 'Deleting…' : 'Delete'}
+                        {loading ? 'Loading…' : confirmLabel ?? 'Delete'}
                     </Button>
                 </DialogFooter>
             </DialogContent>

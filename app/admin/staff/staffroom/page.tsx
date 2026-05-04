@@ -195,7 +195,8 @@ function PostCard({ post, onLike }: { post: FeedPost; onLike: (id: string) => vo
                 <div
                     className={`px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe
                         ? 'text-white rounded-tr-sm'
-                        : 'bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900/50 text-foreground rounded-tl-sm'
+                        : 'bg-card border border-border/40 text-foreground rounded-tl-sm'
+
                         }`}
                     style={isMe ? { background: '#7C3AED' } : {}}
                 >
@@ -370,14 +371,14 @@ export default function StaffroomPage() {
         <div className="flex flex-col h-full overflow-hidden">
 
             {/* ── Header — fixed ── */}
-            <div className="shrink-0 pb-3 px-1">
+            <div className="shrink-0 pt-0 pb-3 px-1">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <MessageSquare size={26} />
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <MessageSquare size={21} />
                             Staffroom
                         </h1>
-                        <p className="text-muted-foreground text-sm">Staff feed & direct messages</p>
+                        <p className="text-muted-foreground text-[13px]">Staff feed & direct messages</p>
                     </div>
                 </div>
                 <div className="h-px bg-border/60 mt-3" />
@@ -387,7 +388,7 @@ export default function StaffroomPage() {
             <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-3">
 
                 {/* LEFT — Feed 60% */}
-                <div className="w-[60%] flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card">
+                <div className="w-[60%] flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
 
                     {/* Feed header */}
                     <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
@@ -441,7 +442,7 @@ export default function StaffroomPage() {
                     </div>
 
                     {/* Feed messages — scrollable */}
-                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0">
+                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0 bg-background">
                         {filteredPosts.map(post => (
                             <PostCard key={post.id} post={post} onLike={handleLike} />
                         ))}
@@ -488,7 +489,7 @@ export default function StaffroomPage() {
                 </div>
 
                 {/* RIGHT — Chats 40% */}
-                <div className="w-[40%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0">
+                <div className="w-[40%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20">
 
                     {/* Chats header — fixed */}
                     <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
@@ -597,7 +598,7 @@ export default function StaffroomPage() {
                                 </div>
 
                                 {/* Messages — scrollable */}
-                                <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0">
+                                <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0 bg-background">
                                     {activeThread?.messages.length === 0 ? (
                                         <div className="flex flex-col items-center justify-center py-12 text-center">
                                             <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mb-2">
@@ -614,7 +615,8 @@ export default function StaffroomPage() {
                                                 </div>
                                                 <div className={`flex flex-col max-w-[75%] ${msg.isMe ? 'items-end' : 'items-start'}`}>
                                                     <div
-                                                        className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.isMe ? 'text-white rounded-tr-sm' : 'bg-violet-50 dark:bg-violet-950/30 border border-violet-100 dark:border-violet-900/50 text-foreground rounded-tl-sm'}`}
+                                                        className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'
+                                                            }`}
                                                         style={msg.isMe ? { background: '#7C3AED' } : {}}
                                                     >
                                                         {msg.text}

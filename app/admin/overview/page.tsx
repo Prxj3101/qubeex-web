@@ -13,6 +13,8 @@ import { NotificationsPreviewCard } from '@/components/admin/NotificationsPrevie
 import { Skeleton } from '@/components/ui/skeleton';
 import { WelcomeBanner } from '@/components/admin/WelcomeBanner';
 import { Sparkles } from 'lucide-react';
+import { useMockInstType } from '@/context/MockInstTypeContext';
+
 
 // TODO: wire to API — backend endpoint /admin/overview not confirmed ready.
 const MOCK_OVERVIEW: AdminOverview = {
@@ -62,6 +64,7 @@ export default function AdminOverviewPage() {
     const { user } = useAuthStore();
     const [overview, setOverview] = useState<AdminOverview | null>(null);
     const [loading, setLoading] = useState(true);
+    const { instType } = useMockInstType();  // 👈 DEPS CHANGE
 
     useEffect(() => {
         let cancelled = false;
@@ -100,18 +103,17 @@ export default function AdminOverviewPage() {
             <OverviewHero
                 adminName={adminName}
                 institutionName={overview.institution.name}
-                institutionType={overview.institution.type}
+                institutionType={instType}
             />
             <WelcomeBanner
                 adminName={adminName}
                 institutionName={overview.institution.name}
-                institutionType={overview.institution.type}
+                institutionType={instType}
                 plan="PRO"
             />
-
             <StatCards
                 stats={overview.stats}
-                institutionType={overview.institution.type}
+                institutionType={instType}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-stretch">
@@ -120,8 +122,9 @@ export default function AdminOverviewPage() {
                 <div className="lg:col-span-2">
                     <EnrollmentGrowthChart
                         data={overview.enrollmentGrowth}
-                        institutionType={overview.institution.type}
+                        institutionType={instType}
                     />
+
                 </div>
 
                 {/* AI Tokens — 2 cols */}

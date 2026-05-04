@@ -27,6 +27,7 @@ interface NavItem {
 
 interface TopbarProps {
     navItems?: NavItem[];
+    devToggle?: React.ReactNode; // ← add
 }
 
 type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'TEACHER' | 'STUDENT';
@@ -150,7 +151,7 @@ function AvatarMenu() {
     );
 }
 
-export function Topbar({ navItems }: TopbarProps) {
+export function Topbar({ navItems, devToggle }: TopbarProps) {
     const pathname = usePathname();
 
     return (
@@ -171,6 +172,7 @@ export function Topbar({ navItems }: TopbarProps) {
                 </div>
 
                 <div className="flex items-center gap-2">
+                    {devToggle}  {/* ← add */}
                     <NotificationsBell />
                     <ThemeToggle />
                     <AvatarMenu />
