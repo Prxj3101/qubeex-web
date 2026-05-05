@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Eye, EyeOff, ShieldCheck, CheckCircle2, XCircle, Lock, Hash, Building2, User, Mail, AlertTriangle } from 'lucide-react';
@@ -43,7 +43,7 @@ type TokenData = {
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
-export default function SetPasswordPage() {
+function SetPasswordContent() {
     const searchParams = useSearchParams();
     const router = useRouter();
     const token = searchParams.get('token');
@@ -380,5 +380,20 @@ export default function SetPasswordPage() {
                 </p>
             </motion.div>
         </div>
+    );
+}
+
+export default function SetPasswordPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen flex items-center justify-center" style={{ background: '#0F0A1E' }}>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-10 h-10 border-2 border-[#7C3AED]/30 border-t-[#7C3AED] rounded-full animate-spin" />
+                    <p className="text-sm text-white/50">Loading...</p>
+                </div>
+            </div>
+        }>
+            <SetPasswordContent />
+        </Suspense>
     );
 }

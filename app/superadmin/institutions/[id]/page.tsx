@@ -59,17 +59,28 @@ type BillItem = {
   label: string;
   desc: string;
   amount: number;
-  type: "base" | "addon" | "licence";
+  type: "base" | "addon" | "licence" | "discount" | "metadata";
 };
 type Bill = {
   id: string;
-  type: "LICENCE" | "MONTHLY";
+  type: "LICENCE" | "MONTHLY" | "UPGRADE_PRORATION";
   month: string;
   dateRange: string;
   items: BillItem[];
   total: number;
-  status: "PAID" | "PENDING";
+  status: "PAID" | "PENDING" | "FAILED";
   generatedOn: string;
+};
+
+type ApiBill = {
+  id: string;
+  type: string;
+  billingMonth?: string | null;
+  totalAmount: number;
+  status: "PAID" | "PENDING" | "FAILED";
+  items: unknown;
+  generatedAt: string;
+  dueDate?: string | null;
 };
 
 // ─── Types ─────────────────────────────────────────────────────────────────
@@ -107,11 +118,43 @@ type InstData = {
   subscription?: {
     plan?: { name: string };
     status?: string;
+    paymentStatus?: string;
+    discount?: number;
+    activationDate?: string | null;
+    features?: Record<string, boolean>;
+    addons?: Record<string, unknown>;
     startDate?: string;
     endDate?: string;
     trialDays?: number | null;
     trialOutcome?: string | null;
   } | null;
+};
+
+type PlanDashboardResponse = {
+  userBreakdown: {
+    admin: number;
+    teachers: number;
+    students: number;
+    total: number;
+  };
+  planDetails: {
+    planName: string;
+    activationDate: string | null;
+    nextBillingDate: string | null;
+    status: string;
+  };
+  billingStatus: {
+    currentMonthBillId: string;
+    amount: number;
+    status: "PAID" | "PENDING" | "FAILED";
+    dueDate: string | null;
+    generatedAt: string;
+  } | null;
+  addonStatus: Record<string, unknown>;
+  usageMeters: {
+    aiTokens: { used: number; total: number };
+    storageGb: { used: number; total: number };
+  };
 };
 
 /** Format UTC ISO → IST */
@@ -124,6 +167,40 @@ function toIST(iso?: string | null, opts?: Intl.DateTimeFormatOptions) {
     year: "numeric",
     ...opts,
   });
+}
+
+function mapApiBillToUiBill(bill: ApiBill): Bill {
+  const generated = new Date(bill.generatedAt);
+  const monthLabel = bill.billingMonth
+    ? new Date(`${bill.billingMonth}-01T00:00:00`).toLocaleDateString("en-IN", {
+        month: "short",
+        year: "numeric",
+      })
+    : generated.toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+
+  const parsedItems = Array.isArray(bill.items)
+    ? bill.items
+        .filter((item): item is Record<string, unknown> => !!item && typeof item === "object")
+        .map((item) => ({
+          label: String(item.label ?? "Bill Item"),
+          desc: String(item.desc ?? ""),
+          amount: Number(item.amount ?? 0),
+          type: ["base", "addon", "licence", "discount", "metadata"].includes(String(item.type))
+            ? (String(item.type) as BillItem["type"])
+            : "base",
+        }))
+    : [];
+
+  return {
+    id: bill.id,
+    type: bill.type === "LICENCE" || bill.type === "UPGRADE_PRORATION" ? bill.type : "MONTHLY",
+    month: monthLabel,
+    dateRange: bill.dueDate ? `Due ${toIST(bill.dueDate)}` : toIST(bill.generatedAt),
+    items: parsedItems,
+    total: bill.totalAmount,
+    status: bill.status,
+    generatedOn: toIST(bill.generatedAt),
+  };
 }
 
 const PRICING = {
@@ -981,12 +1058,17 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
   const pricing = PRICING[instType];
   const initialPlan =
     (inst.subscription?.plan?.name as "BASIC" | "PRO" | "TRIAL") ?? "BASIC";
-  const [planActive, setPlanActive] = useState(false);
+  const [planActive, setPlanActive] = useState(
+    (inst.subscription?.status ?? "") === "ACTIVE" ||
+      (inst.subscription?.status ?? "") === "PAUSED",
+  );
   const [plan, setPlan] = useState<"BASIC" | "PRO" | "TRIAL">(initialPlan);
   const [showDiscount, setShowDiscount] = useState(false);
   const [discountInput, setDiscountInput] = useState("0");
-  const [discount, setDiscount] = useState(0);
-  const [licencePaid, setLicencePaid] = useState(false);
+  const [discount, setDiscount] = useState(inst.subscription?.discount ?? 0);
+  const [licencePaid, setLicencePaid] = useState(
+    (inst.subscription?.paymentStatus ?? "") === "PAID",
+  );
   const [activating, setActivating] = useState(false);
   const [features, setFeatures] = useState<Record<string, boolean>>(
     getDefaultFeatures("BASIC"),
@@ -1013,7 +1095,95 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
   const [addonExtraBill, setAddonExtraBill] = useState(0);
   const [billModal, setBillModal] = useState<Bill | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
-  const [activationDate] = useState(new Date("2024-11-14")); // Plan change pe — sirf non-active state mein
+  const [activationDate, setActivationDate] = useState(
+    inst.subscription?.activationDate
+      ? new Date(inst.subscription.activationDate)
+      : new Date("2024-11-14"),
+  );
+  const [savingAddons, setSavingAddons] = useState(false);
+  const [dashboardData, setDashboardData] = useState<PlanDashboardResponse | null>(null);
+  const [loadingBills, setLoadingBills] = useState(false);
+
+  const buildStrictAddonsPayload = useCallback(() => {
+    const extraStorage =
+      storageAdded && storageAddGb > 0 && typeof storagePricePerGb === "number"
+        ? [
+            {
+              active: true,
+              gbPurchased: storageAddGb,
+              oneTimeAmount: storageAddGb * storagePricePerGb,
+              purchasedAt: new Date().toISOString(),
+            },
+          ]
+        : [];
+
+    const extraAiTokens =
+      tokenAdded && tokenAddK > 0 && typeof tokenPricePer10k === "number"
+        ? [
+            {
+              active: true,
+              tokensPerMonth: tokenAddK * 1_000_000,
+              monthlyAmount: tokenAddK * tokenPricePer10k,
+            },
+          ]
+        : [];
+
+    return {
+      addons: {
+        performanceInsightsAndAnalytics: {
+          active: Boolean(features.performance_analytics),
+          billingCycle: "MONTHLY" as const,
+          amount: 0,
+        },
+        timetableAutoScheduling: {
+          active: Boolean(features.auto_timetable),
+          billingCycle: "MONTHLY" as const,
+          amount: 0,
+        },
+        ...(extraStorage.length > 0 ? { extraStorage } : {}),
+        ...(extraAiTokens.length > 0 ? { extraAiTokens } : {}),
+      },
+    };
+  }, [
+    features,
+    storageAdded,
+    storageAddGb,
+    storagePricePerGb,
+    tokenAdded,
+    tokenAddK,
+    tokenPricePer10k,
+  ]);
+
+  const fetchPlanDashboard = useCallback(async () => {
+    try {
+      const res = await api.get(`/superadmin/institutions/${inst.id}/plan/dashboard`);
+      const data = res.data?.data as PlanDashboardResponse;
+      setDashboardData(data);
+      if (data?.planDetails?.activationDate) {
+        setActivationDate(new Date(data.planDetails.activationDate));
+      }
+    } catch {
+      // non-blocking for existing UI
+    }
+  }, [inst.id]);
+
+  const fetchBills = useCallback(async () => {
+    try {
+      setLoadingBills(true);
+      const res = await api.get(`/superadmin/institutions/${inst.id}/bills`);
+      const apiBills = (res.data?.bills ?? []) as ApiBill[];
+      setBills(apiBills.map(mapApiBillToUiBill));
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error ?? err?.response?.data?.message ?? "Failed to load bills");
+    } finally {
+      setLoadingBills(false);
+    }
+  }, [inst.id]);
+
+  useEffect(() => {
+    void fetchPlanDashboard();
+    void fetchBills();
+  }, [fetchPlanDashboard, fetchBills]);
   useEffect(() => {
     if (!planActive) {
       setFeatures(getDefaultFeatures(plan));
@@ -1049,11 +1219,34 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
   const canActivate = plan === "TRIAL" || licencePaid;
 
   const handleActivate = async () => {
-    setActivating(true);
-    await new Promise((r) => setTimeout(r, 1000));
-    setPlanActive(true);
-    setActivating(false);
-    toast.success(`${plan} plan activated!`);
+    if (plan !== "TRIAL" && !licencePaid) {
+      toast.error("Mark licence payment as received first");
+      return;
+    }
+
+    try {
+      setActivating(true);
+      const res = await api.post(`/superadmin/institutions/${inst.id}/activate`, {
+        plan: plan === "TRIAL" ? "BASIC" : plan,
+        paymentReceived: true,
+        discountPct: discount,
+      });
+
+      setPlanActive(true);
+      const activation = res.data?.data?.activationDate;
+      if (activation) setActivationDate(new Date(activation));
+
+      setSavingAddons(true);
+      await api.patch(`/superadmin/institutions/${inst.id}/addons`, buildStrictAddonsPayload());
+      await fetchPlanDashboard();
+      await fetchBills();
+      toast.success(`${plan} plan activated successfully`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error ?? err?.response?.data?.message ?? "Failed to activate plan");
+    } finally {
+      setSavingAddons(false);
+      setActivating(false);
+    }
   };
 
   const PLAN_OPTS = [
@@ -1309,128 +1502,7 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
       0,
     );
 
-    const mockBills: Bill[] = [
-      {
-        id: "b6",
-        type: "MONTHLY",
-        month: "Mar 2026",
-        dateRange: "01 Mar – 31 Mar 2026",
-        items: [
-          {
-            label: "Monthly User Bill",
-            desc: `${billedUsers} users × ${fmt(currentRate)}/user`,
-            amount: monthlyBill,
-            type: "base" as const,
-          },
-        ],
-        total: monthlyBill,
-        status: "PAID" as const,
-        generatedOn: "31 Mar 2026",
-      },
-      {
-        id: "b5",
-        type: "MONTHLY",
-        month: "Feb 2026",
-        dateRange: "01 Feb – 28 Feb 2026",
-        items: [
-          {
-            label: "Monthly User Bill",
-            desc: `${billedUsers} users × ${fmt(currentRate)}/user`,
-            amount: monthlyBill,
-            type: "base" as const,
-          },
-        ],
-        total: monthlyBill,
-        status: "PAID" as const,
-        generatedOn: "28 Feb 2026",
-      },
-      {
-        id: "b4",
-        type: "MONTHLY",
-        month: "Jan 2026",
-        dateRange: "01 Jan – 31 Jan 2026",
-        items: [
-          {
-            label: "Monthly User Bill",
-            desc: `${billedUsers} users × ${fmt(currentRate)}/user`,
-            amount: monthlyBill,
-            type: "base" as const,
-          },
-        ],
-        total: monthlyBill,
-        status: "PENDING" as const,
-        generatedOn: "31 Jan 2026",
-      },
-      {
-        id: "b3",
-        type: "MONTHLY",
-        month: "Dec 2025",
-        dateRange: "01 Dec – 31 Dec 2025",
-        items: [
-          {
-            label: "Monthly User Bill",
-            desc: `${billedUsers} users × ${fmt(currentRate)}/user`,
-            amount: monthlyBill,
-            type: "base" as const,
-          },
-        ],
-        total: monthlyBill,
-        status: "PAID" as const,
-        generatedOn: "31 Dec 2025",
-      },
-      {
-        id: "b2",
-        type: "MONTHLY",
-        month: "Nov 2025",
-        dateRange: "01 Nov – 30 Nov 2025",
-        items: [
-          {
-            label: "Monthly User Bill",
-            desc: `${billedUsers} users × ${fmt(currentRate)}/user`,
-            amount: monthlyBill,
-            type: "base" as const,
-          },
-        ],
-        total: monthlyBill,
-        status: "PAID" as const,
-        generatedOn: "30 Nov 2025",
-      },
-      {
-        id: "b1",
-        type: "MONTHLY",
-        month: "Dec 2024",
-        dateRange: "01 Dec – 31 Dec 2024",
-        items: [
-          {
-            label: "Monthly User Bill",
-            desc: `${billedUsers} users × ${fmt(currentRate)}/user`,
-            amount: monthlyBill,
-            type: "base" as const,
-          },
-        ],
-        total: monthlyBill,
-        status: "PAID" as const,
-        generatedOn: "31 Dec 2024",
-      },
-      {
-        id: "b0",
-        type: "LICENCE",
-        month: "Nov 2024",
-        dateRange: "14 Nov 2024",
-        items: [
-          {
-            label: "One-time Licence Fee",
-            desc: `${plan} Plan — ${instType}`,
-            amount: licenceCost,
-            type: "licence" as const,
-          },
-        ],
-        total: licenceCost,
-        status: "PAID" as const,
-        generatedOn: "14 Nov 2024",
-      },
-    ];
-    const allBills = bills.length > 0 ? bills : mockBills;
+    const allBills = bills;
     return (
       <motion.div
         initial={{ opacity: 0, y: 8 }}
@@ -2190,7 +2262,15 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                 Bill History
               </p>
               <div className="divide-y divide-border/40 max-h-[300px] overflow-y-auto">
-                {allBills.map((bill, idx) => (
+                {loadingBills ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">
+                    Loading bills...
+                  </div>
+                ) : allBills.length === 0 ? (
+                  <div className="py-6 text-center text-xs text-muted-foreground">
+                    No generated bills yet
+                  </div>
+                ) : allBills.map((bill, idx) => (
                   <div
                     key={bill.id}
                     className="flex items-center justify-between py-3"
@@ -2201,6 +2281,11 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                         {bill.type === "LICENCE" && (
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400">
                             Licence
+                          </span>
+                        )}
+                        {bill.type === "UPGRADE_PRORATION" && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
+                            Upgrade
                           </span>
                         )}
                         {idx === 0 && (
@@ -2217,27 +2302,37 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                       <p className="text-sm font-bold">{fmt(bill.total)}</p>
                       {/* Status toggle */}
                       <button
-                        onClick={() => {
-                          const updated = allBills.map((b) =>
-                            b.id === bill.id
-                              ? {
-                                  ...b,
-                                  status:
-                                    b.status === "PAID"
-                                      ? ("PENDING" as const)
-                                      : ("PAID" as const),
-                                }
-                              : b,
-                          );
-                          setBills(updated);
-                          toast.success(
-                            `Bill marked as ${bill.status === "PAID" ? "Pending" : "Paid"}`,
-                          );
+                        disabled={bill.status === "FAILED"}
+                        onClick={async () => {
+                          const nextStatus = bill.status === "PAID" ? "PENDING" : "PAID";
+                          try {
+                            const res = await api.patch(
+                              `/superadmin/institutions/${inst.id}/bills/${bill.id}/status`,
+                              { status: nextStatus },
+                            );
+                            setBills((prev) =>
+                              prev.map((b) =>
+                                b.id === bill.id ? { ...b, status: nextStatus } : b,
+                              ),
+                            );
+                            if (res.data?.data?.reactivated) {
+                              setPlanActive(true);
+                              setPlanPaused(false);
+                              toast.success("Payment recorded and institution reactivated");
+                            } else {
+                              toast.success(`Bill marked as ${nextStatus === "PAID" ? "Paid" : "Pending"}`);
+                            }
+                            await fetchPlanDashboard();
+                          } catch (err: any) {
+                            toast.error(err?.response?.data?.error ?? err?.response?.data?.message ?? "Failed to update bill");
+                          }
                         }}
-                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full transition-all cursor-pointer ${
+                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full transition-all ${
                           bill.status === "PAID"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 hover:bg-emerald-200"
-                            : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 hover:bg-amber-200"
+                            : bill.status === "FAILED"
+                              ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 cursor-not-allowed"
+                              : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 hover:bg-amber-200"
                         }`}
                       >
                         {bill.status}
@@ -3297,7 +3392,7 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
             {activating ? (
               <>
                 <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />{" "}
-                Activating...
+                {savingAddons ? "Syncing add-ons..." : "Activating..."}
               </>
             ) : (
               <>
