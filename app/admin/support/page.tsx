@@ -1,5 +1,4 @@
 import { redirect } from 'next/navigation';
-
-export default function SupportIndexPage() {
-    redirect('/admin/support/notifications');
+export default function AdminSupportPage() {
+    redirect('/admin/support/tickets');
 }

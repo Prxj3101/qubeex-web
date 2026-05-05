@@ -29,8 +29,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
                         {(['SCHOOL', 'COLLEGE', 'COACHING'] as const).map(type => (
                             <button key={type} onClick={() => setInstType(type)}
                                 className={`text-[10px] font-semibold px-2 py-1 rounded-full border transition-all ${instType === type
-                                        ? 'bg-primary text-white border-primary'
-                                        : 'border-border/50 text-muted-foreground hover:text-foreground'
+                                    ? 'bg-primary text-white border-primary'
+                                    : 'border-border/50 text-muted-foreground hover:text-foreground'
                                     }`}>
                                 {type}
                             </button>
@@ -59,7 +59,7 @@ const ADMIN_NAV_ITEMS = [
     { label: 'Staff', href: '/admin/staff', icon: Users },
     { label: 'Campus', href: '/admin/campus', icon: Building2 },
     { label: 'Insights', href: '/admin/insights/analytics', icon: LineChart },
-    { label: 'Support', href: '/admin/support/notifications', icon: Headset },
+    { label: 'Support', href: '/admin/support/tickets', icon: Headset, activePath: '/admin/support' },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: ScrollText },
 ];
 
