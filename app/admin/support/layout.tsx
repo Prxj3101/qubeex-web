@@ -16,13 +16,13 @@ export default function AdminSupportLayout({ children }: { children: React.React
     return (
         <div className="flex flex-col" style={{ height: '100%' }}>
             <div className="sticky top-0 z-20 bg-background space-y-3 pb-3">
-                <div className="flex items-center justify-between pt-3 px-1">
+                <div className="flex items-center justify-between pt-1 px-1">
                     <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <Headset size={28} />
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <Headset size={21} />
                             Support
                         </h1>
-                        <p className="text-muted-foreground text-sm">Raise tickets and share feedback</p>
+                        <p className="text-muted-foreground text-[13px]">Raise tickets and share feedback</p>
                     </div>
                 </div>
                 <div className="h-px bg-border/60" />

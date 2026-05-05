@@ -335,10 +335,10 @@ export default function AdminTicketsPage() {
         : tickets.filter(t => t.status === statusFilter);
 
     return (
-        <div className="space-y-4 pt-3">
+        <div className="space-y-4 pt-2">
 
             {/* Header */}
-            <div className="flex items-center justify-between px-1">
+            <div className="flex items-center justify-between px-1 pt-1">
                 <div className="flex items-center gap-2 flex-wrap">
                     {(['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const).map(s => (
                         <button key={s} onClick={() => setStatusFilter(s)}

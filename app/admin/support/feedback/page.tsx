@@ -327,8 +327,8 @@ export default function AdminFeedbackPage() {
             {/* Header */}
             <div className="flex items-center justify-between px-1 pt-0">
                 <div>
-                    <h1 className="text-[22px] font-bold flex items-center gap-2">
-                        Manage Reviews & Feedback
+                    <h1 className="text-[23px] font-bold flex items-center gap-2">
+                        Manage Your Reviews & Feedback
                     </h1>
                     <div className="flex items-center gap-2 mt-0.5">
                         <div className="flex items-center gap-0.5">
