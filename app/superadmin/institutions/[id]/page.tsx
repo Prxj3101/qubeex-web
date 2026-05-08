@@ -49,11 +49,12 @@ import {
   BarChart2,
   Calendar as CalendarIcon,
   Cpu,
+  FlaskConical,
 } from "lucide-react";
 import { Institution } from "@/types";
 import api from "@/lib/api";
 import { toast } from "sonner";
-import { TrialManagementSection } from "@/components/superadmin/TrialManagementSection";
+
 
 type BillItem = {
   label: string;
@@ -128,6 +129,15 @@ type InstData = {
     trialDays?: number | null;
     trialOutcome?: string | null;
   } | null;
+};
+
+type TrialUsage = {
+  users: { used: number; limit: number };
+  storageGb: { used: number; limit: number };
+  aiTokens: { used: number; limit: number };
+  daysRemaining: number | null;
+  trialEndDate: string | null;
+  status: string | null;
 };
 
 type PlanDashboardResponse = {
@@ -624,10 +634,12 @@ function ViewDetailsTab({
   inst,
   onStatusToggle,
   onResendInvite,
+  onDelete,
 }: {
   inst: InstData;
   onStatusToggle: () => void;
   onResendInvite: () => void;
+  onDelete: () => Promise<void>;
 }) {
   const status = statusCfg[inst.status] ?? statusCfg["PENDING"];
   const TypeIcon =
@@ -647,6 +659,9 @@ function ViewDetailsTab({
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(inst.logoUrl ?? null);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoFileRef = useRef<HTMLInputElement>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
+  const [deleting, setDeleting] = useState(false);
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -845,6 +860,14 @@ function ViewDetailsTab({
                     </>
                   )}
                 </button>
+                {inst.status === "SUSPENDED" && (
+                  <button
+                    onClick={() => { setDeleteConfirm(true); setDeleteInput(""); }}
+                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 transition-all"
+                  >
+                    <XCircle size={13} /> Delete
+                  </button>
+                )}
               </div>
             </div>
             <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
@@ -1046,11 +1069,78 @@ function ViewDetailsTab({
           />
         </SectionCard>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-card border border-red-500/30 rounded-2xl overflow-hidden max-w-md w-full mx-4 shadow-2xl"
+          >
+            <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/50">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-950/50 flex items-center justify-center">
+                  <XCircle size={16} className="text-red-600 dark:text-red-400" />
+                </div>
+                <h3 className="text-base font-bold text-red-600 dark:text-red-400">Delete Institution</h3>
+              </div>
+              <button
+                onClick={() => { setDeleteConfirm(false); setDeleteInput(""); }}
+                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all"
+              >
+                <X size={14} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="bg-red-50 dark:bg-red-950/20 rounded-xl p-3 border border-red-200/50 dark:border-red-900/50">
+                <p className="text-xs font-semibold text-red-700 dark:text-red-400 mb-1">This action is irreversible</p>
+                <p className="text-[11px] text-red-600 dark:text-red-500">
+                  All data for <span className="font-bold">{inst.name}</span> will be permanently deleted — users, subscriptions, bills, audit logs, and all associated records.
+                </p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">
+                  Type <span className="font-mono font-bold text-foreground">{inst.name}</span> to confirm
+                </p>
+                <input
+                  type="text"
+                  value={deleteInput}
+                  onChange={(e) => setDeleteInput(e.target.value)}
+                  placeholder={inst.name}
+                  className="w-full h-10 px-3 rounded-xl border border-border bg-muted/30 text-sm focus:outline-none focus:ring-2 focus:ring-red-500/30 focus:border-red-500/50"
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
+              <button
+                onClick={() => { setDeleteConfirm(false); setDeleteInput(""); }}
+                className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={deleteInput.trim() !== inst.name || deleting}
+                onClick={async () => {
+                  setDeleting(true);
+                  await onDelete();
+                  setDeleting(false);
+                }}
+                className="h-9 px-5 rounded-xl text-xs font-semibold text-white bg-red-600 hover:bg-red-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {deleting && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                Permanently Delete
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }
 
-function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?: boolean }) {
+function ManagePlanTab({ inst }: { inst: InstData }) {
+  const router = useRouter();
   const instType =
     (inst.type as keyof typeof PRICING) in PRICING
       ? (inst.type as keyof typeof PRICING)
@@ -1081,11 +1171,16 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
   const [tokenAddInput, setTokenAddInput] = useState("0");
   const [tokenPricePer10k, setTokenPricePer10k] = useState<number | "">("");
   const [tokenAdded, setTokenAdded] = useState(false);
-  const [planPaused, setPlanPaused] = useState(false);
+  const [planPaused, setPlanPaused] = useState(
+    (inst.subscription?.status ?? "") === "PAUSED",
+  );
+  const [pauseResumeLoading, setPauseResumeLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<
-    "deactivate" | "pause" | "resume" | "upgrade" | "enable_addon" | null
+    "deactivate" | "pause" | "resume" | "upgrade" | "downgrade" | "enable_addon" | null
   >(null);
   const [upgradePaid, setUpgradePaid] = useState(false);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [downgradeLoading, setDowngradeLoading] = useState(false);
   const [upgradeDate, setUpgradeDate] = useState<Date | null>(null);
   const [upgradeModalTab, setUpgradeModalTab] = useState<"current" | "after">(
     "current",
@@ -1095,38 +1190,36 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
   const [addonExtraBill, setAddonExtraBill] = useState(0);
   const [billModal, setBillModal] = useState<Bill | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
+  const [resendingBill, setResendingBill] = useState(false);
   const [activationDate, setActivationDate] = useState(
     inst.subscription?.activationDate
       ? new Date(inst.subscription.activationDate)
-      : new Date("2024-11-14"),
+      : new Date(),
   );
   const [savingAddons, setSavingAddons] = useState(false);
   const [dashboardData, setDashboardData] = useState<PlanDashboardResponse | null>(null);
   const [loadingBills, setLoadingBills] = useState(false);
+  const [extendOpen, setExtendOpen] = useState(false);
+  const [extendDays, setExtendDays] = useState("");
+  const [extending, setExtending] = useState(false);
+  const [churnOpen, setChurnOpen] = useState(false);
+  const [churnConfirm, setChurnConfirm] = useState(false);
+  const [churning, setChurning] = useState(false);
+  const [trialActivated, setTrialActivated] = useState(!!inst.subscription?.startDate);
+  const [activatingTrial, setActivatingTrial] = useState(false);
+  const [trialUsage, setTrialUsage] = useState<TrialUsage | null>(null);
+  const [loadingTrialUsage, setLoadingTrialUsage] = useState(false);
 
   const buildStrictAddonsPayload = useCallback(() => {
     const extraStorage =
       storageAdded && storageAddGb > 0 && typeof storagePricePerGb === "number"
-        ? [
-            {
-              active: true,
-              gbPurchased: storageAddGb,
-              oneTimeAmount: storageAddGb * storagePricePerGb,
-              purchasedAt: new Date().toISOString(),
-            },
-          ]
+        ? [{ gbPurchased: storageAddGb, price: storageAddGb * storagePricePerGb }]
         : [];
 
-    const extraAiTokens =
+    const aiTokenAddon =
       tokenAdded && tokenAddK > 0 && typeof tokenPricePer10k === "number"
-        ? [
-            {
-              active: true,
-              tokensPerMonth: tokenAddK * 1_000_000,
-              monthlyAmount: tokenAddK * tokenPricePer10k,
-            },
-          ]
-        : [];
+        ? { active: true as const, tokensPerMonth: tokenAddK * 1_000_000, pricePerMillion: tokenPricePer10k }
+        : undefined;
 
     return {
       addons: {
@@ -1141,7 +1234,7 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
           amount: 0,
         },
         ...(extraStorage.length > 0 ? { extraStorage } : {}),
-        ...(extraAiTokens.length > 0 ? { extraAiTokens } : {}),
+        ...(aiTokenAddon ? { aiTokenAddon } : {}),
       },
     };
   }, [
@@ -1180,10 +1273,26 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
     }
   }, [inst.id]);
 
+  const fetchTrialUsage = useCallback(async () => {
+    setLoadingTrialUsage(true);
+    try {
+      const res = await api.get(`/superadmin/institutions/${inst.id}/trial/usage`);
+      setTrialUsage(res.data?.data ?? null);
+    } catch {
+      // non-blocking
+    } finally {
+      setLoadingTrialUsage(false);
+    }
+  }, [inst.id]);
+
   useEffect(() => {
     void fetchPlanDashboard();
     void fetchBills();
   }, [fetchPlanDashboard, fetchBills]);
+
+  useEffect(() => {
+    if (plan === "TRIAL" && trialActivated) void fetchTrialUsage();
+  }, [plan, trialActivated, fetchTrialUsage]);
   useEffect(() => {
     if (!planActive) {
       setFeatures(getDefaultFeatures(plan));
@@ -1333,12 +1442,11 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
     };
 
     // Upgrade modal calculations
-    const upgradeActivationDate = new Date("2024-11-14"); // 12+ months used
     const today3 = new Date();
     const monthsUsed = Math.min(
       12,
       Math.floor(
-        (today3.getTime() - upgradeActivationDate.getTime()) /
+        (today3.getTime() - activationDate.getTime()) /
           (1000 * 60 * 60 * 24 * 30),
       ),
     );
@@ -1363,27 +1471,6 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
     const proNewAddons = ALL_FEATURES.filter(
       (f) => f.inPro && f.addOnPro && !f.addOnBasic,
     );
-
-    const paymentHistory = [
-      {
-        date: "14 Apr 2026",
-        amount: licenceCost,
-        type: "One-time Licence",
-        status: "PAID",
-      },
-      {
-        date: "01 Apr 2026",
-        amount: monthlyBill,
-        type: "Monthly Bill",
-        status: "PAID",
-      },
-      {
-        date: "01 Mar 2026",
-        amount: monthlyBill,
-        type: "Monthly Bill",
-        status: "PAID",
-      },
-    ];
 
     const CustomTooltip = ({ active, payload }: any) => {
       if (!active || !payload?.length) return null;
@@ -1430,8 +1517,8 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
       isActive: activeUsers >= tier.min && activeUsers <= tier.max,
     }));
 
-    const storageBase = plan === "PRO" ? 1024 : 500;
-    const storageUsed = 312;
+    const storageBase = dashboardData?.usageMeters?.storageGb?.total ?? (plan === "PRO" ? 1024 : 500);
+    const storageUsed = 0;
     const storageUsedPct = Math.min(
       100,
       Math.round((storageUsed / storageBase) * 100),
@@ -1439,8 +1526,8 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
     const storagePriceNum =
       typeof storagePricePerGb === "number" ? storagePricePerGb : 0;
     const storageAddTotal = storageAddGb * storagePriceNum;
-    const tokenBase = 10000000;
-    const tokenUsed = plan === "PRO" ? 180000 : 44000;
+    const tokenBase = dashboardData?.usageMeters?.aiTokens?.total ?? 10_000_000;
+    const tokenUsed = 0;
     const tokenUsedPct = Math.min(
       100,
       Math.round((tokenUsed / tokenBase) * 100),
@@ -1577,6 +1664,14 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                   }}
                 >
                   <Zap size={13} /> Upgrade to Pro
+                </button>
+              )}
+              {plan === "PRO" && (
+                <button
+                  onClick={() => setConfirmDialog("downgrade")}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400 hover:opacity-80 transition-all"
+                >
+                  <ChevronRight size={13} className="rotate-180" /> Downgrade to Basic
                 </button>
               )}
               <button
@@ -2011,138 +2106,6 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
           </div>
         </SectionCard>
 
-        {/* Bill Modal */}
-        {billModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full mx-4 shadow-2xl"
-            >
-              <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/50">
-                <div>
-                  <h3 className="text-base font-bold">
-                    Invoice — {billModal.month}
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {billModal.dateRange}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setBillModal(null)}
-                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-
-              <div className="p-6 space-y-4" id="bill-print-area">
-                {/* Institution info */}
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-bold">{inst.name}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {inst.type} · {instType}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {inst.email}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[11px] text-muted-foreground">Plan</p>
-                    <p
-                      className="text-sm font-bold"
-                      style={{ color: plan === "PRO" ? "#DA7756" : "#7C3AED" }}
-                    >
-                      {plan}
-                    </p>
-                    <span
-                      className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${billModal.status === "PAID" ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"}`}
-                    >
-                      {billModal.status}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="h-px bg-border/50" />
-
-                {/* Line items */}
-                {billModal.items.length > 0 ? (
-                  <div className="space-y-2">
-                    {billModal.items.map((item, i) => (
-                      <div
-                        key={i}
-                        className="flex items-center justify-between"
-                      >
-                        <div>
-                          <p className="text-xs font-medium">{item.label}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {item.desc}
-                          </p>
-                        </div>
-                        <p className="text-xs font-bold">{fmt(item.amount)}</p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-between">
-                    <p className="text-xs text-muted-foreground">
-                      Monthly Bill
-                    </p>
-                    <p className="text-xs font-bold">{fmt(billModal.total)}</p>
-                  </div>
-                )}
-
-                <div className="h-px bg-border/50" />
-
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-bold">Total Amount</p>
-                  <p
-                    className="text-lg font-black"
-                    style={{ color: "#DA7756" }}
-                  >
-                    {fmt(billModal.total)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
-                <button
-                  onClick={() => setBillModal(null)}
-                  className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
-                >
-                  Close
-                </button>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      toast.success(
-                        `Bill resent to admin for ${billModal.month}`,
-                      );
-                    }}
-                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
-                  >
-                    Resend to Admin
-                  </button>
-                  <button
-                    onClick={() => {
-                      // TODO: backend PDF endpoint
-                      window.print();
-                    }}
-                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
-                    style={{
-                      background:
-                        "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)",
-                    }}
-                  >
-                    Download PDF
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-
         {/* Payment History */}
         <SectionCard
           title={
@@ -2344,11 +2307,15 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                         View
                       </button>
                       <button
-                        onClick={() =>
-                          toast.success(
-                            `Bill resent to admin for ${bill.month}`,
-                          )
-                        }
+                        onClick={async () => {
+                          try {
+                            await api.post(`/superadmin/institutions/${inst.id}/bills/${bill.id}/resend`);
+                            toast.success(`Bill resent to admin for ${bill.month}`);
+                          } catch (err: unknown) {
+                            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to resend";
+                            toast.error(msg);
+                          }
+                        }}
                         className="h-7 px-2.5 rounded-lg text-[11px] font-semibold text-white transition-all hover:opacity-90"
                         style={{
                           background:
@@ -2452,13 +2419,22 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                 </button>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() =>
-                      toast.success(
-                        `Bill resent to admin for ${billModal.month}`,
-                      )
-                    }
-                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
+                    disabled={resendingBill}
+                    onClick={async () => {
+                      setResendingBill(true);
+                      try {
+                        await api.post(`/superadmin/institutions/${inst.id}/bills/${billModal.id}/resend`);
+                        toast.success(`Bill resent to admin for ${billModal.month}`);
+                      } catch (err: unknown) {
+                        const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to resend bill";
+                        toast.error(msg);
+                      } finally {
+                        setResendingBill(false);
+                      }
+                    }}
+                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                   >
+                    {resendingBill && <span className="w-3 h-3 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />}
                     Resend to Admin
                   </button>
                   <button
@@ -2871,25 +2847,126 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                       )}
                       {upgradeModalTab === "after" && (
                         <button
-                          disabled={!upgradePaid}
-                          onClick={() => {
-                            setPlan("PRO");
-                            setFeatures(getDefaultFeatures("PRO"));
-                            setUpgradeDate(new Date());
-                            toast.success("Upgraded to PRO! Features updated.");
-                            setConfirmDialog(null);
-                            setUpgradePaid(false);
+                          disabled={!upgradePaid || upgradeLoading}
+                          onClick={async () => {
+                            setUpgradeLoading(true);
+                            try {
+                              await api.post(`/superadmin/institutions/${inst.id}/upgrade`);
+                              await fetchPlanDashboard();
+                              await fetchBills();
+                              setPlan("PRO");
+                              setFeatures(getDefaultFeatures("PRO"));
+                              setUpgradeDate(new Date());
+                              toast.success("Upgraded to PRO! Features updated.");
+                              setConfirmDialog(null);
+                              setUpgradePaid(false);
+                            } catch (err: unknown) {
+                              const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Upgrade failed";
+                              toast.error(msg);
+                            } finally {
+                              setUpgradeLoading(false);
+                            }
                           }}
-                          className="h-9 px-5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                          className="h-9 px-5 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
                           style={{
                             background:
                               "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)",
                           }}
                         >
+                          {upgradeLoading && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
                           Confirm Upgrade — {fmt(finalUpgradeCharge)}
                         </button>
                       )}
                     </div>
+                  </div>
+                </>
+              ) : confirmDialog === "downgrade" ? (
+                <>
+                  <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/50">
+                    <div>
+                      <h3 className="text-base font-bold">⬇ Downgrade to Basic</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Review what changes when downgrading from PRO to Basic
+                      </p>
+                    </div>
+                    <button onClick={() => setConfirmDialog(null)} className="text-muted-foreground hover:text-foreground transition-colors">
+                      <X size={18} />
+                    </button>
+                  </div>
+                  <div className="p-6 space-y-4 max-h-[60vh] overflow-y-auto">
+                    {/* What you lose */}
+                    <div className="bg-red-50 dark:bg-red-950/20 rounded-xl p-4 border border-red-200/50 dark:border-red-900/50">
+                      <p className="text-[11px] font-semibold text-red-700 dark:text-red-400 uppercase tracking-wider mb-2">Features Disabled Immediately</p>
+                      <div className="space-y-1.5">
+                        {ALL_FEATURES.filter((f) => f.inPro && !f.inBasic).map((f) => (
+                          <div key={f.key} className="flex items-center gap-2 text-xs text-red-600 dark:text-red-400">
+                            <XCircle size={12} />
+                            <span>{f.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Billing info */}
+                    <div className="bg-muted/40 rounded-xl p-4 space-y-2">
+                      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Billing Changes</p>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">New monthly rate (200–1499 users)</span>
+                        <span className="font-bold">₹{pricing.BASIC.tiers[0].rate}/user/mo</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Effective from</span>
+                        <span className="font-semibold text-amber-600 dark:text-amber-400">Next billing cycle</span>
+                      </div>
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Refund</span>
+                        <span className="font-semibold text-red-500">None</span>
+                      </div>
+                    </div>
+                    {/* Warning box */}
+                    <div className="bg-amber-50 dark:bg-amber-950/20 rounded-xl p-3 border border-amber-200/50 dark:border-amber-900/50">
+                      <p className="text-[11px] font-semibold text-amber-700 dark:text-amber-400 mb-1">Important</p>
+                      <p className="text-[11px] text-amber-600 dark:text-amber-500">
+                        A notification email will be sent to the institution admin. Performance Insights and Timetable Auto-Scheduling addons will be deactivated.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
+                    <button
+                      onClick={() => setConfirmDialog(null)}
+                      className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      disabled={downgradeLoading}
+                      onClick={async () => {
+                        setDowngradeLoading(true);
+                        try {
+                          const res = await api.post(`/superadmin/institutions/${inst.id}/downgrade`);
+                          const storageWarning = res.data?.data?.storageWarning;
+                          await fetchPlanDashboard();
+                          await fetchBills();
+                          setPlan("BASIC");
+                          setFeatures(getDefaultFeatures("BASIC"));
+                          setUpgradeDate(null);
+                          if (storageWarning) {
+                            toast.warning("Downgraded to Basic. Storage exceeds 500GB limit — consider purchasing extra storage.", { duration: 6000 });
+                          } else {
+                            toast.success("Downgraded to Basic. Notification sent to admin.");
+                          }
+                          setConfirmDialog(null);
+                        } catch (err: unknown) {
+                          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Downgrade failed";
+                          toast.error(msg);
+                        } finally {
+                          setDowngradeLoading(false);
+                        }
+                      }}
+                      className="h-9 px-5 rounded-xl text-xs font-semibold text-white bg-violet-600 hover:bg-violet-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {downgradeLoading && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                      Confirm Downgrade
+                    </button>
                   </div>
                 </>
               ) : confirmDialog === "enable_addon" && pendingEnableKey ? (
@@ -2904,7 +2981,7 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                           ?.label
                       }
                     </span>{" "}
-                    ka free period expire ho gaya hai.
+                    free period has expired.
                   </p>
                   <div className="bg-muted/40 rounded-xl p-3 mb-4 space-y-1.5">
                     <div className="flex justify-between text-xs">
@@ -2995,20 +3072,41 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                       Cancel
                     </button>
                     <button
-                      onClick={() => {
+                      disabled={pauseResumeLoading}
+                      onClick={async () => {
                         if (confirmDialog === "deactivate") {
                           setPlanActive(false);
                           toast.success("Plan deactivated");
+                          setConfirmDialog(null);
                         } else if (confirmDialog === "pause") {
-                          setPlanPaused(true);
-                          toast.success("Operations paused");
+                          try {
+                            setPauseResumeLoading(true);
+                            await api.post(`/superadmin/institutions/${inst.id}/pause`);
+                            setPlanPaused(true);
+                            await fetchPlanDashboard();
+                            toast.success("Institution paused — student access restricted, billing at 50%");
+                          } catch (err: any) {
+                            toast.error(err?.response?.data?.error ?? err?.response?.data?.message ?? "Failed to pause institution");
+                          } finally {
+                            setPauseResumeLoading(false);
+                            setConfirmDialog(null);
+                          }
                         } else {
-                          setPlanPaused(false);
-                          toast.success("Operations resumed");
+                          try {
+                            setPauseResumeLoading(true);
+                            await api.post(`/superadmin/institutions/${inst.id}/resume`);
+                            setPlanPaused(false);
+                            await fetchPlanDashboard();
+                            toast.success("Institution resumed — full access restored");
+                          } catch (err: any) {
+                            toast.error(err?.response?.data?.error ?? err?.response?.data?.message ?? "Failed to resume institution");
+                          } finally {
+                            setPauseResumeLoading(false);
+                            setConfirmDialog(null);
+                          }
                         }
-                        setConfirmDialog(null);
                       }}
-                      className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                      className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
                         background:
                           confirmDialog === "deactivate"
@@ -3030,6 +3128,440 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
             </motion.div>
           </div>
         )}
+      </motion.div>
+    );
+  }
+
+  // ── TRIAL VIEW ──
+  if (plan === "TRIAL") {
+    const trialDays = inst.subscription?.trialDays ?? 14;
+    const trialEndDate = trialUsage?.trialEndDate ? new Date(trialUsage.trialEndDate) : null;
+    const daysRemaining = trialUsage?.daysRemaining ?? null;
+    const trialStartDate = inst.subscription?.startDate ? new Date(inst.subscription.startDate) : null;
+
+    const TrialUsageBar = ({
+      label,
+      icon: Icon,
+      used,
+      total,
+      unitLabel,
+      formatter,
+    }: {
+      label: string;
+      icon: React.ElementType;
+      used: number;
+      total: number;
+      unitLabel: string;
+      formatter?: (v: number) => string;
+    }) => {
+      const f = formatter ?? ((v: number) => v.toLocaleString("en-IN"));
+      const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+      const danger = pct >= 90;
+      const warn = pct >= 70;
+      const barColor = danger ? "#ef4444" : warn ? "#f59e0b" : "linear-gradient(90deg,#7C3AED,#9D5AFF)";
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Icon size={13} className="text-muted-foreground" />
+              <p className="text-xs font-medium">{label}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <p className={`text-xs font-bold ${danger ? "text-red-500" : warn ? "text-amber-500" : "text-foreground"}`}>
+                {f(used)} {unitLabel}
+              </p>
+              <span className="text-[10px] text-muted-foreground">/ {f(total)} {unitLabel}</span>
+            </div>
+          </div>
+          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: barColor }} />
+          </div>
+        </div>
+      );
+    };
+
+    if (!trialActivated) {
+      return (
+        <motion.div
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25 }}
+          className="space-y-4"
+        >
+          {/* Hero card — matches active view style */}
+          <div className="bg-card border border-border/50 rounded-2xl p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="w-2 h-2 rounded-full bg-amber-500" />
+                  <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
+                    Not Yet Started
+                  </span>
+                </div>
+                <h2 className="text-2xl font-black" style={{ color: "#F59E0B" }}>
+                  TRIAL
+                </h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Free trial period · {trialDays} days · Up to 500 users
+                </p>
+                <div className="flex items-center gap-1.5 mt-1.5">
+                  <CalendarIcon size={11} className="text-muted-foreground" />
+                  <span className="text-[11px] text-muted-foreground">
+                    Activate to start the {trialDays}-day countdown
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  setActivatingTrial(true);
+                  try {
+                    await api.post(`/superadmin/institutions/${inst.id}/trial/activate`);
+                    setTrialActivated(true);
+                    await fetchTrialUsage();
+                    toast.success("Trial activated successfully");
+                  } catch (err: unknown) {
+                    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to activate trial";
+                    toast.error(msg);
+                  } finally {
+                    setActivatingTrial(false);
+                  }
+                }}
+                disabled={activatingTrial}
+                className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)" }}
+              >
+                {activatingTrial ? (
+                  <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Starting...</>
+                ) : (
+                  <><Zap size={13} /> Activate Trial</>
+                )}
+              </button>
+            </div>
+
+            <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
+              <InfoBox label="Duration" value={`${trialDays} days`} />
+              <InfoBox label="Max Users" value="500" />
+              <InfoBox label="AI Tokens" value="2 M" sub="shared pool" />
+              <InfoBox label="Storage" value="10 GB" highlight />
+            </div>
+          </div>
+
+          {/* What's included */}
+          <SectionCard
+            title={
+              <span className="flex items-center gap-2">
+                <CheckCircle size={13} />
+                What&apos;s Included
+              </span>
+            }
+          >
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {[
+                { icon: Users, text: "Up to 500 users (admin + teachers + students)" },
+                { icon: Sparkles, text: "2,000,000 AI tokens — shared across teachers" },
+                { icon: HardDrive, text: "10 GB cloud storage" },
+                { icon: Zap, text: "All core platform features enabled" },
+                { icon: ShieldCheck, text: "Smart Board AI — first year free" },
+                { icon: BarChart2, text: "Performance Insights & Analytics" },
+              ].map(({ icon: Icon, text }) => (
+                <div key={text} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-muted/40">
+                  <div className="w-6 h-6 rounded-lg bg-violet-100 dark:bg-violet-950/50 flex items-center justify-center shrink-0">
+                    <Icon size={12} className="text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <p className="text-xs font-medium">{text}</p>
+                </div>
+              ))}
+            </div>
+          </SectionCard>
+        </motion.div>
+      );
+    }
+
+    // Active trial dashboard
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="space-y-4"
+      >
+        {/* Hero card — mirrors active plan banner exactly */}
+        <div className="bg-card border border-border/50 rounded-2xl p-5">
+          <div className="flex items-start justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  Trial Active
+                </span>
+              </div>
+              <h2 className="text-2xl font-black" style={{ color: "#F59E0B" }}>
+                TRIAL
+              </h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                {instType} · Free trial · {trialDays} days total
+              </p>
+              <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                {trialStartDate && (
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <CalendarIcon size={11} /> Started:{" "}
+                    <span className="font-medium text-foreground ml-1">
+                      {trialStartDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                    </span>
+                  </span>
+                )}
+                {trialEndDate && (
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <Flag size={11} className="text-amber-500" /> Ends:{" "}
+                    <span className="font-medium text-amber-600 dark:text-amber-400 ml-1">
+                      {trialEndDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                    </span>
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => { setExtendOpen((v) => !v); setChurnOpen(false); setExtendDays(""); }}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400 hover:opacity-80 transition-all"
+              >
+                <CalendarIcon size={13} /> Extend
+              </button>
+              <button
+                onClick={() => { setChurnOpen((v) => !v); setExtendOpen(false); setChurnConfirm(false); }}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 text-xs font-semibold hover:opacity-80 transition-all"
+              >
+                <XCircle size={13} /> Stop Early
+              </button>
+            </div>
+          </div>
+
+          {/* Quick stats row */}
+          <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
+            <InfoBox
+              label="Days Left"
+              value={daysRemaining !== null ? String(daysRemaining) : "—"}
+              sub={`of ${trialDays} days`}
+              highlight={daysRemaining !== null && daysRemaining <= 3}
+            />
+            <InfoBox
+              label="Users"
+              value={String(trialUsage?.users.used ?? 0)}
+              sub={`/ ${trialUsage?.users.limit ?? 500} max`}
+            />
+            <InfoBox
+              label="AI Tokens Used"
+              value={trialUsage?.aiTokens.used ? `${(trialUsage.aiTokens.used / 1_000_000).toFixed(1)}M` : "0"}
+              sub="/ 2M total"
+            />
+            <InfoBox
+              label="Storage Used"
+              value={`${(trialUsage?.storageGb.used ?? 0).toFixed(1)} GB`}
+              sub="/ 10 GB"
+            />
+          </div>
+        </div>
+
+        {/* Extend panel — shown inline when extend is open */}
+        {extendOpen && (
+          <SectionCard
+            title={
+              <span className="flex items-center gap-2">
+                <CalendarIcon size={13} />
+                Extend Trial Period
+              </span>
+            }
+          >
+            <div className="space-y-3">
+              <p className="text-xs text-muted-foreground">
+                Current end date:{" "}
+                <span className="font-medium text-foreground">
+                  {trialEndDate
+                    ? trialEndDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+                    : "—"}
+                </span>
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={extendDays}
+                  onChange={(e) => setExtendDays(e.target.value)}
+                  placeholder="Additional days (1–365)"
+                  className="flex-1 h-10 rounded-xl border border-border/60 bg-muted/30 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <button
+                  disabled={extending || !extendDays || Number(extendDays) < 1}
+                  onClick={async () => {
+                    const days = parseInt(extendDays, 10);
+                    if (!days || days < 1 || days > 365) { toast.error("Enter a number between 1 and 365"); return; }
+                    setExtending(true);
+                    try {
+                      await api.post(`/superadmin/institutions/${inst.id}/trial/extend`, { extraDays: days });
+                      toast.success(`Trial extended by ${days} days`);
+                      setExtendOpen(false);
+                      setExtendDays("");
+                      void fetchTrialUsage();
+                    } catch (err: unknown) {
+                      const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to extend trial";
+                      toast.error(msg);
+                    } finally {
+                      setExtending(false);
+                    }
+                  }}
+                  className="h-10 px-4 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  style={{ background: "linear-gradient(135deg, #7C3AED, #9D5AFF)" }}
+                >
+                  {extending && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                  Confirm Extension
+                </button>
+              </div>
+            </div>
+          </SectionCard>
+        )}
+
+        {/* Stop Trial Early — shown as SectionCard when open */}
+        {churnOpen && (
+          <SectionCard
+            title={
+              <span className="flex items-center gap-2 text-red-600 dark:text-red-400">
+                <XCircle size={13} />
+                Stop Trial Early
+              </span>
+            }
+          >
+            <div className="grid grid-cols-2 gap-3">
+              <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-950/50 flex items-center justify-center">
+                    <XCircle size={14} className="text-red-600 dark:text-red-400" />
+                  </div>
+                  <p className="text-sm font-semibold text-red-600 dark:text-red-400">Churn Institution</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">End trial permanently. Institution will be locked and no longer accessible.</p>
+                {!churnConfirm ? (
+                  <button
+                    onClick={() => setChurnConfirm(true)}
+                    className="w-full py-2 rounded-lg border border-red-300 dark:border-red-800 text-red-600 dark:text-red-400 text-xs font-semibold hover:bg-red-100 dark:hover:bg-red-950/30 transition-all"
+                  >
+                    Mark as Churned
+                  </button>
+                ) : (
+                  <div className="space-y-2">
+                    <p className="text-[11px] text-red-500 font-semibold">⚠️ This cannot be undone.</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setChurnConfirm(false)}
+                        className="flex-1 py-1.5 rounded-lg border border-border/50 text-xs text-muted-foreground hover:bg-muted/30 transition-all"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={churning}
+                        onClick={async () => {
+                          setChurning(true);
+                          try {
+                            await api.post(`/superadmin/institutions/${inst.id}/trial/churn`);
+                            toast.success("Institution churned");
+                            router.replace("/superadmin/institutions");
+                          } catch (err: unknown) {
+                            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to churn";
+                            toast.error(msg);
+                            setChurning(false);
+                          }
+                        }}
+                        className="flex-1 py-1.5 rounded-lg bg-red-600 text-white text-xs font-semibold hover:bg-red-700 disabled:opacity-60 transition-all flex items-center justify-center gap-1"
+                      >
+                        {churning && <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
+                        Confirm Churn
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-xl border border-[#DA7756]/20 bg-[#DA7756]/5 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-[#DA7756]/10 flex items-center justify-center">
+                    <Zap size={14} className="text-[#DA7756]" />
+                  </div>
+                  <p className="text-sm font-semibold text-[#DA7756]">Activate Paid Plan</p>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Convert to BASIC or PRO. Set up billing and activate the institution on a paid plan.</p>
+                <button
+                  onClick={() => { setPlan("BASIC"); setChurnOpen(false); setChurnConfirm(false); }}
+                  className="w-full py-2 rounded-lg border border-[#DA7756]/30 text-[#DA7756] text-xs font-semibold hover:bg-[#DA7756]/10 transition-all flex items-center justify-center gap-1"
+                >
+                  Set Up BASIC / PRO →
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={() => { setChurnOpen(false); setChurnConfirm(false); }}
+              className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+            >
+              <ChevronRight size={11} className="rotate-180" /> Cancel
+            </button>
+          </SectionCard>
+        )}
+
+        {/* Usage meters */}
+        <SectionCard
+          title={
+            <span className="flex items-center gap-2">
+              <BarChart2 size={13} />
+              Usage Meters
+            </span>
+          }
+        >
+          {loadingTrialUsage ? (
+            <div className="space-y-4 animate-pulse">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="space-y-2">
+                  <div className="flex justify-between">
+                    <div className="h-3 w-24 bg-muted rounded" />
+                    <div className="h-3 w-16 bg-muted rounded" />
+                  </div>
+                  <div className="h-1.5 bg-muted rounded-full" />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-5">
+              <TrialUsageBar
+                label="Days Remaining"
+                icon={CalendarIcon}
+                used={daysRemaining ?? 0}
+                total={trialDays}
+                unitLabel="days"
+              />
+              <TrialUsageBar
+                label="Users"
+                icon={Users}
+                used={trialUsage?.users.used ?? 0}
+                total={trialUsage?.users.limit ?? 500}
+                unitLabel="users"
+              />
+              <TrialUsageBar
+                label="AI Tokens"
+                icon={Cpu}
+                used={trialUsage?.aiTokens.used ?? 0}
+                total={trialUsage?.aiTokens.limit ?? 2_000_000}
+                unitLabel="tokens"
+                formatter={(v) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(2)}M` : v.toLocaleString("en-IN")}
+              />
+              <TrialUsageBar
+                label="Storage"
+                icon={HardDrive}
+                used={trialUsage?.storageGb.used ?? 0}
+                total={trialUsage?.storageGb.limit ?? 10}
+                unitLabel="GB"
+                formatter={(v) => v.toFixed(2)}
+              />
+            </div>
+          )}
+        </SectionCard>
       </motion.div>
     );
   }
@@ -3063,7 +3595,7 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
         }
       >
         <div className="grid grid-cols-3 gap-3">
-          {(hideTrial ? PLAN_OPTS.filter((p) => p.key !== "TRIAL") : PLAN_OPTS).map((p) => {
+          {PLAN_OPTS.map((p) => {
             const isActive = plan === p.key;
             const price = p.key !== "TRIAL" ? pricing[p.key] : null;
             return (
@@ -3121,8 +3653,7 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
         </div>
       </SectionCard>
 
-      {plan !== "TRIAL" && (
-        <SectionCard
+      <SectionCard
           title={
             <span className="flex items-center gap-2">
               <IndianRupee size={15} />
@@ -3173,10 +3704,8 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
             </p>
           </div>
         </SectionCard>
-      )}
 
-      {plan !== "TRIAL" && (
-        <SectionCard
+      <SectionCard
           title={
             <span className="flex items-center gap-2">
               <span
@@ -3239,7 +3768,6 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
             )}
           </div>
         </SectionCard>
-      )}
 
       <SectionCard
         title={
@@ -3344,8 +3872,7 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
       <div
         className={`p-5 rounded-2xl border-2 transition-all mb-6 ${canActivate ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20" : "border-border/50 bg-muted/20"}`}
       >
-        {plan !== "TRIAL" && (
-          <div className="mb-4">
+        <div className="mb-4">
             <div
               className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${licencePaid ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20" : "border-border/50 bg-card"}`}
             >
@@ -3363,7 +3890,6 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
               />
             </div>
           </div>
-        )}
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold">
@@ -3372,7 +3898,7 @@ function ManagePlanTab({ inst, hideTrial = false }: { inst: InstData; hideTrial?
                 : "⏳ Complete steps to activate"}
             </p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              {!licencePaid && plan !== "TRIAL"
+              {!licencePaid
                 ? "Mark licence payment as received"
                 : canActivate
                   ? `${plan} · Monthly billing · ${fmt(currentRate)}/user`
@@ -3413,7 +3939,6 @@ export default function InstitutionDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
   const [activeTab, setActiveTab] = useState<"details" | "plan">("details");
-  const [showPlanSelection, setShowPlanSelection] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -3458,6 +3983,16 @@ export default function InstitutionDetailPage() {
       );
     } catch (err: any) {
       toast.error(err?.response?.data?.message ?? "Failed to update status");
+    }
+  };
+
+  const handleDelete = async () => {
+    try {
+      await api.delete(`/superadmin/institutions/${id}`);
+      toast.success("Institution permanently deleted");
+      router.replace("/superadmin/institutions");
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? "Failed to delete institution");
     }
   };
 
@@ -3567,54 +4102,11 @@ export default function InstitutionDetailPage() {
             inst={institution}
             onStatusToggle={handleStatusToggle}
             onResendInvite={handleResendInvite}
+            onDelete={handleDelete}
           />
-        ) : (() => {
-          const isTrialLifecycle =
-            institution.subscription?.status === "TRIAL" ||
-            institution.subscription?.status === "LOCKED";
-
-          if (isTrialLifecycle && !showPlanSelection) {
-            return (
-              <TrialManagementSection
-                key="trial"
-                institutionId={institution.id}
-                institutionName={institution.name}
-                institutionStatus={institution.status as "PENDING" | "ACTIVE" | "SUSPENDED"}
-                subscription={{
-                  status: institution.subscription?.status ?? "",
-                  endDate: institution.subscription?.endDate ?? null,
-                  trialDays: institution.subscription?.trialDays ?? null,
-                  trialOutcome: institution.subscription?.trialOutcome ?? null,
-                }}
-                onRefresh={fetchInstitution}
-                onSelectPlan={() => setShowPlanSelection(true)}
-              />
-            );
-          }
-
-          if (isTrialLifecycle && showPlanSelection) {
-            return (
-              <motion.div
-                key="plan-select"
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="space-y-4"
-              >
-                {institution.subscription?.status === "TRIAL" && (
-                  <button
-                    onClick={() => setShowPlanSelection(false)}
-                    className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                  >
-                    <ArrowLeft size={14} /> Back to Trial
-                  </button>
-                )}
-                <ManagePlanTab key="plan" inst={institution} hideTrial />
-              </motion.div>
-            );
-          }
-
-          return <ManagePlanTab key="plan" inst={institution} />;
-        })()}
+        ) : (
+          <ManagePlanTab key="plan" inst={institution} />
+        )}
       </AnimatePresence>
     </div>
   );

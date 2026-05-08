@@ -66,8 +66,22 @@ export function LoginForm() {
                 email: identifier.trim(),
                 password,
             });
-            const { token, user } = res.data.data;
+            const { token, user, institution } = res.data.data;
             setAuth(user, token);
+
+            const subStatus = institution?.subscriptionStatus;
+            const instStatus = institution?.status;
+
+            if (instStatus === 'SUSPENDED' || subStatus === 'EXPIRED' || subStatus === 'LOCKED') {
+                router.push('/suspended');
+                return;
+            }
+
+            if (subStatus === 'PAUSED' && user.role === 'STUDENT') {
+                router.push('/paused');
+                return;
+            }
+
             toast.success(`Welcome back, ${user.name || user.email}!`);
             router.push(ROLE_REDIRECT[user.role] || '/login');
         } catch (err: any) {

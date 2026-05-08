@@ -1,13 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     X, Send, Check, Megaphone, Wrench, Sparkles, Bug,
     CreditCard, ShieldAlert, Bell, Users, Building2,
     School, GraduationCap, BookOpen, Search, ChevronDown,
-    Clock, CheckCircle2, History,
+    Clock, CheckCircle2, History, Loader2,
 } from 'lucide-react';
+import api from '@/lib/api';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -21,6 +22,22 @@ type Tag = {
 type RecipientType = 'ALL' | 'SCHOOL' | 'COLLEGE' | 'COACHING' | 'SPECIFIC';
 type ModalTab = 'compose' | 'history';
 
+type InstitutionOption = {
+    id: string;
+    name: string;
+    type: string;
+};
+
+type HistoryNotification = {
+    id: string;
+    title: string;
+    message: string;
+    tag: string;
+    recipientType: string;
+    deliveredTo: number;
+    createdAt: string;
+};
+
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
 const TAGS: Tag[] = [
@@ -33,67 +50,29 @@ const TAGS: Tag[] = [
     { value: 'SECURITY', label: 'Security Alert', icon: ShieldAlert, cls: 'bg-orange-100 text-orange-700 border-orange-300 dark:bg-orange-950 dark:text-orange-400 dark:border-orange-800' },
 ];
 
-const RECIPIENTS = [
-    { value: 'ALL' as RecipientType, label: 'All Admins', icon: Users, count: 48, cls: 'bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-950 dark:text-violet-400 dark:border-violet-800' },
-    { value: 'SCHOOL' as RecipientType, label: 'School Admins', icon: School, count: 21, cls: 'bg-sky-100 text-sky-700 border-sky-300 dark:bg-sky-950 dark:text-sky-400 dark:border-sky-800' },
-    { value: 'COLLEGE' as RecipientType, label: 'College Admins', icon: GraduationCap, count: 18, cls: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800' },
-    { value: 'COACHING' as RecipientType, label: 'Coaching Admins', icon: BookOpen, count: 9, cls: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800' },
-    { value: 'SPECIFIC' as RecipientType, label: 'Specific Institution', icon: Building2, count: 0, cls: 'bg-muted text-muted-foreground border-border' },
+const RECIPIENT_META = [
+    { value: 'ALL' as RecipientType, label: 'All Institutions', icon: Users, cls: 'bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-950 dark:text-violet-400 dark:border-violet-800' },
+    { value: 'SCHOOL' as RecipientType, label: 'Schools', icon: School, cls: 'bg-sky-100 text-sky-700 border-sky-300 dark:bg-sky-950 dark:text-sky-400 dark:border-sky-800' },
+    { value: 'COLLEGE' as RecipientType, label: 'Colleges', icon: GraduationCap, cls: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-400 dark:border-emerald-800' },
+    { value: 'COACHING' as RecipientType, label: 'Coaching', icon: BookOpen, cls: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800' },
+    { value: 'SPECIFIC' as RecipientType, label: 'Specific Institution', icon: Building2, cls: 'bg-muted text-muted-foreground border-border' },
 ];
 
-const MOCK_INSTITUTIONS = [
-    { id: 's1', name: 'Delhi Public School', type: 'SCHOOL' },
-    { id: 's2', name: 'Modern High School', type: 'SCHOOL' },
-    { id: 's3', name: 'Ryan International School', type: 'SCHOOL' },
-    { id: 'c1', name: 'DY Patil College', type: 'COLLEGE' },
-    { id: 'c2', name: 'Fergusson College', type: 'COLLEGE' },
-    { id: 'c3', name: 'Shree Vidya College', type: 'COLLEGE' },
-    { id: 'k1', name: 'Aakash Coaching', type: 'COACHING' },
-    { id: 'k2', name: 'Sunrise Academy', type: 'COACHING' },
-];
-
-interface HistoryNotification {
-    id: string;
-    title: string;
-    message: string;
-    tag: string;
-    recipient: string;
-    deliveredTo: number;
-    sentAt: string;
+function relativeTime(dateStr: string): string {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    const days = Math.floor(hrs / 24);
+    if (days < 7) return `${days}d ago`;
+    return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-const MOCK_HISTORY: HistoryNotification[] = [
-    {
-        id: 'n1', title: 'Scheduled Maintenance Tonight',
-        message: 'QubeEx will be under maintenance from 2AM to 4AM IST. Please save your work.',
-        tag: 'MAINTENANCE', recipient: 'All Admins', deliveredTo: 48, sentAt: '2 hours ago',
-    },
-    {
-        id: 'n2', title: 'New Feature: Bulk CSV Import',
-        message: 'You can now import students in bulk using CSV files. Check the People section.',
-        tag: 'FEATURE', recipient: 'School Admins', deliveredTo: 21, sentAt: '1 day ago',
-    },
-    {
-        id: 'n3', title: 'Bug Fixed: Test Submission Issue',
-        message: 'The issue where test submissions were not saving has been resolved.',
-        tag: 'BUG_FIXED', recipient: 'All Admins', deliveredTo: 48, sentAt: '3 days ago',
-    },
-    {
-        id: 'n4', title: 'Plan Expiring Soon',
-        message: 'Your Pro plan is expiring in 7 days. Please renew to avoid service interruption.',
-        tag: 'PLAN_EXPIRY', recipient: 'Aakash Coaching', deliveredTo: 1, sentAt: '5 days ago',
-    },
-    {
-        id: 'n5', title: 'Security Advisory',
-        message: 'We recommend all admins to reset their passwords as a precautionary measure.',
-        tag: 'SECURITY', recipient: 'All Admins', deliveredTo: 48, sentAt: '1 week ago',
-    },
-    {
-        id: 'n6', title: 'Platform v2.1 Update Released',
-        message: 'QubeEx v2.1 is live with improved AI grading, faster load times and new reports.',
-        tag: 'UPDATE', recipient: 'All Admins', deliveredTo: 48, sentAt: '2 weeks ago',
-    },
-];
+function recipientLabel(recipientType: string): string {
+    return RECIPIENT_META.find(r => r.value === recipientType)?.label ?? recipientType;
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -115,9 +94,66 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
     const [step, setStep] = useState<'compose' | 'preview'>('compose');
     const [sending, setSending] = useState(false);
     const [sent, setSent] = useState(false);
-    const [history, setHistory] = useState<HistoryNotification[]>(MOCK_HISTORY);
+    const [error, setError] = useState<string | null>(null);
 
-    const filteredInstitutions = MOCK_INSTITUTIONS.filter(i =>
+    // Real data
+    const [institutions, setInstitutions] = useState<InstitutionOption[]>([]);
+    const [loadingInstitutions, setLoadingInstitutions] = useState(false);
+    const [history, setHistory] = useState<HistoryNotification[]>([]);
+    const [loadingHistory, setLoadingHistory] = useState(false);
+    const [historyPage, setHistoryPage] = useState(1);
+    const [historyTotal, setHistoryTotal] = useState(0);
+
+    const fetchInstitutions = useCallback(async () => {
+        setLoadingInstitutions(true);
+        try {
+            const res = await api.get('/superadmin/institutions');
+            const list: InstitutionOption[] = (res.data?.data ?? []).map((i: any) => ({
+                id: i.id,
+                name: i.name,
+                type: i.type,
+            }));
+            setInstitutions(list);
+        } catch {
+            // non-fatal — picker will just be empty
+        } finally {
+            setLoadingInstitutions(false);
+        }
+    }, []);
+
+    const fetchHistory = useCallback(async (page = 1) => {
+        setLoadingHistory(true);
+        try {
+            const res = await api.get('/superadmin/notifications', { params: { page, limit: 20 } });
+            const { notifications, pagination } = res.data ?? { notifications: [], pagination: { total: 0 } };
+            setHistory(prev => page === 1 ? notifications : [...prev, ...notifications]);
+            setHistoryTotal(pagination.total ?? 0);
+            setHistoryPage(page);
+        } catch {
+            // non-fatal
+        } finally {
+            setLoadingHistory(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (open) {
+            void fetchInstitutions();
+            void fetchHistory(1);
+        }
+    }, [open, fetchInstitutions, fetchHistory]);
+
+    // Counts derived from real institutions
+    const countAll = institutions.length;
+    const countByType = (type: string) => institutions.filter(i => i.type === type).length;
+
+    const getRecipientCount = () => {
+        if (recipient === 'SPECIFIC') return selectedInstitutions.length;
+        if (recipient === 'ALL') return countAll;
+        return countByType(recipient);
+    };
+
+    const filteredInstitutions = institutions.filter(i =>
         i.name.toLowerCase().includes(specificSearch.toLowerCase())
     );
 
@@ -131,46 +167,42 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
 
     const getRecipientLabel = () => {
         if (recipient === 'SPECIFIC') {
-            const names = MOCK_INSTITUTIONS
+            const names = institutions
                 .filter(i => selectedInstitutions.includes(i.id))
                 .map(i => i.name);
             return names.length <= 2
                 ? names.join(', ')
                 : `${names.slice(0, 2).join(', ')} +${names.length - 2} more`;
         }
-        return RECIPIENTS.find(r => r.value === recipient)?.label ?? '';
-    };
-
-    const getRecipientCount = () => {
-        if (recipient === 'SPECIFIC') return selectedInstitutions.length;
-        return RECIPIENTS.find(r => r.value === recipient)?.count ?? 0;
+        return RECIPIENT_META.find(r => r.value === recipient)?.label ?? '';
     };
 
     const tagCfg = TAGS.find(t => t.value === selectedTag);
     const TagIcon = tagCfg?.icon;
 
-    const handleSend = () => {
+    const handleSend = async () => {
         setSending(true);
-        setTimeout(() => {
-            // Add to history
-            const newNotif: HistoryNotification = {
-                id: `n-${Date.now()}`,
+        setError(null);
+        try {
+            await api.post('/superadmin/notifications', {
                 title,
                 message,
-                tag: selectedTag!,
-                recipient: getRecipientLabel(),
-                deliveredTo: getRecipientCount(),
-                sentAt: 'Just now',
-            };
-            setHistory(prev => [newNotif, ...prev]);
-            setSending(false);
+                tag: selectedTag,
+                recipient,
+                institutionIds: recipient === 'SPECIFIC' ? selectedInstitutions : undefined,
+            });
             setSent(true);
+            await fetchHistory(1);
             setTimeout(() => {
                 setSent(false);
                 handleResetCompose();
                 setModalTab('history');
             }, 1500);
-        }, 1200);
+        } catch (err: any) {
+            setError(err?.response?.data?.error ?? 'Failed to send notification. Please try again.');
+        } finally {
+            setSending(false);
+        }
     };
 
     const handleResetCompose = () => {
@@ -183,6 +215,7 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
         setStep('compose');
         setSending(false);
         setSent(false);
+        setError(null);
     };
 
     const handleClose = () => {
@@ -237,9 +270,11 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                             }`}>
                                         <History size={16} />
                                         History
-                                        <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full">
-                                            {history.length}
-                                        </span>
+                                        {historyTotal > 0 && (
+                                            <span className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-full">
+                                                {historyTotal}
+                                            </span>
+                                        )}
                                     </button>
                                 </div>
 
@@ -262,57 +297,70 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                             exit={{ opacity: 0, x: -16 }}
                                             className="divide-y divide-border/40"
                                         >
-                                            {history.length === 0 ? (
+                                            {loadingHistory && history.length === 0 ? (
+                                                <div className="flex items-center justify-center py-20">
+                                                    <Loader2 size={24} className="text-muted-foreground animate-spin" />
+                                                </div>
+                                            ) : history.length === 0 ? (
                                                 <div className="flex flex-col items-center justify-center py-20 text-center">
                                                     <History size={32} className="text-muted-foreground mb-3" />
                                                     <p className="text-sm font-medium text-muted-foreground">No notifications sent yet</p>
                                                 </div>
                                             ) : (
-                                                history.map((notif, i) => {
-                                                    const tag = TAGS.find(t => t.value === notif.tag);
-                                                    const TagIc = tag?.icon;
-                                                    return (
-                                                        <motion.div
-                                                            key={notif.id}
-                                                            initial={{ opacity: 0, y: 8 }}
-                                                            animate={{ opacity: 1, y: 0 }}
-                                                            transition={{ delay: i * 0.04 }}
-                                                            className="flex items-start gap-3 px-6 py-4 hover:bg-muted/20 transition-colors"
-                                                        >
-                                                            {/* Tag icon */}
-                                                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${tag?.cls ?? 'bg-muted text-muted-foreground'}`}>
-                                                                {TagIc && <TagIc size={14} />}
-                                                            </div>
+                                                <>
+                                                    {history.map((notif, i) => {
+                                                        const tag = TAGS.find(t => t.value === notif.tag);
+                                                        const TagIc = tag?.icon;
+                                                        return (
+                                                            <motion.div
+                                                                key={notif.id}
+                                                                initial={{ opacity: 0, y: 8 }}
+                                                                animate={{ opacity: 1, y: 0 }}
+                                                                transition={{ delay: i * 0.03 }}
+                                                                className="flex items-start gap-3 px-6 py-4 hover:bg-muted/20 transition-colors"
+                                                            >
+                                                                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${tag?.cls ?? 'bg-muted text-muted-foreground'}`}>
+                                                                    {TagIc && <TagIc size={14} />}
+                                                                </div>
 
-                                                            <div className="flex-1 min-w-0">
-                                                                {/* Title + tag */}
-                                                                <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                                                                    <p className="text-sm font-semibold truncate">{notif.title}</p>
-                                                                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${tag?.cls}`}>
-                                                                        {tag?.label}
-                                                                    </span>
+                                                                <div className="flex-1 min-w-0">
+                                                                    <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                                                                        <p className="text-sm font-semibold truncate">{notif.title}</p>
+                                                                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${tag?.cls}`}>
+                                                                            {tag?.label ?? notif.tag}
+                                                                        </span>
+                                                                    </div>
+                                                                    <p className="text-xs text-muted-foreground line-clamp-1 mb-1.5">{notif.message}</p>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                                                            <Users size={10} />
+                                                                            {recipientLabel(notif.recipientType)}
+                                                                        </span>
+                                                                        <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
+                                                                            <CheckCircle2 size={10} />
+                                                                            {notif.deliveredTo} delivered
+                                                                        </span>
+                                                                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                                                                            <Clock size={10} />
+                                                                            {relativeTime(notif.createdAt)}
+                                                                        </span>
+                                                                    </div>
                                                                 </div>
-                                                                {/* Message preview */}
-                                                                <p className="text-xs text-muted-foreground line-clamp-1 mb-1.5">{notif.message}</p>
-                                                                {/* Meta */}
-                                                                <div className="flex items-center gap-3">
-                                                                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                                                        <Users size={10} />
-                                                                        {notif.recipient}
-                                                                    </span>
-                                                                    <span className="flex items-center gap-1 text-[11px] text-emerald-600 dark:text-emerald-400 font-medium">
-                                                                        <CheckCircle2 size={10} />
-                                                                        {notif.deliveredTo} delivered
-                                                                    </span>
-                                                                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                                                                        <Clock size={10} />
-                                                                        {notif.sentAt}
-                                                                    </span>
-                                                                </div>
-                                                            </div>
-                                                        </motion.div>
-                                                    );
-                                                })
+                                                            </motion.div>
+                                                        );
+                                                    })}
+                                                    {history.length < historyTotal && (
+                                                        <div className="px-6 py-4 text-center">
+                                                            <button
+                                                                onClick={() => fetchHistory(historyPage + 1)}
+                                                                disabled={loadingHistory}
+                                                                className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                                                            >
+                                                                {loadingHistory ? 'Loading...' : 'Load more'}
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </>
                                             )}
                                         </motion.div>
                                     )}
@@ -388,9 +436,12 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                                         <div className="space-y-2">
                                                             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Send To</label>
                                                             <div className="grid grid-cols-2 gap-2">
-                                                                {RECIPIENTS.map(r => {
+                                                                {RECIPIENT_META.map(r => {
                                                                     const Icon = r.icon;
                                                                     const isActive = recipient === r.value;
+                                                                    const count = r.value === 'SPECIFIC' ? 0
+                                                                        : r.value === 'ALL' ? countAll
+                                                                        : countByType(r.value);
                                                                     return (
                                                                         <button key={r.value} onClick={() => setRecipient(r.value)}
                                                                             className={`flex items-center gap-2.5 p-3 rounded-xl border-2 transition-all text-left ${isActive ? r.cls : 'border-border/50 hover:bg-muted/30'
@@ -398,7 +449,11 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                                                             <Icon size={15} className={isActive ? '' : 'text-muted-foreground'} />
                                                                             <div>
                                                                                 <p className="text-xs font-semibold">{r.label}</p>
-                                                                                {r.count > 0 && <p className="text-[10px] opacity-70">{r.count} admins</p>}
+                                                                                {r.value !== 'SPECIFIC' && (
+                                                                                    <p className="text-[10px] opacity-70">
+                                                                                        {loadingInstitutions ? '...' : `${count} institution${count !== 1 ? 's' : ''}`}
+                                                                                    </p>
+                                                                                )}
                                                                             </div>
                                                                             {isActive && <Check size={13} className="ml-auto" />}
                                                                         </button>
@@ -426,7 +481,13 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                                                                 />
                                                                             </div>
                                                                             <div className="space-y-1 max-h-[160px] overflow-y-auto">
-                                                                                {filteredInstitutions.map(inst => {
+                                                                                {loadingInstitutions ? (
+                                                                                    <div className="flex items-center justify-center py-6">
+                                                                                        <Loader2 size={18} className="text-muted-foreground animate-spin" />
+                                                                                    </div>
+                                                                                ) : filteredInstitutions.length === 0 ? (
+                                                                                    <p className="text-xs text-muted-foreground text-center py-4">No institutions found</p>
+                                                                                ) : filteredInstitutions.map(inst => {
                                                                                     const isSelected = selectedInstitutions.includes(inst.id);
                                                                                     return (
                                                                                         <button key={inst.id} onClick={() => toggleInstitution(inst.id)}
@@ -495,7 +556,7 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                                             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Send Summary</p>
                                                             {[
                                                                 { label: 'Recipients', value: getRecipientLabel() },
-                                                                { label: 'Total admins', value: `${getRecipientCount()}` },
+                                                                { label: 'Total institutions', value: `${getRecipientCount()}` },
                                                                 { label: 'Category', value: tagCfg?.label ?? '' },
                                                             ].map(({ label, value }) => (
                                                                 <div key={label} className="flex items-center justify-between">
@@ -504,6 +565,11 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                                                 </div>
                                                             ))}
                                                         </div>
+
+                                                        {/* Error */}
+                                                        {error && (
+                                                            <p className="text-xs text-red-500 font-medium">{error}</p>
+                                                        )}
                                                     </motion.div>
                                                 )}
 
@@ -535,7 +601,7 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                         </>
                                     ) : (
                                         <>
-                                            <button onClick={() => setStep('compose')}
+                                            <button onClick={() => { setStep('compose'); setError(null); }}
                                                 className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
                                                 <ChevronDown size={14} className="rotate-90" />
                                                 Back
@@ -554,13 +620,13 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                                 >
                                                     {sending ? (
                                                         <>
-                                                            <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+                                                            <Loader2 size={14} className="animate-spin" />
                                                             Sending...
                                                         </>
                                                     ) : (
                                                         <>
                                                             <Send size={14} />
-                                                            Send to {getRecipientCount()} admin{getRecipientCount() !== 1 ? 's' : ''}
+                                                            Send to {getRecipientCount()} institution{getRecipientCount() !== 1 ? 's' : ''}
                                                         </>
                                                     )}
                                                 </button>

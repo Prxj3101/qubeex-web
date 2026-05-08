@@ -28,6 +28,13 @@ api.interceptors.response.use(
             return Promise.reject(error);
         }
 
+        if (status === 403 && code === 'INSTITUTION_PAUSED') {
+            if (typeof window !== 'undefined' && window.location.pathname !== '/paused') {
+                window.location.href = '/paused';
+            }
+            return Promise.reject(error);
+        }
+
         if (status === 401) {
             if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
                 localStorage.removeItem('token');
