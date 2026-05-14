@@ -78,13 +78,6 @@ function relativeTime(dateStr: string): string {
 
 // ─── Mock data for non-superadmin roles ───────────────────────────────────────
 
-const ADMIN_MOCK: BellNotif[] = [
-    { id: 'ad1', iconKey: 'SYSTEM_UPDATE',    read: false, title: 'Platform update available',     subtitle: 'QubeEx v2.1 — New AI grading features added',       time: '1 hr ago' },
-    { id: 'ad2', iconKey: 'STUDENT_ENROLLED', read: false, title: '12 new students enrolled',      subtitle: 'Class 10-A now has 36 students',                     time: '1 hr ago' },
-    { id: 'ad3', iconKey: 'TEST_PUBLISHED',   read: false, title: 'Test results published',        subtitle: 'Maths Unit Test — Class 9 results are ready',        time: '2 hr ago' },
-    { id: 'ad4', iconKey: 'PLAN_EXPIRY_ADMIN',read: false, title: 'Your plan expires in 7 days',   subtitle: 'Renew your Pro plan to avoid service interruption',   time: '3 hr ago' },
-    { id: 'ad5', iconKey: 'BROADCAST_SENT',   read: true,  title: 'System maintenance tonight',    subtitle: 'QubeEx will be down from 2AM to 4AM IST',            time: '5 hr ago' },
-];
 
 const TEACHER_MOCK: BellNotif[] = [
     { id: 'tc1', iconKey: 'ASSIGNMENT_SUBMITTED', read: false, title: '24 assignments submitted', subtitle: 'DS Unit 3 Assignment — Class 10-A',              time: '5 min ago' },
@@ -101,7 +94,8 @@ const STUDENT_MOCK: BellNotif[] = [
     { id: 'st5', iconKey: 'ANNOUNCEMENT_ADMIN',  read: true,  title: 'New announcement',     subtitle: 'Exam schedule updated — Check calendar',         time: '1 day ago' },
 ];
 
-const LAST_SEEN_KEY = 'sa-notifs-last-seen';
+const SA_LAST_SEEN_KEY = 'sa-notifs-last-seen';
+const ADMIN_LAST_SEEN_KEY = 'admin-notifs-last-seen';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -114,6 +108,7 @@ export function NotificationsBell() {
     const [lastSeen, setLastSeen] = useState<Date | null>(null);
 
     const isSuperAdmin = pathname.startsWith('/superadmin');
+    const isAdmin = pathname.startsWith('/admin');
 
     const role =
         pathname.startsWith('/superadmin') ? 'SUPER_ADMIN' :
@@ -121,12 +116,14 @@ export function NotificationsBell() {
         pathname.startsWith('/teacher')    ? 'TEACHER' :
         'STUDENT';
 
+    const lastSeenKey = isSuperAdmin ? SA_LAST_SEEN_KEY : ADMIN_LAST_SEEN_KEY;
+
     // Load lastSeen from localStorage on mount
     useEffect(() => {
-        if (!isSuperAdmin) return;
-        const raw = localStorage.getItem(LAST_SEEN_KEY);
+        if (!isSuperAdmin && !isAdmin) return;
+        const raw = localStorage.getItem(lastSeenKey);
         setLastSeen(raw ? new Date(raw) : null);
-    }, [isSuperAdmin]);
+    }, [isSuperAdmin, isAdmin, lastSeenKey]);
 
     const fetchSANotifs = useCallback(async () => {
         setLoading(true);
@@ -150,45 +147,65 @@ export function NotificationsBell() {
         }
     }, [lastSeen]);
 
-    // Fetch on mount for superadmin
+    const fetchAdminNotifs = useCallback(async () => {
+        setLoading(true);
+        try {
+            const res = await api.get('/admin/notifications', { params: { page: 1, limit: 10 } });
+            const raw: any[] = res.data?.notifications ?? [];
+            const seen = lastSeen;
+            const mapped: BellNotif[] = raw.map(n => ({
+                id: n.id,
+                title: n.title,
+                subtitle: n.message.length > 80 ? n.message.slice(0, 80) + '…' : n.message,
+                time: relativeTime(n.createdAt),
+                read: seen ? new Date(n.createdAt) <= seen : false,
+                iconKey: n.tag ?? 'SYSTEM',
+            }));
+            setNotifs(mapped);
+        } catch {
+            // fail silently — bell just shows empty
+        } finally {
+            setLoading(false);
+        }
+    }, [lastSeen]);
+
+    // Fetch on mount for superadmin / admin; use mock for teacher and student
     useEffect(() => {
         if (isSuperAdmin) {
             void fetchSANotifs();
+        } else if (isAdmin) {
+            void fetchAdminNotifs();
         } else {
             const mockMap: Record<string, BellNotif[]> = {
-                ADMIN: ADMIN_MOCK,
                 TEACHER: TEACHER_MOCK,
                 STUDENT: STUDENT_MOCK,
             };
             setNotifs(mockMap[role] ?? []);
         }
-    }, [isSuperAdmin, role, fetchSANotifs]);
+    }, [isSuperAdmin, isAdmin, role, fetchSANotifs, fetchAdminNotifs]);
 
     const unreadCount = notifs.filter(n => !n.read).length;
 
     const handleOpen = () => {
         setOpen(true);
-        if (isSuperAdmin) {
-            // Refresh on open
-            void fetchSANotifs();
-        }
+        if (isSuperAdmin) void fetchSANotifs();
+        else if (isAdmin) void fetchAdminNotifs();
     };
 
     const handleClose = () => {
         setOpen(false);
-        if (isSuperAdmin) {
-            // Mark all as read by updating lastSeen to now
+        if (isSuperAdmin || isAdmin) {
             const now = new Date();
-            localStorage.setItem(LAST_SEEN_KEY, now.toISOString());
+            localStorage.setItem(lastSeenKey, now.toISOString());
             setLastSeen(now);
             setNotifs(prev => prev.map(n => ({ ...n, read: true })));
         }
     };
 
     const markAllRead = () => {
-        if (isSuperAdmin) {
+        if (isSuperAdmin || isAdmin) {
             const now = new Date();
-            localStorage.setItem(LAST_SEEN_KEY, now.toISOString());
+            localStorage.setItem(lastSeenKey, now.toISOString());
             setLastSeen(now);
         }
         setNotifs(prev => prev.map(n => ({ ...n, read: true })));
@@ -200,6 +217,7 @@ export function NotificationsBell() {
     const handleViewAll = () => {
         handleClose();
         if (isSuperAdmin) router.push('/superadmin/notifications');
+        else if (isAdmin) router.push('/admin/notifications');
     };
 
     return (
