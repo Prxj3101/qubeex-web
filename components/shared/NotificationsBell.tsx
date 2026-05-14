@@ -109,8 +109,6 @@ export function NotificationsBell() {
     const [open, setOpen] = useState(false);
     const [notifs, setNotifs] = useState<BellNotif[]>([]);
     const [loading, setLoading] = useState(false);
-    const [lastSeen, setLastSeen] = useState<Date | null>(null);
-
     const isSuperAdmin = pathname.startsWith('/superadmin');
     const isAdmin = pathname.startsWith('/admin');
 
@@ -122,12 +120,11 @@ export function NotificationsBell() {
 
     const lastSeenKey = isSuperAdmin ? SA_LAST_SEEN_KEY : ADMIN_LAST_SEEN_KEY;
 
-    // Load lastSeen from localStorage on mount
-    useEffect(() => {
-        if (!isSuperAdmin && !isAdmin) return;
-        const raw = localStorage.getItem(lastSeenKey);
-        setLastSeen(raw ? new Date(raw) : null);
-    }, [isSuperAdmin, isAdmin, lastSeenKey]);
+    const [lastSeen, setLastSeen] = useState<Date | null>(() => {
+        if (typeof window === 'undefined') return null;
+        const raw = localStorage.getItem(isSuperAdmin ? SA_LAST_SEEN_KEY : ADMIN_LAST_SEEN_KEY);
+        return raw ? new Date(raw) : null;
+    });
 
     const fetchSANotifs = useCallback(async () => {
         setLoading(true);
