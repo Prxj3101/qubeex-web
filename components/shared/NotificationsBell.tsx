@@ -25,7 +25,7 @@ interface BellNotif {
 
 // ─── Icon configs ─────────────────────────────────────────────────────────────
 
-const ICON_CFG: Record<string, { icon: React.ElementType; iconBg: string; iconColor: string }> = {
+export const ICON_CFG: Record<string, { icon: React.ElementType; iconBg: string; iconColor: string }> = {
     // Broadcast tags
     ANNOUNCEMENT:  { icon: Megaphone,   iconBg: 'bg-violet-100 dark:bg-violet-950/50', iconColor: 'text-violet-600 dark:text-violet-400' },
     MAINTENANCE:   { icon: Wrench,      iconBg: 'bg-amber-100 dark:bg-amber-950/50',   iconColor: 'text-amber-500' },
@@ -58,8 +58,12 @@ const ICON_CFG: Record<string, { icon: React.ElementType; iconBg: string; iconCo
     ANNOUNCEMENT_ADMIN:    { icon: Megaphone,    iconBg: 'bg-sky-100 dark:bg-sky-950/50',       iconColor: 'text-sky-500' },
 };
 
-function getIconCfg(key: string) {
+export function getIconCfg(key: string) {
     return ICON_CFG[key] ?? ICON_CFG['SYSTEM'];
+}
+
+export function relativeTimeStr(dateStr: string): string {
+    return relativeTime(dateStr);
 }
 
 // ─── Relative time ────────────────────────────────────────────────────────────
