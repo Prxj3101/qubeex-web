@@ -22,6 +22,13 @@ interface BellNotif {
     read: boolean;
     iconKey: string;
 }
+interface ApiNotif {
+    id: string;
+    title: string;
+    message: string;
+    createdAt: string;
+    tag?: string;
+}
 
 // ─── Icon configs ─────────────────────────────────────────────────────────────
 
@@ -130,7 +137,7 @@ export function NotificationsBell() {
         setLoading(true);
         try {
             const res = await api.get('/superadmin/notifications', { params: { page: 1, limit: 10 } });
-            const raw: any[] = res.data?.notifications ?? [];
+            const raw: ApiNotif[] = res.data?.notifications ?? [];
             const seen = lastSeen;
             const mapped: BellNotif[] = raw.map(n => ({
                 id: n.id,
@@ -152,7 +159,7 @@ export function NotificationsBell() {
         setLoading(true);
         try {
             const res = await api.get('/admin/notifications', { params: { page: 1, limit: 10 } });
-            const raw: any[] = res.data?.notifications ?? [];
+            const raw: ApiNotif[] = res.data?.notifications ?? [];
             const seen = lastSeen;
             const mapped: BellNotif[] = raw.map(n => ({
                 id: n.id,

@@ -18,7 +18,7 @@ const STUDENT = {
     overallScore: 71,
 };
 
-const LEADERBOARD = [
+const LEADERBOARD: Array<{ rank: number; name: string; pct: number; color: string; isMe?: boolean }> = [
     { rank: 1, name: 'Rahul Sharma', pct: 98.5, color: '#F59E0B' },
     { rank: 2, name: 'Priya Mehta', pct: 96.2, color: '#94A3B8' },
     { rank: 3, name: 'Arjun Verma', pct: 94.8, color: '#CD7C2F' },
@@ -73,7 +73,7 @@ export default function StudentOverview() {
                     <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
                         {STUDENT.name}
                     </p>
-                    <p className="text-white/60 text-sm">Here's your academic overview for today.</p>
+                    <p className="text-white/60 text-sm">Here&apos;s your academic overview for today.</p>
                     <p className="text-white/50 text-xs mt-2">{dateStr}</p>
                 </div>
 
@@ -203,7 +203,7 @@ export default function StudentOverview() {
                         </div>
 
                         {/* Quote mark */}
-                        <p style={{ fontFamily: '"Caveat", cursive', fontSize: '72px', color: 'rgba(255,255,255,0.08)', lineHeight: '0.6', marginBottom: 8, position: 'relative', zIndex: 1 }}>"</p>
+                        <p style={{ fontFamily: '"Caveat", cursive', fontSize: '72px', color: 'rgba(255,255,255,0.08)', lineHeight: '0.6', marginBottom: 8, position: 'relative', zIndex: 1 }}>&quot;</p>
 
                         {/* Thought */}
                         <p className="chalk-flicker" style={{ fontFamily: '"Caveat", cursive', fontSize: '26px', color: 'rgba(255,255,255,0.92)', lineHeight: '1.5', marginBottom: 12, textShadow: '0 0 8px rgba(255,255,255,0.15), 1px 1px 2px rgba(0,0,0,0.4)', position: 'relative', zIndex: 1 }}>
@@ -327,15 +327,15 @@ export default function StudentOverview() {
                     <div className="space-y-2 mt-auto">
                         {LEADERBOARD.slice(3).map(s => (
                             <div key={s.rank}
-                                className={`flex items-center gap-3 p-2.5 rounded-xl border ${(s as any).isMe ? 'border-violet-300 bg-violet-50 dark:bg-violet-950/30 dark:border-violet-800' : 'border-border/50 bg-muted/20'}`}>
+                                className={`flex items-center gap-3 p-2.5 rounded-xl border ${s.isMe ? 'border-violet-300 bg-violet-50 dark:bg-violet-950/30 dark:border-violet-800' : 'border-border/50 bg-muted/20'}`}>
                                 <span className="text-base">{s.rank === 4 ? '4️⃣' : '5️⃣'}</span>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${(s as any).isMe ? 'bg-violet-100 dark:bg-violet-950 border-violet-400 text-violet-700 dark:text-violet-300' : 'bg-muted border-border text-muted-foreground'}`}>
+                                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 ${s.isMe ? 'bg-violet-100 dark:bg-violet-950 border-violet-400 text-violet-700 dark:text-violet-300' : 'bg-muted border-border text-muted-foreground'}`}>
                                     {s.name[0]}
                                 </div>
-                                <p className={`flex-1 text-xs font-semibold ${(s as any).isMe ? 'text-violet-700 dark:text-violet-300' : 'text-foreground'}`}>
-                                    {s.name} {(s as any).isMe && '(You)'}
+                                <p className={`flex-1 text-xs font-semibold ${s.isMe ? 'text-violet-700 dark:text-violet-300' : 'text-foreground'}`}>
+                                    {s.name} {s.isMe && '(You)'}
                                 </p>
-                                <p className={`text-xs font-bold ${(s as any).isMe ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground'}`}>{s.pct}%</p>
+                                <p className={`text-xs font-bold ${s.isMe ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground'}`}>{s.pct}%</p>
                             </div>
                         ))}
                     </div>

@@ -4,7 +4,7 @@ import api from '@/lib/api';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LucideIcon, User, LogOut } from 'lucide-react';
+import { LucideIcon, User, LogOut, Settings } from 'lucide-react';
 import { NotificationsBell } from './NotificationsBell';
 import {
     DropdownMenu,
@@ -100,6 +100,12 @@ function AvatarMenu() {
                 pathname.startsWith('/teacher') ? '/teacher/settings' :
                     '/student/settings';
 
+    const profileHref =
+        pathname.startsWith('/superadmin') ? '/superadmin/settings' :
+            pathname.startsWith('/admin') ? '/admin/profile' :
+                pathname.startsWith('/teacher') ? '/teacher/profile' :
+                    '/student/profile';
+
     const handleLogout = async () => {
         try { await api.post('/auth/logout'); } catch { /* ignore */ }
         clearAuth();
@@ -131,12 +137,21 @@ function AvatarMenu() {
                 <div className="h-px bg-border/50 mx-1 mb-1" />
 
                 <DropdownMenuItem
-                    onClick={() => router.push(settingsHref)}
+                    onClick={() => router.push(profileHref)}
                     className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted/50 transition-colors">
                     <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-[#7C3AED]/25 flex items-center justify-center shrink-0">
                         <User size={13} className="text-violet-600 dark:text-violet-400" />
                     </div>
                     <span className="text-sm font-medium">My Profile</span>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                    onClick={() => router.push(settingsHref)}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted/50 transition-colors">
+                    <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                        <Settings size={13} className="text-slate-600 dark:text-slate-400" />
+                    </div>
+                    <span className="text-sm font-medium">Settings</span>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem

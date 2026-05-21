@@ -157,6 +157,8 @@ export interface Teacher {
     experience?: string;
     city?: string;
     state?: string;
+    pincode?: string;
+    country?: string;
     qualification?: string;
     dob?: string;
     gender?: string;

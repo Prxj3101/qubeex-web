@@ -99,7 +99,7 @@ export default function AdminOverview() {
                     <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
                         {institution?.name ?? 'Viva Institute of Technology'}
                     </p>
-                    <p className="text-white/60 text-sm">Here's what's happening across your institution today.</p>
+                    <p className="text-white/60 text-sm">Here&apos;s what&apos;s happening across your institution today.</p>
                     <p className="text-white/50 text-xs mt-2">{dateStr}</p>
                 </div>
 

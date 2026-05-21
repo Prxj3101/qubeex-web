@@ -11,6 +11,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import Link from 'next/link';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -200,7 +201,7 @@ export default function SuperAdminOverview() {
                     <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
                         {displayName}
                     </p>
-                    <p className="text-white/60 text-sm">Here's what's happening across your platform today.</p>
+                    <p className="text-white/60 text-sm">Here&apos;s what&apos;s happening across your platform today.</p>
                     <p className="text-white/50 text-xs mt-2">{dateStr}</p>
                 </div>
 
@@ -352,7 +353,7 @@ export default function SuperAdminOverview() {
                 <div className="bg-card border border-border/50 rounded-xl p-5">
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-sm font-medium">Recent institutions</p>
-                        <a href="/superadmin/institutions" className="text-xs text-primary hover:underline">View all</a>
+                        <Link href="/superadmin/institutions" className="text-xs text-primary hover:underline">View all</Link>
                     </div>
                     <div className="space-y-0.5">
                         {loading ? (
@@ -413,7 +414,7 @@ export default function SuperAdminOverview() {
                 <div className="bg-card border border-border/50 rounded-xl p-5">
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-sm font-medium">Recent audit logs</p>
-                        <a href="/superadmin/audit-logs" className="text-xs text-primary hover:underline">View all</a>
+                        <Link href="/superadmin/audit-logs" className="text-xs text-primary hover:underline">View all</Link>
                     </div>
                     <div className="space-y-0.5">
                         {loading ? (

@@ -9,7 +9,7 @@ import type {
     InstitutionType,
 } from '@/types';
 import { getStructureLabels } from '@/lib/getInstitutionAccent';
-import { AddTeacherModal } from '@/components/admin/AddTeacherModal';
+import { AddTeacherModal, type TeacherFormData } from '@/components/admin/AddTeacherModal';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
@@ -134,9 +134,6 @@ type ModalState =
     | { type: 'edit'; teacher: Teacher }
     | { type: 'deactivate'; teacher: Teacher };
 
-function generateId() {
-    return `local-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-}
 
 // ── Teacher Card ──────────────────────────────────────────────────────────────
 function TeacherCard({
@@ -333,20 +330,28 @@ export default function TeachersPage() {
     useEffect(() => {
         let cancelled = false;
         async function fetchData() {
-            try {
-                const [tRes, sRes] = await Promise.allSettled([
-                    api.get('/admin/teachers'),
-                    api.get('/admin/structure'),
-                ]);
-                if (!cancelled) {
-                    setTeachers(tRes.status === 'fulfilled' ? tRes.value.data.data : MOCK_TEACHERS);
-                    setStructure(sRes.status === 'fulfilled' ? sRes.value.data.data : MOCK_STRUCTURE);
-                }
-            } catch {
-                if (!cancelled) { setTeachers(MOCK_TEACHERS); setStructure(MOCK_STRUCTURE); }
-            } finally {
-                if (!cancelled) setLoading(false);
+            const [tRes, sRes] = await Promise.allSettled([
+                api.get('/admin/teachers'),
+                api.get('/admin/structure'),
+            ]);
+            if (cancelled) return;
+
+            if (tRes.status === 'fulfilled') {
+                setTeachers(tRes.value.data.data ?? []);
+            } else {
+                const err = tRes.reason as { response?: { status?: number; data?: { error?: string } }; message?: string };
+                const msg = err?.response?.data?.error ?? err?.message ?? 'Failed to load teachers';
+                console.error('[Teachers] fetch failed:', err?.response?.status, err?.response?.data ?? err);
+                toast.error(msg);
+                setTeachers([]);
             }
+
+            setStructure(sRes.status === 'fulfilled' ? sRes.value.data.data : MOCK_STRUCTURE);
+            if (sRes.status === 'rejected') {
+                console.error('[Structure] fetch failed:', sRes.reason);
+            }
+
+            setLoading(false);
         }
         fetchData();
         return () => { cancelled = true; };
@@ -364,27 +369,30 @@ export default function TeachersPage() {
         : teachers;
 
     // ── Handlers ──
-    const handleAddTeacher = useCallback(async (data: { name: string; email: string; phone?: string }) => {
+    const handleAddTeacher = useCallback(async (data: TeacherFormData) => {
         setActionLoading(true);
         try {
-            try { await api.post('/admin/teachers', data); } catch { /* mock */ }
-            setTeachers(prev => [...prev, {
-                id: generateId(), ...data,
-                status: 'ACTIVE', joinedAt: new Date().toISOString(), assignments: [],
-            }]);
-            toast.success('Teacher added');
+            const res = await api.post('/admin/teachers', data);
+            setTeachers(prev => [...prev, { ...res.data.data, assignments: res.data.data.assignments ?? [] }]);
+            toast.success('Teacher added — invite sent');
             setModal({ type: 'closed' });
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            toast.error(msg ?? 'Failed to add teacher');
         } finally { setActionLoading(false); }
     }, []);
 
-    const handleEditTeacher = useCallback(async (data: { name: string; email: string; phone?: string }) => {
+    const handleEditTeacher = useCallback(async (data: TeacherFormData) => {
         if (modal.type !== 'edit') return;
         setActionLoading(true);
         try {
-            try { await api.patch(`/admin/teachers/${modal.teacher.id}`, data); } catch { /* mock */ }
-            setTeachers(prev => prev.map(t => t.id === modal.teacher.id ? { ...t, ...data } : t));
+            const res = await api.patch(`/admin/teachers/${modal.teacher.id}`, data);
+            setTeachers(prev => prev.map(t => t.id === modal.teacher.id ? { ...t, ...res.data.data } : t));
             toast.success('Teacher updated');
             setModal({ type: 'closed' });
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            toast.error(msg ?? 'Failed to update teacher');
         } finally { setActionLoading(false); }
     }, [modal]);
 
@@ -394,10 +402,13 @@ export default function TeachersPage() {
         const t = modal.teacher;
         const newStatus = t.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
         try {
-            try { await api.patch(`/admin/teachers/${t.id}`, { status: newStatus }); } catch { /* mock */ }
+            await api.patch(`/admin/teachers/${t.id}`, { status: newStatus });
             setTeachers(prev => prev.map(x => x.id === t.id ? { ...x, status: newStatus } : x));
             toast.success(newStatus === 'ACTIVE' ? 'Teacher activated' : 'Teacher deactivated');
             setModal({ type: 'closed' });
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            toast.error(msg ?? 'Failed to update teacher status');
         } finally { setActionLoading(false); }
     }, [modal]);
 
@@ -498,6 +509,15 @@ export default function TeachersPage() {
                     name: modal.teacher.name,
                     email: modal.teacher.email,
                     phone: modal.teacher.phone,
+                    dob: modal.teacher.dob,
+                    gender: modal.teacher.gender,
+                    address: modal.teacher.address,
+                    city: modal.teacher.city,
+                    state: modal.teacher.state,
+                    pincode: modal.teacher.pincode,
+                    country: modal.teacher.country,
+                    qualification: modal.teacher.qualification,
+                    experience: modal.teacher.experience,
                 } : undefined}
                 loading={actionLoading}
                 onSubmit={modal.type === 'edit' ? handleEditTeacher : handleAddTeacher}

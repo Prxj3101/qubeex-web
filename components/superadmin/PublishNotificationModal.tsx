@@ -9,6 +9,7 @@ import {
     Clock, CheckCircle2, History, Loader2,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/error';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -108,7 +109,7 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
         setLoadingInstitutions(true);
         try {
             const res = await api.get('/superadmin/institutions');
-            const list: InstitutionOption[] = (res.data?.data ?? []).map((i: any) => ({
+            const list: InstitutionOption[] = (res.data?.data ?? []).map((i: { id: string; name: string; type: string }) => ({
                 id: i.id,
                 name: i.name,
                 type: i.type,
@@ -198,8 +199,8 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                 handleResetCompose();
                 setModalTab('history');
             }, 1500);
-        } catch (err: any) {
-            setError(err?.response?.data?.error ?? 'Failed to send notification. Please try again.');
+        } catch (err: unknown) {
+            setError(getErrorMessage(err, 'Failed to send notification. Please try again.'));
         } finally {
             setSending(false);
         }

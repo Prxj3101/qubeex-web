@@ -7,6 +7,7 @@ import { Eye, EyeOff, ShieldCheck, CheckCircle2, XCircle, Lock, Hash, Building2,
 import { toast } from 'sonner';
 import { CursorWave } from '@/components/auth/CursorWave';
 import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/error';
 
 // ─── Password strength checker ───────────────────────────────────────────────
 
@@ -99,9 +100,8 @@ function SetPasswordContent() {
             });
             setDone(true);
             setTimeout(() => router.push('/login'), 2500);
-        } catch (err: any) {
-            const msg = err?.response?.data?.message || 'Failed to set password. Please try again.';
-            toast.error(msg);
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Failed to set password. Please try again.'));
         } finally {
             setSubmitting(false);
         }
@@ -335,7 +335,7 @@ function SetPasswordContent() {
                             <p className={`text-[11px] mt-1.5 flex items-center gap-1 ${passwordsMatch ? 'text-emerald-400' : 'text-red-400'}`}>
                                 {passwordsMatch
                                     ? <><CheckCircle2 size={11} /> Passwords match</>
-                                    : <><XCircle size={11} /> Passwords don't match</>
+                                    : <><XCircle size={11} /> Passwords do not match</>
                                 }
                             </p>
                         )}

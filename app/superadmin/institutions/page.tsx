@@ -11,6 +11,17 @@ import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { PublishNotificationModal } from '@/components/superadmin/PublishNotificationModal';
 
+type InstitutionListItem = Institution & {
+    phone?: string | null;
+    city?: string | null;
+    state?: string | null;
+    admin?: { name?: string | null; email?: string | null } | null;
+    users?: Array<{ role?: string; email?: string; name?: string | null }>;
+    teacherCount?: number;
+    studentCount?: number;
+    subscription?: { plan?: { name?: string | null } } | null;
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Format a UTC ISO date string to IST (Asia/Kolkata, UTC+5:30) */
@@ -39,7 +50,7 @@ const FILTERS = [
 
 // ─── Institution Card ─────────────────────────────────────────────────────────
 
-function InstitutionCard({ inst, index }: { inst: any; index: number }) {
+function InstitutionCard({ inst, index }: { inst: InstitutionListItem; index: number }) {
     const router = useRouter();
     const [showTooltip, setShowTooltip] = useState(false);
     const [imgError, setImgError]       = useState(false);
@@ -48,7 +59,7 @@ function InstitutionCard({ inst, index }: { inst: any; index: number }) {
     const status   = statusConfig[inst.status] ?? statusConfig['PENDING'];
 
     // Enriched fields from updated API
-    const adminUser     = inst.admin ?? inst.users?.find((u: any) => u.role === 'ADMIN');
+    const adminUser     = inst.admin ?? inst.users?.find((u) => u.role === 'ADMIN');
     const adminName     = adminUser?.name  ?? adminUser?.email?.split('@')[0] ?? '—';
     const adminEmail    = adminUser?.email ?? '—';
     const teacherCount  = inst.teacherCount ?? 0;
@@ -206,7 +217,8 @@ export default function InstitutionsPage() {
             const hasPlan = activeFilters.some(f => ['BASIC', 'PRO'].includes(f));
             list = list.filter(inst => {
                 const statusOk = !hasStatus || activeFilters.includes(inst.status);
-                const planOk = !hasPlan || activeFilters.includes(((inst as any).plan ?? 'BASIC').toUpperCase());
+                const plan = inst.subscription?.plan?.name ?? 'BASIC';
+                const planOk = !hasPlan || activeFilters.includes(plan.toUpperCase());
                 return statusOk && planOk;
             });
         }

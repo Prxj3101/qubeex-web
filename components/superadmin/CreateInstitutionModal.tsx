@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/error';
 import { Institution } from '@/types';
 import {
     Building2, GraduationCap, BookOpen, ChevronDown,
@@ -143,9 +144,8 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                 onClose();
                 resetForm();
             }
-        } catch (err: any) {
-            const msg = err?.response?.data?.message || 'Failed to create institution';
-            toast.error(msg);
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Failed to create institution'));
         } finally {
             setLoading(false);
         }

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/error';
 import { toast } from 'sonner';
 
 const schema = z.object({
@@ -21,7 +22,7 @@ const schema = z.object({
         .regex(/[^A-Za-z0-9]/, 'Must have special character'),
     confirmPassword: z.string(),
 }).refine((d) => d.password === d.confirmPassword, {
-    message: "Passwords don't match",
+    message: "Passwords do not match",
     path: ['confirmPassword'],
 });
 
@@ -63,8 +64,8 @@ function AcceptInviteForm() {
             await api.post('/auth/invite/accept', { token, password: data.password });
             setSuccess(true);
             setTimeout(() => router.push('/login'), 2000);
-        } catch (err: any) {
-            toast.error(err.response?.data?.message || 'Failed to accept invite');
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Failed to accept invite'));
         }
     };
 

@@ -17,7 +17,7 @@ type LogEntry = {
     institutionId?: string | null;
     details?: string | null;
     ip?: string | null;
-    metadata?: any;
+    metadata?: unknown;
     createdAt: string;
     user?: { id: string; name?: string | null; email: string } | null;
     institution?: { id: string; name: string; institutionCode?: string } | null;

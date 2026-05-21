@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import {
@@ -315,25 +315,25 @@ function StorageTokenRow({ plan, color, colorBg, colorBgStrong }: {
 // ── Main Component ────────────────────────────────────────────────────────────
 export function WelcomeBanner({ adminName, institutionName, institutionType, plan }: WelcomeBannerProps) {
     const router = useRouter();
-    const [visible, setVisible] = useState(false);
+    const [visible, setVisible] = useState(() => {
+        if (typeof window === 'undefined') return true;
+        return !localStorage.getItem(DISMISS_KEY);
+    });
     const [expanded, setExpanded] = useState(false);
-    const [completedSteps, setCompletedSteps] = useState<string[]>([]);
+    const [completedSteps, setCompletedSteps] = useState<string[]>(() => {
+        if (typeof window === 'undefined') return [];
+        try {
+            const saved = localStorage.getItem(STEPS_KEY);
+            return saved ? JSON.parse(saved) : [];
+        } catch {
+            return [];
+        }
+    });
     const [showAll, setShowAll] = useState(false);
 
     const cfg = PLAN_CONFIG[plan];
     const steps = SETUP_STEPS_MAP[institutionType];
     const pct = steps.length > 0 ? Math.round((completedSteps.length / steps.length) * 100) : 0;
-
-    useEffect(() => {
-        const dismissed = localStorage.getItem(DISMISS_KEY);
-        // Comment out in dev, uncomment in prod:
-        // if (!dismissed) setVisible(true);
-        setVisible(true); // ← dev ke liye
-        try {
-            const saved = localStorage.getItem(STEPS_KEY);
-            if (saved) setCompletedSteps(JSON.parse(saved));
-        } catch { /* ignore */ }
-    }, []);
 
     const dismiss = () => {
         localStorage.setItem(DISMISS_KEY, 'true');

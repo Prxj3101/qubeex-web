@@ -9,6 +9,7 @@ import {
     ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/error';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 
@@ -87,9 +88,8 @@ function ReviewCard({ review, index, expanded, onToggle, onReply }: {
             setReplyMessage(replyText.trim());
             setRepliedAt(new Date().toISOString());
             setReplyText('');
-        } catch (err: any) {
-            const msg = err?.response?.data?.error ?? 'Failed to send reply';
-            toast.error(msg);
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Failed to send reply'));
         } finally {
             setSending(false);
         }

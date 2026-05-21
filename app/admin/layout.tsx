@@ -1,8 +1,6 @@
 'use client';
 
 import { Topbar } from '@/components/shared/Topbar';
-import { WelcomeBanner } from '@/components/admin/WelcomeBanner';
-import { useEffect, useState } from 'react';
 import {
     LayoutDashboard,
     Building2,
@@ -15,10 +13,6 @@ import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeCon
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const { instType, setInstType } = useMockInstType();
-    const [ready, setReady] = useState(false);
-
-    useEffect(() => { setReady(true); }, []);
-    if (!ready) return null;
 
     return (
         <div className="flex flex-col h-screen bg-background px-0 pt-3 gap-3">
@@ -62,4 +56,3 @@ const ADMIN_NAV_ITEMS = [
     { label: 'Support', href: '/admin/support/tickets', icon: Headset, activePath: '/admin/support' },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: ScrollText },
 ];
-

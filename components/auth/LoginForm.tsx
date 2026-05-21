@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useAuthStore } from '@/store/authStore';
 import { CursorWave } from '@/components/auth/CursorWave';
 import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/error';
 import { Eye, EyeOff, LogIn, AtSign, Lock, ChevronRight } from 'lucide-react';
 
 // ─── Role based redirect ──────────────────────────────────────────────────────
@@ -84,9 +85,8 @@ export function LoginForm() {
 
             toast.success(`Welcome back, ${user.name || user.email}!`);
             router.push(ROLE_REDIRECT[user.role] || '/login');
-        } catch (err: any) {
-            const msg = err?.response?.data?.message || 'Invalid credentials';
-            toast.error(msg);
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Invalid credentials'));
         } finally {
             setLoading(false);
         }

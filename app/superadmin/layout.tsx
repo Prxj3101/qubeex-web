@@ -31,10 +31,16 @@ export default function SuperAdminLayout({ children }: { children: React.ReactNo
     const [hydrated, setHydrated] = useState(false);
 
     useEffect(() => {
-        // `useAuthStore.persist.hasHydrated()` becomes true after the store
-        // replays persisted state. If it's already done (fast path), set immediately.
-        const unsub = useAuthStore.persist.onFinishHydration(() => setHydrated(true));
-        if (useAuthStore.persist.hasHydrated()) setHydrated(true);
+        const persistApi = useAuthStore.persist;
+        if (!persistApi) return;
+        const unsub = persistApi.onFinishHydration(() => setHydrated(true));
+        if (persistApi.hasHydrated()) {
+            const timer = window.setTimeout(() => setHydrated(true), 0);
+            return () => {
+                window.clearTimeout(timer);
+                unsub();
+            };
+        }
         return unsub;
     }, []);
 
