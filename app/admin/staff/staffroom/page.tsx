@@ -381,7 +381,7 @@ export default function StaffroomPage() {
                         <p className="text-muted-foreground text-[13px]">Staff feed & direct messages</p>
                     </div>
                 </div>
-                <div className="h-px bg-border/60 mt-3" />
+                <div className="h-px bg-border/60 mt-2" />
             </div>
 
             {/* ── Body — fills remaining height ── */}

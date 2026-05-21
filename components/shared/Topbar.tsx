@@ -74,7 +74,7 @@ function RoleBadge() {
             <div className="h-9 w-9 flex items-center justify-center rounded-full
                 bg-gradient-to-b from-[#F2B8A3] to-[#E28A6B] text-white
                 shadow-[0_10px_20px_rgba(218,119,86,0.35),0_4px_6px_rgba(0,0,0,0.15)]">
-                <span className="text-[23px] leading-none">
+                <span className="text-[23px] leading-[0] mb-1">
                     {emojiMap[role]}
                 </span>
             </div>

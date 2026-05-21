@@ -4,8 +4,7 @@ import { ThemeProvider } from '@/components/shared/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
 
 export const metadata: Metadata = {
-  title: 'QubeEx — Student Assessment System',
-  description: 'Complete digital assessment platform',
+  title: 'QubeEx',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

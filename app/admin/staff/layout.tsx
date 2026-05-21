@@ -16,7 +16,7 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
     return (
         <div className="flex flex-col h-full overflow-hidden">
             {/* Tab bar */}
-            <div className="shrink-0 pt-0 pb-3 px-1">
+            <div className="shrink-0 pt-0 pb-2 px-1">
                 <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                     {PEOPLE_TABS.map((tab) => {
                         const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/'); const Icon = tab.icon;

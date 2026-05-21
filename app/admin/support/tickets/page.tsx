@@ -335,24 +335,31 @@ export default function AdminTicketsPage() {
         : tickets.filter(t => t.status === statusFilter);
 
     return (
-        <div className="space-y-4 pt-2">
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-1 pt-1">
-                <div className="flex items-center gap-2 flex-wrap">
-                    {(['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const).map(s => (
-                        <button key={s} onClick={() => setStatusFilter(s)}
-                            className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${statusFilter === s ? 'bg-primary text-white border-primary' : 'border-border/50 text-muted-foreground hover:text-foreground'
-                                }`}>
-                            {s === 'ALL' ? 'All' : s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}
+        <div className="space-y-3">
+            <div className="shrink-0 pt-0 pb-0 px-1 sticky top-0 z-20 bg-background">
+                <div className="flex items-center justify-between pt-1">
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <TicketIcon size={21} />
+                            Tickets
+                        </h1>
+                        <p className="text-muted-foreground text-[13px]">Raise and track support tickets</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {(['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const).map(s => (
+                            <button key={s} onClick={() => setStatusFilter(s)}
+                                className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${statusFilter === s ? 'bg-primary text-white border-primary' : 'border-border/50 text-muted-foreground hover:text-foreground'}`}>
+                                {s === 'ALL' ? 'All' : s === 'IN_PROGRESS' ? 'In Progress' : s.charAt(0) + s.slice(1).toLowerCase()}
+                            </button>
+                        ))}
+                        <button onClick={() => setShowCreate(true)}
+                            className="flex items-center gap-1 h-8 px-3 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-all shrink-0"
+                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                            <Plus size={15} /> Raise Ticket
                         </button>
-                    ))}
+                    </div>
                 </div>
-                <button onClick={() => setShowCreate(true)}
-                    className="flex items-center gap-1 h-8 px-3 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-all"
-                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                    <Plus size={15} /> Raise Ticket
-                </button>
+                <div className="h-px bg-border/60 mt-2" />
             </div>
 
             {/* Tickets */}

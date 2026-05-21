@@ -25,7 +25,7 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
         <div className="flex flex-col h-full overflow-hidden">
 
             {(pathname === '/admin/campus' || pathname === '/admin/campus/classes') && (
-                <div className="shrink-0 pt-0 pb-3 px-1">
+                <div className="shrink-0 pt-0 pb-2 px-1">
                     <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                         {TABS.map(tab => {
                             const isActive = activeTab === tab.key;

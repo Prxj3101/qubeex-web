@@ -261,7 +261,7 @@ export default function ClassesPage() {
         <div className="flex flex-col h-full overflow-hidden pb-3">
 
             {/* Header */}
-            <div className="shrink-0 px-1 pt-0 pb-3">
+            <div className="shrink-0 pt-0 pb-0 px-1 sticky top-0 z-20 bg-background">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <div>
@@ -280,11 +280,11 @@ export default function ClassesPage() {
                         <Plus size={15} /> Add {standardLabel}
                     </button>
                 </div>
-                <div className="h-px bg-border/60 mt-3" />
+                <div className="h-px bg-border/60 mt-2" />
             </div>
 
             {/* Standards list */}
-            <div className="flex-1 overflow-y-auto px-1 pb-6 space-y-2">
+            <div className="flex-1 overflow-y-auto px-1 pb-6 pt-3 space-y-3">
 
                 {addingStandard && (
                     <div className="bg-card border border-primary/30 rounded-2xl px-5 py-4">

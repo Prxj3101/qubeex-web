@@ -416,7 +416,7 @@ export default function TeachersPage() {
         <div className="flex flex-col" style={{ height: '100%' }}>
 
             {/* ── STICKY SECTION ── */}
-            <div className="sticky top-0 z-20 bg-background space-y-3 pt-0 pb-3">
+            <div className="sticky top-0 z-20 bg-background space-y-2 pt-0 pb-0">
 
                 {/* Header row */}
                 <div className="flex items-center justify-between pt-0 px-1">

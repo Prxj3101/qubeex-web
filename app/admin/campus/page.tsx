@@ -363,7 +363,7 @@ function FeedTab({ instType }: { instType: InstitutionType }) {
                         <p className="text-[13px] text-muted-foreground">Announcements & Academic Calendar</p>
                     </div>
                 </div>
-                <div className="h-px bg-border/60 mt-3" />
+                <div className="h-px bg-border/60 mt-2" />
             </div>
             {/* ← Yeh wrapper add karo */}
             <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-0">
