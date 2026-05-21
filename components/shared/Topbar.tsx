@@ -167,7 +167,7 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
                         style={{ width: 'auto', height: '40px' }}
                         className="rounded-md"
                     />
-                    <span className="text-[25px] font-bold text-[#374151] dark:text-[#FAE5D9]" style={{ fontFamily: 'var(--font-poppins)' }}>
+                    <span className="text-[25.5px] font-bold text-[#374151] dark:text-[#FAE5D9] -mt-1" style={{ fontFamily: 'var(--font-poppins)' }}>
                         QubeEx
                     </span>
                 </div>
