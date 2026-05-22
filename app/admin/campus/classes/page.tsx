@@ -28,19 +28,20 @@ interface Subject {
     order: number;
 }
 
-interface Division {
-    id: string;
-    name: string;
-    capacity: number | null;
-    subjects: Subject[];
-    assignments: Assignment[];
-}
-
 interface Standard {
     id: string;
     name: string;
     order: number;
+    subjects: Subject[];
     divisions: Division[];
+}
+
+interface Division {
+    id: string;
+    name: string;
+    capacity: number | null;
+    selectedSubjects: string[];
+    assignments: Assignment[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -104,6 +105,7 @@ export default function ClassesPage() {
     const [addingStandard, setAddingStandard] = useState(false);
     const [saving, setSaving] = useState(false);
     const fetchedRef = useRef(false);
+    const [addingSubject, setAddingSubject] = useState<string | null>(null);
 
     const standardLabel = instType === 'COLLEGE' ? 'Department' : instType === 'COACHING' ? 'Batch' : 'Standard';
     const divisionLabel = instType === 'COLLEGE' ? 'Section' : instType === 'COACHING' ? 'Group' : 'Division';
@@ -111,7 +113,18 @@ export default function ClassesPage() {
     const fetchStandards = useCallback(async () => {
         try {
             const res = await api.get('/admin/campus/standards');
-            setStandards(res.data.data);
+            const data = res.data.data.map((std: Standard) => ({
+                ...std,
+                subjects: std.subjects?.length ? std.subjects : [
+                    { id: 'sub1', name: 'Mathematics', code: 'MATH', color: '#7C3AED', order: 1 },
+                    { id: 'sub2', name: 'Science', code: 'SCI', color: '#0891B2', order: 2 },
+                    { id: 'sub3', name: 'English', code: 'ENG', color: '#DA7756', order: 3 },
+                    { id: 'sub4', name: 'Hindi', code: 'HIN', color: '#059669', order: 4 },
+                    { id: 'sub5', name: 'History', code: 'HIS', color: '#D97706', order: 5 },
+                    { id: 'sub6', name: 'Geography', code: 'GEO', color: '#8B5CF6', order: 6 },
+                ],
+            }));
+            setStandards(data);
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
             toast.error(msg ?? 'Failed to load classes');
@@ -161,9 +174,56 @@ export default function ClassesPage() {
         }
     };
 
-    const totalDivisions = standards.reduce((n, s) => n + s.divisions.length, 0);
-    const totalSubjects = standards.reduce((n, s) => n + s.divisions.reduce((m, d) => m + d.subjects.length, 0), 0);
+    const addSubject = async (standardId: string, name: string) => {
+        setSaving(true);
+        try {
+            const res = await api.post(`/admin/campus/standards/${standardId}/subjects`, { name });
+            const newSubject: Subject = { ...res.data.data };
+            setStandards(prev => prev.map(s => s.id !== standardId ? s : {
+                ...s,
+                subjects: [...s.subjects, newSubject],  // sirf standard mein
+            }));
+            setAddingSubject(null);
+            toast.success('Subject added');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to add subject');
+        } finally {
+            setSaving(false);
+        }
+    };
 
+    const toggleDivisionSubject = async (standardId: string, divisionId: string, subjectId: string) => {
+        const std = standards.find(s => s.id === standardId);
+        const div = std?.divisions.find(d => d.id === divisionId);
+        if (!div) return;
+
+        const isSelected = div.selectedSubjects?.includes(subjectId);
+
+        try {
+            if (isSelected) {
+                await api.delete(`/admin/campus/divisions/${divisionId}/subjects/${subjectId}`);
+            } else {
+                await api.post(`/admin/campus/divisions/${divisionId}/subjects`, { subjectId });
+            }
+
+            setStandards(prev => prev.map(s => s.id !== standardId ? s : {
+                ...s,
+                divisions: s.divisions.map(d => d.id !== divisionId ? d : {
+                    ...d,
+                    selectedSubjects: isSelected
+                        ? d.selectedSubjects.filter(id => id !== subjectId)
+                        : [...(d.selectedSubjects ?? []), subjectId],
+                }),
+            }));
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to update');
+        }
+    };
+
+    const totalDivisions = standards.reduce((n, s) => n + s.divisions.length, 0);
+    const totalSubjects = standards.reduce((n, s) => n + s.divisions.reduce((m, d) => m + (d.selectedSubjects?.length ?? 0), 0), 0);
     const gradients = [
         'linear-gradient(135deg, #7C3AED, #9F67FF)',
         'linear-gradient(135deg, #DA7756, #E8876A)',
@@ -269,90 +329,152 @@ export default function ClassesPage() {
                                         className="overflow-hidden">
                                         <div className="border-t border-border/40 px-5 py-4 space-y-4">
 
-                                            {/* Division cards */}
-                                            {std.divisions.length > 0 && (
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                    {std.divisions.map((div, divIdx) => {
-                                                        const classTeacherName = getClassTeacher(div);
-                                                        const assignedSubjects = getAssignedCount(div);
+                                            <div className="border-t border-border/40 px-5 py-4 space-y-4">
 
-                                                        return (
-                                                            <motion.div
-                                                                key={div.id}
-                                                                initial={{ opacity: 0, y: 20 }}
-                                                                animate={{ opacity: 1, y: 0 }}
-                                                                transition={{ delay: divIdx * 0.05, duration: 0.3 }}
-                                                                className="rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-background hover:shadow-md hover:shadow-black/5 hover:border-border transition-all duration-200">
-
-                                                                <div className="px-4 pt-4 pb-3">
-                                                                    <div className="flex items-center justify-between mb-2">
-                                                                        <div className="flex items-center gap-2.5">
-                                                                            <div
-                                                                                className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border-2 border-white/20"
-                                                                                style={{ background: grad }}>
-                                                                                <span className="text-sm font-black text-white">
-                                                                                    {div.name.includes('-') ? div.name.split('-').pop() : div.name[0]}
-                                                                                </span>
-                                                                            </div>
-                                                                            <div>
-                                                                                <p className="text-sm font-bold">{div.name}</p>
-                                                                                <p className="text-[11px] text-muted-foreground">0 students</p>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div
-                                                                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 cursor-pointer"
-                                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                                                                            onClick={() => router.push(`/admin/campus/classes/${std.id}/${div.id}`)}>
-                                                                            <ArrowUpRight size={19} className="text-white" />
-                                                                        </div>
-                                                                    </div>
-
-                                                                    <div className="flex flex-wrap gap-1.5 mt-2">
-                                                                        {classTeacherName && (
-                                                                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium"
-                                                                                style={{ background: '#F59E0B20', color: '#F59E0B' }}>
-                                                                                CT: {classTeacherName}
-                                                                            </span>
-                                                                        )}
-                                                                        <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground flex items-center gap-1">
-                                                                            <BookOpen size={9} />
-                                                                            {div.subjects.length} subjects
-                                                                        </span>
-                                                                        {div.subjects.length > 0 && (
-                                                                            <span className="text-[10px] px-2 py-0.5 rounded-full font-medium bg-muted text-muted-foreground flex items-center gap-1">
-                                                                                <Users size={9} />
-                                                                                {assignedSubjects}/{div.subjects.length} assigned
-                                                                            </span>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            </motion.div>
-                                                        );
-                                                    })}
+                                                {/* Subjects */}
+                                                <div>
+                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">
+                                                        Subjects
+                                                    </p>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        {(std.subjects ?? []).map(sub => (
+                                                            <span key={sub.id}
+                                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+                                                                style={{
+                                                                    background: (sub.color ?? '#7C3AED') + '20',
+                                                                    color: sub.color ?? '#7C3AED',
+                                                                    border: `1px solid ${sub.color ?? '#7C3AED'}40`,
+                                                                }}>
+                                                                <BookOpen size={11} />
+                                                                {sub.name}
+                                                            </span>
+                                                        ))}
+                                                        {(std.subjects ?? []).length === 0 && (
+                                                            <span className="text-xs text-muted-foreground/60 italic">No subjects yet</span>
+                                                        )}
+                                                        {addingSubject === std.id ? (
+                                                            <InlineAddInput
+                                                                placeholder="Subject name"
+                                                                onAdd={name => addSubject(std.id, name)}
+                                                                onCancel={() => setAddingSubject(null)}
+                                                                loading={saving}
+                                                            />
+                                                        ) : (
+                                                            <button onClick={() => setAddingSubject(std.id)}
+                                                                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
+                                                                <Plus size={11} /> Add subject
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
-                                            )}
 
-                                            {std.divisions.length === 0 && (
-                                                <p className="text-xs text-muted-foreground/60 italic">
-                                                    No {divisionLabel.toLowerCase()}s yet
-                                                </p>
-                                            )}
+                                                {/* Division cards */}
+                                                {std.divisions.length > 0 && (
+                                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                        {std.divisions.map((div, divIdx) => {
+                                                            const classTeacherName = getClassTeacher(div);
+                                                            const assignedSubjects = getAssignedCount(div);
 
-                                            {/* Add division */}
-                                            {addingDivision === std.id ? (
-                                                <InlineAddInput
-                                                    placeholder={`e.g. ${std.name.replace('Class ', '')}-A`}
-                                                    onAdd={name => addDivision(std.id, name)}
-                                                    onCancel={() => setAddingDivision(null)}
-                                                    loading={saving}
-                                                />
-                                            ) : (
-                                                <button
-                                                    onClick={() => setAddingDivision(std.id)}
-                                                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
-                                                    <Plus size={11} /> Add {divisionLabel}
-                                                </button>
-                                            )}
+                                                            return (
+                                                                <motion.div
+                                                                    key={div.id}
+                                                                    initial={{ opacity: 0, y: 20 }}
+                                                                    animate={{ opacity: 1, y: 0 }}
+                                                                    transition={{ delay: divIdx * 0.05, duration: 0.3 }}
+                                                                    className="rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-background hover:shadow-md hover:shadow-black/5 hover:border-border transition-all duration-200">
+
+                                                                    <div className="px-4 pt-4 pb-3">
+                                                                        <div className="flex items-center justify-between mb-2">
+                                                                            <div className="flex items-center gap-2.5">
+                                                                                <div
+                                                                                    className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border-2 border-white/20"
+                                                                                    style={{ background: grad }}>
+                                                                                    <span className="text-sm font-black text-white">
+                                                                                        {div.name.includes('-') ? div.name.split('-').pop() : div.name[0]}
+                                                                                    </span>
+                                                                                </div>
+                                                                                <div>
+                                                                                    <p className="text-sm font-bold">{div.name}</p>
+                                                                                    <p className="text-[11px] text-muted-foreground">0 students</p>
+                                                                                </div>
+                                                                            </div>
+                                                                            <div
+                                                                                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 cursor-pointer"
+                                                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                                                                onClick={() => router.push(`/admin/campus/classes/${std.id}/${div.id}`)}>
+                                                                                <ArrowUpRight size={19} className="text-white" />
+                                                                            </div>
+                                                                        </div>
+
+
+                                                                        <div className="px-4 py-1.5 border-t border-border/40">
+                                                                            <div className="flex items-center justify-between py-1.5 border-b border-border/30">
+                                                                                <div className="flex items-center gap-1.5">
+                                                                                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: '#F59E0B' }} />
+                                                                                    <span className="text-[10px] text-muted-foreground">Class Teacher</span>
+                                                                                </div>
+                                                                                {classTeacherName ? (
+                                                                                    <span className="text-[10px] font-semibold" style={{ color: '#F59E0B' }}>{classTeacherName}</span>
+                                                                                ) : (
+                                                                                    <span className="text-[10px] text-muted-foreground/50 italic">Not assigned</span>
+                                                                                )}
+                                                                            </div>
+                                                                            {div.selectedSubjects?.length > 0 && (
+                                                                                <>
+                                                                                    <p className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider py-1">Subjects</p>
+                                                                                    {std.subjects
+                                                                                        .filter((sub: Subject) => div.selectedSubjects?.includes(sub.id))
+                                                                                        .map((sub: Subject) => {
+                                                                                            const assignment = div.assignments.find(a => a.subjectId === sub.id);
+                                                                                            return (
+                                                                                                <div key={sub.id} className="flex items-center justify-between py-1 border-t border-border/20">
+                                                                                                    <div className="flex items-center gap-1.5">
+                                                                                                        <div className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                                                                            style={{ background: sub.color ?? '#7C3AED' }} />
+                                                                                                        <span className="text-[10px] text-muted-foreground">{sub.name}</span>
+                                                                                                    </div>
+                                                                                                    {assignment?.teacher.user.name ? (
+                                                                                                        <span className="text-[10px] font-semibold truncate max-w-[80px] text-right text-foreground">
+                                                                                                            {assignment.teacher.user.name}
+                                                                                                        </span>
+                                                                                                    ) : (
+                                                                                                        <span className="text-[10px] text-muted-foreground/50 italic">Not assigned</span>
+                                                                                                    )}
+                                                                                                </div>
+                                                                                            );
+                                                                                        })}
+                                                                                </>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </motion.div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+
+                                                {std.divisions.length === 0 && (
+                                                    <p className="text-xs text-muted-foreground/60 italic">
+                                                        No {divisionLabel.toLowerCase()}s yet
+                                                    </p>
+                                                )}
+
+                                                {/* Add division */}
+                                                {addingDivision === std.id ? (
+                                                    <InlineAddInput
+                                                        placeholder={`e.g. ${std.name.replace('Class ', '')}-A`}
+                                                        onAdd={name => addDivision(std.id, name)}
+                                                        onCancel={() => setAddingDivision(null)}
+                                                        loading={saving}
+                                                    />
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setAddingDivision(std.id)}
+                                                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
+                                                        <Plus size={11} /> Add {divisionLabel}
+                                                    </button>
+                                                )}
+                                            </div>
                                         </div>
                                     </motion.div>
                                 )}

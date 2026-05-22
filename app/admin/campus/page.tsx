@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Send, X, Rss } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Send, X, Rss, Paperclip } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import api from '@/lib/api';
@@ -20,25 +20,25 @@ interface FeedPost {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const EVENT_CFG = {
-    holiday:    { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40',    text: 'text-red-700 dark:text-red-400',    label: 'Holiday',    emoji: '🏖️' },
-    test:       { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40',  text: 'text-blue-700 dark:text-blue-400',  label: 'Test',       emoji: '📝' },
-    exam:       { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40',text: 'text-amber-700 dark:text-amber-400',label: 'Main Exam',  emoji: '🎓' },
-    submission: { dot: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-950/40',text: 'text-violet-700 dark:text-violet-400',label: 'Submission',emoji: '📤' },
+    holiday: { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', label: 'Holiday', emoji: '🏖️' },
+    test: { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', label: 'Test', emoji: '📝' },
+    exam: { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400', label: 'Main Exam', emoji: '🎓' },
+    submission: { dot: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', label: 'Submission', emoji: '📤' },
 } as const;
 
 const POST_META = {
     announcement: { emoji: '📢', label: 'Announcement', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
-    notice:       { emoji: '📌', label: 'Notice',       cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
-    material:     { emoji: '📄', label: 'Material',     cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
-    result:       { emoji: '✅', label: 'Result',       cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
+    notice: { emoji: '📌', label: 'Notice', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
+    material: { emoji: '📄', label: 'Material', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
+    result: { emoji: '✅', label: 'Result', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
 } as const;
 
 const AVATAR_COLORS = ['#7C3AED', '#2563EB', '#059669', '#D97706', '#DC2626', '#0891B2'];
 const FILTERS: { key: PostType | 'all'; label: string; emoji: string }[] = [
     { key: 'all', label: 'All', emoji: '🗂️' },
-    { key: 'announcement', label: 'Alerts', emoji: '📢' },
+    { key: 'announcement', label: 'Announcement', emoji: '📢' },
     { key: 'notice', label: 'Notice', emoji: '📌' },
-    { key: 'material', label: 'Files', emoji: '📄' },
+    { key: 'material', label: 'Material', emoji: '📄' },
     { key: 'result', label: 'Results', emoji: '✅' },
 ];
 
@@ -70,9 +70,9 @@ function AcademicCalendar() {
     const [newType, setNewType] = useState<EventType>('holiday');
     const [saving, setSaving] = useState(false);
 
-    const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-    const MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-    const DAYS = ['M','T','W','T','F','S','S'];
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const MONTHS_S = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
     const today = now.getDate();
     const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
@@ -269,9 +269,28 @@ function AcademicCalendar() {
     );
 }
 
+function VerifiedBadge() {
+    return (
+        <svg width="12" height="12" viewBox="0 0 40 40" fill="none">
+            <path d="M20 2
+                L23.5 6.5 L29 5 L31.5 10.5 L37.5 12
+                L36 18 L40 22 L36 26 L37.5 32
+                L31.5 33.5 L29 39 L23.5 37.5
+                L20 42 L16.5 37.5 L11 39
+                L8.5 33.5 L2.5 32 L4 26
+                L0 22 L4 18 L2.5 12
+                L8.5 10.5 L11 5 L16.5 6.5 Z"
+                fill="#DA7756" />
+            <path d="M13 21l5 5 9-10"
+                stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+}
+
 // ── Feed Post Card ────────────────────────────────────────────────────────────
 function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) => void }) {
     const [expanded, setExpanded] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const meta = POST_META[post.type];
     const name = post.author.name;
     const initials = name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
@@ -286,19 +305,28 @@ function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) =
                 </span>
                 <div className="flex items-center gap-2">
                     <span className="text-[11px] text-muted-foreground">{formatRelative(post.createdAt)}</span>
-                    <button onClick={() => onDelete(post.id)}
+                    <button onClick={() => setConfirmDelete(true)}
                         className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground/40 hover:text-red-500 transition-colors">
                         <X size={12} />
                     </button>
                 </div>
             </div>
             <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0" style={{ background: avatarColor }}>
-                    {initials}
+                <div className="relative">
+                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                        style={{ background: avatarColor }}>
+                        {initials}
+                    </div>
+
                 </div>
                 <div>
-                    <p className="text-xs font-semibold">{name}</p>
-                    <p className="text-[10px] text-muted-foreground capitalize">{post.author.role.toLowerCase()}</p>
+                    <div>
+                        <p className="text-xs font-semibold">{name}</p>
+                        <div className="flex items-center gap-1">
+                            <p className="text-[10px] text-muted-foreground capitalize">{post.author.role.toLowerCase()}</p>
+                            <VerifiedBadge />
+                        </div>
+                    </div>
                 </div>
             </div>
             <div>
@@ -319,6 +347,30 @@ function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) =
                 {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 {expanded ? 'Show less' : 'Read more'}
             </button>
+            {/* Confirm popup */}
+            <AnimatePresence>
+                {confirmDelete && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            <h3 className="text-base font-bold mb-2">Delete Post?</h3>
+                            <p className="text-sm text-muted-foreground mb-5">
+                                This post will be permanently deleted.
+                            </p>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setConfirmDelete(false)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => { onDelete(post.id); setConfirmDelete(false); }}
+                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white bg-red-500 hover:opacity-90 transition-all">
+                                    Yes, Delete
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -331,10 +383,12 @@ export default function AdminCampusPage() {
     const [loadingPosts, setLoadingPosts] = useState(true);
     const [postInput, setPostInput] = useState('');
     const [postType, setPostType] = useState<PostType>('announcement');
-    const [postBody, setPostBody] = useState('');
     const [postSubject, setPostSubject] = useState('');
     const [posting, setPosting] = useState(false);
     const fetchedRef = useRef(false);
+    const [postBody, setPostBody] = useState('');
+    const [attachments, setAttachments] = useState<File[]>([]);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchPosts = useCallback(async (filter: PostType | 'all' = 'all') => {
         setLoadingPosts(true);
@@ -373,7 +427,10 @@ export default function AdminCampusPage() {
                 subject: postSubject.trim() || undefined,
             });
             setPosts(prev => [res.data.data, ...prev]);
-            setPostInput(''); setPostBody(''); setPostSubject('');
+            setPostInput('');
+            setPostBody('');
+            setPostSubject('');
+            setAttachments([]); // ← add karo
             toast.success('Posted');
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -411,7 +468,7 @@ export default function AdminCampusPage() {
                 <div className="h-px bg-border/60 mt-2" />
             </div>
 
-            <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-0">
+            <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-2">
 
                 {/* Feed panel */}
                 <div className="w-[65%] flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
@@ -446,27 +503,71 @@ export default function AdminCampusPage() {
                     </div>
 
                     {/* Composer */}
-                    <div className="border-t border-border/40 px-4 py-3 shrink-0 space-y-2">
-                        <div className="flex items-center gap-1.5 overflow-x-auto">
-                            {(['announcement', 'notice', 'material', 'result'] as PostType[]).map(type => (
-                                <button key={type} onClick={() => setPostType(type)}
-                                    className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-bold whitespace-nowrap transition-all ${postType === type ? POST_META[type].cls + ' border-current' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
-                                    {POST_META[type].emoji} {POST_META[type].label}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">
+                        {/* Row 1 — Title + Subject + Filters */}
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                            <div className="flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
                                 <input value={postInput} onChange={e => setPostInput(e.target.value)}
-                                    onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handlePost(); }}
-                                    placeholder={`Write a ${POST_META[postType].label.toLowerCase()}...`}
-                                    className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground/60 focus:outline-none" />
+                                    placeholder="Title..."
+                                    className="flex-1 bg-transparent text-sm font-bold placeholder:text-muted-foreground/60 placeholder:font-normal focus:outline-none" />
+                                <div className="w-px h-4 bg-border/50 shrink-0" />
                                 <input value={postSubject} onChange={e => setPostSubject(e.target.value)}
                                     placeholder="Subject (optional)"
-                                    className="w-28 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/40 focus:outline-none border-l border-border/40 pl-2" />
+                                    className="w-28 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/40 focus:outline-none" />
                             </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                                {(['announcement', 'notice', 'material', 'result'] as PostType[]).map(type => {
+                                    const meta = POST_META[type];
+                                    return (
+                                        <button key={type} onClick={() => setPostType(type)}
+                                            className={`px-2 py-1 rounded-full border text-[10px] font-bold whitespace-nowrap transition-all ${postType === type ? meta.cls + ' border-current' : 'border-border/50 text-muted-foreground hover:border-border'
+                                                }`}>
+                                            {meta.emoji}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {/* Row 2 — Body + Attach + Send */}
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 flex items-center px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                                <input value={postBody} onChange={e => setPostBody(e.target.value)}
+                                    placeholder="Write description (optional)..."
+                                    className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none" />
+                                {attachments.length > 0 && (
+                                    <div className="flex items-center gap-1 ml-2">
+                                        {attachments.map((file, i) => (
+                                            <div key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px]">
+                                                <span>{
+                                                    file.type.startsWith('image/') ? '🖼️' :
+                                                        file.type.startsWith('video/') ? '🎥' :
+                                                            file.name.endsWith('.pdf') ? '📄' :
+                                                                file.name.endsWith('.xlsx') || file.name.endsWith('.xls') ? '📊' :
+                                                                    file.name.endsWith('.docx') || file.name.endsWith('.doc') ? '📝' : '📎'
+                                                }</span>
+                                                <span className="truncate max-w-[60px] text-muted-foreground">{file.name}</span>
+                                                <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}>
+                                                    <X size={9} className="text-muted-foreground hover:text-red-500" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                            <input ref={fileInputRef} type="file" multiple className="hidden"
+                                onChange={e => {
+                                    if (e.target.files) {
+                                        setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
+                                        e.target.value = '';
+                                    }
+                                }} />
+                            <button onClick={() => fileInputRef.current?.click()}
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 transition-all shrink-0">
+                                <Paperclip size={14} />
+                            </button>
                             <button onClick={handlePost} disabled={!postInput.trim() || posting}
-                                className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 shrink-0 hover:opacity-90 transition-all"
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                 <Send size={13} />
                             </button>
