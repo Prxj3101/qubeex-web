@@ -19,10 +19,10 @@ import { Button } from '@/components/ui/button';
 
 // ── Palette ───────────────────────────────────────────────────────────────────
 const VIOLET = '#7C3AED';
-const AMBER  = '#D97706';
+const AMBER = '#D97706';
 const EMERALD = '#059669';
-const SKY    = '#0284C7';
-const ROSE   = '#E11D48';
+const SKY = '#0284C7';
+const ROSE = '#E11D48';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function StatCard({
@@ -105,7 +105,7 @@ export default function AdminAnalyticsPage() {
             <div className="space-y-4 py-4">
                 <Skeleton className="h-8 w-48 rounded-lg" />
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                    {[0,1,2,3].map(i => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+                    {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-28 rounded-2xl" />)}
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <Skeleton className="h-64 rounded-2xl" />
@@ -131,7 +131,7 @@ export default function AdminAnalyticsPage() {
     }
 
     const { stats, enrollmentGrowth, plan } = overview;
-    const activeTeachers  = teachers.filter(t => t.status === 'ACTIVE').length;
+    const activeTeachers = teachers.filter(t => t.status === 'ACTIVE').length;
     const inactiveTeachers = teachers.filter(t => t.status === 'INACTIVE').length;
 
     // Teacher status pie data
@@ -151,36 +151,38 @@ export default function AdminAnalyticsPage() {
     const instLabel = instType === 'SCHOOL' ? 'School' : instType === 'COLLEGE' ? 'College' : 'Coaching';
 
     return (
-        <div className="space-y-5 py-2 pb-8">
+        <div className="space-y-3 py-0 pb-2">
 
             {/* ── Header ──────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-1">
-                <div>
-                    <h1 className="text-xl font-bold flex items-center gap-2">
-                        <BarChart2 size={21} />
-                        Analytics
-                    </h1>
-                    <p className="text-[13px] text-muted-foreground">
-                        {overview.institution.name} · {instLabel}
-                    </p>
+            <div className="sticky top-0 z-20 bg-background pb-0 pt-0">
+                <div className="flex items-center justify-between px-0">
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <BarChart2 size={21} />
+                            Analytics
+                        </h1>
+                        <p className="text-[13px] text-muted-foreground">
+                            {overview.institution.name} · {instLabel}
+                        </p>
+                    </div>
+                    <Button variant="outline" size="icon" onClick={() => { fetchedRef.current = false; fetchAll(); }} disabled={loading}>
+                        <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+                    </Button>
                 </div>
-                <Button variant="outline" size="icon" onClick={() => { fetchedRef.current = false; fetchAll(); }} disabled={loading}>
-                    <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-                </Button>
-            </div>
 
-            <div className="h-px bg-border/60" />
+                <div className="h-px bg-border/60 mt-2" />
+            </div>
 
             {/* ── Stat cards ──────────────────────────────────────── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <StatCard icon={Users}       label="Total Users"    value={stats.totalUsers}    color={VIOLET}  sub={`${plan.usage.users.limit.toLocaleString('en-IN')} limit`} />
-                <StatCard icon={GraduationCap} label="Teachers"     value={stats.totalTeachers} color={EMERALD} sub={`${activeTeachers} active · ${inactiveTeachers} inactive`} />
-                <StatCard icon={Building2}   label="Standards"      value={stats.totalClasses}  color={SKY}     sub="Configured in campus" />
-                <StatCard icon={BookOpen}    label="Plan"           value={plan.name.toUpperCase()} color={AMBER} sub={`${plan.usage.users.used} users used`} />
+                <StatCard icon={Users} label="Total Users" value={stats.totalUsers} color={VIOLET} sub={`${plan.usage.users.limit.toLocaleString('en-IN')} limit`} />
+                <StatCard icon={GraduationCap} label="Teachers" value={stats.totalTeachers} color={EMERALD} sub={`${activeTeachers} active · ${inactiveTeachers} inactive`} />
+                <StatCard icon={Building2} label="Standards" value={stats.totalClasses} color={SKY} sub="Configured in campus" />
+                <StatCard icon={BookOpen} label="Plan" value={plan.name.toUpperCase()} color={AMBER} sub={`${plan.usage.users.used} users used`} />
             </div>
 
             {/* ── Charts row ──────────────────────────────────────── */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3">
 
                 {/* Enrollment growth area chart — 3 cols */}
                 <div className="lg:col-span-3 bg-card border border-border/50 rounded-2xl p-5">
@@ -193,7 +195,7 @@ export default function AdminAnalyticsPage() {
                         <AreaChart data={enrollmentGrowth} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
                             <defs>
                                 <linearGradient id="teacherGrad" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%"  stopColor={VIOLET} stopOpacity={0.25} />
+                                    <stop offset="5%" stopColor={VIOLET} stopOpacity={0.25} />
                                     <stop offset="95%" stopColor={VIOLET} stopOpacity={0} />
                                 </linearGradient>
                             </defs>
@@ -323,11 +325,10 @@ export default function AdminAnalyticsPage() {
                     <div className="space-y-2">
                         {overview.tickets.map(ticket => (
                             <div key={ticket.id} className="flex items-center gap-3 py-2 border-b border-border/40 last:border-none">
-                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${
-                                    ticket.status === 'OPEN'
-                                        ? 'bg-blue-100 dark:bg-blue-950/40'
-                                        : 'bg-amber-100 dark:bg-amber-950/40'
-                                }`}>
+                                <div className={`w-7 h-7 rounded-lg flex items-center justify-center shrink-0 ${ticket.status === 'OPEN'
+                                    ? 'bg-blue-100 dark:bg-blue-950/40'
+                                    : 'bg-amber-100 dark:bg-amber-950/40'
+                                    }`}>
                                     {ticket.status === 'OPEN'
                                         ? <AlertCircle size={13} className="text-blue-600" />
                                         : <Clock size={13} className="text-amber-600" />
@@ -337,11 +338,10 @@ export default function AdminAnalyticsPage() {
                                     <p className="text-xs font-medium truncate">{ticket.title}</p>
                                     <p className="text-[10px] text-muted-foreground">{ticket.category} · {ticket.priority}</p>
                                 </div>
-                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
-                                    ticket.status === 'OPEN'
-                                        ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
-                                        : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
-                                }`}>{ticket.status}</span>
+                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${ticket.status === 'OPEN'
+                                    ? 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400'
+                                    : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'
+                                    }`}>{ticket.status}</span>
                                 <p className="text-[10px] text-muted-foreground shrink-0">{ticket.createdAt}</p>
                             </div>
                         ))}

@@ -216,7 +216,7 @@ export default function SuperAdminOverview() {
 
                 {/* Character */}
                 <div className="z-10 relative w-[200px] h-[200px] hidden sm:block self-end mb-[-40px]">
-                    <motion.div animate={{ y: [0, -12, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}>
+                    <motion.div animate={{ y: [0, -4, 0] }} transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}>
                         <AnimatePresence mode="wait">
                             <motion.img
                                 key={currentChar}

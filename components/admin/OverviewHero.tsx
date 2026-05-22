@@ -3,6 +3,16 @@
 import type { InstitutionType } from '@/types';
 import { getInstitutionAccent } from '@/lib/getInstitutionAccent';
 import { useEffect, useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const CHARACTERS = [
+    '/images/admin1.png',
+    '/images/admin2.png',
+    '/images/admin3.png',
+    '/images/admin4.png',
+    '/images/admin5.png',
+    '/images/admin6.png',
+];
 
 interface OverviewHeroProps {
     adminName: string;
@@ -13,6 +23,7 @@ interface OverviewHeroProps {
 export function OverviewHero({ adminName, institutionName, institutionType }: OverviewHeroProps) {
     const accent = getInstitutionAccent(institutionType);
     const [isDark, setIsDark] = useState(false);
+    const [currentChar, setCurrentChar] = useState(0);
 
     useEffect(() => {
         const check = () => setIsDark(document.documentElement.classList.contains('dark'));
@@ -22,6 +33,11 @@ export function OverviewHero({ adminName, institutionName, institutionType }: Ov
         return () => observer.disconnect();
     }, []);
 
+    useEffect(() => {
+        const iv = setInterval(() => setCurrentChar(p => (p + 1) % CHARACTERS.length), 7000);
+        return () => clearInterval(iv);
+    }, []);
+
     const now = new Date();
     const hour = now.getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -29,17 +45,20 @@ export function OverviewHero({ adminName, institutionName, institutionType }: Ov
 
     return (
         <div
-            className="-mx-4 relative overflow-hidden rounded-b-[65px] px-13 py-10 flex items-center justify-between"
+            className="-mx-4 relative overflow-hidden rounded-b-[65px] px-13 py-5 flex items-center justify-between min-h-[160px]"
             style={{ background: isDark ? accent.bgDark : accent.bg }}
         >
+            {/* Orbs */}
             <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
             <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
 
+            {/* Stars */}
             <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-5 left-16 animate-pulse" />
             <div className="absolute w-1 h-1 rounded-full bg-white/70 top-27 left-36 animate-pulse delay-300" />
             <div className="absolute w-1 h-1 rounded-full bg-white/70 top-22 left-5 animate-pulse delay-500" />
             <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-4 left-52 animate-pulse delay-700" />
 
+            {/* Text */}
             <div className="space-y-1 z-10">
                 <p className="text-white/70 text-base">{greeting} {accent.emoji}, {adminName}</p>
                 <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
@@ -49,22 +68,26 @@ export function OverviewHero({ adminName, institutionName, institutionType }: Ov
                 <p className="text-white/50 text-xs mt-2">{dateStr}</p>
             </div>
 
-            <div className="z-10 opacity-90 hidden sm:block">
-                <svg width="140" height="120" viewBox="0 0 140 120" fill="none">
-                    <rect x="10" y="20" width="120" height="85" rx="10" fill="white" fillOpacity="0.12" />
-                    <rect x="18" y="28" width="50" height="30" rx="6" fill="white" fillOpacity="0.15" />
-                    <rect x="76" y="28" width="46" height="30" rx="6" fill="white" fillOpacity="0.15" />
-                    <rect x="18" y="64" width="104" height="6" rx="3" fill="white" fillOpacity="0.1" />
-                    <rect x="18" y="74" width="80" height="6" rx="3" fill="white" fillOpacity="0.1" />
-                    <rect x="18" y="84" width="60" height="6" rx="3" fill="white" fillOpacity="0.1" />
-                    <rect x="24" y="46" width="6" height="8" rx="2" fill="white" fillOpacity="0.5" />
-                    <rect x="33" y="40" width="6" height="14" rx="2" fill="white" fillOpacity="0.5" />
-                    <rect x="42" y="44" width="6" height="10" rx="2" fill="white" fillOpacity="0.5" />
-                    <rect x="51" y="36" width="6" height="18" rx="2" fill="white" fillOpacity="0.7" />
-                    <circle cx="99" cy="43" r="10" stroke="white" strokeOpacity="0.3" strokeWidth="3" />
-                    <circle cx="99" cy="43" r="10" stroke="white" strokeOpacity="0.8" strokeWidth="3"
-                        strokeDasharray="40 23" strokeLinecap="round" />
-                </svg>
+            {/* Animated character */}
+            <div className="z-10 relative w-[220px] h-[200px] hidden sm:block self-end mb-[-40px]">
+                <motion.div
+                    animate={{ y: [0, -4, 0] }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                >
+                    <AnimatePresence mode="wait">
+                        <motion.img
+                            key={currentChar}
+                            src={CHARACTERS[currentChar]}
+                            alt="admin character"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 1.2 }}
+                            className="w-[250px] h-[200px] object-contain"
+                            style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3))' }}
+                        />
+                    </AnimatePresence>
+                </motion.div>
             </div>
         </div>
     );

@@ -52,7 +52,7 @@ const ADMIN_NAV_ITEMS = [
     { label: 'Overview', href: '/admin/overview', icon: LayoutDashboard },
     { label: 'Staff', href: '/admin/staff', icon: Users },
     { label: 'Campus', href: '/admin/campus', icon: Building2 },
-    { label: 'Insights', href: '/admin/insights/analytics', icon: LineChart },
+    { label: 'Insights', href: '/admin/insights/analytics', icon: LineChart, activePath: '/admin/insights' },
     { label: 'Support', href: '/admin/support/tickets', icon: Headset, activePath: '/admin/support' },
     { label: 'Audit Logs', href: '/admin/audit-logs', icon: ScrollText },
 ];
