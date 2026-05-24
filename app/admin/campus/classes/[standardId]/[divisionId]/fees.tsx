@@ -49,7 +49,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
     const [newFeeAmount, setNewFeeAmount] = useState('');
     const [newSubLabel, setNewSubLabel] = useState('');
     const [newSubAmount, setNewSubAmount] = useState('');
-    const [expandedFeeId, setExpandedFeeId] = useState<string | null>('f1');
+    const [expandedFeeId, setExpandedFeeId] = useState<string[]>(['f1']);
     const [editingFeeId, setEditingFeeId] = useState<string | null>(null);
     const [editingSubId, setEditingSubId] = useState<string | null>(null);
     const [extraStudentFields, setExtraStudentFields] = useState<{ label: string; value: string }[]>([]);
@@ -97,6 +97,12 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
         setFeeItems(prev => [...prev, { id: `f-${Date.now()}`, label: newFeeLabel.trim(), amount: Number(newFeeAmount) || 0, subItems: [] }]);
         setNewFeeLabel(''); setNewFeeAmount(''); setAddingFeeItem(false);
         toast.success('Fee item added');
+    };
+
+    const toggleFeeExpand = (id: string) => {
+        setExpandedFeeId(prev =>
+            prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+        );
     };
     const addSubItem = (feeId: string) => {
         if (!newSubLabel.trim()) return;
@@ -157,7 +163,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                     {feeItems.map(fee => {
                                         const subTotal = fee.subItems.reduce((n, s) => n + s.amount, 0);
                                         const displayAmount = subTotal > 0 ? subTotal : fee.amount;
-                                        const isExpanded = expandedFeeId === fee.id;
+                                        const isExpanded = expandedFeeId.includes(fee.id);
                                         return (
                                             <div key={fee.id} className="rounded-xl border border-border/40 overflow-hidden">
                                                 <div className="flex items-center justify-between px-3 py-2.5 bg-muted/20">
@@ -182,7 +188,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                     ) : (
                                                         <>
                                                             <div className="flex items-center gap-2">
-                                                                <button onClick={() => setExpandedFeeId(isExpanded ? null : fee.id)}
+                                                                <button onClick={() => toggleFeeExpand(fee.id)}
                                                                     className="text-muted-foreground hover:text-foreground transition-colors">
                                                                     <ChevronRight size={14} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                                                                 </button>
@@ -619,6 +625,8 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
+
+                                        {/* Student Header */}
                                         <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-muted/20">
                                             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
                                                 style={{ background: getAvatarColor(selectedStudent.name) }}>
@@ -633,54 +641,158 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                             </span>
                                         </div>
 
-                                        <div className="rounded-xl border border-border/40 overflow-hidden">
-                                            <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
-                                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Fee Breakdown</p>
+                                        {/* Fee Card */}
+                                        <div className="rounded-2xl border border-border/50 overflow-hidden shadow-sm">
+                                            {/* Fee Card Header */}
+                                            <div className="px-4 py-3 bg-muted/20 border-b border-border/40">
+                                                <p className="text-sm font-bold">{selectedStudent.name}'s Fee Card</p>
+                                                <p className="text-[11px] text-muted-foreground">{divisionName}</p>
                                             </div>
-                                            <div className="px-4 py-2 space-y-1">
-                                                {feeItems.map(fee => {
-                                                    const s = fee.subItems.reduce((n, s) => n + s.amount, 0);
-                                                    const amount = s > 0 ? s : fee.amount;
-                                                    return (
-                                                        <div key={fee.id}>
-                                                            <div className="flex items-center justify-between py-1.5">
-                                                                <span className="text-xs font-semibold">{fee.label}</span>
-                                                                <span className="text-xs font-bold">₹{amount.toLocaleString()}</span>
-                                                            </div>
-                                                            {fee.subItems.map(sub => (
-                                                                <div key={sub.id} className="flex items-center justify-between py-1 pl-4 border-t border-border/20">
-                                                                    <span className="text-[11px] text-muted-foreground">{sub.label}</span>
-                                                                    <span className="text-[11px] text-muted-foreground">₹{sub.amount.toLocaleString()}</span>
-                                                                </div>
+
+                                            {/* Student Details from template */}
+                                            <div className="px-4 py-3 border-b border-border/40">
+                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Student Details</p>
+                                                <div className="rounded-xl border border-border/40 overflow-hidden">
+                                                    {[
+                                                        { label: 'Name', value: selectedStudent.name },
+                                                        { label: 'Roll No', value: selectedStudent.rollNo },
+                                                        { label: 'Class', value: 'Class Name' },
+                                                        { label: 'Division', value: divisionName },
+                                                    ].map((field, i) => (
+                                                        <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border/20 last:border-none">
+                                                            <span className="text-[11px] text-muted-foreground w-24 shrink-0">{field.label}</span>
+                                                            <span className="text-[11px] font-medium">{field.value}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+
+                                            {/* Fee Table from template */}
+                                            <div className="px-4 py-3 border-b border-border/40">
+                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Fee Table</p>
+                                                <div className="rounded-xl border border-border/40 overflow-hidden">
+                                                    <table className="text-xs w-full">
+                                                        <thead>
+                                                            <tr className="bg-muted/30 border-b border-border/40">
+                                                                {['Month', 'Due Date', 'Paid Date', 'Status', 'Remark', ...extraColumns.map(c => c.label)].map((col, i) => (
+                                                                    <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
+                                                                ))}
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody className="divide-y divide-border/20">
+                                                            {feeMonths.map(m => (
+                                                                <tr key={m.id} className="hover:bg-muted/20 transition-colors">
+                                                                    {/* Month — non editable */}
+                                                                    <td className="px-3 py-2 text-[11px] font-semibold whitespace-nowrap">{m.month}</td>
+                                                                    {/* Due Date — non editable */}
+                                                                    <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.dueDate}</td>
+                                                                    {/* Paid Date — editable */}
+                                                                    <td className="px-3 py-2">
+                                                                        <input value={m.paidDate ?? ''}
+                                                                            onChange={e => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, paidDate: e.target.value } : x))}
+                                                                            placeholder="—"
+                                                                            className="w-24 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/40" />
+                                                                    </td>
+                                                                    {/* Status — editable */}
+                                                                    <td className="px-3 py-2">
+                                                                        <button onClick={() => updateMonthStatus(m.id, m.status === 'PAID' ? 'PENDING' : 'PAID')}
+                                                                            className={`flex items-center gap-1 h-6 px-2.5 rounded-full text-[10px] font-semibold transition-all ${STATUS_CFG[m.status].cls}`}>
+                                                                            {m.status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[m.status].label}
+                                                                        </button>
+                                                                    </td>
+                                                                    {/* Remark — editable */}
+                                                                    <td className="px-3 py-2">
+                                                                        <input value={m.remark ?? ''}
+                                                                            onChange={e => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, remark: e.target.value } : x))}
+                                                                            placeholder="—"
+                                                                            className="w-28 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/40" />
+                                                                    </td>
+                                                                    {/* Extra columns — editable */}
+                                                                    {extraColumns.map((col, ci) => (
+                                                                        <td key={ci} className="px-3 py-2">
+                                                                            <input placeholder="—"
+                                                                                className="w-20 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/40" />
+                                                                        </td>
+                                                                    ))}
+                                                                </tr>
                                                             ))}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {/* Monthly Fee Structure */}
+                                        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                            <div className="px-4 py-3 bg-muted/20 border-b border-border/40">
+                                                <p className="text-sm font-bold">{selectedStudent.name}'s Fee Structure</p>
+                                                <p className="text-[11px] text-muted-foreground">{divisionName}</p>
+                                            </div>
+                                            <div className="px-4 py-3 space-y-2">
+                                                {feeItems.map(fee => {
+                                                    const subTotal = fee.subItems.reduce((n, s) => n + s.amount, 0);
+                                                    const displayAmount = subTotal > 0 ? subTotal : fee.amount;
+                                                    const isExpanded = expandedFeeId.includes(fee.id);
+                                                    return (
+                                                        <div key={fee.id} className="rounded-xl border border-border/40 overflow-hidden">
+                                                            <div className="flex items-center justify-between px-3 py-2.5 bg-muted/20">
+                                                                <div className="flex items-center gap-2">
+                                                                    {fee.subItems.length > 0 ? (
+                                                                        <button onClick={() => toggleFeeExpand(fee.id)}
+                                                                            className="text-muted-foreground hover:text-foreground transition-colors">
+                                                                            <ChevronRight size={14} className={`transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+                                                                        </button>
+                                                                    ) : (
+                                                                        <div className="w-3.5" />
+                                                                    )}
+                                                                    <span className="text-sm font-semibold">{fee.label}</span>
+                                                                </div>
+                                                                <span className="text-sm font-bold">₹{displayAmount.toLocaleString()}</span>
+                                                            </div>
+                                                            <AnimatePresence>
+                                                                {isExpanded && (
+                                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }}
+                                                                        className="overflow-hidden">
+                                                                        <div className="px-3 py-2 space-y-1 border-t border-border/30 bg-background">
+                                                                            {fee.subItems.map(sub => (
+                                                                                <div key={sub.id} className="flex items-center justify-between py-1.5 pl-5 border-b border-border/20 last:border-none">
+                                                                                    <span className="text-xs text-muted-foreground">{sub.label}</span>
+                                                                                    <span className="text-xs font-semibold">₹{sub.amount.toLocaleString()}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
                                                         </div>
                                                     );
                                                 })}
-                                                <div className="flex items-center justify-between py-2 border-t-2 border-border/50 mt-1">
+
+                                                {/* Divider */}
+                                                <div className="border-t-2 border-border/50 mt-2" />
+
+                                                {/* Summary */}
+                                                <div className="mt-2 p-3 rounded-xl bg-muted/30 border border-border/40 space-y-1.5">
+                                                    <p className="text-[11px] font-semibold text-muted-foreground mb-2">Summary</p>
+                                                    {feeItems.map(fee => {
+                                                        const s = fee.subItems.reduce((n, s) => n + s.amount, 0);
+                                                        const amount = s > 0 ? s : fee.amount;
+                                                        return (
+                                                            <div key={fee.id} className="flex items-center justify-between">
+                                                                <span className="text-[11px] text-muted-foreground">{fee.label}</span>
+                                                                <span className="text-[11px] font-semibold">₹{amount.toLocaleString()}</span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+
+                                                {/* Total */}
+                                                <div className="flex items-center justify-between py-2 mt-2">
                                                     <span className="text-sm font-bold">Total</span>
-                                                    <span className="text-sm font-black" style={{ color: '#7C3AED' }}>₹{totalFee.toLocaleString()}</span>
+                                                    <span className="text-base font-black" style={{ color: '#7C3AED' }}>₹{totalFee.toLocaleString()}</span>
                                                 </div>
                                             </div>
                                         </div>
 
-                                        <div className="rounded-xl border border-border/40 overflow-hidden">
-                                            <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
-                                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month Wise</p>
-                                            </div>
-                                            <div className="px-4 py-2 space-y-1.5">
-                                                {feeMonths.map(m => (
-                                                    <div key={m.id} className="flex items-center justify-between py-1.5 border-b border-border/20 last:border-none">
-                                                        <div>
-                                                            <p className="text-xs font-semibold">{m.month}</p>
-                                                            <p className="text-[10px] text-muted-foreground">Due: {m.dueDate}</p>
-                                                        </div>
-                                                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${STATUS_CFG[m.status].cls}`}>
-                                                            {STATUS_CFG[m.status].label}
-                                                        </span>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        </div>
                                     </div>
                                 )}
                             </div>
