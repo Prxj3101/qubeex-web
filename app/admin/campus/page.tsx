@@ -489,7 +489,7 @@ export default function AdminCampusPage() {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0 bg-background">
+                    <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 min-h-0 bg-background">
                         {loadingPosts && (
                             <div className="flex items-center justify-center py-12 text-muted-foreground text-sm">Loading...</div>
                         )}

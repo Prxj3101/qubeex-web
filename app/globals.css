@@ -111,3 +111,9 @@
 .chalk-flicker {
   animation: chalkFlicker 4s infinite;
 }
+
+.fee-table-wrapper {
+  overflow-x: scroll !important;
+  overflow-y: auto !important;
+  max-height: 220px;
+}

@@ -11,6 +11,7 @@ import {
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { assignSubjectColor } from '@/lib/subjectColors';
+import { FeesTab } from './fees';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -309,6 +310,7 @@ function DivFeedCard({ ann }: { ann: DivAnnouncement }) {
 const TABS = [
     { key: 'overview' as const, label: 'View' },
     { key: 'manage' as const, label: 'Manage' },
+    { key: 'fees' as const, label: 'Fees' },
 ];
 
 export default function DivisionDetailPage() {
@@ -319,7 +321,7 @@ export default function DivisionDetailPage() {
     const [division, setDivision] = useState<Division | null>(null);
     const [teachers, setTeachers] = useState<TeacherOption[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'manage'>('overview');
+    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'fees'>('overview');
     const [manageTab, setManageTab] = useState<'teachers' | 'subjects'>('teachers');
     const [addingSubject, setAddingSubject] = useState(false);
     const [savingAssign, setSavingAssign] = useState(false);
@@ -340,6 +342,8 @@ export default function DivisionDetailPage() {
     const [studentActive, setStudentActive] = useState(true);
     const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
+    const [feesSubTab, setFeesSubTab] = useState<'setup' | 'students'>('students');
+
 
     const toggleSubject = (subId: string) => {
         setSelectedSubjects(prev =>
@@ -535,16 +539,48 @@ export default function DivisionDetailPage() {
                         </div>
                     </div>
 
+                    {/* Stats / Sub tabs — conditional */}
                     <div className="flex items-center gap-4">
-                        {[
-                            { label: 'Subjects', value: division.subjects.length },
-                            { label: 'Teachers', value: new Set(division.assignments.map(a => a.teacher.id)).size },
-                        ].map(({ label, value }) => (
-                            <div key={label} className="text-right">
-                                <p className="text-lg font-bold leading-tight">{value}</p>
-                                <p className="text-[11px] text-muted-foreground">{label}</p>
+                        {(activeTab === 'overview' || activeTab === 'manage') && (
+                            <>
+                                {[
+                                    { label: 'Subjects', value: division.subjects.length },
+                                    { label: 'Teachers', value: new Set(division.assignments.map(a => a.teacher.id)).size },
+                                ].map(({ label, value }) => (
+                                    <div key={label} className="text-right">
+                                        <p className="text-lg font-bold leading-tight">{value}</p>
+                                        <p className="text-[11px] text-muted-foreground">{label}</p>
+                                    </div>
+                                ))}
+                            </>
+                        )}
+
+                        {activeTab === 'fees' && (
+                            <div className="flex items-center gap-4">
+                                <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
+                                    {[
+                                        { key: 'students' as const, label: 'Student Fees' },
+                                        { key: 'setup' as const, label: 'Fee Setup' },
+                                    ].map(tab => {
+                                        const isActive = feesSubTab === tab.key;
+                                        return (
+                                            <button key={tab.key} onClick={() => setFeesSubTab(tab.key)}
+                                                className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${isActive ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                {tab.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-bold leading-tight text-emerald-600">5</p>
+                                    <p className="text-[11px] text-muted-foreground">Paid</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-bold leading-tight text-red-500">5</p>
+                                    <p className="text-[11px] text-muted-foreground">Pending</p>
+                                </div>
                             </div>
-                        ))}
+                        )}
                     </div>
                 </div>
                 <div className="h-px bg-border/60 mt-2" />
@@ -605,7 +641,7 @@ export default function DivisionDetailPage() {
                                     </div>
 
                                     {/* Posts */}
-                                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0 bg-background">
+                                    <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 min-h-0 bg-background">
                                         {filteredAnnouncements.length === 0 && (
                                             <p className="text-xs text-muted-foreground/60 italic text-center py-8">No posts yet</p>
                                         )}
@@ -1128,6 +1164,19 @@ export default function DivisionDetailPage() {
                             </div>
                         </motion.div>
                     )}
+
+                    {/* ── TAB 3: FEES ── */}
+                    {activeTab === 'fees' && (
+                        <motion.div key="fees" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="h-full pt-3 pb-3 px-1 overflow-y-auto">
+                            <FeesTab
+                                divisionId={divisionId}
+                                divisionName={division.name}
+                                feesSubTab={feesSubTab}
+                            />
+                        </motion.div>
+                    )}
+
                 </AnimatePresence>
             </div>
             <AnimatePresence>
