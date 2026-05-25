@@ -75,6 +75,7 @@ export default function AdminOverviewPage() {
             <StatCards
                 stats={overview.stats}
                 institutionType={instType}
+                plan={overview.plan}
             />
 
             <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-stretch">

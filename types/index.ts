@@ -76,6 +76,7 @@ export interface AdminOverview {
             users: { used: number; limit: number };
             storage: { used: number; limit: number };
             tests: { used: number; limit: number };
+            aiTokens: { used: number; limit: number };  // ← add karo
         };
     };
     auditLogs: {

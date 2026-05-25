@@ -642,7 +642,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                         </div>
 
                                         {/* Fee Card */}
-                                        <div className="rounded-2xl border border-border/50 overflow-hidden shadow-sm">
+                                        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden shadow-sm shadow-black/5">
                                             {/* Fee Card Header */}
                                             <div className="px-4 py-3 bg-muted/20 border-b border-border/40">
                                                 <p className="text-sm font-bold">{selectedStudent.name}'s Fee Card</p>
