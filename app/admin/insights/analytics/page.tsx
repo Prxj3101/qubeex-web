@@ -188,7 +188,7 @@ function StatCard({ icon: Icon, label, value, sub, iconBg, iconColor }: {
                 <Icon size={15} className={iconColor} />
             </div>
             <p className="text-xs text-muted-foreground mb-2">{label}</p>
-            <p className="text-3xl font-semibold tracking-tight">
+            <p className="text-2xl font-semibold tracking-tight">
                 {typeof value === 'number' ? value.toLocaleString('en-IN') : value}
             </p>
             {sub && <p className="text-[11px] text-muted-foreground mt-1">{sub}</p>}
