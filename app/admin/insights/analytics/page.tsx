@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
 import {
-    Users, GraduationCap, BookOpen, AlertCircle, RefreshCw, BarChart2,
+    Users, GraduationCap, BookOpen, AlertCircle, RefreshCw, BarChart2, Gauge,
     Sparkles, Clock, Layers, Wallet, ChevronRight, ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -642,6 +642,10 @@ export default function AdminAnalyticsPage() {
 
                 {/* Plan Usage */}
                 <div className="bg-card border border-border/50 rounded-2xl p-5 flex flex-col gap-4">
+                    <div className="flex items-center gap-2 mb-1">
+                        < Gauge size={15} className="text-muted-foreground" />
+                        <p className="text-sm font-semibold">Plan Usage</p>
+                    </div>
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-xs text-muted-foreground">Current plan</p>
@@ -679,6 +683,10 @@ export default function AdminAnalyticsPage() {
 
                 {/* AI Usage */}
                 <div className="bg-card border border-border/50 rounded-2xl p-5 flex flex-col gap-4">
+                    <div className="flex items-center gap-2 mb-1">
+                        <Sparkles size={15} className="text-muted-foreground" />
+                        <p className="text-sm font-semibold">AI Usage</p>
+                    </div>
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-xs text-muted-foreground">Institution token pool</p>
@@ -698,7 +706,7 @@ export default function AdminAnalyticsPage() {
                             <div className="h-full rounded-full transition-all duration-700"
                                 style={{
                                     width: `${tokenPct}%`,
-                                    background: 'linear-gradient(90deg, #7C3AED, #9D5CF6)',
+                                    background: 'linear-gradient(90deg, #DA7756, #C06040)',
                                 }} />
                         </div>
                         <p className="text-[10px] text-muted-foreground">{tokenPct}% used</p>
@@ -728,9 +736,7 @@ export default function AdminAnalyticsPage() {
                                             <div className="h-full rounded-full transition-all duration-500"
                                                 style={{
                                                     width: `${pct}%`,
-                                                    background: isCritical
-                                                        ? 'linear-gradient(90deg, #DA7756, #C06040)'
-                                                        : 'linear-gradient(90deg, #7C3AED, #9D5CF6)',
+                                                    background: 'linear-gradient(90deg, #7C3AED, #9D5CF6)',
                                                 }} />
                                         </div>
                                     </div>
