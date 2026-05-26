@@ -7,7 +7,7 @@ import {
     ArrowLeft, ChevronRight, Hash, Mail, Phone, MapPin,
     Calendar, User, GraduationCap, Briefcase, Edit2,
     Check, X, PowerOff, Power, BookOpen, Layers,
-    CheckCircle2, Circle,
+    CheckCircle2, Circle, MailCheck, Sparkles,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Teacher, InstitutionType } from '@/types';
@@ -153,17 +153,15 @@ function EditableField({ label, value, onChange }: {
 }
 
 // ── Profile Tab ───────────────────────────────────────────────────────────────
-function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
+function ProfileTab({ teacher, onDeactivateClick, onResendInviteClick, onTeacherUpdate }: {
     teacher: typeof MOCK_TEACHERS[0];
     onDeactivateClick: () => void;
+    onResendInviteClick: () => void;
     onTeacherUpdate: (updated: Partial<typeof MOCK_TEACHERS[0]>) => void;
 }) {
     const avatarColor = getAvatarColor(teacher.id);
     const isActive = teacher.status === 'ACTIVE';
     const [editingSection, setEditingSection] = useState<string | null>(null);
-    const [softLimit, setSoftLimit] = useState(0);
-    const [softLimitInput, setSoftLimitInput] = useState('0');
-    const [showSoftLimit, setShowSoftLimit] = useState(false);
 
     const [personalDraft, setPersonalDraft] = useState({
         name: teacher.name, dob: teacher.dob ?? '', gender: teacher.gender ?? '',
@@ -256,24 +254,39 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                             {teacher.teacherId}
                                         </span>
                                     )}
-                                    <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${isActive
-                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
-                                        : 'bg-muted text-muted-foreground'
-                                        }`}>
-                                        {isActive ? 'Active' : 'Inactive'}
-                                    </span>
+                                    {teacher.invitePending ? (
+                                        <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                            Invite Pending
+                                        </span>
+                                    ) : (
+                                        <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${isActive
+                                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                            : 'bg-muted text-muted-foreground'
+                                            }`}>
+                                            {isActive ? 'Active' : 'Inactive'}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
 
-                            <button
-                                onClick={onDeactivateClick}
-                                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all ${isActive
-                                    ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950 dark:text-red-400'
-                                    : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-400'
-                                    }`}
-                            >
-                                {isActive ? <><PowerOff size={13} /> Deactivate</> : <><Power size={13} /> Activate</>}
-                            </button>
+                            {teacher.invitePending ? (
+                                <button
+                                    onClick={onResendInviteClick}
+                                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 hover:bg-amber-200 dark:bg-amber-950 dark:text-amber-400 transition-all"
+                                >
+                                    <MailCheck size={13} /> Resend Invite
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={onDeactivateClick}
+                                    className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all ${isActive
+                                        ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950 dark:text-red-400'
+                                        : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-400'
+                                        }`}
+                                >
+                                    {isActive ? <><PowerOff size={13} /> Deactivate</> : <><Power size={13} /> Activate</>}
+                                </button>
+                            )}
                         </div>
 
                         {/* Stats row */}
@@ -323,131 +336,16 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                     )}
                 </SectionCard>
 
-                {/* AI Tokens */}
-                <SectionCard title="AI Token Usage">
-                    <div className="space-y-3">
-
-                        {/* Teacher usage */}
-                        <div>
-                            <div className="flex items-center justify-between mb-1.5">
-                                <p className="text-xs font-semibold">{teacher.name}&apos;s usage this month</p>
-                                <span className="text-xs font-bold">1.2M <span className="text-muted-foreground font-normal">/ 10M pool</span></span>
-                            </div>
-                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: '12%', background: '#7C3AED' }} />
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-1">12% of institution pool</p>
-                        </div>
-
-                        {/* Stats */}
-                        <div className="grid grid-cols-3 gap-2">
-                            <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">1.2M</p>
-                                <p className="text-[10px] text-muted-foreground">Used</p>
-                            </div>
-                            <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">8.8M</p>
-                                <p className="text-[10px] text-muted-foreground">Remaining</p>
-                            </div>
-                            <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(124,58,237,0.08)' }}>
-                                <p className="text-sm font-bold" style={{ color: '#7C3AED' }}>12%</p>
-                                <p className="text-[10px] text-muted-foreground">Pool share</p>
-                            </div>
-                        </div>
-
-                        {/* Institution pool */}
-                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
-                            <div className="flex items-center justify-between mb-1.5">
-                                <p className="text-[11px] font-semibold text-muted-foreground">Institution pool</p>
-                                <span className="text-[11px] font-semibold">4.4M <span className="font-normal text-muted-foreground">/ 10M used</span></span>
-                            </div>
-                            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: '44%', background: '#DA7756' }} />
-                            </div>
-                            <p className="text-[11px] text-muted-foreground mt-1">🔄 Resets 1st of every month</p>
-                        </div>
-
-                        {/* Soft Limit */}
-                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2.5">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <p className="text-[11px] font-semibold">Soft Limit</p>
-                                    <p className="text-[10px] text-muted-foreground">Optional max tokens for this teacher</p>
-                                </div>
-                                <button
-                                    onClick={() => setShowSoftLimit(v => !v)}
-                                    className="text-[11px] font-semibold text-primary hover:opacity-75 transition-opacity"
-                                >
-                                    {softLimit ? 'Edit' : 'Set limit'}
-                                </button>
-                            </div>
-
-                            {showSoftLimit && (
-                                <div className="space-y-2">
-                                    <div className="flex items-center gap-3">
-                                        <input
-                                            type="range"
-                                            min={0}
-                                            max={10}
-                                            step={0.5}
-                                            value={softLimitInput}
-                                            onChange={e => setSoftLimitInput(e.target.value)}
-                                            className="flex-1 accent-[#7C3AED] h-1.5 cursor-pointer"
-                                        />
-                                        <span className="text-sm font-bold w-14 text-right" style={{ color: '#7C3AED' }}>
-                                            {softLimitInput || 0}M
-                                        </span>
-                                    </div>
-                                    <div className="flex items-center justify-between">
-                                        <p className="text-[11px] text-muted-foreground">0M — 10M (pool limit)</p>
-                                        <button
-                                            onClick={() => {
-                                                setSoftLimit(Number(softLimitInput) * 1000000);
-                                                setShowSoftLimit(false);
-                                                toast.success(`Soft limit set to ${softLimitInput}M tokens`);
-                                            }}
-                                            disabled={!softLimitInput || Number(softLimitInput) === 0}
-                                            className="h-7 px-3 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
-                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                                        >
-                                            Set
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {softLimit > 0 && !showSoftLimit && (
-                                <div className="space-y-1.5">
-                                    <div className="flex items-center justify-between text-[11px]">
-                                        <span className="text-muted-foreground">1.2M used of {(softLimit / 1000000).toFixed(1)}M limit</span>
-                                        <span className="font-semibold" style={{ color: 1200000 > softLimit * 0.8 ? '#DA7756' : '#7C3AED' }}>
-                                            {Math.round((1200000 / softLimit) * 100)}%
-                                        </span>
-                                    </div>
-                                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                        <div className="h-full rounded-full transition-all"
-                                            style={{
-                                                width: `${Math.min(100, Math.round((1200000 / softLimit) * 100))}%`,
-                                                background: 1200000 > softLimit * 0.8 ? '#DA7756' : '#7C3AED'
-                                            }}
-                                        />
-                                    </div>
-                                    <div className="flex items-center gap-1.5">
-                                        <button
-                                            onClick={() => { setSoftLimit(0); setSoftLimitInput(''); }}
-                                            className="text-[10px] text-red-500 hover:opacity-75 transition-opacity"
-                                        >
-                                            Remove limit
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            {softLimit === 0 && !showSoftLimit && (
-                                <p className="text-[11px] text-muted-foreground">No limit set — uses from shared pool freely</p>
-                            )}
-                        </div>
-
+                {/* AI Tokens — coming soon */}
+                <SectionCard title={
+                    <span className="flex items-center gap-1.5">
+                        <Sparkles size={12} />
+                        AI Token Usage
+                        <span className="ml-1 text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">Coming soon</span>
+                    </span>
+                }>
+                    <div className="flex items-center justify-center h-28 text-muted-foreground/30 text-sm">
+                        Real-time token data will appear here
                     </div>
                 </SectionCard>
 
@@ -557,6 +455,8 @@ export default function TeacherDetailPage() {
     const [teacher, setTeacher] = useState<typeof MOCK_TEACHERS[0] | null>(null);
     const [loading, setLoading] = useState(true);
     const [confirmToggle, setConfirmToggle] = useState(false);
+    const [confirmResend, setConfirmResend] = useState(false);
+    const [resendLoading, setResendLoading] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
@@ -578,6 +478,21 @@ export default function TeacherDetailPage() {
         fetchTeacher();
         return () => { cancelled = true; };
     }, [id]);
+
+    const handleResendInvite = async () => {
+        if (!teacher) return;
+        setResendLoading(true);
+        try {
+            await api.post(`/admin/teachers/${teacher.id}/resend-invite`);
+            toast.success('Invite resent successfully');
+            setConfirmResend(false);
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            toast.error(msg ?? 'Failed to resend invite');
+        } finally {
+            setResendLoading(false);
+        }
+    };
 
     const handleToggleStatus = async () => {
         if (!teacher) return;
@@ -633,6 +548,7 @@ export default function TeacherDetailPage() {
             <ProfileTab
                 teacher={teacher}
                 onDeactivateClick={() => setConfirmToggle(true)}
+                onResendInviteClick={() => setConfirmResend(true)}
                 onTeacherUpdate={(updated) => setTeacher(prev => prev ? { ...prev, ...updated } : prev)}
             />
 
@@ -665,6 +581,38 @@ export default function TeacherDetailPage() {
                                 style={{ background: teacher.status === 'ACTIVE' ? '#ef4444' : '#10b981' }}
                             >
                                 {teacher.status === 'ACTIVE' ? 'Yes, Deactivate' : 'Yes, Activate'}
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
+
+            {confirmResend && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+                    >
+                        <h3 className="text-base font-bold mb-2">Resend Invite?</h3>
+                        <p className="text-sm text-muted-foreground mb-5">
+                            A new invite email will be sent to {teacher.name}. The previous invite link will be invalidated.
+                        </p>
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={() => setConfirmResend(false)}
+                                disabled={resendLoading}
+                                className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all disabled:opacity-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleResendInvite}
+                                disabled={resendLoading}
+                                className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                            >
+                                {resendLoading ? 'Sending…' : 'Yes, Resend'}
                             </button>
                         </div>
                     </motion.div>
