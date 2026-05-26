@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { RefreshCw, ScrollText, Search, X, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
@@ -42,21 +42,6 @@ const ROLES_LIST = ['All Roles', 'ADMIN', 'TEACHER'];
 const ACTION_LIST = ['All Action Types', ...Object.keys(ACTION_CONFIG)];
 const PAGE_SIZE = 15;
 
-// Mock data
-const MOCK_LOGS: LogEntry[] = [
-    { id: '1', action: 'TEACHER_ADDED', actorRole: 'ADMIN', details: 'Ritu Sharma added to Class 10-A', createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '2', action: 'STUDENT_ENROLLED', actorRole: 'ADMIN', details: '24 students enrolled in Class 9', createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '3', action: 'ATTENDANCE_MARKED', actorRole: 'TEACHER', details: 'Attendance marked for Class 10-A', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), user: { id: 'u2', email: 'ritu@dps.edu.in', name: 'Ritu Sharma' } },
-    { id: '4', action: 'TEST_PUBLISHED', actorRole: 'TEACHER', details: 'Math Unit Test published for Class 10', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), user: { id: 'u2', email: 'ritu@dps.edu.in', name: 'Ritu Sharma' } },
-    { id: '5', action: 'RESULTS_PUBLISHED', actorRole: 'ADMIN', details: 'Monthly test results published', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '6', action: 'ANNOUNCEMENT_POSTED', actorRole: 'ADMIN', details: 'Staff meeting announcement posted', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '7', action: 'CLASS_CREATED', actorRole: 'ADMIN', details: 'Class 11-A created under Science stream', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '8', action: 'SETTINGS_UPDATED', actorRole: 'ADMIN', details: 'Admin settings updated', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 50).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '9', action: 'TEACHER_DEACTIVATED', actorRole: 'ADMIN', details: 'Rajesh Kumar deactivated', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '10', action: 'ADMIN_LOGIN', actorRole: 'ADMIN', details: 'Admin logged in successfully', ip: '192.168.1.1', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 74).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '11', action: 'STUDENT_ENROLLED', actorRole: 'ADMIN', details: '15 students enrolled in Class 10-B', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '12', action: 'ATTENDANCE_MARKED', actorRole: 'TEACHER', details: 'Attendance marked for Class 9-A', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 98).toISOString(), user: { id: 'u3', email: 'ankit@dps.edu.in', name: 'Ankit Verma' } },
-];
 
 function toIST(iso: string) {
     const d = new Date(iso);
@@ -126,11 +111,17 @@ export default function AdminAuditLogsPage() {
     const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: PAGE_SIZE, pages: 1 });
     const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [actionFilter, setActionFilter] = useState('All Action Types');
     const [roleFilter, setRoleFilter] = useState('All Roles');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
     const [page, setPage] = useState(1);
+
+    useEffect(() => {
+        const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 400);
+        return () => clearTimeout(t);
+    }, [search]);
 
     const fetchLogs = useCallback(async (currentPage = page) => {
         try {
@@ -142,32 +133,22 @@ export default function AdminAuditLogsPage() {
             if (roleFilter !== 'All Roles') params.set('actorRole', roleFilter);
             if (fromDate) params.set('from', fromDate);
             if (toDate) params.set('to', toDate + 'T23:59:59');
+            if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
 
             const res = await api.get(`/admin/audit-logs?${params.toString()}`);
-            const { logs: rawLogs, pagination: pg } = res.data;
+            const { logs: rawLogs, pagination: pg } = res.data.data;
             setLogs(rawLogs ?? []);
             setPagination(pg ?? { total: 0, page: currentPage, limit: PAGE_SIZE, pages: 1 });
         } catch {
-            // fallback to mock
-            setLogs(MOCK_LOGS);
-            setPagination({ total: MOCK_LOGS.length, page: 1, limit: PAGE_SIZE, pages: 1 });
+            toast.error('Failed to load audit logs');
+            setLogs([]);
+            setPagination({ total: 0, page: currentPage, limit: PAGE_SIZE, pages: 1 });
         } finally {
             setLoading(false);
         }
-    }, [page, actionFilter, roleFilter, fromDate, toDate]);
+    }, [page, actionFilter, roleFilter, fromDate, toDate, debouncedSearch]);
 
-    useEffect(() => { fetchLogs(page); }, [page, actionFilter, roleFilter, fromDate, toDate]);
-
-    const filtered = useMemo(() => {
-        if (!search.trim()) return logs;
-        const q = search.toLowerCase();
-        return logs.filter(l =>
-            l.user?.name?.toLowerCase().includes(q) ||
-            l.user?.email?.toLowerCase().includes(q) ||
-            l.details?.toLowerCase().includes(q) ||
-            l.action?.toLowerCase().includes(q)
-        );
-    }, [logs, search]);
+    useEffect(() => { fetchLogs(page); }, [page, actionFilter, roleFilter, fromDate, toDate, debouncedSearch]);
 
     const clearFilters = () => {
         setSearch(''); setActionFilter('All Action Types');
@@ -246,18 +227,22 @@ export default function AdminAuditLogsPage() {
                                     </div>
                                 ))}
                             </div>
-                        ) : filtered.length === 0 ? (
+                        ) : logs.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-center">
                                 <ScrollText size={32} className="text-muted-foreground/30 mb-3" />
                                 <p className="text-sm font-medium text-muted-foreground">
-                                    {logs.length === 0 ? 'No audit logs yet' : 'No logs match your search'}
+                                    {pagination.total === 0 && !debouncedSearch && actionFilter === 'All Action Types' && roleFilter === 'All Roles' && !fromDate && !toDate
+                                        ? 'No audit logs yet'
+                                        : 'No logs match your filters'}
                                 </p>
                                 <p className="text-xs text-muted-foreground/60 mt-1">
-                                    {logs.length === 0 ? 'Teacher, student & admin actions will appear here' : 'Try adjusting your filters'}
+                                    {pagination.total === 0 && !debouncedSearch && actionFilter === 'All Action Types' && roleFilter === 'All Roles' && !fromDate && !toDate
+                                        ? 'Teacher, student & admin actions will appear here'
+                                        : 'Try adjusting your search or filters'}
                                 </p>
                             </div>
                         ) : (
-                            filtered.map((log, i) => {
+                            logs.map((log, i) => {
                                 const { date, time } = toIST(log.createdAt);
                                 const actionCfg = ACTION_CONFIG[log.action] ?? {
                                     label: log.action.replace(/_/g, ' '),
