@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import {
     Plus, Search, X, Users, Mail, Phone,
     CalendarDays, BookOpen, Edit2, PowerOff, Power,
-    GraduationCap, Hash, Layers, Eye, Sparkles, MapPin, Briefcase
+    GraduationCap, Hash, Layers, Eye, Sparkles, MapPin, Briefcase, MailCheck
 } from 'lucide-react';
 
 import { useMockInstType } from '@/context/MockInstTypeContext';
@@ -132,19 +132,21 @@ type ModalState =
     | { type: 'closed' }
     | { type: 'add' }
     | { type: 'edit'; teacher: Teacher }
-    | { type: 'deactivate'; teacher: Teacher };
+    | { type: 'deactivate'; teacher: Teacher }
+    | { type: 'resendInvite'; teacher: Teacher };
 
 
 // ── Teacher Card ──────────────────────────────────────────────────────────────
 function TeacherCard({
     teacher, index, instType,
-    onEdit, onToggleStatus,
+    onEdit, onToggleStatus, onResendInvite,
 }: {
     teacher: Teacher;
     index: number;
     instType: InstitutionType;
     onEdit: (t: Teacher) => void;
     onToggleStatus: (t: Teacher) => void;
+    onResendInvite: (t: Teacher) => void;
 }) {
     const avatarColor = getAvatarColor(teacher.id);
     const isActive = teacher.status === 'ACTIVE';
@@ -193,12 +195,18 @@ function TeacherCard({
                             {teacher.name}
                         </p>
                         {/* Status badge */}
-                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${isActive
-                            ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
-                            : 'bg-muted text-muted-foreground'
-                            }`}>
-                            {isActive ? 'Active' : 'Inactive'}
-                        </span>
+                        {teacher.invitePending ? (
+                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                Invite Pending
+                            </span>
+                        ) : (
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${isActive
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                : 'bg-muted text-muted-foreground'
+                                }`}>
+                                {isActive ? 'Active' : 'Inactive'}
+                            </span>
+                        )}
                     </div>
 
                     {/* Assignment count */}
@@ -236,19 +244,13 @@ function TeacherCard({
                     </div>
                 ))}
 
-                {/* AI Token bar */}
+                {/* AI Token usage — coming soon */}
                 <div className="pt-2 border-t border-border/40">
-                    <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-[12px] text-muted-foreground flex items-center gap-1.5">
-                            <Sparkles size={12} className="text-muted-foreground/60" />
-                            AI Tokens
-                        </span>
-                        <span className="text-[11px] font-semibold">1.2M <span className="text-muted-foreground font-normal">/ 10M</span></span>
+                    <div className="flex items-center gap-1.5">
+                        <Sparkles size={12} className="text-muted-foreground/60" />
+                        <span className="text-[12px] text-muted-foreground">AI Tokens</span>
+                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">Coming soon</span>
                     </div>
-                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: '12%', background: '#7C3AED' }} />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">12% of institution pool</p>
                 </div>
             </div>
 
@@ -303,16 +305,26 @@ function TeacherCard({
                     <Eye size={12} />
                     View Details
                 </button>
-                <button
-                    onClick={() => onToggleStatus(teacher)}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-medium transition-all duration-150 ${isActive
-                        ? 'border-red-200 text-red-500 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30'
-                        : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-950/30'
-                        }`}
-                >
-                    {isActive ? <PowerOff size={12} /> : <Power size={12} />}
-                    {isActive ? 'Deactivate' : 'Activate'}
-                </button>
+                {teacher.invitePending ? (
+                    <button
+                        onClick={() => onResendInvite(teacher)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-950/30 text-xs font-medium transition-all duration-150"
+                    >
+                        <MailCheck size={12} />
+                        Resend Invite
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => onToggleStatus(teacher)}
+                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-medium transition-all duration-150 ${isActive
+                            ? 'border-red-200 text-red-500 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30'
+                            : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-950/30'
+                            }`}
+                    >
+                        {isActive ? <PowerOff size={12} /> : <Power size={12} />}
+                        {isActive ? 'Deactivate' : 'Activate'}
+                    </button>
+                )}
             </div>
         </motion.div>
     );
@@ -393,6 +405,19 @@ export default function TeachersPage() {
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
             toast.error(msg ?? 'Failed to update teacher');
+        } finally { setActionLoading(false); }
+    }, [modal]);
+
+    const handleResendInvite = useCallback(async () => {
+        if (modal.type !== 'resendInvite') return;
+        setActionLoading(true);
+        try {
+            await api.post(`/admin/teachers/${modal.teacher.id}/resend-invite`);
+            toast.success('Invite resent successfully');
+            setModal({ type: 'closed' });
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            toast.error(msg ?? 'Failed to resend invite');
         } finally { setActionLoading(false); }
     }, [modal]);
 
@@ -494,6 +519,7 @@ export default function TeachersPage() {
                                 instType={instType}
                                 onEdit={t => setModal({ type: 'edit', teacher: t })}
                                 onToggleStatus={t => setModal({ type: 'deactivate', teacher: t })}
+                                onResendInvite={t => setModal({ type: 'resendInvite', teacher: t })}
                             />
                         ))}
                     </div>
@@ -536,6 +562,17 @@ export default function TeachersPage() {
                         ? 'Teacher will lose access immediately. You can reactivate anytime.'
                         : 'Teacher will regain access to the platform.'
                 }
+            />
+
+            <DeleteConfirmDialog
+                open={modal.type === 'resendInvite'}
+                onOpenChange={v => !v && setModal({ type: 'closed' })}
+                label="Teacher"
+                name={modal.type === 'resendInvite' ? modal.teacher.name : ''}
+                loading={actionLoading}
+                onConfirm={handleResendInvite}
+                confirmLabel="Resend Invite"
+                description="A new invite email will be sent. The previous invite link will be invalidated."
             />
         </div>
     );
