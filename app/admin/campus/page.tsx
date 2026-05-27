@@ -8,7 +8,7 @@ import { useMockInstType } from '@/context/MockInstTypeContext';
 import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type EventType = 'holiday' | 'test' | 'exam' | 'submission';
+type EventType = 'holiday' | 'test' | 'exam' | 'submission' | 'meeting' | 'sports' | 'event' | 'trip';
 interface CalEvent { id: string; date: number; type: EventType; label: string; fullDate: string; }
 
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
@@ -20,10 +20,14 @@ interface FeedPost {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const EVENT_CFG = {
-    holiday: { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', label: 'Holiday', emoji: '🏖️' },
-    test: { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', label: 'Test', emoji: '📝' },
-    exam: { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400', label: 'Main Exam', emoji: '🎓' },
+    holiday:    { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40',     text: 'text-red-700 dark:text-red-400',       label: 'Holiday',    emoji: '🏖️' },
+    test:       { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40',   text: 'text-blue-700 dark:text-blue-400',     label: 'Test',       emoji: '📝' },
+    exam:       { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400',   label: 'Main Exam',  emoji: '🎓' },
     submission: { dot: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', label: 'Submission', emoji: '📤' },
+    meeting:    { dot: '#0D9488', bg: 'bg-teal-100 dark:bg-teal-950/40',   text: 'text-teal-700 dark:text-teal-400',     label: 'Meeting',    emoji: '🤝' },
+    sports:     { dot: '#059669', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', label: 'Sports', emoji: '🏆' },
+    event:      { dot: '#EC4899', bg: 'bg-pink-100 dark:bg-pink-950/40',   text: 'text-pink-700 dark:text-pink-400',     label: 'Event',      emoji: '🎉' },
+    trip:       { dot: '#0284C7', bg: 'bg-sky-100 dark:bg-sky-950/40',     text: 'text-sky-700 dark:text-sky-400',       label: 'Trip',       emoji: '🚌' },
 } as const;
 
 const POST_META = {
@@ -101,7 +105,7 @@ function AcademicCalendar() {
         if (!newLabel.trim() || !addDate) return;
         setSaving(true);
         try {
-            const dateStr = new Date(year, month, addDate).toISOString().split('T')[0];
+            const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(addDate).padStart(2, '0')}`;
             const res = await api.post('/admin/campus/feed/events', { type: newType.toUpperCase(), label: newLabel.trim(), date: dateStr });
             setEvents(prev => [...prev, res.data.data]);
             setNewLabel(''); setNewType('holiday'); setShowAddModal(false);
@@ -242,11 +246,11 @@ function AcademicCalendar() {
                                 </button>
                             </div>
                             <div className="space-y-3">
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-4 gap-1.5">
                                     {(Object.keys(EVENT_CFG) as EventType[]).map(type => (
                                         <button key={type} onClick={() => setNewType(type)}
-                                            className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${newType === type ? `border-current ${EVENT_CFG[type].text} ${EVENT_CFG[type].bg}` : 'border-border/50 text-muted-foreground hover:border-border'}`}>
-                                            <span>{EVENT_CFG[type].emoji}</span>
+                                            className={`flex flex-col items-center gap-1 p-2 rounded-xl border-2 text-[10px] font-semibold transition-all ${newType === type ? `border-current ${EVENT_CFG[type].text} ${EVENT_CFG[type].bg}` : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                                            <span className="text-base">{EVENT_CFG[type].emoji}</span>
                                             {EVENT_CFG[type].label}
                                         </button>
                                     ))}
