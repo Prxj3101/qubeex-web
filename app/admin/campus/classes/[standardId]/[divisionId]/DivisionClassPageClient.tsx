@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ArrowLeft, ChevronRight, Users, BookOpen,
+    ArrowLeft, ChevronRight, Users, BookOpen, User, Shield, MapPin,
     Plus, X, Check, ChevronDown, User as UserIcon,
-    Calendar, FileText, Trophy, Send, Crown, ChevronUp, Paperclip, PowerOff, Power, ExternalLink
+    Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -45,6 +45,84 @@ interface Division {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+const GENDERS = [
+    { value: 'MALE', label: 'Male' },
+    { value: 'FEMALE', label: 'Female' },
+    { value: 'OTHER', label: 'Other' },
+];
+const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+const CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Other'];
+
+function SectionHeader({ icon: Icon, label, editing, onEdit, onSave, onCancel }: {
+    icon: React.ElementType; label: string; editing: boolean;
+    onEdit: () => void; onSave: () => void; onCancel: () => void;
+}) {
+    return (
+        <div className="flex items-center gap-2 mb-3">
+            <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+                <Icon size={11} className="text-primary" />
+            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground">{label}</p>
+            <div className="flex-1 h-px bg-border/60" />
+            {editing ? (
+                <div className="flex items-center gap-1.5 shrink-0">
+                    <button onClick={onCancel}
+                        className="h-6 px-2.5 rounded-lg border border-border/50 text-[11px] font-semibold text-muted-foreground hover:bg-muted transition-all">
+                        Cancel
+                    </button>
+                    <button onClick={onSave}
+                        className="h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                        Save
+                    </button>
+                </div>
+            ) : (
+                <button onClick={onEdit}
+                    className="h-6 px-2.5 rounded-lg border border-border/50 text-[11px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all shrink-0">
+                    Edit
+                </button>
+            )}
+        </div>
+    );
+}
+
+function ReadField({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <p className="text-[11px] text-muted-foreground mb-1 font-medium">{label}</p>
+            <div className="h-8 px-3 rounded-md border border-border/40 bg-muted flex items-center">
+                <span className="text-xs text-foreground">{value || '—'}</span>
+            </div>
+        </div>
+    );
+}
+
+function SectionViewLabel({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+    return (
+        <div className="flex items-center gap-2 mb-3">
+            <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
+                <Icon size={11} className="text-primary" />
+            </div>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground">{label}</p>
+            <div className="flex-1 h-px bg-border/60" />
+        </div>
+    );
+}
+
+function EditField({ label, value, onChange, placeholder }: {
+    label: string; value: string;
+    onChange: (v: string) => void; placeholder: string;
+}) {
+    return (
+        <div>
+            <p className="text-[11px] text-muted-foreground mb-1 font-medium">{label}</p>
+            <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+                className="w-full h-8 px-3 rounded-md border border-border/50 bg-muted text-xs focus:outline-none focus:border-primary/50 transition-all" />
+        </div>
+    );
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getInitials(name: string) {
     return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
@@ -53,6 +131,265 @@ function getInitials(name: string) {
 const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 function getAvatarColor(name: string) {
     return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
+}
+
+// ── Calendar Types & Config ───────────────────────────────────────────────────
+type CalEventType = 'holiday' | 'event' | 'test' | 'termtest' | 'exam' | 'meeting' | 'submission';
+
+interface CalEvent {
+    id: string;
+    date: number;
+    type: CalEventType;
+    label: string;
+    inherited?: boolean;
+}
+
+const CAL_EVENT_CFG = {
+    holiday: { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', label: 'Holiday', emoji: '🏖️' },
+    event: { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', label: 'Event', emoji: '📅' },
+    test: { dot: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', label: 'Test', emoji: '📝' },
+    termtest: { dot: '#10B981', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', label: 'Term Test', emoji: '📋' },
+    exam: { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400', label: 'Semester Exam', emoji: '🎓' },
+    meeting: { dot: '#F97316', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', label: 'Meeting', emoji: '🤝' },
+    submission: { dot: '#0891B2', bg: 'bg-cyan-100 dark:bg-cyan-950/40', text: 'text-cyan-700 dark:text-cyan-400', label: 'Submission', emoji: '📤' },
+} as const;
+
+const ALLOWED_TYPES_SUBJECT_TEACHER: CalEventType[] = ['test', 'submission'];
+const ALLOWED_TYPES_CLASS_TEACHER: CalEventType[] = ['holiday', 'event', 'test', 'termtest', 'exam', 'meeting', 'submission'];
+
+const MOCK_INHERITED_EVENTS: CalEvent[] = [
+    { id: 'inh1', date: 15, type: 'holiday', label: 'Independence Day', inherited: true },
+    { id: 'inh2', date: 26, type: 'holiday', label: 'Republic Day', inherited: true },
+];
+
+// ── Class Calendar Component ──────────────────────────────────────────────────
+function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName }: {
+    isClassTeacher: boolean;
+    isSubjectTeacher: boolean;
+    divisionName: string;
+}) {
+    const now = new Date();
+    const [year, setYear] = useState(now.getFullYear());
+    const [month, setMonth] = useState(now.getMonth());
+    const [events, setEvents] = useState<CalEvent[]>([...MOCK_INHERITED_EVENTS]);
+    const [selectedDate, setSelectedDate] = useState<number | null>(null);
+    const [showEventModal, setShowEventModal] = useState(false);
+    const [showAddModal, setShowAddModal] = useState(false);
+    const [addDate, setAddDate] = useState<number | null>(null);
+    const [newLabel, setNewLabel] = useState('');
+    const [newType, setNewType] = useState<CalEventType>('test');
+    const [saving, setSaving] = useState(false);
+
+    const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const MONTHS_S = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+    const today = now.getDate();
+    const isCurrentMonth = year === now.getFullYear() && month === now.getMonth();
+    const startOffset = (new Date(year, month, 1).getDay() + 6) % 7;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const cells: (number | null)[] = [
+        ...Array(startOffset).fill(null),
+        ...Array.from({ length: daysInMonth }, (_, i) => i + 1)
+    ];
+    while (cells.length % 7 !== 0) cells.push(null);
+
+    const eventsOn = (d: number) => events.filter(e => e.date === d);
+    const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
+    const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
+
+    const canEdit = isClassTeacher || isSubjectTeacher;
+    const allowedTypes = isClassTeacher ? ALLOWED_TYPES_CLASS_TEACHER : ALLOWED_TYPES_SUBJECT_TEACHER;
+
+    const handleAddEvent = () => {
+        if (!newLabel.trim() || !addDate) return;
+        setSaving(true);
+        const newEvent: CalEvent = {
+            id: `ev-${Date.now()}`,
+            date: addDate,
+            type: newType,
+            label: newLabel.trim(),
+            inherited: false,
+        };
+        setEvents(prev => [...prev, newEvent]);
+        setNewLabel('');
+        setNewType('test');
+        setShowAddModal(false);
+        setSaving(false);
+        toast.success('Event added');
+    };
+
+    const handleDeleteEvent = (eventId: string) => {
+        setEvents(prev => prev.filter(e => e.id !== eventId));
+        if (selectedDate && eventsOn(selectedDate).filter(e => !e.inherited).length <= 1) {
+            setShowEventModal(false);
+        }
+        toast.success('Event removed');
+    };
+
+    return (
+        <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
+                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                    <Calendar size={14} /> {divisionName} Academic Calendar
+                </p>
+                <div className="flex items-center gap-1.5">
+                    <button onClick={prevMonth} className="w-5.5 h-5.5 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
+                        <ChevronLeft size={14} />
+                    </button>
+                    <span className="text-[12px] font-semibold min-w-[80px] text-center">{MONTHS[month]} {year}</span>
+                    <button onClick={nextMonth} className="w-5.5 h-5.5 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
+                        <ChevronRight size={14} />
+                    </button>
+                </div>
+            </div>
+
+            {/* Grid */}
+            <div className="px-4.5 py-2.5 bg-background">
+                <div className="grid grid-cols-7 mb-1">
+                    {DAYS.map((d, i) => (
+                        <div key={i} className={`text-center text-[9px] font-semibold py-0.5 ${i >= 5 ? 'text-red-500' : 'text-muted-foreground'}`}>{d}</div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-7 border-l border-t border-border/50 bg-card">
+                    {cells.map((d, i) => {
+                        if (!d) return <div key={i} className="border-r border-b border-border/50" />;
+                        const isToday = isCurrentMonth && d === today;
+                        const isSelected = d === selectedDate;
+                        const evs = eventsOn(d);
+                        const isWeekend = (i % 7) >= 5;
+                        return (
+                            <button key={i}
+                                onClick={() => {
+                                    setSelectedDate(d);
+                                    if (evs.length > 0) setShowEventModal(true);
+                                    else if (canEdit) { setAddDate(d); setShowAddModal(true); }
+                                }}
+                                className={`relative flex flex-col items-center justify-center aspect-square text-[9px] font-medium transition-all border-r border-b border-border/50
+                                    ${isSelected ? 'bg-primary/15 text-primary' : ''}
+                                    ${isToday && !isSelected ? 'ring-2 ring-[#DA7756] text-[#DA7756] font-bold bg-[#DA7756]/10' : ''}
+                                    ${isWeekend && !isSelected && !isToday ? 'text-red-500' : ''}
+                                    ${!isSelected && !isToday && !isWeekend ? 'text-foreground' : ''}
+                                    ${canEdit ? 'hover:bg-muted/60 cursor-pointer' : evs.length > 0 ? 'cursor-pointer hover:bg-muted/60' : 'cursor-default'}`}>
+                                {d}
+                                {evs.length > 0 && (
+                                    <div className="flex gap-0.5 absolute bottom-1 items-center">
+                                        {evs.slice(0, 3).map((ev, di) => (
+                                            <div key={di} className="w-2.5 h-2.5 rounded-full"
+                                                style={{ background: CAL_EVENT_CFG[ev.type].dot }} />
+                                        ))}
+                                        {evs.length > 3 && <span className="text-[10px] font-bold text-muted-foreground leading-none">+{evs.length - 3}</span>}
+                                    </div>
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* Legend */}
+                <div className="flex flex-wrap gap-x-2 gap-y-0.5 mt-2 pt-2 border-t border-border/40">
+                    {(Object.keys(CAL_EVENT_CFG) as CalEventType[]).map(type => (
+                        <div key={type} className="flex items-center gap-1">
+                            <div className="w-1.5 h-1.5 rounded-full" style={{ background: CAL_EVENT_CFG[type].dot }} />
+                            <span className="text-[10px] text-muted-foreground">{CAL_EVENT_CFG[type].label}</span>
+                        </div>
+                    ))}
+                </div>
+                {canEdit && (
+                    <p className="text-[9px] text-muted-foreground/40 mt-1 text-center">
+                        {isClassTeacher ? 'Click any date to add an event' : 'Click any date to add a test'}
+                    </p>
+                )}
+            </div>
+
+            {/* Event detail modal */}
+            <AnimatePresence>
+                {showEventModal && selectedDate && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-sm font-bold">📅 {selectedDate} {MONTHS_S[month]}, {year}</p>
+                                <button onClick={() => setShowEventModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                            <div className="space-y-2">
+                                {eventsOn(selectedDate).map(ev => (
+                                    <div key={ev.id} className={`flex items-center gap-3 p-3 rounded-xl border-l-4 ${CAL_EVENT_CFG[ev.type].bg}`}
+                                        style={{ borderLeftColor: CAL_EVENT_CFG[ev.type].dot }}>
+                                        <span className="text-lg">{CAL_EVENT_CFG[ev.type].emoji}</span>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2">
+                                                <p className={`text-[11px] font-semibold ${CAL_EVENT_CFG[ev.type].text}`}>{CAL_EVENT_CFG[ev.type].label}</p>
+                                                {ev.inherited && (
+                                                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">School</span>
+                                                )}
+                                            </div>
+                                            <p className={`text-xs font-bold ${CAL_EVENT_CFG[ev.type].text}`}>{ev.label}</p>
+                                        </div>
+                                        {/* Delete sirf non-inherited events pe aur sirf allowed users ke liye */}
+                                        {!ev.inherited && canEdit && (
+                                            <button onClick={() => handleDeleteEvent(ev.id)}
+                                                className="w-6 h-6 rounded-md flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all shrink-0">
+                                                <X size={12} />
+                                            </button>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                            {canEdit && (
+                                <button onClick={() => { setShowEventModal(false); setAddDate(selectedDate); setShowAddModal(true); }}
+                                    className="mt-3 w-full py-2 rounded-xl border border-border/50 text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    + Add another event
+                                </button>
+                            )}
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Add event modal */}
+            <AnimatePresence>
+                {showAddModal && addDate && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-sm font-bold">Add Event — {addDate} {MONTHS_S[month]}</p>
+                                <button onClick={() => setShowAddModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
+                                    <X size={14} />
+                                </button>
+                            </div>
+                            <div className="space-y-3">
+                                <div className="grid grid-cols-2 gap-2">
+                                    {allowedTypes.map(type => (
+                                        <button key={type} onClick={() => setNewType(type)}
+                                            className={`flex items-center gap-2 p-2.5 rounded-xl border-2 text-xs font-semibold transition-all ${newType === type
+                                                ? `border-current ${CAL_EVENT_CFG[type].text} ${CAL_EVENT_CFG[type].bg}`
+                                                : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                                            <span>{CAL_EVENT_CFG[type].emoji}</span>
+                                            {CAL_EVENT_CFG[type].label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <input value={newLabel} onChange={e => setNewLabel(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleAddEvent(); }}
+                                    placeholder="Event name..."
+                                    className="w-full h-9 px-3 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all" />
+                                <button onClick={handleAddEvent} disabled={!newLabel.trim() || saving}
+                                    className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-40 transition-all hover:opacity-90"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                    {saving ? 'Adding...' : 'Add Event'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
 }
 
 // ── Teacher Picker ────────────────────────────────────────────────────────────
@@ -342,6 +679,9 @@ export default function DivisionDetailPage() {
     const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
     const [feesSubTab, setFeesSubTab] = useState<'setup' | 'students'>('students');
+    const [timetableImage, setTimetableImage] = useState<string | null>(null);
+    const timetableInputRef = useRef<HTMLInputElement>(null);
+    const [showPassword, setShowPassword] = useState(false);
 
 
     const toggleSubject = (subId: string) => {
@@ -618,7 +958,9 @@ export default function DivisionDetailPage() {
                                 <div className="flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
                                         <div className="flex items-center justify-between">
-                                            <h2 className="text-sm font-bold">📢 {division.name} Announcements & Feed</h2>
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                                <Megaphone size={14} /> {division.name} Announcements & Feed
+                                            </p>
                                             <div className="flex items-center gap-1.5">
                                                 {([
                                                     { key: 'all', label: 'All', emoji: '🗂️' },
@@ -834,11 +1176,19 @@ export default function DivisionDetailPage() {
                                         <img
                                             src="/timetable.jpeg"
                                             alt="Timetable"
-                                            className="w-full rounded-xl object-contain max-h-48 hover:opacity-90 transition-opacity"
+                                            className="w-full rounded-xl object-contain max-h-84 hover:opacity-90 transition-opacity"
                                         />
                                     </div>
                                 </div>
 
+                                {/* Class Calendar */}
+                                <ClassCalendar
+                                    isClassTeacher={true}
+                                    isSubjectTeacher={false}
+                                    divisionName={division.name}
+                                />
+
+                                {/* Results */}
                                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -872,7 +1222,7 @@ export default function DivisionDetailPage() {
                             className="flex gap-3 h-full pt-3 pb-3 px-1 overflow-hidden">
 
                             {/* LEFT — Students List */}
-                            <div className="w-[50%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                            <div className="w-[40%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                 <div className="px-4 py-3 border-b border-border/40 shrink-0">
                                     <p className="text-sm font-bold flex items-center gap-2">
                                         <Users size={15} /> Students ({MOCK_STUDENTS.length})
@@ -917,7 +1267,7 @@ export default function DivisionDetailPage() {
                             </div>
 
                             {/* RIGHT — 2 tabs */}
-                            <div className="w-[50%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                            <div className="w-[60%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
 
                                 {/* Tab bar */}
                                 <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center justify-between">
@@ -945,8 +1295,13 @@ export default function DivisionDetailPage() {
                                                     }`}>
                                                 {studentActive ? <><PowerOff size={11} /> Deactivate</> : <><Power size={11} /> Activate</>}
                                             </button>
-                                            <button className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
-                                                View Details <ExternalLink size={10} />
+                                            <button className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
+                                                <Flag size={11} /> Report
+                                            </button>
+                                            <button
+                                                onClick={() => router.push(`/student/${selectedStudent.id}/profile`)}
+                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+                                                <ExternalLink size={10} /> View Profile
                                             </button>
                                         </div>
                                     )}
@@ -1074,7 +1429,7 @@ export default function DivisionDetailPage() {
                                         {/* Student Info tab */}
                                         {manageRightTab === 'student' && (
                                             <motion.div key="student" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                                                className="px-4 py-3">
+                                                className="px-4 py-3 overflow-y-auto h-full">
                                                 {!selectedStudent ? (
                                                     <div className="flex flex-col items-center justify-center py-16 text-center">
                                                         <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
@@ -1084,22 +1439,10 @@ export default function DivisionDetailPage() {
                                                         <p className="text-xs text-muted-foreground/60 mt-1">Click any student from the list</p>
                                                     </div>
                                                 ) : (
-                                                    <div className="space-y-4">
-                                                        {/* Student header */}
-                                                        <div className="flex items-center gap-3 p-4 rounded-xl border border-border/40 bg-muted/20">
-                                                            <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-base font-bold text-white shrink-0"
-                                                                style={{ background: getAvatarColor(selectedStudent.name) }}>
-                                                                {getInitials(selectedStudent.name)}
-                                                            </div>
-                                                            <div>
-                                                                <p className="text-sm font-bold">{selectedStudent.name}</p>
-                                                                <p className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo} · {selectedStudent.gender}</p>
-                                                                <p className="text-[11px] text-muted-foreground">DOB: {selectedStudent.dob}</p>
-                                                            </div>
-                                                        </div>
+                                                    <div className="space-y-3 pb-6">
 
                                                         {/* Stats */}
-                                                        <div className="grid grid-cols-2 gap-2">
+                                                        <div className="grid grid-cols-3 gap-2">
                                                             <div className="rounded-xl border border-border/40 bg-muted/20 p-3 text-center">
                                                                 <p className="text-lg font-black" style={{ color: '#7C3AED' }}>#{selectedStudent.rank}</p>
                                                                 <p className="text-[11px] text-muted-foreground">Class Rank</p>
@@ -1108,53 +1451,123 @@ export default function DivisionDetailPage() {
                                                                 <p className="text-lg font-black">{Math.round((selectedStudent.totalMarks / 500) * 100)}%</p>
                                                                 <p className="text-[11px] text-muted-foreground">Score %</p>
                                                             </div>
-                                                        </div>
-
-                                                        {/* Attendance */}
-                                                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
-                                                            <div className="flex items-center justify-between mb-2">
-                                                                <p className="text-xs font-semibold">Attendance</p>
-                                                                <span className={`text-sm font-black ${selectedStudent.attendance >= 75 ? 'text-emerald-600 dark:text-emerald-400'
-                                                                    : selectedStudent.attendance >= 65 ? 'text-amber-600'
-                                                                        : 'text-red-500'
-                                                                    }`}>
+                                                            <div className="rounded-xl border border-border/40 bg-muted/20 p-3 text-center">
+                                                                <p className={`text-lg font-black ${selectedStudent.attendance >= 75 ? 'text-emerald-600' : selectedStudent.attendance >= 65 ? 'text-amber-600' : 'text-red-500'}`}>
                                                                     {selectedStudent.attendance}%
-                                                                </span>
-                                                            </div>
-                                                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                                                <div className="h-full rounded-full transition-all"
-                                                                    style={{
-                                                                        width: `${selectedStudent.attendance}%`,
-                                                                        background: selectedStudent.attendance >= 75 ? '#10b981'
-                                                                            : selectedStudent.attendance >= 65 ? '#F59E0B'
-                                                                                : '#ef4444'
-                                                                    }} />
-                                                            </div>
-                                                            <div className="mt-2">
-                                                                {selectedStudent.attendance >= 75 ? (
-                                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 font-semibold">
-                                                                        ✅ Good
-                                                                    </span>
-                                                                ) : selectedStudent.attendance >= 65 ? (
-                                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 font-semibold">
-                                                                        ⚠️ Condonation
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 font-semibold">
-                                                                        ❌ Defaulter
-                                                                    </span>
-                                                                )}
+                                                                </p>
+                                                                <p className="text-[11px] text-muted-foreground">Attendance</p>
                                                             </div>
                                                         </div>
 
-                                                        {/* Contact */}
-                                                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
-                                                            <p className="text-xs font-semibold mb-2">Contact</p>
-                                                            <div className="flex items-center justify-between">
-                                                                <span className="text-[11px] text-muted-foreground">Phone</span>
-                                                                <span className="text-[11px] font-medium">{selectedStudent.phone}</span>
+                                                        {/* ROW 1 — Student Info + Academic */}
+                                                        <div className="flex gap-3 border border-border/40 rounded-2xl overflow-hidden bg-background">
+                                                            {/* LEFT — Student Info */}
+                                                            <div className="flex-1 px-4 py-3 border-r border-border/40 min-w-0 space-y-2.5">
+                                                                <SectionViewLabel icon={User} label="Student Info" />
+                                                                <div className="flex items-center gap-3 mb-2">
+                                                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
+                                                                        style={{ background: getAvatarColor(selectedStudent.name) }}>
+                                                                        {getInitials(selectedStudent.name)}
+                                                                    </div>
+                                                                    <div>
+                                                                        <p className="text-sm font-bold">{selectedStudent.name}</p>
+                                                                        <p className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo}</p>
+                                                                    </div>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <ReadField label="Date of Birth" value="12/03/2009" />
+                                                                    <ReadField label="Gender" value={selectedStudent.gender} />
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <ReadField label="Religion" value="Hindu" />
+                                                                    <ReadField label="Category" value="General" />
+                                                                </div>
+                                                                <ReadField label="Admission Date" value="01/06/2023" />
+                                                                <ReadField label="Email" value={`${selectedStudent.name.split(' ')[0].toLowerCase()}@school.in`} />
+                                                                <ReadField label="Contact No" value={selectedStudent.phone} />
+                                                            </div>
+
+                                                            {/* RIGHT — Academic Details */}
+                                                            <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
+                                                                <SectionViewLabel icon={BookOpen} label="Academic Details" />
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <ReadField label="Class" value="Class 10" />
+                                                                    <ReadField label="Division" value="A" />
+                                                                </div>
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <ReadField label="Roll No" value={selectedStudent.rollNo} />
+                                                                    <ReadField label="House Color" value="Red" />
+                                                                </div>
+                                                                {/* Student ID */}
+                                                                <div>
+                                                                    <p className="text-[11px] text-muted-foreground mb-1 font-medium">Student ID</p>
+                                                                    <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between">
+                                                                        <span className="text-sm font-mono font-semibold" style={{ color: '#DA7756' }}>
+                                                                            STU-2026-0001
+                                                                        </span>
+                                                                        <span className="text-[10px] text-muted-foreground/50">Read only</span>
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Password */}
+                                                                <div>
+                                                                    <p className="text-[11px] text-muted-foreground mb-1 font-medium">Current Password</p>
+                                                                    <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between gap-2">
+                                                                        <span className="text-sm font-mono flex-1">
+                                                                            {showPassword ? 'Abc@12345x' : '••••••••••'}
+                                                                        </span>
+                                                                        <button type="button" onClick={() => setShowPassword(v => !v)}
+                                                                            className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0">
+                                                                            {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+
                                                             </div>
                                                         </div>
+
+                                                        {/* ROW 2 — Medical + Address */}
+                                                        <div className="flex gap-3 border border-border/40 rounded-2xl overflow-hidden bg-background">
+                                                            {/* LEFT — Medical & Identity */}
+                                                            <div className="flex-1 px-4 py-3 border-r border-border/40 min-w-0 space-y-2.5">
+                                                                <SectionViewLabel icon={Shield} label="Medical & Identity" />
+                                                                <ReadField label="Blood Group" value="B+" />
+                                                                <ReadField label="Aadhar No" value="1234 5678 9012" />
+                                                                <ReadField label="PAN No" value="—" />
+                                                                <ReadField label="Emergency Contact" value="+91 98765 00000" />
+                                                            </div>
+
+                                                            {/* RIGHT — Address */}
+                                                            <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
+                                                                <SectionViewLabel icon={MapPin} label="Address" />
+                                                                <ReadField label="Address" value="123 MG Road" />
+                                                                <div className="grid grid-cols-2 gap-2">
+                                                                    <ReadField label="City" value="Mumbai" />
+                                                                    <ReadField label="State" value="Maharashtra" />
+                                                                    <ReadField label="Pincode" value="400001" />
+                                                                    <ReadField label="Country" value="India" />
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        {/* ROW 3 — Parents/Guardian */}
+                                                        <div className="border border-border/40 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
+                                                            <SectionViewLabel icon={Users} label="Parents / Guardian" />
+                                                            {[
+                                                                { name: 'Rajesh ' + selectedStudent.name.split(' ')[1], number: '+91 98765 43210', relation: 'Father' },
+                                                                { name: 'Sunita ' + selectedStudent.name.split(' ')[1], number: '+91 87654 32109', relation: 'Mother' },
+                                                            ].map((g, i) => (
+                                                                <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
+                                                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Guardian {i + 1}</p>
+                                                                    <div className="grid grid-cols-3 gap-2">
+                                                                        <ReadField label="Name" value={g.name} />
+                                                                        <ReadField label="Number" value={g.number} />
+                                                                        <ReadField label="Relation" value={g.relation} />
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
                                                     </div>
                                                 )}
                                             </motion.div>

@@ -19,6 +19,7 @@ import {
     ShieldCheck,
     Cpu,
     Sparkles,
+    MessageSquare
 } from 'lucide-react';
 
 export const ALL_FEATURES: {
@@ -42,12 +43,12 @@ export const ALL_FEATURES: {
         { key: "submissions", label: "Submissions & Resource Sharing", desc: "Homework & material sharing", icon: BookMarked, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "flags", label: "Remarks: Flags & Warning", desc: "Student disciplinary tracking", icon: Flag, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "fees", label: "Fees Management", desc: "Track fee payments", icon: Wallet, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
-        { key: "timetable_manual", label: "Timetable Scheduling (Manual)", desc: "Manual timetable management", icon: CalendarIcon, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: "staffroom", label: "Staffroom & Direct Messaging", desc: "Staff feed and 1-on-1 chats", icon: MessageSquare, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: "timetable", label: "Timetable Publishing", desc: "Schedule & share timetables", icon: Zap, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "student_app", label: "Student's App", desc: "Mobile app for students", icon: Users, inBasic: true, inPro: false, addOnBasic: false, addOnPro: false },
         { key: "student_app_pro", label: "Student App with Parent Portal", desc: "Mobile app + parent access", icon: Users, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "leaderboard", label: "Leaderboard System", desc: "Student ranking & gamification", icon: Users, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "whitelabeling", label: "Whitelabelling (logo+brandname)", desc: "Custom logo & brand name", icon: ShieldCheck, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
-        { key: "timetable_auto", label: "Timetable Scheduling (Auto)", desc: "AI-powered auto scheduling", icon: Cpu, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
         { key: "analytics", label: "Performance Insights & Analytics", desc: "Advanced insights & reports", icon: BarChart2, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
         { key: "smart_board", label: "Smart Board Screen with AI", desc: "Interactive AI smart board", icon: Sparkles, inBasic: true, inPro: true, addOnBasic: true, addOnPro: true },
     ];
@@ -119,9 +120,9 @@ function SectionHeader({ icon: Icon, title, subtitle, accent = false }: {
     );
 }
 
-function UsageBar({ icon: Icon, label, used, total, unit = '', showAddon = false, onAddon }: {
+function UsageBar({ icon: Icon, label, used, total, unit = '', showAddon = false, onAddon, isPro = false }: {
     icon: React.ElementType; label: string; used: number; total: number;
-    unit?: string; showAddon?: boolean; onAddon?: () => void;
+    unit?: string; showAddon?: boolean; onAddon?: () => void; isPro?: boolean;
 }) {
     const pct = Math.min((used / total) * 100, 100);
     const critical = pct >= 90;
@@ -152,7 +153,7 @@ function UsageBar({ icon: Icon, label, used, total, unit = '', showAddon = false
                     width: `${pct}%`,
                     background: critical
                         ? '#EF4444'
-                        : warning
+                        : isPro
                             ? 'linear-gradient(90deg, #DA7756, #C06040)'
                             : 'linear-gradient(90deg, #7C3AED, #9D5CF6)',
                 }} />
@@ -176,13 +177,14 @@ export default function SubscriptionPage() {
     const BadgeIcon = config.badgeIcon;
 
     const usedUsers = 524;
-    const usedStorage = currentPlan === 'PRO' ? 380 : 470;
+    const usedStorage = currentPlan === 'PRO' ? 380 : 120;
     const usedAiTokens = currentPlan === 'PRO' ? 6.5 : 9.5;
 
     const handleAddon = () => router.push('/admin/support/tickets');
 
     const aiTokenPct = (usedAiTokens / config.aiTokenLimit) * 100;
 
+    const [featureTab, setFeatureTab] = useState<'default' | 'addon'>('default');
     return (
         <div className="min-h-screen bg-background">
 
@@ -259,14 +261,14 @@ export default function SubscriptionPage() {
                                     </div>
                                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                                         <div className="h-full rounded-full transition-all duration-700"
-                                            style={{ width: '40%', background: 'linear-gradient(90deg, #7C3AED, #9D5CF6)' }} />
+                                            style={{ width: '40%', background: currentPlan === 'PRO' ? 'linear-gradient(90deg, #DA7756, #C06040)' : 'linear-gradient(90deg, #7C3AED, #9D5CF6)' }} />
                                     </div>
                                 </div>
 
                                 {/* Storage */}
                                 <UsageBar icon={Database} label="Storage"
                                     used={usedStorage} total={config.storageLimit} unit={config.storageUnit}
-                                    showAddon onAddon={handleAddon} />
+                                    showAddon onAddon={handleAddon} isPro={currentPlan === 'PRO'} />
 
                                 {/* AI Tokens */}
                                 <div className="space-y-1.5">
@@ -293,7 +295,7 @@ export default function SubscriptionPage() {
                                                 width: `${Math.min(aiTokenPct, 100)}%`,
                                                 background: aiTokenPct >= 90
                                                     ? '#EF4444'
-                                                    : aiTokenPct >= 70
+                                                    : currentPlan === 'PRO'
                                                         ? 'linear-gradient(90deg, #DA7756, #C06040)'
                                                         : 'linear-gradient(90deg, #7C3AED, #9D5CF6)',
                                             }} />
@@ -310,52 +312,49 @@ export default function SubscriptionPage() {
 
                         {/* Feature access */}
                         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5">
-                            <p className="text-sm font-medium text-foreground mb-4">Feature access</p>
-
-                            {/* Default features */}
-                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Default Features</p>
-                            <div className="space-y-2 mb-4">
-                                {ALL_FEATURES
-                                    .filter(f => currentPlan === 'PRO' ? f.inPro && !f.addOnPro : f.inBasic && !f.addOnBasic)
-                                    .map((f) => (
-                                        <div key={f.key} className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <f.icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                                <span className="text-xs text-foreground">{f.label}</span>
-                                            </div>
-                                            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                                        </div>
-                                    ))
-                                }
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-sm font-medium text-foreground">Feature access</p>
+                                <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
+                                    {(['default', 'addon'] as const).map((tab) => (
+                                        <button key={tab} onClick={() => setFeatureTab(tab)}
+                                            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${featureTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            {tab === 'default' ? 'Default' : 'Add-On'}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
-                            {/* Addon features */}
-                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                                Add-On Features
-                                <span className="text-[10px] font-normal text-amber-500 ml-2 normal-case">Year 1 free</span>
-                            </p>
-                            <div className="space-y-2">
-                                {ALL_FEATURES
-                                    .filter(f => currentPlan === 'PRO' ? f.addOnPro : f.addOnBasic)
-                                    .map((f) => (
-                                        <div key={f.key} className="flex items-center justify-between">
-                                            <div className="flex items-center gap-2">
-                                                <f.icon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
-                                                <span className="text-xs text-foreground">{f.label}</span>
-                                            </div>
-                                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                                                Add-On
-                                            </span>
+                            {featureTab === 'default' && (
+                                <div className="overflow-y-auto max-h-[190px] min-h-[190px] space-y-2">                                    {ALL_FEATURES.filter(f => currentPlan === 'PRO' ? f.inPro && !f.addOnPro : f.inBasic && !f.addOnBasic).map((f) => (
+                                    <div key={f.key} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <f.icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                            <span className="text-xs text-foreground">{f.label}</span>
                                         </div>
-                                    ))
-                                }
-                            </div>
-
-                            {currentPlan === 'BASIC' && (
-                                <button className="mt-5 w-full text-xs font-semibold text-violet-400 border border-violet-500/30 rounded-xl py-2.5 hover:bg-violet-500/10 transition-colors flex items-center justify-center gap-2">
-                                    <ArrowUpRight className="w-3.5 h-3.5" /> Unlock all features
-                                </button>
+                                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                    </div>
+                                ))}
+                                </div>
                             )}
+
+                            {featureTab === 'addon' && (
+                                <div className="overflow-y-auto max-h-[190px] min-h-[190px] space-y-2">                                    {ALL_FEATURES.filter(f => currentPlan === 'PRO' ? f.addOnPro : f.addOnBasic).map((f) => (
+                                    <div key={f.key} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <f.icon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                                            <span className="text-xs text-foreground">{f.label}</span>
+                                        </div>
+                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                            Year 1 free
+                                        </span>
+                                    </div>
+                                ))}
+                                </div>
+                            )}
+
+                            <button className="mt-5 w-full text-xs font-semibold text-violet-400 border border-violet-500/30 rounded-xl py-2.5 hover:bg-violet-500/10 transition-colors flex items-center justify-center gap-2">
+                                <ArrowUpRight className="w-3.5 h-3.5" /> Unlock features
+                            </button>
                         </div>
                     </div>
                 </motion.section>

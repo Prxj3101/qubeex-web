@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type EventType = 'holiday' | 'event';
+type EventType = 'holiday' | 'event' | 'sports' | 'trip' | 'meeting';
 interface CalEvent { id: string; date: number; type: EventType; label: string; fullDate: string; }
 
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
@@ -21,7 +21,10 @@ interface FeedPost {
 // ── Config ────────────────────────────────────────────────────────────────────
 const EVENT_CFG = {
     holiday: { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', label: 'Holiday', emoji: '🏖️' },
-    event: { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', label: 'Event', emoji: '📅' },
+    event: { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', label: 'Event', emoji: '🎉' },
+    sports: { dot: '#DB2777', bg: 'bg-pink-100 dark:bg-pink-950/40', text: 'text-pink-700 dark:text-pink-400', label: 'Sports', emoji: '🏆' },
+    trip: { dot: '#92400E', bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-800 dark:text-amber-500', label: 'Trip', emoji: '🚌' },
+    meeting: { dot: '#F97316', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', label: 'Meeting', emoji: '🤝' },
 } as const;
 
 const POST_META = {

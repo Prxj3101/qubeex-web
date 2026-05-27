@@ -8,7 +8,7 @@ import { useMockInstType } from '@/context/MockInstTypeContext';
 import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type EventType = 'holiday' | 'test' | 'exam' | 'submission' | 'meeting' | 'sports' | 'event' | 'trip';
+type EventType = 'holiday' | 'event' | 'sports' | 'trip' | 'meeting';
 interface CalEvent { id: string; date: number; type: EventType; label: string; fullDate: string; }
 
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
@@ -20,14 +20,11 @@ interface FeedPost {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const EVENT_CFG = {
-    holiday:    { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40',     text: 'text-red-700 dark:text-red-400',       label: 'Holiday',    emoji: '🏖️' },
-    test:       { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40',   text: 'text-blue-700 dark:text-blue-400',     label: 'Test',       emoji: '📝' },
-    exam:       { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400',   label: 'Main Exam',  emoji: '🎓' },
-    submission: { dot: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', label: 'Submission', emoji: '📤' },
-    meeting:    { dot: '#0D9488', bg: 'bg-teal-100 dark:bg-teal-950/40',   text: 'text-teal-700 dark:text-teal-400',     label: 'Meeting',    emoji: '🤝' },
-    sports:     { dot: '#059669', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', label: 'Sports', emoji: '🏆' },
-    event:      { dot: '#EC4899', bg: 'bg-pink-100 dark:bg-pink-950/40',   text: 'text-pink-700 dark:text-pink-400',     label: 'Event',      emoji: '🎉' },
-    trip:       { dot: '#0284C7', bg: 'bg-sky-100 dark:bg-sky-950/40',     text: 'text-sky-700 dark:text-sky-400',       label: 'Trip',       emoji: '🚌' },
+    holiday: { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', label: 'Holiday', emoji: '🏖️' },
+    event: { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', label: 'Event', emoji: '🎉' },
+    sports: { dot: '#DB2777', bg: 'bg-pink-100 dark:bg-pink-950/40', text: 'text-pink-700 dark:text-pink-400', label: 'Sports', emoji: '🏆' },
+    trip: { dot: '#92400E', bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-800 dark:text-amber-500', label: 'Trip', emoji: '🚌' },
+    meeting: { dot: '#F97316', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', label: 'Meeting', emoji: '🤝' },
 } as const;
 
 const POST_META = {

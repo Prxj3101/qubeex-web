@@ -48,8 +48,7 @@ function VerifiedBadge() {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type CalEventType = 'holiday' | 'event' | 'test' | 'termtest' | 'exam';
-
+type CalEventType = 'holiday' | 'event' | 'test' | 'termtest' | 'exam' | 'meeting' | 'submission';
 interface CalEvent {
     id: string;
     date: number;
@@ -64,12 +63,12 @@ const CAL_EVENT_CFG = {
     test: { dot: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', label: 'Test', emoji: '📝' },
     termtest: { dot: '#10B981', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', label: 'Term Test', emoji: '📋' },
     exam: { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400', label: 'Semester Exam', emoji: '🎓' },
+    meeting: { dot: '#F97316', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', label: 'Meeting', emoji: '🤝' },
+    submission: { dot: '#0891B2', bg: 'bg-cyan-100 dark:bg-cyan-950/40', text: 'text-cyan-700 dark:text-cyan-400', label: 'Submission', emoji: '📤' },
 } as const;
-
 // Subject teacher sirf test add kar sakta hai
-const ALLOWED_TYPES_SUBJECT_TEACHER: CalEventType[] = ['test'];
-const ALLOWED_TYPES_CLASS_TEACHER: CalEventType[] = ['holiday', 'event', 'test', 'termtest', 'exam'];
-
+const ALLOWED_TYPES_SUBJECT_TEACHER: CalEventType[] = ['test', 'submission'];
+const ALLOWED_TYPES_CLASS_TEACHER: CalEventType[] = ['holiday', 'event', 'test', 'termtest', 'exam', 'meeting', 'submission'];
 // Mock inherited events from main calendar
 const MOCK_INHERITED_EVENTS: CalEvent[] = [
     { id: 'inh1', date: 15, type: 'holiday', label: 'Independence Day', inherited: true },
