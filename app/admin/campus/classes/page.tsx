@@ -40,7 +40,6 @@ interface Division {
     id: string;
     name: string;
     capacity: number | null;
-    selectedSubjects: string[];
     assignments: Assignment[];
 }
 
@@ -113,18 +112,7 @@ export default function ClassesPage() {
     const fetchStandards = useCallback(async () => {
         try {
             const res = await api.get('/admin/campus/standards');
-            const data = res.data.data.map((std: Standard) => ({
-                ...std,
-                subjects: std.subjects?.length ? std.subjects : [
-                    { id: 'sub1', name: 'Mathematics', code: 'MATH', color: '#7C3AED', order: 1 },
-                    { id: 'sub2', name: 'Science', code: 'SCI', color: '#0891B2', order: 2 },
-                    { id: 'sub3', name: 'English', code: 'ENG', color: '#DA7756', order: 3 },
-                    { id: 'sub4', name: 'Hindi', code: 'HIN', color: '#059669', order: 4 },
-                    { id: 'sub5', name: 'History', code: 'HIS', color: '#D97706', order: 5 },
-                    { id: 'sub6', name: 'Geography', code: 'GEO', color: '#8B5CF6', order: 6 },
-                ],
-            }));
-            setStandards(data);
+            setStandards(res.data.data);
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
             toast.error(msg ?? 'Failed to load classes');
@@ -160,7 +148,7 @@ export default function ClassesPage() {
         setSaving(true);
         try {
             const res = await api.post(`/admin/campus/standards/${standardId}/divisions`, { name });
-            const newDiv: Division = { ...res.data.data, subjects: [], assignments: [] };
+            const newDiv: Division = { ...res.data.data, assignments: [] };
             setStandards(prev => prev.map(s => s.id !== standardId ? s : {
                 ...s, divisions: [...s.divisions, newDiv],
             }));
@@ -193,37 +181,8 @@ export default function ClassesPage() {
         }
     };
 
-    const toggleDivisionSubject = async (standardId: string, divisionId: string, subjectId: string) => {
-        const std = standards.find(s => s.id === standardId);
-        const div = std?.divisions.find(d => d.id === divisionId);
-        if (!div) return;
-
-        const isSelected = div.selectedSubjects?.includes(subjectId);
-
-        try {
-            if (isSelected) {
-                await api.delete(`/admin/campus/divisions/${divisionId}/subjects/${subjectId}`);
-            } else {
-                await api.post(`/admin/campus/divisions/${divisionId}/subjects`, { subjectId });
-            }
-
-            setStandards(prev => prev.map(s => s.id !== standardId ? s : {
-                ...s,
-                divisions: s.divisions.map(d => d.id !== divisionId ? d : {
-                    ...d,
-                    selectedSubjects: isSelected
-                        ? d.selectedSubjects.filter(id => id !== subjectId)
-                        : [...(d.selectedSubjects ?? []), subjectId],
-                }),
-            }));
-        } catch (err: unknown) {
-            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-            toast.error(msg ?? 'Failed to update');
-        }
-    };
-
     const totalDivisions = standards.reduce((n, s) => n + s.divisions.length, 0);
-    const totalSubjects = standards.reduce((n, s) => n + s.divisions.reduce((m, d) => m + (d.selectedSubjects?.length ?? 0), 0), 0);
+    const totalSubjects = standards.reduce((n, s) => n + (s.subjects?.length ?? 0), 0);
     const gradients = [
         'linear-gradient(135deg, #7C3AED, #9F67FF)',
         'linear-gradient(135deg, #DA7756, #E8876A)',
@@ -419,30 +378,28 @@ export default function ClassesPage() {
                                                                                     <span className="text-[10px] text-muted-foreground/50 italic">Not assigned</span>
                                                                                 )}
                                                                             </div>
-                                                                            {div.selectedSubjects?.length > 0 && (
+                                                                            {std.subjects?.length > 0 && (
                                                                                 <>
                                                                                     <p className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider py-1">Subjects</p>
-                                                                                    {std.subjects
-                                                                                        .filter((sub: Subject) => div.selectedSubjects?.includes(sub.id))
-                                                                                        .map((sub: Subject) => {
-                                                                                            const assignment = div.assignments.find(a => a.subjectId === sub.id);
-                                                                                            return (
-                                                                                                <div key={sub.id} className="flex items-center justify-between py-1 border-t border-border/20">
-                                                                                                    <div className="flex items-center gap-1.5">
-                                                                                                        <div className="w-1.5 h-1.5 rounded-full shrink-0"
-                                                                                                            style={{ background: sub.color ?? '#7C3AED' }} />
-                                                                                                        <span className="text-[10px] text-muted-foreground">{sub.name}</span>
-                                                                                                    </div>
-                                                                                                    {assignment?.teacher.user.name ? (
-                                                                                                        <span className="text-[10px] font-semibold truncate max-w-[80px] text-right text-foreground">
-                                                                                                            {assignment.teacher.user.name}
-                                                                                                        </span>
-                                                                                                    ) : (
-                                                                                                        <span className="text-[10px] text-muted-foreground/50 italic">Not assigned</span>
-                                                                                                    )}
+                                                                                    {std.subjects.map((sub: Subject) => {
+                                                                                        const assignment = div.assignments.find(a => a.subjectId === sub.id);
+                                                                                        return (
+                                                                                            <div key={sub.id} className="flex items-center justify-between py-1 border-t border-border/20">
+                                                                                                <div className="flex items-center gap-1.5">
+                                                                                                    <div className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                                                                        style={{ background: sub.color ?? '#7C3AED' }} />
+                                                                                                    <span className="text-[10px] text-muted-foreground">{sub.name}</span>
                                                                                                 </div>
-                                                                                            );
-                                                                                        })}
+                                                                                                {assignment?.teacher.user.name ? (
+                                                                                                    <span className="text-[10px] font-semibold truncate max-w-[80px] text-right text-foreground">
+                                                                                                        {assignment.teacher.user.name}
+                                                                                                    </span>
+                                                                                                ) : (
+                                                                                                    <span className="text-[10px] text-muted-foreground/50 italic">Not assigned</span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
                                                                                 </>
                                                                             )}
                                                                         </div>

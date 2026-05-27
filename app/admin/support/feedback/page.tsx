@@ -7,7 +7,8 @@ import {
     ChevronDown, ChevronUp, Loader2,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { formatRelative, subDays } from 'date-fns';
+import { formatRelative } from 'date-fns';
+import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Review {
@@ -19,9 +20,6 @@ interface Review {
     adminEmail: string;
     createdAt: string;
 }
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-const API = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 function relativeTime(iso: string) {
     try {
@@ -241,9 +239,8 @@ export default function AdminFeedbackPage() {
 
     const fetchReviews = async () => {
         try {
-            const res = await fetch(`${API}/admin/support/reviews`, { credentials: 'include' });
-            const json = await res.json();
-            if (json.success) setReviews(json.data);
+            const res = await api.get('/admin/support/reviews');
+            if (res.data.success) setReviews(res.data.data);
         } catch {
             toast.error('Failed to load reviews');
         } finally {
@@ -265,26 +262,14 @@ export default function AdminFeedbackPage() {
         setSubmitting(true);
         try {
             if (editReview) {
-                const res = await fetch(`${API}/admin/support/reviews/${editReview.id}`, {
-                    method: 'PATCH',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rating, title, body }),
-                });
-                const json = await res.json();
-                if (!json.success) throw new Error(json.error);
-                setReviews(prev => prev.map(r => r.id === editReview.id ? json.data : r));
+                const res = await api.patch(`/admin/support/reviews/${editReview.id}`, { rating, title, body });
+                if (!res.data.success) throw new Error(res.data.error);
+                setReviews(prev => prev.map(r => r.id === editReview.id ? res.data.data : r));
                 toast.success('Review updated!');
             } else {
-                const res = await fetch(`${API}/admin/support/reviews`, {
-                    method: 'POST',
-                    credentials: 'include',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ rating, title, body }),
-                });
-                const json = await res.json();
-                if (!json.success) throw new Error(json.error);
-                setReviews(prev => [json.data, ...prev]);
+                const res = await api.post('/admin/support/reviews', { rating, title, body });
+                if (!res.data.success) throw new Error(res.data.error);
+                setReviews(prev => [res.data.data, ...prev]);
                 toast.success('Review submitted!');
             }
             setShowModal(false);

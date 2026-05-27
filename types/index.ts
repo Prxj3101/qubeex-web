@@ -153,6 +153,7 @@ export interface Teacher {
     phone?: string;
     avatarUrl?: string;
     status: TeacherStatus;
+    invitePending?: boolean;
     joinedAt: string;
     assignments: TeacherAssignment[];
     experience?: string;

@@ -1,7 +1,10 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { RefreshCw, ScrollText, Search, X, ChevronLeft, ChevronRight, ChevronDown, Check } from 'lucide-react';
+import { useState, useRef, useEffect, useCallback } from 'react';
+import {
+    RefreshCw, ScrollText, Search, X, ChevronLeft, ChevronRight,
+    ChevronDown, Check, Shield, Activity,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -11,6 +14,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 type LogEntry = {
     id: string;
     action: string;
+    category: string;
+    severity: string;
     actorRole?: string | null;
     details?: string | null;
     ip?: string | null;
@@ -19,44 +24,48 @@ type LogEntry = {
 };
 
 type Pagination = { total: number; page: number; limit: number; pages: number };
+type Tab = 'ADMIN_ACTION' | 'SECURITY';
 
-// ─── Config ───────────────────────────────────────────────────────────────────
-const ACTION_CONFIG: Record<string, { label: string; cls: string }> = {
-    TEACHER_ADDED: { label: 'Teacher Added', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-    TEACHER_UPDATED: { label: 'Teacher Updated', cls: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400' },
-    TEACHER_DEACTIVATED: { label: 'Teacher Deactivated', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
-    STUDENT_ENROLLED: { label: 'Student Enrolled', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400' },
-    STUDENT_UPDATED: { label: 'Student Updated', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
-    CLASS_CREATED: { label: 'Class Created', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
-    CLASS_UPDATED: { label: 'Class Updated', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
-    TEST_PUBLISHED: { label: 'Test Published', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-400' },
-    RESULTS_PUBLISHED: { label: 'Results Published', cls: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400' },
-    ATTENDANCE_MARKED: { label: 'Attendance Marked', cls: 'bg-lime-100 text-lime-700 dark:bg-lime-950 dark:text-lime-400' },
-    ANNOUNCEMENT_POSTED: { label: 'Announcement Posted', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400' },
-    SETTINGS_UPDATED: { label: 'Settings Updated', cls: 'bg-muted text-muted-foreground' },
-    ADMIN_LOGIN: { label: 'Admin Login', cls: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400' },
-    LOGIN_FAILED: { label: 'Login Failed', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400' },
+// ─── Action Config ────────────────────────────────────────────────────────────
+const ACTION_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
+    // Staff
+    TEACHER_ADDED:         { label: 'Teacher Added',        cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    TEACHER_UPDATED:       { label: 'Teacher Updated',      cls: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400',                 dot: 'bg-sky-500' },
+    TEACHER_DEACTIVATED:   { label: 'Teacher Deactivated',  cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
+    TEACHER_ACTIVATED:     { label: 'Teacher Activated',    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    TEACHER_INVITE_RESENT: { label: 'Invite Resent',        cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',         dot: 'bg-amber-500' },
+    INVITE_ACCEPTED:       { label: 'Invite Accepted',      cls: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400',             dot: 'bg-teal-500' },
+    // Students
+    STUDENT_ADDED:         { label: 'Student Added',        cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400',     dot: 'bg-violet-500' },
+    STUDENT_UPDATED:       { label: 'Student Updated',      cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',             dot: 'bg-blue-500' },
+    STUDENT_DEACTIVATED:   { label: 'Student Deactivated',  cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
+    STUDENT_ACTIVATED:     { label: 'Student Activated',    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    // Campus
+    CLASS_CREATED:         { label: 'Class Created',        cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',         dot: 'bg-amber-500' },
+    CLASS_UPDATED:         { label: 'Class Updated',        cls: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-500',         dot: 'bg-amber-400' },
+    CLASS_DELETED:         { label: 'Class Deleted',        cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
+    SUBJECT_CREATED:       { label: 'Subject Created',      cls: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400',             dot: 'bg-teal-500' },
+    SUBJECT_UPDATED:       { label: 'Subject Updated',      cls: 'bg-teal-100 text-teal-600 dark:bg-teal-950 dark:text-teal-500',             dot: 'bg-teal-400' },
+    SUBJECT_DELETED:       { label: 'Subject Deleted',      cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
+    TEACHER_ASSIGNED:      { label: 'Teacher Assigned',     cls: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400',     dot: 'bg-indigo-500' },
+    TEACHER_UNASSIGNED:    { label: 'Teacher Unassigned',   cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400',     dot: 'bg-orange-500' },
+    // Content
+    ANNOUNCEMENT_POSTED:   { label: 'Announcement Posted',  cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400',     dot: 'bg-orange-500' },
+    POST_DELETED:          { label: 'Post Deleted',         cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
+    // Institution
+    INSTITUTION_UPDATED:      { label: 'Settings Updated',  cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',         dot: 'bg-slate-500' },
+    INSTITUTION_LOGO_UPDATED: { label: 'Logo Updated',      cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',         dot: 'bg-slate-400' },
+    // Security
+    LOGIN_FAILED:          { label: 'Login Failed',         cls: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400',             dot: 'bg-rose-500' },
+    PASSWORD_CHANGED:      { label: 'Password Changed',     cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',         dot: 'bg-amber-500' },
+    LOGIN_SUCCESS:         { label: 'Login',                cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',         dot: 'bg-slate-400' },
 };
 
-const ROLES_LIST = ['All Roles', 'ADMIN', 'TEACHER'];
-const ACTION_LIST = ['All Action Types', ...Object.keys(ACTION_CONFIG)];
-const PAGE_SIZE = 15;
+const SECURITY_ACTIONS_LIST = ['LOGIN_FAILED', 'PASSWORD_CHANGED', 'LOGIN_SUCCESS'];
+const ACTIVITY_ACTIONS_LIST = Object.keys(ACTION_CONFIG).filter(k => !SECURITY_ACTIONS_LIST.includes(k));
 
-// Mock data
-const MOCK_LOGS: LogEntry[] = [
-    { id: '1', action: 'TEACHER_ADDED', actorRole: 'ADMIN', details: 'Ritu Sharma added to Class 10-A', createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '2', action: 'STUDENT_ENROLLED', actorRole: 'ADMIN', details: '24 students enrolled in Class 9', createdAt: new Date(Date.now() - 1000 * 60 * 60).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '3', action: 'ATTENDANCE_MARKED', actorRole: 'TEACHER', details: 'Attendance marked for Class 10-A', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(), user: { id: 'u2', email: 'ritu@dps.edu.in', name: 'Ritu Sharma' } },
-    { id: '4', action: 'TEST_PUBLISHED', actorRole: 'TEACHER', details: 'Math Unit Test published for Class 10', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), user: { id: 'u2', email: 'ritu@dps.edu.in', name: 'Ritu Sharma' } },
-    { id: '5', action: 'RESULTS_PUBLISHED', actorRole: 'ADMIN', details: 'Monthly test results published', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '6', action: 'ANNOUNCEMENT_POSTED', actorRole: 'ADMIN', details: 'Staff meeting announcement posted', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '7', action: 'CLASS_CREATED', actorRole: 'ADMIN', details: 'Class 11-A created under Science stream', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '8', action: 'SETTINGS_UPDATED', actorRole: 'ADMIN', details: 'Admin settings updated', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 50).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '9', action: 'TEACHER_DEACTIVATED', actorRole: 'ADMIN', details: 'Rajesh Kumar deactivated', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '10', action: 'ADMIN_LOGIN', actorRole: 'ADMIN', details: 'Admin logged in successfully', ip: '192.168.1.1', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 74).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '11', action: 'STUDENT_ENROLLED', actorRole: 'ADMIN', details: '15 students enrolled in Class 10-B', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(), user: { id: 'u1', email: 'admin@dps.edu.in', name: 'Admin' } },
-    { id: '12', action: 'ATTENDANCE_MARKED', actorRole: 'TEACHER', details: 'Attendance marked for Class 9-A', createdAt: new Date(Date.now() - 1000 * 60 * 60 * 98).toISOString(), user: { id: 'u3', email: 'ankit@dps.edu.in', name: 'Ankit Verma' } },
-];
+const ROLES_LIST = ['All Roles', 'ADMIN', 'TEACHER'];
+const PAGE_SIZE = 15;
 
 function toIST(iso: string) {
     const d = new Date(iso);
@@ -98,7 +107,12 @@ function CustomDropdown({ value, onChange, options, getLabel }: {
                             <button key={opt} type="button" onClick={() => { onChange(opt); setOpen(false); }}
                                 className={`w-full flex items-center justify-between gap-2 px-3 py-2 text-sm text-left transition-colors
                                     ${opt === value ? 'bg-primary/8 text-primary font-medium' : 'text-foreground hover:bg-muted'}`}>
-                                <span>{getLabel ? getLabel(opt) : opt}</span>
+                                <span className="flex items-center gap-2">
+                                    {opt !== 'All Action Types' && opt !== 'All Roles' && ACTION_CONFIG[opt] && (
+                                        <span className={`w-2 h-2 rounded-full shrink-0 ${ACTION_CONFIG[opt].dot}`} />
+                                    )}
+                                    {getLabel ? getLabel(opt) : opt}
+                                </span>
                                 {opt === value && <Check size={13} className="shrink-0" />}
                             </button>
                         ))}
@@ -120,17 +134,41 @@ function DateInput({ label, value, onChange }: { label: string; value: string; o
     );
 }
 
+// ─── Severity dot ─────────────────────────────────────────────────────────────
+function SeverityDot({ severity }: { severity: string }) {
+    if (severity === 'CRITICAL') return <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 ring-2 ring-red-200 dark:ring-red-900" />;
+    if (severity === 'WARNING')  return <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />;
+    return null;
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminAuditLogsPage() {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: PAGE_SIZE, pages: 1 });
     const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState<Tab>('ADMIN_ACTION');
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [actionFilter, setActionFilter] = useState('All Action Types');
     const [roleFilter, setRoleFilter] = useState('All Roles');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
     const [page, setPage] = useState(1);
+
+    useEffect(() => {
+        const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 400);
+        return () => clearTimeout(t);
+    }, [search]);
+
+    // Reset action filter when tab changes
+    useEffect(() => {
+        setActionFilter('All Action Types');
+        setPage(1);
+    }, [activeTab]);
+
+    const actionList = activeTab === 'ADMIN_ACTION'
+        ? ['All Action Types', ...ACTIVITY_ACTIONS_LIST]
+        : ['All Action Types', ...SECURITY_ACTIONS_LIST];
 
     const fetchLogs = useCallback(async (currentPage = page) => {
         try {
@@ -138,36 +176,27 @@ export default function AdminAuditLogsPage() {
             const params = new URLSearchParams();
             params.set('page', String(currentPage));
             params.set('limit', String(PAGE_SIZE));
+            params.set('category', activeTab);
             if (actionFilter !== 'All Action Types') params.set('action', actionFilter);
             if (roleFilter !== 'All Roles') params.set('actorRole', roleFilter);
             if (fromDate) params.set('from', fromDate);
             if (toDate) params.set('to', toDate + 'T23:59:59');
+            if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
 
             const res = await api.get(`/admin/audit-logs?${params.toString()}`);
-            const { logs: rawLogs, pagination: pg } = res.data;
+            const { logs: rawLogs, pagination: pg } = res.data.data;
             setLogs(rawLogs ?? []);
             setPagination(pg ?? { total: 0, page: currentPage, limit: PAGE_SIZE, pages: 1 });
         } catch {
-            // fallback to mock
-            setLogs(MOCK_LOGS);
-            setPagination({ total: MOCK_LOGS.length, page: 1, limit: PAGE_SIZE, pages: 1 });
+            toast.error('Failed to load audit logs');
+            setLogs([]);
+            setPagination({ total: 0, page: currentPage, limit: PAGE_SIZE, pages: 1 });
         } finally {
             setLoading(false);
         }
-    }, [page, actionFilter, roleFilter, fromDate, toDate]);
+    }, [page, activeTab, actionFilter, roleFilter, fromDate, toDate, debouncedSearch]);
 
-    useEffect(() => { fetchLogs(page); }, [page, actionFilter, roleFilter, fromDate, toDate]);
-
-    const filtered = useMemo(() => {
-        if (!search.trim()) return logs;
-        const q = search.toLowerCase();
-        return logs.filter(l =>
-            l.user?.name?.toLowerCase().includes(q) ||
-            l.user?.email?.toLowerCase().includes(q) ||
-            l.details?.toLowerCase().includes(q) ||
-            l.action?.toLowerCase().includes(q)
-        );
-    }, [logs, search]);
+    useEffect(() => { fetchLogs(page); }, [page, activeTab, actionFilter, roleFilter, fromDate, toDate, debouncedSearch]);
 
     const clearFilters = () => {
         setSearch(''); setActionFilter('All Action Types');
@@ -189,7 +218,7 @@ export default function AdminAuditLogsPage() {
                         </h1>
                         <p className="text-muted-foreground text-[13px]">
                             {pagination.total > 0
-                                ? `${pagination.total.toLocaleString('en-IN')} total events · All times in IST`
+                                ? `${pagination.total.toLocaleString('en-IN')} events · All times in IST`
                                 : 'Track all institution activity'}
                         </p>
                     </div>
@@ -198,21 +227,38 @@ export default function AdminAuditLogsPage() {
                     </Button>
                 </div>
 
-                <div className="h-px bg-border/60" />
+                {/* ── Tabs ── */}
+                <div className="flex items-center gap-1 border-b border-border/60">
+                    {([
+                        { key: 'ADMIN_ACTION' as Tab, label: 'Activity', icon: Activity },
+                        { key: 'SECURITY'     as Tab, label: 'Security', icon: Shield },
+                    ]).map(({ key, label, icon: Icon }) => (
+                        <button key={key} onClick={() => setActiveTab(key)}
+                            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px ${
+                                activeTab === key
+                                    ? 'border-primary text-primary'
+                                    : 'border-transparent text-muted-foreground hover:text-foreground'
+                            }`}>
+                            <Icon size={14} />
+                            {label}
+                        </button>
+                    ))}
+                </div>
 
+                {/* ── Filters ── */}
                 <div className="flex items-center gap-2 flex-wrap">
                     <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                             placeholder="Search logs..."
-                            className="w-72 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all" />
+                            className="w-64 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all" />
                         {search && (
                             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                                 <X size={13} />
                             </button>
                         )}
                     </div>
-                    <CustomDropdown value={actionFilter} onChange={v => { setActionFilter(v); setPage(1); }} options={ACTION_LIST}
+                    <CustomDropdown value={actionFilter} onChange={v => { setActionFilter(v); setPage(1); }} options={actionList}
                         getLabel={v => v === 'All Action Types' ? 'All Action Types' : (ACTION_CONFIG[v]?.label ?? v)} />
                     <CustomDropdown value={roleFilter} onChange={v => { setRoleFilter(v); setPage(1); }} options={ROLES_LIST} />
                     <DateInput label="From" value={fromDate} onChange={v => { setFromDate(v); setPage(1); }} />
@@ -228,56 +274,58 @@ export default function AdminAuditLogsPage() {
             {/* ── Table ── */}
             <div className="flex-1 flex flex-col min-h-0 pb-6">
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
-
-                    {/* Table header */}
-                    <div className="grid grid-cols-[140px_190px_180px_1fr] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30 sticky top-0 z-10">
+                    <div className="grid grid-cols-[140px_200px_180px_1fr] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30">
                         {['TIMESTAMP (IST)', 'ACTION', 'ACTOR', 'DETAILS'].map(h => (
                             <p key={h} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</p>
                         ))}
                     </div>
 
-                    {/* Scrollable body */}
-                    <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 320px)' }}>
+                    <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 360px)' }}>
                         {loading ? (
                             <div>
                                 {[...Array(8)].map((_, i) => (
-                                    <div key={i} className="grid grid-cols-[140px_190px_180px_1fr] gap-4 px-5 py-4 border-b border-border/40 last:border-none animate-pulse">
+                                    <div key={i} className="grid grid-cols-[140px_200px_180px_1fr] gap-4 px-5 py-4 border-b border-border/40 last:border-none animate-pulse">
                                         {[...Array(4)].map((_, j) => <div key={j} className="h-4 bg-muted rounded" />)}
                                     </div>
                                 ))}
                             </div>
-                        ) : filtered.length === 0 ? (
+                        ) : logs.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-center">
                                 <ScrollText size={32} className="text-muted-foreground/30 mb-3" />
                                 <p className="text-sm font-medium text-muted-foreground">
-                                    {logs.length === 0 ? 'No audit logs yet' : 'No logs match your search'}
+                                    {hasFilters ? 'No logs match your filters' : 'No logs yet'}
                                 </p>
                                 <p className="text-xs text-muted-foreground/60 mt-1">
-                                    {logs.length === 0 ? 'Teacher, student & admin actions will appear here' : 'Try adjusting your filters'}
+                                    {hasFilters ? 'Try adjusting your search or filters' : 'Actions will appear here'}
                                 </p>
                             </div>
                         ) : (
-                            filtered.map((log, i) => {
+                            logs.map((log, i) => {
                                 const { date, time } = toIST(log.createdAt);
                                 const actionCfg = ACTION_CONFIG[log.action] ?? {
                                     label: log.action.replace(/_/g, ' '),
                                     cls: 'bg-muted text-muted-foreground',
+                                    dot: 'bg-muted-foreground',
                                 };
                                 return (
                                     <motion.div key={log.id}
                                         initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                        transition={{ delay: i * 0.025 }}
-                                        className="grid grid-cols-[140px_190px_180px_1fr] gap-4 px-5 py-4 border-b border-border/40 last:border-none hover:bg-muted/20 transition-colors"
+                                        transition={{ delay: i * 0.02 }}
+                                        className="grid grid-cols-[140px_200px_180px_1fr] gap-4 px-5 py-4 border-b border-border/40 last:border-none hover:bg-muted/20 transition-colors"
                                     >
                                         {/* Timestamp */}
-                                        <div>
-                                            <p className="text-xs font-medium">{date}</p>
-                                            <p className="text-[11px] text-muted-foreground mt-0.5">{time}</p>
+                                        <div className="flex items-start gap-2">
+                                            <SeverityDot severity={log.severity} />
+                                            <div>
+                                                <p className="text-xs font-medium">{date}</p>
+                                                <p className="text-[11px] text-muted-foreground mt-0.5">{time}</p>
+                                            </div>
                                         </div>
 
                                         {/* Action badge */}
                                         <div className="flex items-start pt-0.5">
-                                            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${actionCfg.cls}`}>
+                                            <span className={`inline-flex items-center gap-1.5 text-[11px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${actionCfg.cls}`}>
+                                                <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${actionCfg.dot}`} />
                                                 {actionCfg.label}
                                             </span>
                                         </div>
@@ -298,7 +346,9 @@ export default function AdminAuditLogsPage() {
                                                 {log.details ?? <span className="text-muted-foreground/50 italic">No details</span>}
                                             </p>
                                             {log.ip && (
-                                                <p className="text-[11px] text-muted-foreground/60 mt-0.5">IP: {log.ip}</p>
+                                                <p className="text-[11px] text-muted-foreground/60 mt-0.5 font-mono">
+                                                    {log.ip}
+                                                </p>
                                             )}
                                         </div>
                                     </motion.div>
@@ -312,7 +362,7 @@ export default function AdminAuditLogsPage() {
                 <div className="flex items-center justify-between mt-4 px-1">
                     <p className="text-[11px] text-muted-foreground">
                         {pagination.total > 0
-                            ? `Page ${pagination.page} of ${pagination.pages} · ${pagination.total.toLocaleString('en-IN')} total logs`
+                            ? `Page ${pagination.page} of ${pagination.pages} · ${pagination.total.toLocaleString('en-IN')} total`
                             : 'No logs'}
                     </p>
                     <div className="flex items-center gap-1">
