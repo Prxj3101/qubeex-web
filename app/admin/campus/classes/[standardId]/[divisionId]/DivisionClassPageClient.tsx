@@ -40,8 +40,7 @@ interface Division {
     id: string;
     name: string;
     capacity: number | null;
-    standard: { id: string; name: string };
-    subjects: Subject[];
+    standard: { id: string; name: string; subjects: Subject[] };
     assignments: Assignment[];
 }
 
@@ -445,12 +444,13 @@ export default function DivisionDetailPage() {
         if (!division) return;
         setSavingSubject(true);
         try {
-            const colorIndex = division.subjects.length;
+            const colorIndex = division.standard.subjects.length;
             const color = assignSubjectColor(colorIndex);
-            const res = await api.post(`/admin/campus/divisions/${division.id}/subjects`, { name, color });
+            const res = await api.post(`/admin/campus/standards/${division.standard.id}/subjects`, { name, color });
             const newSubject: Subject = res.data.data;
             setDivision(prev => prev ? {
-                ...prev, subjects: [...prev.subjects, newSubject],
+                ...prev,
+                standard: { ...prev.standard, subjects: [...prev.standard.subjects, newSubject] },
             } : prev);
             setAddingSubject(false);
             toast.success('Subject added');
@@ -468,7 +468,7 @@ export default function DivisionDetailPage() {
             await api.delete(`/admin/campus/subjects/${subjectId}`);
             setDivision(prev => prev ? {
                 ...prev,
-                subjects: prev.subjects.filter(s => s.id !== subjectId),
+                standard: { ...prev.standard, subjects: prev.standard.subjects.filter(s => s.id !== subjectId) },
                 assignments: prev.assignments.filter(a => a.subjectId !== subjectId),
             } : prev);
             toast.success('Subject removed');
@@ -544,7 +544,7 @@ export default function DivisionDetailPage() {
                         {(activeTab === 'overview' || activeTab === 'manage') && (
                             <>
                                 {[
-                                    { label: 'Subjects', value: division.subjects.length },
+                                    { label: 'Subjects', value: division.standard.subjects.length },
                                     { label: 'Teachers', value: new Set(division.assignments.map(a => a.teacher.id)).size },
                                 ].map(({ label, value }) => (
                                     <div key={label} className="text-right">
@@ -741,10 +741,10 @@ export default function DivisionDetailPage() {
                                         </p>
                                     </div>
                                     <div className="px-4 py-2 divide-y divide-border/20">
-                                        {division.subjects.length === 0 && (
+                                        {division.standard.subjects.length === 0 && (
                                             <p className="text-xs text-muted-foreground/60 italic py-3 text-center">No subjects yet</p>
                                         )}
-                                        {division.subjects.map(sub => {
+                                        {division.standard.subjects.map(sub => {
                                             const assignment = division.assignments.find(a => a.subjectId === sub.id);
                                             const teacherName = assignment?.teacher.user.name ?? null;
                                             return (
