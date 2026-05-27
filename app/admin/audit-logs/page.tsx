@@ -275,7 +275,7 @@ export default function AdminAuditLogsPage() {
             <div className="flex-1 flex flex-col min-h-0 pb-6">
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
                     <div className="grid grid-cols-[140px_200px_180px_1fr] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30">
-                        {['TIMESTAMP (IST)', 'ACTION', 'ACTOR', 'DETAILS'].map(h => (
+                        {['TIMESTAMP (IST)', 'ACTION', 'ACTOR', 'IP ADDRESS'].map(h => (
                             <p key={h} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</p>
                         ))}
                     </div>
@@ -340,16 +340,12 @@ export default function AdminAuditLogsPage() {
                                             </p>
                                         </div>
 
-                                        {/* Details */}
+                                        {/* IP / empty */}
                                         <div>
-                                            <p className="text-xs text-foreground leading-relaxed">
-                                                {log.details ?? <span className="text-muted-foreground/50 italic">No details</span>}
-                                            </p>
-                                            {log.ip && (
-                                                <p className="text-[11px] text-muted-foreground/60 mt-0.5 font-mono">
-                                                    {log.ip}
-                                                </p>
-                                            )}
+                                            {log.ip
+                                                ? <p className="text-[11px] text-muted-foreground/60 font-mono">{log.ip}</p>
+                                                : <span className="text-[11px] text-muted-foreground/30">—</span>
+                                            }
                                         </div>
                                     </motion.div>
                                 );
