@@ -40,6 +40,7 @@ interface Division {
     id: string;
     name: string;
     capacity: number | null;
+    divisionSubjects: { subjectId: string }[];
     assignments: Assignment[];
 }
 
@@ -105,6 +106,7 @@ export default function ClassesPage() {
     const [saving, setSaving] = useState(false);
     const fetchedRef = useRef(false);
     const [addingSubject, setAddingSubject] = useState<string | null>(null);
+    const [confirmDeleteSubject, setConfirmDeleteSubject] = useState<{ id: string; name: string; standardId: string } | null>(null);
 
     const standardLabel = instType === 'COLLEGE' ? 'Department' : instType === 'COACHING' ? 'Batch' : 'Standard';
     const divisionLabel = instType === 'COLLEGE' ? 'Section' : instType === 'COACHING' ? 'Group' : 'Division';
@@ -148,7 +150,7 @@ export default function ClassesPage() {
         setSaving(true);
         try {
             const res = await api.post(`/admin/campus/standards/${standardId}/divisions`, { name });
-            const newDiv: Division = { ...res.data.data, assignments: [] };
+            const newDiv: Division = { ...res.data.data, divisionSubjects: [], assignments: [] };
             setStandards(prev => prev.map(s => s.id !== standardId ? s : {
                 ...s, divisions: [...s.divisions, newDiv],
             }));
@@ -178,6 +180,25 @@ export default function ClassesPage() {
             toast.error(msg ?? 'Failed to add subject');
         } finally {
             setSaving(false);
+        }
+    };
+
+    const deleteSubject = async (subjectId: string, standardId: string) => {
+        try {
+            await api.delete(`/admin/campus/subjects/${subjectId}`);
+            setStandards(prev => prev.map(s => s.id !== standardId ? s : {
+                ...s,
+                subjects: s.subjects.filter(sub => sub.id !== subjectId),
+                divisions: s.divisions.map(d => ({
+                    ...d,
+                    divisionSubjects: d.divisionSubjects.filter(ds => ds.subjectId !== subjectId),
+                    assignments: d.assignments.filter(a => a.subjectId !== subjectId),
+                })),
+            }));
+            toast.success('Subject deleted');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to delete subject');
         }
     };
 
@@ -298,7 +319,7 @@ export default function ClassesPage() {
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         {(std.subjects ?? []).map(sub => (
                                                             <span key={sub.id}
-                                                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium"
+                                                                className="group flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-full text-xs font-medium"
                                                                 style={{
                                                                     background: (sub.color ?? '#7C3AED') + '20',
                                                                     color: sub.color ?? '#7C3AED',
@@ -306,6 +327,11 @@ export default function ClassesPage() {
                                                                 }}>
                                                                 <BookOpen size={11} />
                                                                 {sub.name}
+                                                                <button
+                                                                    onClick={() => setConfirmDeleteSubject({ id: sub.id, name: sub.name, standardId: std.id })}
+                                                                    className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all">
+                                                                    <X size={9} />
+                                                                </button>
                                                             </span>
                                                         ))}
                                                         {(std.subjects ?? []).length === 0 && (
@@ -378,30 +404,35 @@ export default function ClassesPage() {
                                                                                     <span className="text-[10px] text-muted-foreground/50 italic">Not assigned</span>
                                                                                 )}
                                                                             </div>
-                                                                            {std.subjects?.length > 0 && (
-                                                                                <>
-                                                                                    <p className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider py-1">Subjects</p>
-                                                                                    {std.subjects.map((sub: Subject) => {
-                                                                                        const assignment = div.assignments.find(a => a.subjectId === sub.id);
-                                                                                        return (
-                                                                                            <div key={sub.id} className="flex items-center justify-between py-1 border-t border-border/20">
-                                                                                                <div className="flex items-center gap-1.5">
-                                                                                                    <div className="w-1.5 h-1.5 rounded-full shrink-0"
-                                                                                                        style={{ background: sub.color ?? '#7C3AED' }} />
-                                                                                                    <span className="text-[10px] text-muted-foreground">{sub.name}</span>
+                                                                            {(() => {
+                                                                                const selectedIds = new Set(div.divisionSubjects.map(ds => ds.subjectId));
+                                                                                const selectedSubs = std.subjects.filter(s => selectedIds.has(s.id));
+                                                                                if (selectedSubs.length === 0) return null;
+                                                                                return (
+                                                                                    <>
+                                                                                        <p className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider py-1">Subjects</p>
+                                                                                        {selectedSubs.map((sub: Subject) => {
+                                                                                            const assignment = div.assignments.find(a => a.subjectId === sub.id);
+                                                                                            return (
+                                                                                                <div key={sub.id} className="flex items-center justify-between py-1 border-t border-border/20">
+                                                                                                    <div className="flex items-center gap-1.5">
+                                                                                                        <div className="w-1.5 h-1.5 rounded-full shrink-0"
+                                                                                                            style={{ background: sub.color ?? '#7C3AED' }} />
+                                                                                                        <span className="text-[10px] text-muted-foreground">{sub.name}</span>
+                                                                                                    </div>
+                                                                                                    {assignment?.teacher.user.name ? (
+                                                                                                        <span className="text-[10px] font-semibold truncate max-w-[80px] text-right text-foreground">
+                                                                                                            {assignment.teacher.user.name}
+                                                                                                        </span>
+                                                                                                    ) : (
+                                                                                                        <span className="text-[10px] text-muted-foreground/50 italic">Not assigned</span>
+                                                                                                    )}
                                                                                                 </div>
-                                                                                                {assignment?.teacher.user.name ? (
-                                                                                                    <span className="text-[10px] font-semibold truncate max-w-[80px] text-right text-foreground">
-                                                                                                        {assignment.teacher.user.name}
-                                                                                                    </span>
-                                                                                                ) : (
-                                                                                                    <span className="text-[10px] text-muted-foreground/50 italic">Not assigned</span>
-                                                                                                )}
-                                                                                            </div>
-                                                                                        );
-                                                                                    })}
-                                                                                </>
-                                                                            )}
+                                                                                            );
+                                                                                        })}
+                                                                                    </>
+                                                                                );
+                                                                            })()}
                                                                         </div>
                                                                     </div>
                                                                 </motion.div>
@@ -440,6 +471,30 @@ export default function ClassesPage() {
                     );
                 })}
             </div>
+
+            <AnimatePresence>
+                {confirmDeleteSubject && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            <h3 className="text-base font-bold mb-2">Delete Subject?</h3>
+                            <p className="text-sm text-muted-foreground mb-5">
+                                <span className="font-semibold text-foreground">{confirmDeleteSubject.name}</span> will be removed from this standard and all its divisions. Teacher assignments for this subject will also be removed.
+                            </p>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setConfirmDeleteSubject(null)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => { deleteSubject(confirmDeleteSubject.id, confirmDeleteSubject.standardId); setConfirmDeleteSubject(null); }}
+                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white bg-red-500 hover:opacity-90 transition-all">
+                                    Yes, Delete
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

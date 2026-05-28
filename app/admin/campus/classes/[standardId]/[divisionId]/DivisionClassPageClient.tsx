@@ -41,6 +41,7 @@ interface Division {
     name: string;
     capacity: number | null;
     standard: { id: string; name: string; subjects: Subject[] };
+    divisionSubjects: { subjectId: string }[];
     assignments: Assignment[];
 }
 
@@ -676,7 +677,7 @@ export default function DivisionDetailPage() {
     const [manageRightTab, setManageRightTab] = useState<'teachers' | 'student'>('teachers');
     const [confirmToggle, setConfirmToggle] = useState(false);
     const [studentActive, setStudentActive] = useState(true);
-    const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
+    const [togglingSubject, setTogglingSubject] = useState<string | null>(null);
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
     const [feesSubTab, setFeesSubTab] = useState<'setup' | 'students'>('students');
     const [timetableImage, setTimetableImage] = useState<string | null>(null);
@@ -684,10 +685,31 @@ export default function DivisionDetailPage() {
     const [showPassword, setShowPassword] = useState(false);
 
 
-    const toggleSubject = (subId: string) => {
-        setSelectedSubjects(prev =>
-            prev.includes(subId) ? prev.filter(id => id !== subId) : [...prev, subId]
-        );
+    const toggleSubject = async (subId: string) => {
+        if (!division || togglingSubject) return;
+        const isSelected = division.divisionSubjects.some(ds => ds.subjectId === subId);
+        setTogglingSubject(subId);
+        try {
+            if (isSelected) {
+                await api.delete(`/admin/campus/divisions/${division.id}/subjects/${subId}`);
+                setDivision(prev => prev ? {
+                    ...prev,
+                    divisionSubjects: prev.divisionSubjects.filter(ds => ds.subjectId !== subId),
+                    assignments: prev.assignments.filter(a => a.subjectId !== subId),
+                } : prev);
+            } else {
+                await api.post(`/admin/campus/divisions/${division.id}/subjects/${subId}`);
+                setDivision(prev => prev ? {
+                    ...prev,
+                    divisionSubjects: [...prev.divisionSubjects, { subjectId: subId }],
+                } : prev);
+            }
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to update');
+        } finally {
+            setTogglingSubject(null);
+        }
     };
 
     const filteredAnnouncements = feedFilter === 'all'
@@ -884,7 +906,7 @@ export default function DivisionDetailPage() {
                         {(activeTab === 'overview' || activeTab === 'manage') && (
                             <>
                                 {[
-                                    { label: 'Subjects', value: division.standard.subjects.length },
+                                    { label: 'Subjects', value: division.divisionSubjects.length },
                                     { label: 'Teachers', value: new Set(division.assignments.map(a => a.teacher.id)).size },
                                 ].map(({ label, value }) => (
                                     <div key={label} className="text-right">
@@ -1083,10 +1105,12 @@ export default function DivisionDetailPage() {
                                         </p>
                                     </div>
                                     <div className="px-4 py-2 divide-y divide-border/20">
-                                        {division.standard.subjects.length === 0 && (
-                                            <p className="text-xs text-muted-foreground/60 italic py-3 text-center">No subjects yet</p>
+                                        {division.divisionSubjects.length === 0 && (
+                                            <p className="text-xs text-muted-foreground/60 italic py-3 text-center">No subjects selected</p>
                                         )}
-                                        {division.standard.subjects.map(sub => {
+                                        {division.standard.subjects
+                                            .filter(sub => division.divisionSubjects.some(ds => ds.subjectId === sub.id))
+                                            .map(sub => {
                                             const assignment = division.assignments.find(a => a.subjectId === sub.id);
                                             const teacherName = assignment?.teacher.user.name ?? null;
                                             return (
@@ -1316,38 +1340,42 @@ export default function DivisionDetailPage() {
                                             <motion.div key="teachers" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                                                 className="px-4 py-3 space-y-4">
 
-                                                {/* Subjects Pool Selection */}
+                                                {/* Subject Pool — toggle which subjects this division has */}
                                                 <div>
                                                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-                                                        Division Subjects
+                                                        Subject Pool — select for this division
                                                     </p>
-                                                    <div className="flex flex-wrap gap-1.5">
-                                                        {MOCK_SUBJECT_POOL.map(sub => {
-                                                            const isSelected = selectedSubjects.includes(sub.id);
-                                                            return (
-                                                                <button key={sub.id}
-                                                                    onClick={() => toggleSubject(sub.id)}
-                                                                    className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all" style={isSelected ? {
-                                                                        background: sub.color + '20',
-                                                                        color: sub.color,
-                                                                        border: `1px solid ${sub.color}40`,
-                                                                    } : {
-                                                                        background: 'hsl(var(--muted))',
-                                                                        color: 'hsl(var(--muted-foreground))',
-                                                                        border: '1px dashed hsl(var(--border))',
-                                                                    }}>
-                                                                    <BookOpen size={10} />
-                                                                    {sub.name}
-                                                                    {isSelected && <Check size={8} className="ml-0.5" />}
-                                                                </button>
-                                                            );
-                                                        })}
-                                                    </div>
+                                                    {division.standard.subjects.length === 0 ? (
+                                                        <p className="text-xs text-muted-foreground/60 italic">No subjects in this standard yet</p>
+                                                    ) : (
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                            {division.standard.subjects.map(sub => {
+                                                                const isSelected = division.divisionSubjects.some(ds => ds.subjectId === sub.id);
+                                                                return (
+                                                                    <button key={sub.id}
+                                                                        onClick={() => toggleSubject(sub.id)}
+                                                                        disabled={togglingSubject === sub.id}
+                                                                        className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all disabled:opacity-50"
+                                                                        style={isSelected ? {
+                                                                            background: (sub.color ?? '#7C3AED') + '20',
+                                                                            color: sub.color ?? '#7C3AED',
+                                                                            border: `1px solid ${sub.color ?? '#7C3AED'}40`,
+                                                                        } : {
+                                                                            background: 'hsl(var(--muted))',
+                                                                            color: 'hsl(var(--muted-foreground))',
+                                                                            border: '1px dashed hsl(var(--border))',
+                                                                        }}>
+                                                                        <BookOpen size={10} />
+                                                                        {sub.name}
+                                                                        {isSelected && <Check size={8} className="ml-0.5" />}
+                                                                    </button>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
                                                 </div>
 
-                                                {/* Divider */}
                                                 <div className="h-px bg-border/40" />
-
 
                                                 <div>
                                                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Class Teacher</p>
@@ -1378,50 +1406,49 @@ export default function DivisionDetailPage() {
                                                         </div>
                                                     </div>
                                                 </div>
+
                                                 <div>
-                                                    <div>
-                                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Subject Teachers</p>
-                                                        {selectedSubjects.length === 0 ? (
-                                                            <p className="text-xs text-muted-foreground/60 italic">Select subjects above first</p>
-                                                        ) : (
-                                                            <div className="space-y-1.5">
-                                                                {MOCK_SUBJECT_POOL
-                                                                    .filter(sub => selectedSubjects.includes(sub.id))
-                                                                    .map(sub => {
-                                                                        const assignment = division.assignments.find(a => a.subjectId === sub.id);
-                                                                        return (
-                                                                            <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <div className="w-2 h-2 rounded-full shrink-0"
-                                                                                        style={{ background: sub.color }} />
-                                                                                    <span className="text-xs text-muted-foreground">{sub.name}</span>
-                                                                                    {assignment && (
-                                                                                        <span className="text-[10px] text-foreground font-semibold">
-                                                                                            — {assignment.teacher.user.name}
-                                                                                        </span>
-                                                                                    )}
-                                                                                </div>
-                                                                                <div className="flex items-center gap-2">
-                                                                                    {assignment && (
-                                                                                        <button onClick={() => setConfirmRemove(assignment.id)}
-                                                                                            className="text-[10px] text-red-500 hover:underline">
-                                                                                            Remove
-                                                                                        </button>
-                                                                                    )}
-                                                                                    <TeacherPicker
-                                                                                        value={assignment?.teacher.id}
-                                                                                        teachers={teachers}
-                                                                                        accentColor={sub.color}
-                                                                                        loading={savingAssign}
-                                                                                        onChange={(teacherId, name) => assignTeacher(sub.id, teacherId, name)}
-                                                                                    />
-                                                                                </div>
+                                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Subject Teachers</p>
+                                                    {division.divisionSubjects.length === 0 ? (
+                                                        <p className="text-xs text-muted-foreground/60 italic">Select subjects above first</p>
+                                                    ) : (
+                                                        <div className="space-y-1.5">
+                                                            {division.standard.subjects
+                                                                .filter(sub => division.divisionSubjects.some(ds => ds.subjectId === sub.id))
+                                                                .map(sub => {
+                                                                    const assignment = division.assignments.find(a => a.subjectId === sub.id);
+                                                                    return (
+                                                                        <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <div className="w-2 h-2 rounded-full shrink-0"
+                                                                                    style={{ background: sub.color ?? '#7C3AED' }} />
+                                                                                <span className="text-xs text-muted-foreground">{sub.name}</span>
+                                                                                {assignment && (
+                                                                                    <span className="text-[10px] text-foreground font-semibold">
+                                                                                        — {assignment.teacher.user.name}
+                                                                                    </span>
+                                                                                )}
                                                                             </div>
-                                                                        );
-                                                                    })}
-                                                            </div>
-                                                        )}
-                                                    </div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                {assignment && (
+                                                                                    <button onClick={() => setConfirmRemove(assignment.id)}
+                                                                                        className="text-[10px] text-red-500 hover:underline">
+                                                                                        Remove
+                                                                                    </button>
+                                                                                )}
+                                                                                <TeacherPicker
+                                                                                    value={assignment?.teacher.id}
+                                                                                    teachers={teachers}
+                                                                                    accentColor={sub.color ?? '#7C3AED'}
+                                                                                    loading={savingAssign}
+                                                                                    onChange={(teacherId, name) => assignTeacher(sub.id, teacherId, name)}
+                                                                                />
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                })}
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </motion.div>
                                         )}
