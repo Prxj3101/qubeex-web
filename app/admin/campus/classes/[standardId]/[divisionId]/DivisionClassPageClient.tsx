@@ -527,9 +527,17 @@ type PostType = 'announcement' | 'notice' | 'material' | 'result';
 type FeedFilter = 'all' | PostType;
 
 interface DivAnnouncement {
-    id: string; type: PostType; title: string; body?: string;
-    author: string; role: string; subject?: string; time: string;
-    attachments?: { name: string; kind: string }[];
+    id: string;
+    type: PostType;
+    title: string;
+    body: string;
+    subject: string | null;
+    divisionId: string | null;
+    attachmentUrl: string | null;
+    attachmentType: string | null;
+    attachmentName: string | null;
+    createdAt: string;
+    author: { id: string; name: string; role: string };
 }
 
 const POST_META = {
@@ -567,10 +575,6 @@ const MOCK_RESULTS = [
     { id: 'r3', name: 'Unit Test 2', date: '10 Apr 2026', type: 'PDF', maxMarks: 100 },
 ];
 
-const MOCK_ANNOUNCEMENTS: DivAnnouncement[] = [
-    { id: 'a1', type: 'announcement', title: 'PTM this Saturday', body: 'Parent Teacher Meeting on Saturday at 10 AM.', author: 'Ritu Sharma', role: 'Teacher', time: '2h ago' },
-    { id: 'a2', type: 'notice', title: 'Unit Test 3 Schedule', body: 'Unit Test 3 will be held on 20th May.', author: 'Admin', role: 'Admin', time: '1d ago' },
-];
 
 function VerifiedBadge() {
     return (
@@ -583,11 +587,21 @@ function VerifiedBadge() {
     );
 }
 
-function DivFeedCard({ ann }: { ann: DivAnnouncement }) {
+function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: string) => void }) {
     const [expanded, setExpanded] = useState(false);
     const meta = POST_META[ann.type];
-    const initials = ann.author.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
-    const avatarColor = AVATAR_COLORS[ann.author.charCodeAt(0) % AVATAR_COLORS.length];
+    const authorName = ann.author.name;
+    const initials = authorName.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase();
+    const avatarColor = AVATAR_COLORS[authorName.charCodeAt(0) % AVATAR_COLORS.length];
+    const timeAgo = (() => {
+        const diff = Date.now() - new Date(ann.createdAt).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'Just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(mins / 60);
+        if (hrs < 24) return `${hrs}h ago`;
+        return `${Math.floor(hrs / 24)}d ago`;
+    })();
 
     return (
         <div className="bg-card border border-border/50 rounded-2xl p-4 space-y-3">
@@ -596,7 +610,15 @@ function DivFeedCard({ ann }: { ann: DivAnnouncement }) {
                     {meta.emoji} {meta.label}
                     {ann.subject && <span className="font-normal opacity-75">· {ann.subject}</span>}
                 </span>
-                <span className="text-[11px] text-muted-foreground">{ann.time}</span>
+                <div className="flex items-center gap-2">
+                    <span className="text-[11px] text-muted-foreground">{timeAgo}</span>
+                    {onDelete && (
+                        <button onClick={() => onDelete(ann.id)}
+                            className="w-5 h-5 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all">
+                            <X size={11} />
+                        </button>
+                    )}
+                </div>
             </div>
             <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
@@ -604,9 +626,9 @@ function DivFeedCard({ ann }: { ann: DivAnnouncement }) {
                     {initials}
                 </div>
                 <div>
-                    <p className="text-xs font-semibold">{ann.author}</p>
+                    <p className="text-xs font-semibold">{authorName}</p>
                     <div className="flex items-center gap-1">
-                        <p className="text-[10px] text-muted-foreground">{ann.role}</p>
+                        <p className="text-[10px] text-muted-foreground">{ann.author.role}</p>
                         <VerifiedBadge />
                     </div>
                 </div>
@@ -619,18 +641,19 @@ function DivFeedCard({ ann }: { ann: DivAnnouncement }) {
                     </p>
                 )}
             </div>
-            {ann.attachments && ann.attachments.length > 0 && expanded && (
+            {ann.attachmentUrl && expanded && (
                 <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border/40">
-                    {ann.attachments.map((att, i) => (
-                        <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-muted border border-border/50 text-[11px] font-medium">
-                            <span>{
-                                att.kind === 'image' ? '🖼️' :
-                                    att.kind === 'video' ? '🎥' :
-                                        att.kind === 'pdf' ? '📄' : '📎'
-                            }</span>
-                            <span className="text-muted-foreground">{att.name}</span>
-                        </div>
-                    ))}
+                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-muted border border-border/50 text-[11px] font-medium">
+                        <span>{
+                            ann.attachmentType?.startsWith('image/') ? '🖼️' :
+                                ann.attachmentType?.startsWith('video/') ? '🎥' :
+                                    ann.attachmentName?.endsWith('.pdf') ? '📄' : '📎'
+                        }</span>
+                        <a href={ann.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                            className="text-muted-foreground hover:text-primary transition-colors truncate max-w-[140px]">
+                            {ann.attachmentName ?? 'Attachment'}
+                        </a>
+                    </div>
                 </div>
             )}
             <button onClick={() => setExpanded(v => !v)}
@@ -667,7 +690,8 @@ export default function DivisionDetailPage() {
     const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
     const [postType, setPostType] = useState<PostType>('announcement');
     const [postInput, setPostInput] = useState('');
-    const [announcements, setAnnouncements] = useState<DivAnnouncement[]>(MOCK_ANNOUNCEMENTS);
+    const [announcements, setAnnouncements] = useState<DivAnnouncement[]>([]);
+    const [postLoading, setPostLoading] = useState(false);
     const [postBody, setPostBody] = useState('');
     const [attachments, setAttachments] = useState<File[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -716,37 +740,52 @@ export default function DivisionDetailPage() {
         ? announcements
         : announcements.filter(a => a.type === feedFilter);
 
-    const handlePost = () => {
-        if (!postInput.trim()) return;
-        setAnnouncements(prev => [{
-            id: `a-${Date.now()}`, type: postType,
-            title: postInput.trim(),
-            body: postBody.trim() || undefined,
-            subject: postSubject.trim() || undefined,
-            author: 'Admin', role: 'Admin',
-            time: 'Just now',
-            attachments: attachments.map(f => ({
-                name: f.name,
-                kind: f.type.startsWith('image/') ? 'image' :
-                    f.type.startsWith('video/') ? 'video' :
-                        f.name.endsWith('.pdf') ? 'pdf' : 'file'
-            })),
-        }, ...prev]);
-        setPostInput('');
-        setPostBody('');
-        setPostSubject('');
-        setAttachments([]);
-        toast.success('Posted!');
+    const handlePost = async () => {
+        if (!postInput.trim() || postLoading) return;
+        setPostLoading(true);
+        try {
+            const res = await api.post('/admin/campus/feed/posts', {
+                type: postType.toUpperCase(),
+                title: postInput.trim(),
+                body: postBody.trim() || '',
+                subject: postSubject.trim() || undefined,
+                divisionId,
+            });
+            setAnnouncements(prev => [res.data.data, ...prev]);
+            setPostInput('');
+            setPostBody('');
+            setPostSubject('');
+            setAttachments([]);
+            toast.success('Posted!');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to post');
+        } finally {
+            setPostLoading(false);
+        }
+    };
+
+    const deletePost = async (postId: string) => {
+        try {
+            await api.delete(`/admin/campus/feed/posts/${postId}`);
+            setAnnouncements(prev => prev.filter(a => a.id !== postId));
+            toast.success('Post deleted');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to delete post');
+        }
     };
 
     const fetchAll = useCallback(async () => {
         try {
-            const [divRes, teachersRes] = await Promise.all([
+            const [divRes, teachersRes, postsRes] = await Promise.all([
                 api.get(`/admin/campus/divisions/${divisionId}`),
                 api.get('/admin/teachers'),
+                api.get('/admin/campus/feed/posts', { params: { divisionId, limit: 50 } }),
             ]);
             setDivision(divRes.data.data);
             setTeachers(teachersRes.data.data ?? []);
+            setAnnouncements(postsRes.data.data ?? []);
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
             toast.error(msg ?? 'Failed to load division');
@@ -1009,14 +1048,9 @@ export default function DivisionDetailPage() {
                                         {filteredAnnouncements.length === 0 && (
                                             <p className="text-xs text-muted-foreground/60 italic text-center py-8">No posts yet</p>
                                         )}
-                                        {filteredAnnouncements.map((ann, i) => {
-                                            const meta = POST_META[ann.type as keyof typeof POST_META];
-                                            const initials = ann.author.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase();
-                                            const avatarColor = AVATAR_COLORS[ann.author.charCodeAt(0) % AVATAR_COLORS.length];
-                                            return (
-                                                <DivFeedCard key={ann.id} ann={ann} />
-                                            );
-                                        })}
+                                        {filteredAnnouncements.map(ann => (
+                                            <DivFeedCard key={ann.id} ann={ann} onDelete={deletePost} />
+                                        ))}
                                     </div>
 
                                     {/* Composer */}
@@ -1083,7 +1117,7 @@ export default function DivisionDetailPage() {
                                                 className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 transition-all shrink-0">
                                                 <Paperclip size={14} />
                                             </button>
-                                            <button onClick={handlePost} disabled={!postInput.trim()}
+                                            <button onClick={handlePost} disabled={!postInput.trim() || postLoading}
                                                 className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
                                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                                 <Send size={13} />
