@@ -22,7 +22,8 @@ import {
     Sparkles,
     MessageSquare,
     Landmark,
-    QrCode
+    QrCode,
+    Pause,
 } from 'lucide-react';
 
 export const ALL_FEATURES: {
@@ -292,6 +293,18 @@ export default function SubscriptionPage() {
                                         <span className="font-medium text-foreground ml-1">14 Nov 2024</span>
                                     </span>
                                 </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <button
+                                    onClick={() => router.push('/admin/support/tickets')}
+                                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 hover:opacity-80 transition-all">
+                                    <Pause size={13} /> Request Pause
+                                </button>
+                                <button
+                                    onClick={() => router.push('/admin/support/tickets')}
+                                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 text-xs font-semibold hover:opacity-80 transition-all">
+                                    <XCircle size={13} /> Request Deactivation
+                                </button>
                             </div>
                         </div>
 
@@ -606,39 +619,65 @@ export default function SubscriptionPage() {
 
                         {/* Plan card */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                            {/* Plan card */}
                             <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 flex flex-col gap-4">
                                 <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium text-foreground">Current plan</p>
-                                    <div className={`flex items-center gap-1.5 border rounded-lg px-2.5 py-1 ${config.badgeBg}`}>
-                                        <BadgeIcon className={`w-3 h-3 ${config.badgeText}`} />
-                                        <span className={`text-xs font-semibold ${config.badgeText}`}>{currentPlan === 'PRO' ? 'Pro' : 'Basic'}</span>
+                                    <p className="text-sm font-medium text-foreground">Latest Bill — {invoices[0].month}</p>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">Bill Status:</span>
+                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${invoices[0].status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                                            {invoices[0].status}
+                                        </span>
                                     </div>
                                 </div>
-                                <div>
-                                    <p className="text-3xl font-bold text-foreground">{config.price}<span className="text-sm font-normal text-muted-foreground">/mo</span></p>
-                                    <p className="text-xs text-muted-foreground mt-1">Next billing on Jun 1, 2025</p>
+                                {/* Recent bill info */}
+                                <div className="space-y-2">
+                                    <p className="text-3xl font-bold text-foreground">{invoices[0].amount}</p>
+                                    <p className="text-xs text-muted-foreground">Due {invoices[0].dueDate}</p>
                                 </div>
+
                                 <div className="pt-1 border-t border-border/50 space-y-1.5">
                                     {[
-                                        { label: 'Payment method', value: '•••• 4242' },
                                         { label: 'Billing cycle', value: 'Monthly' },
                                         { label: 'Member since', value: 'Jan 2025' },
                                     ].map((row) => (
                                         <div key={row.label} className="flex items-center justify-between text-xs">
                                             <span className="text-muted-foreground">{row.label}</span>
-                                            <span className="font-medium text-foreground">{row.value}</span>
+                                            <span className={`font-medium ${row.label === 'Bill status' ? invoices[0].status === 'paid' ? 'text-emerald-500' : 'text-amber-500' : 'text-foreground'}`}>
+                                                {row.value}
+                                            </span>
                                         </div>
                                     ))}
                                 </div>
+
                                 <div className="space-y-2 pt-1">
-                                    <button className="w-full text-xs font-semibold py-2.5 rounded-xl text-white hover:opacity-90 transition-all"
-                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                        {config.upgradeLabel}
-                                    </button>
-                                    {config.showCancel && (
-                                        <button className="w-full text-xs font-medium py-2 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors">
-                                            Cancel subscription
-                                        </button>
+                                    {invoices[0].status !== 'paid' ? (
+                                        <>
+                                            <button
+                                                onClick={() => setBillingTab('history')}
+                                                className="w-full text-xs font-semibold py-2.5 rounded-xl text-white hover:opacity-90 transition-all"
+                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                Pay Now
+                                            </button>
+                                            <button
+                                                onClick={() => router.push('/admin/support/tickets')}
+                                                className="w-full text-xs font-medium py-2 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors">
+                                                Already Paid? Notify Us
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <button
+                                                disabled
+                                                className="w-full text-xs font-semibold py-2.5 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 cursor-default">
+                                                ✅ Already Paid
+                                            </button>
+                                            <button
+                                                onClick={() => router.push('/admin/support/tickets')}
+                                                className="w-full text-xs font-medium py-2 rounded-xl border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors">
+                                                Contact Support
+                                            </button>
+                                        </>
                                     )}
                                 </div>
                             </div>
