@@ -65,15 +65,21 @@ export default function DivisionClassPageClient() {
     const isClassTeacher = role === 'class-teacher';
     const subjectId = searchParams.get('subjectId') ?? null;
 
-    const TABS = [
-        { key: 'view' as const, label: 'View' },
-        { key: 'manage' as const, label: 'Manage' },
-        ...(isClassTeacher ? [{ key: 'fees' as const, label: 'Fees' }] : []),
-    ];
+    const TABS = isClassTeacher
+        ? [
+            { key: 'view' as const, label: 'View' },
+            { key: 'manage' as const, label: 'Manage' },
+            { key: 'attendance' as const, label: 'Attendance' },
+            { key: 'fees' as const, label: 'Fees' },
+        ]
+        : [
+            { key: 'view' as const, label: 'View' },
+            { key: 'tasks' as const, label: 'Tasks' },
+        ];
 
     const [division, setDivision] = useState<Division | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'fees'>('view');
+    const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'attendance' | 'fees' | 'tasks'>('view');
     const fetchedRef = useRef(false);
 
     const fetchDivision = useCallback(async () => {
@@ -139,8 +145,8 @@ export default function DivisionClassPageClient() {
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 {division.standard.name} <ChevronRight size={11} /> {division.name}
                                 <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${isClassTeacher
-                                        ? 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300'
-                                        : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                                    ? 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300'
+                                    : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
                                     }`}>
                                     {isClassTeacher ? 'Class Teacher' : 'Subject Teacher'}
                                 </span>
@@ -193,9 +199,23 @@ export default function DivisionClassPageClient() {
                             <ManageTab division={division} isClassTeacher={isClassTeacher} />
                         </motion.div>
                     )}
+                    {activeTab === 'attendance' && (
+                        <motion.div key="attendance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                                Attendance — Coming soon
+                            </div>
+                        </motion.div>
+                    )}
                     {activeTab === 'fees' && isClassTeacher && (
                         <motion.div key="fees" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                             <FeesTab divisionId={divisionId} divisionName={division.name} />
+                        </motion.div>
+                    )}
+                    {activeTab === 'tasks' && (
+                        <motion.div key="tasks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                                Tasks — Coming soon
+                            </div>
                         </motion.div>
                     )}
                 </AnimatePresence>

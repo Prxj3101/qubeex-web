@@ -29,36 +29,36 @@ type Tab = 'ADMIN_ACTION' | 'SECURITY';
 // ─── Action Config ────────────────────────────────────────────────────────────
 const ACTION_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
     // Staff
-    TEACHER_ADDED:         { label: 'Teacher Added',        cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
-    TEACHER_UPDATED:       { label: 'Teacher Updated',      cls: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400',                 dot: 'bg-sky-500' },
-    TEACHER_DEACTIVATED:   { label: 'Teacher Deactivated',  cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
-    TEACHER_ACTIVATED:     { label: 'Teacher Activated',    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
-    TEACHER_INVITE_RESENT: { label: 'Invite Resent',        cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',         dot: 'bg-amber-500' },
-    INVITE_ACCEPTED:       { label: 'Invite Accepted',      cls: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400',             dot: 'bg-teal-500' },
+    TEACHER_ADDED: { label: 'Teacher Added', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    TEACHER_UPDATED: { label: 'Teacher Updated', cls: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400', dot: 'bg-sky-500' },
+    TEACHER_DEACTIVATED: { label: 'Teacher Deactivated', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
+    TEACHER_ACTIVATED: { label: 'Teacher Activated', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    TEACHER_INVITE_RESENT: { label: 'Invite Resent', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', dot: 'bg-amber-500' },
+    INVITE_ACCEPTED: { label: 'Invite Accepted', cls: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400', dot: 'bg-teal-500' },
     // Students
-    STUDENT_ADDED:         { label: 'Student Added',        cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400',     dot: 'bg-violet-500' },
-    STUDENT_UPDATED:       { label: 'Student Updated',      cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',             dot: 'bg-blue-500' },
-    STUDENT_DEACTIVATED:   { label: 'Student Deactivated',  cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
-    STUDENT_ACTIVATED:     { label: 'Student Activated',    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    STUDENT_ADDED: { label: 'Student Added', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400', dot: 'bg-violet-500' },
+    STUDENT_UPDATED: { label: 'Student Updated', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400', dot: 'bg-blue-500' },
+    STUDENT_DEACTIVATED: { label: 'Student Deactivated', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
+    STUDENT_ACTIVATED: { label: 'Student Activated', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
     // Campus
-    CLASS_CREATED:         { label: 'Class Created',        cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',         dot: 'bg-amber-500' },
-    CLASS_UPDATED:         { label: 'Class Updated',        cls: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-500',         dot: 'bg-amber-400' },
-    CLASS_DELETED:         { label: 'Class Deleted',        cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
-    SUBJECT_CREATED:       { label: 'Subject Created',      cls: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400',             dot: 'bg-teal-500' },
-    SUBJECT_UPDATED:       { label: 'Subject Updated',      cls: 'bg-teal-100 text-teal-600 dark:bg-teal-950 dark:text-teal-500',             dot: 'bg-teal-400' },
-    SUBJECT_DELETED:       { label: 'Subject Deleted',      cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
-    TEACHER_ASSIGNED:      { label: 'Teacher Assigned',     cls: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400',     dot: 'bg-indigo-500' },
-    TEACHER_UNASSIGNED:    { label: 'Teacher Unassigned',   cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400',     dot: 'bg-orange-500' },
+    CLASS_CREATED: { label: 'Class Created', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', dot: 'bg-amber-500' },
+    CLASS_UPDATED: { label: 'Class Updated', cls: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-500', dot: 'bg-amber-400' },
+    CLASS_DELETED: { label: 'Class Deleted', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
+    SUBJECT_CREATED: { label: 'Subject Created', cls: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400', dot: 'bg-teal-500' },
+    SUBJECT_UPDATED: { label: 'Subject Updated', cls: 'bg-teal-100 text-teal-600 dark:bg-teal-950 dark:text-teal-500', dot: 'bg-teal-400' },
+    SUBJECT_DELETED: { label: 'Subject Deleted', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
+    TEACHER_ASSIGNED: { label: 'Teacher Assigned', cls: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400', dot: 'bg-indigo-500' },
+    TEACHER_UNASSIGNED: { label: 'Teacher Unassigned', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400', dot: 'bg-orange-500' },
     // Content
-    ANNOUNCEMENT_POSTED:   { label: 'Announcement Posted',  cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400',     dot: 'bg-orange-500' },
-    POST_DELETED:          { label: 'Post Deleted',         cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',                 dot: 'bg-red-500' },
+    ANNOUNCEMENT_POSTED: { label: 'Announcement Posted', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400', dot: 'bg-orange-500' },
+    POST_DELETED: { label: 'Post Deleted', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
     // Institution
-    INSTITUTION_UPDATED:      { label: 'Settings Updated',  cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300',         dot: 'bg-slate-500' },
-    INSTITUTION_LOGO_UPDATED: { label: 'Logo Updated',      cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',         dot: 'bg-slate-400' },
+    INSTITUTION_UPDATED: { label: 'Settings Updated', cls: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300', dot: 'bg-slate-500' },
+    INSTITUTION_LOGO_UPDATED: { label: 'Logo Updated', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', dot: 'bg-slate-400' },
     // Security
-    LOGIN_FAILED:          { label: 'Login Failed',         cls: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400',             dot: 'bg-rose-500' },
-    PASSWORD_CHANGED:      { label: 'Password Changed',     cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',         dot: 'bg-amber-500' },
-    LOGIN_SUCCESS:         { label: 'Login',                cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',         dot: 'bg-slate-400' },
+    LOGIN_FAILED: { label: 'Login Failed', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400', dot: 'bg-rose-500' },
+    PASSWORD_CHANGED: { label: 'Password Changed', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', dot: 'bg-amber-500' },
+    LOGIN_SUCCESS: { label: 'Login', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', dot: 'bg-slate-400' },
 };
 
 const SECURITY_ACTIONS_LIST = ['LOGIN_FAILED', 'PASSWORD_CHANGED', 'LOGIN_SUCCESS'];
@@ -137,7 +137,7 @@ function DateInput({ label, value, onChange }: { label: string; value: string; o
 // ─── Severity dot ─────────────────────────────────────────────────────────────
 function SeverityDot({ severity }: { severity: string }) {
     if (severity === 'CRITICAL') return <span className="w-2 h-2 rounded-full bg-red-500 shrink-0 ring-2 ring-red-200 dark:ring-red-900" />;
-    if (severity === 'WARNING')  return <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />;
+    if (severity === 'WARNING') return <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />;
     return null;
 }
 
@@ -209,7 +209,7 @@ export default function AdminAuditLogsPage() {
         <div className="flex flex-col h-full overflow-hidden">
 
             {/* ── Sticky Header ── */}
-            <div className="sticky top-0 z-20 bg-background pb-3 pt-1 space-y-3">
+            <div className="sticky top-0 z-20 bg-background pb-2 pt-0 space-y-2">
                 <div className="flex items-center justify-between px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
@@ -231,14 +231,13 @@ export default function AdminAuditLogsPage() {
                 <div className="flex items-center gap-1 border-b border-border/60">
                     {([
                         { key: 'ADMIN_ACTION' as Tab, label: 'Activity', icon: Activity },
-                        { key: 'SECURITY'     as Tab, label: 'Security', icon: Shield },
+                        { key: 'SECURITY' as Tab, label: 'Security', icon: Shield },
                     ]).map(({ key, label, icon: Icon }) => (
                         <button key={key} onClick={() => setActiveTab(key)}
-                            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px ${
-                                activeTab === key
-                                    ? 'border-primary text-primary'
-                                    : 'border-transparent text-muted-foreground hover:text-foreground'
-                            }`}>
+                            className={`flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium border-b-2 transition-all -mb-px ${activeTab === key
+                                ? 'border-primary text-primary'
+                                : 'border-transparent text-muted-foreground hover:text-foreground'
+                                }`}>
                             <Icon size={14} />
                             {label}
                         </button>

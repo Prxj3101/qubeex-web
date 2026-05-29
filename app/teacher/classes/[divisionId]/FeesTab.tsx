@@ -42,6 +42,7 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
     const [selectedStudent, setSelectedStudent] = useState<typeof MOCK_STUDENTS[0] | null>(null);
     const [studentFilter, setStudentFilter] = useState<'all' | 'paid' | 'pending'>('all');
     const [expandedFeeId, setExpandedFeeId] = useState<string[]>(['f1']);
+    const [showListMenu, setShowListMenu] = useState(false);
 
     const [feeItems] = useState<FeeItem[]>([
         { id: 'f1', label: 'Tuition Fee', amount: 6000, subItems: [{ id: 'f1s1', label: 'Term 1', amount: 2000 }, { id: 'f1s2', label: 'Term 2', amount: 2000 }, { id: 'f1s3', label: 'Term 3', amount: 2000 }] },
@@ -55,6 +56,17 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
         { id: 'm3', month: 'August', dueDate: '10 Aug 2026', status: 'PENDING' },
         { id: 'm4', month: 'September', dueDate: '10 Sep 2026', status: 'PENDING' },
     ]);
+
+    const generatePDF = (type: 'all' | 'pending') => {
+        const students = type === 'all' ? MOCK_STUDENTS : MOCK_STUDENTS.filter(s => !s.paid);
+        const content = students.map(s => `${s.rollNo}. ${s.name} — ${s.paid ? 'Paid' : 'Pending'}`).join('\n');
+        const blob = new Blob([`Fee List (${type === 'all' ? 'All Students' : 'Pending Only'})\n\n${content}`], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `fees-${type}.txt`; a.click();
+        URL.revokeObjectURL(url);
+        toast.success('List downloaded!');
+    };
 
     const toggleFeeExpand = (id: string) => {
         setExpandedFeeId(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
@@ -71,9 +83,34 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
             {/* LEFT — Students List */}
             <div className="w-[25%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                 <div className="px-3.5 py-2.5 border-b border-border/40 shrink-0">
-                    <p className="text-sm font-bold flex items-center gap-2">
-                        <Users size={15} /> Students ({MOCK_STUDENTS.length})
-                    </p>
+                    <div className="flex items-center justify-between">
+                        <p className="text-sm font-bold flex items-center gap-2">
+                            <Users size={15} /> Students ({MOCK_STUDENTS.length})
+                        </p>
+                        <div className="relative">
+                            <button onClick={() => setShowListMenu(v => !v)}
+                                className="flex items-center gap-1.5 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                Get List <ChevronDown size={11} />
+                            </button>
+                            <AnimatePresence>
+                                {showListMenu && (
+                                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                                        transition={{ duration: 0.15 }}
+                                        className="absolute right-0 top-8 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[150px]">
+                                        <button onClick={() => { generatePDF('all'); setShowListMenu(false); }}
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2">
+                                            📋 All Students
+                                        </button>
+                                        <button onClick={() => { generatePDF('pending'); setShowListMenu(false); }}
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors flex items-center gap-2">
+                                            ⏳ Pending Only
+                                        </button>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Filters */}
