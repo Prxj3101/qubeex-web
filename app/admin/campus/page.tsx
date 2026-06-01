@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Send, X, Rss, Paperclip } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Send, X, Rss, Paperclip, Download, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import api from '@/lib/api';
@@ -288,6 +288,24 @@ function VerifiedBadge() {
     );
 }
 
+// ── Helpers ───────────────────────────────────────────────────────────────────
+async function downloadAttachment(url: string, name: string) {
+    try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(objUrl);
+    } catch {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+}
+
 // ── Feed Post Card ────────────────────────────────────────────────────────────
 function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) => void }) {
     const [expanded, setExpanded] = useState(false);
@@ -336,12 +354,31 @@ function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) =
                     <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>{post.body}</p>
                 )}
             </div>
-            {post.attachmentUrl && expanded && (
-                <a href={post.attachmentUrl} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 hover:opacity-80 transition-opacity">
-                    <span>{post.attachmentType === 'image' ? '🖼️' : '📄'}</span>
-                    <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 truncate">{post.attachmentName ?? 'Attachment'}</span>
-                </a>
+            {post.attachmentUrl && (
+                <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <span className="text-base shrink-0">{
+                            post.attachmentType?.startsWith('image/') ? '🖼️' :
+                                post.attachmentName?.endsWith('.pdf') ? '📄' :
+                                    post.attachmentName?.endsWith('.xlsx') || post.attachmentName?.endsWith('.xls') ? '📊' :
+                                        post.attachmentName?.endsWith('.docx') || post.attachmentName?.endsWith('.doc') ? '📝' : '📎'
+                        }</span>
+                        <span className="text-[11px] font-medium text-foreground truncate">
+                            {post.attachmentName ?? 'Attachment'}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                        <button
+                            onClick={() => downloadAttachment(post.attachmentUrl!, post.attachmentName ?? 'attachment')}
+                            className="flex items-center gap-1 h-6 px-2 rounded-lg border border-border/50 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+                            <Download size={10} /> Download
+                        </button>
+                        <a href={post.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 h-6 px-2 rounded-lg border border-border/50 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+                            <ExternalLink size={10} /> Open
+                        </a>
+                    </div>
+                </div>
             )}
             <button onClick={() => setExpanded(v => !v)}
                 className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
@@ -388,7 +425,8 @@ export default function AdminCampusPage() {
     const [posting, setPosting] = useState(false);
     const fetchedRef = useRef(false);
     const [postBody, setPostBody] = useState('');
-    const [attachments, setAttachments] = useState<File[]>([]);
+    const [postAttachment, setPostAttachment] = useState<{ url: string; name: string; type: string; mimeType: string } | null>(null);
+    const [uploadingAttachment, setUploadingAttachment] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const fetchPosts = useCallback(async (filter: PostType | 'all' = 'all') => {
@@ -417,6 +455,27 @@ export default function AdminCampusPage() {
         fetchPosts(f);
     };
 
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        setUploadingAttachment(true);
+        try {
+            const form = new FormData();
+            form.append('file', file);
+            const res = await api.post('/admin/campus/feed/upload', form, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setPostAttachment(res.data.data);
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error
+                ?? (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Upload failed');
+        } finally {
+            setUploadingAttachment(false);
+        }
+    };
+
     const handlePost = async () => {
         if (!postInput.trim()) return;
         setPosting(true);
@@ -426,12 +485,17 @@ export default function AdminCampusPage() {
                 title: postInput.trim(),
                 body: postBody.trim(),
                 subject: postSubject.trim() || undefined,
+                ...(postAttachment ? {
+                    attachmentUrl: postAttachment.url,
+                    attachmentType: postAttachment.mimeType,
+                    attachmentName: postAttachment.name,
+                } : {}),
             });
             setPosts(prev => [res.data.data, ...prev]);
             setPostInput('');
             setPostBody('');
             setPostSubject('');
-            setAttachments([]); // ← add karo
+            setPostAttachment(null);
             toast.success('Posted');
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -536,38 +600,33 @@ export default function AdminCampusPage() {
                                 <input value={postBody} onChange={e => setPostBody(e.target.value)}
                                     placeholder="Write description (optional)..."
                                     className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none" />
-                                {attachments.length > 0 && (
-                                    <div className="flex items-center gap-1 ml-2">
-                                        {attachments.map((file, i) => (
-                                            <div key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px]">
-                                                <span>{
-                                                    file.type.startsWith('image/') ? '🖼️' :
-                                                        file.type.startsWith('video/') ? '🎥' :
-                                                            file.name.endsWith('.pdf') ? '📄' :
-                                                                file.name.endsWith('.xlsx') || file.name.endsWith('.xls') ? '📊' :
-                                                                    file.name.endsWith('.docx') || file.name.endsWith('.doc') ? '📝' : '📎'
-                                                }</span>
-                                                <span className="truncate max-w-[60px] text-muted-foreground">{file.name}</span>
-                                                <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}>
-                                                    <X size={9} className="text-muted-foreground hover:text-red-500" />
-                                                </button>
-                                            </div>
-                                        ))}
+                                {uploadingAttachment && (
+                                    <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px] text-muted-foreground">
+                                        <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />
+                                        Uploading...
+                                    </div>
+                                )}
+                                {postAttachment && !uploadingAttachment && (
+                                    <div className="flex items-center gap-1 ml-2 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px]">
+                                        <span>{
+                                            postAttachment.mimeType.startsWith('image/') ? '🖼️' :
+                                                postAttachment.name.endsWith('.pdf') ? '📄' :
+                                                    postAttachment.name.endsWith('.xlsx') || postAttachment.name.endsWith('.xls') ? '📊' :
+                                                        postAttachment.name.endsWith('.docx') || postAttachment.name.endsWith('.doc') ? '📝' : '📎'
+                                        }</span>
+                                        <span className="truncate max-w-[60px] text-muted-foreground">{postAttachment.name}</span>
+                                        <button onClick={() => setPostAttachment(null)}>
+                                            <X size={9} className="text-muted-foreground hover:text-red-500" />
+                                        </button>
                                     </div>
                                 )}
                             </div>
-                            <input ref={fileInputRef} type="file" multiple className="hidden"
-                                onChange={e => {
-                                    if (e.target.files) {
-                                        setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
-                                        e.target.value = '';
-                                    }
-                                }} />
-                            <button onClick={() => fileInputRef.current?.click()}
-                                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 transition-all shrink-0">
+                            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
+                            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAttachment}
+                                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 transition-all shrink-0 disabled:opacity-50">
                                 <Paperclip size={14} />
                             </button>
-                            <button onClick={handlePost} disabled={!postInput.trim() || posting}
+                            <button onClick={handlePost} disabled={!postInput.trim() || posting || uploadingAttachment}
                                 className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                 <Send size={13} />

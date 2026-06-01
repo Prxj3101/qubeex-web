@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, ChevronRight, Users, BookOpen, User, Shield, MapPin,
     Plus, X, Check, ChevronDown, User as UserIcon,
-    Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink
+    Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink, Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -158,21 +158,20 @@ const CAL_EVENT_CFG = {
 const ALLOWED_TYPES_SUBJECT_TEACHER: CalEventType[] = ['test', 'submission'];
 const ALLOWED_TYPES_CLASS_TEACHER: CalEventType[] = ['holiday', 'event', 'test', 'termtest', 'exam', 'meeting', 'submission'];
 
-const MOCK_INHERITED_EVENTS: CalEvent[] = [
-    { id: 'inh1', date: 15, type: 'holiday', label: 'Independence Day', inherited: true },
-    { id: 'inh2', date: 26, type: 'holiday', label: 'Republic Day', inherited: true },
-];
+const KNOWN_CAL_TYPES = new Set<string>(['holiday', 'event', 'test', 'termtest', 'exam', 'meeting', 'submission']);
 
 // ── Class Calendar Component ──────────────────────────────────────────────────
-function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName }: {
+function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName, divisionId: calDivisionId }: {
     isClassTeacher: boolean;
     isSubjectTeacher: boolean;
     divisionName: string;
+    divisionId: string;
 }) {
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
-    const [events, setEvents] = useState<CalEvent[]>([...MOCK_INHERITED_EVENTS]);
+    const [events, setEvents] = useState<CalEvent[]>([]);
+    const [loadingEvents, setLoadingEvents] = useState(false);
     const [selectedDate, setSelectedDate] = useState<number | null>(null);
     const [showEventModal, setShowEventModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -202,30 +201,60 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName }: {
     const canEdit = isClassTeacher || isSubjectTeacher;
     const allowedTypes = isClassTeacher ? ALLOWED_TYPES_CLASS_TEACHER : ALLOWED_TYPES_SUBJECT_TEACHER;
 
-    const handleAddEvent = () => {
+    useEffect(() => {
+        setLoadingEvents(true);
+        api.get('/admin/campus/feed/events', { params: { year, month, divisionId: calDivisionId } })
+            .then(res => {
+                const data: CalEvent[] = (res.data.data ?? [])
+                    .filter((e: { type: string }) => KNOWN_CAL_TYPES.has(e.type))
+                    .map((e: { id: string; date: number; type: string; label: string }) => ({
+                        id: e.id,
+                        date: e.date,
+                        type: e.type as CalEventType,
+                        label: e.label,
+                    }));
+                setEvents(data);
+            })
+            .catch(() => { /* silent — calendar still usable */ })
+            .finally(() => setLoadingEvents(false));
+    }, [year, month]);
+
+    const handleAddEvent = async () => {
         if (!newLabel.trim() || !addDate) return;
         setSaving(true);
-        const newEvent: CalEvent = {
-            id: `ev-${Date.now()}`,
-            date: addDate,
-            type: newType,
-            label: newLabel.trim(),
-            inherited: false,
-        };
-        setEvents(prev => [...prev, newEvent]);
-        setNewLabel('');
-        setNewType('test');
-        setShowAddModal(false);
-        setSaving(false);
-        toast.success('Event added');
+        try {
+            const dateStr = new Date(Date.UTC(year, month, addDate)).toISOString().split('T')[0];
+            const res = await api.post('/admin/campus/feed/events', {
+                type: newType.toUpperCase(),
+                label: newLabel.trim(),
+                date: dateStr,
+                divisionId: calDivisionId,
+            });
+            const e = res.data.data;
+            setEvents(prev => [...prev, { id: e.id, date: e.date, type: newType, label: e.label }]);
+            setNewLabel('');
+            setNewType('test');
+            setShowAddModal(false);
+            toast.success('Event added');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to add event');
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const handleDeleteEvent = (eventId: string) => {
-        setEvents(prev => prev.filter(e => e.id !== eventId));
-        if (selectedDate && eventsOn(selectedDate).filter(e => !e.inherited).length <= 1) {
-            setShowEventModal(false);
+    const handleDeleteEvent = async (eventId: string) => {
+        const remaining = eventsOn(selectedDate ?? 0).filter(e => e.id !== eventId);
+        try {
+            await api.delete(`/admin/campus/feed/events/${eventId}`);
+            setEvents(prev => prev.filter(e => e.id !== eventId));
+            if (remaining.length === 0) setShowEventModal(false);
+            toast.success('Event removed');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to remove event');
         }
-        toast.success('Event removed');
     };
 
     return (
@@ -234,6 +263,7 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName }: {
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                     <Calendar size={14} /> {divisionName} Academic Calendar
+                    {loadingEvents && <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />}
                 </p>
                 <div className="flex items-center gap-1.5">
                     <button onClick={prevMonth} className="w-5.5 h-5.5 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
@@ -587,6 +617,23 @@ function VerifiedBadge() {
     );
 }
 
+async function downloadAttachment(url: string, name: string) {
+    try {
+        const res = await fetch(url);
+        const blob = await res.blob();
+        const objUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objUrl;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(objUrl);
+    } catch {
+        window.open(url, '_blank', 'noopener,noreferrer');
+    }
+}
+
 function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: string) => void }) {
     const [expanded, setExpanded] = useState(false);
     const meta = POST_META[ann.type];
@@ -641,17 +688,28 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
                     </p>
                 )}
             </div>
-            {ann.attachmentUrl && expanded && (
-                <div className="flex flex-wrap gap-1.5 pt-2 border-t border-border/40">
-                    <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-muted border border-border/50 text-[11px] font-medium">
-                        <span>{
+            {ann.attachmentUrl && (
+                <div className="flex items-center gap-2 pt-2 border-t border-border/40">
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                        <span className="text-base shrink-0">{
                             ann.attachmentType?.startsWith('image/') ? '🖼️' :
-                                ann.attachmentType?.startsWith('video/') ? '🎥' :
-                                    ann.attachmentName?.endsWith('.pdf') ? '📄' : '📎'
+                                ann.attachmentName?.endsWith('.pdf') ? '📄' :
+                                    ann.attachmentName?.endsWith('.xlsx') || ann.attachmentName?.endsWith('.xls') ? '📊' :
+                                        ann.attachmentName?.endsWith('.docx') || ann.attachmentName?.endsWith('.doc') ? '📝' : '📎'
                         }</span>
-                        <a href={ann.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-muted-foreground hover:text-primary transition-colors truncate max-w-[140px]">
+                        <span className="text-[11px] font-medium text-foreground truncate">
                             {ann.attachmentName ?? 'Attachment'}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1 shrink-0">
+                        <button
+                            onClick={() => downloadAttachment(ann.attachmentUrl!, ann.attachmentName ?? 'attachment')}
+                            className="flex items-center gap-1 h-6 px-2 rounded-lg border border-border/50 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+                            <Download size={10} /> Download
+                        </button>
+                        <a href={ann.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 h-6 px-2 rounded-lg border border-border/50 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+                            <ExternalLink size={10} /> Open
                         </a>
                     </div>
                 </div>
@@ -693,7 +751,8 @@ export default function DivisionDetailPage() {
     const [announcements, setAnnouncements] = useState<DivAnnouncement[]>([]);
     const [postLoading, setPostLoading] = useState(false);
     const [postBody, setPostBody] = useState('');
-    const [attachments, setAttachments] = useState<File[]>([]);
+    const [postAttachment, setPostAttachment] = useState<{ url: string; name: string; type: string; mimeType: string } | null>(null);
+    const [uploadingAttachment, setUploadingAttachment] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showTimetable, setShowTimetable] = useState(false);
     const [postSubject, setPostSubject] = useState('');
@@ -740,6 +799,27 @@ export default function DivisionDetailPage() {
         ? announcements
         : announcements.filter(a => a.type === feedFilter);
 
+    const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        setUploadingAttachment(true);
+        try {
+            const form = new FormData();
+            form.append('file', file);
+            const res = await api.post('/admin/campus/feed/upload', form, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
+            setPostAttachment(res.data.data);
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error
+                ?? (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Upload failed');
+        } finally {
+            setUploadingAttachment(false);
+        }
+    };
+
     const handlePost = async () => {
         if (!postInput.trim() || postLoading) return;
         setPostLoading(true);
@@ -750,12 +830,17 @@ export default function DivisionDetailPage() {
                 body: postBody.trim() || '',
                 subject: postSubject.trim() || undefined,
                 divisionId,
+                ...(postAttachment ? {
+                    attachmentUrl: postAttachment.url,
+                    attachmentType: postAttachment.mimeType,
+                    attachmentName: postAttachment.name,
+                } : {}),
             });
             setAnnouncements(prev => [res.data.data, ...prev]);
             setPostInput('');
             setPostBody('');
             setPostSubject('');
-            setAttachments([]);
+            setPostAttachment(null);
             toast.success('Posted!');
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -1086,38 +1171,33 @@ export default function DivisionDetailPage() {
                                                 <input value={postBody} onChange={e => setPostBody(e.target.value)}
                                                     placeholder="Write description (optional)..."
                                                     className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none" />
-                                                {attachments.length > 0 && (
-                                                    <div className="flex items-center gap-1 ml-2">
-                                                        {attachments.map((file, i) => (
-                                                            <div key={i} className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px]">
-                                                                <span>{
-                                                                    file.type.startsWith('image/') ? '🖼️' :
-                                                                        file.type.startsWith('video/') ? '🎥' :
-                                                                            file.name.endsWith('.pdf') ? '📄' :
-                                                                                file.name.endsWith('.xlsx') || file.name.endsWith('.xls') ? '📊' :
-                                                                                    file.name.endsWith('.docx') || file.name.endsWith('.doc') ? '📝' : '📎'
-                                                                }</span>
-                                                                <span className="truncate max-w-[60px] text-muted-foreground">{file.name}</span>
-                                                                <button onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}>
-                                                                    <X size={9} className="text-muted-foreground hover:text-red-500" />
-                                                                </button>
-                                                            </div>
-                                                        ))}
+                                                {uploadingAttachment && (
+                                                    <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px] text-muted-foreground">
+                                                        <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />
+                                                        Uploading...
+                                                    </div>
+                                                )}
+                                                {postAttachment && !uploadingAttachment && (
+                                                    <div className="flex items-center gap-1 ml-2 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px]">
+                                                        <span>{
+                                                            postAttachment.mimeType.startsWith('image/') ? '🖼️' :
+                                                                postAttachment.name.endsWith('.pdf') ? '📄' :
+                                                                    postAttachment.name.endsWith('.xlsx') || postAttachment.name.endsWith('.xls') ? '📊' :
+                                                                        postAttachment.name.endsWith('.docx') || postAttachment.name.endsWith('.doc') ? '📝' : '📎'
+                                                        }</span>
+                                                        <span className="truncate max-w-[60px] text-muted-foreground">{postAttachment.name}</span>
+                                                        <button onClick={() => setPostAttachment(null)}>
+                                                            <X size={9} className="text-muted-foreground hover:text-red-500" />
+                                                        </button>
                                                     </div>
                                                 )}
                                             </div>
-                                            <input ref={fileInputRef} type="file" multiple className="hidden"
-                                                onChange={e => {
-                                                    if (e.target.files) {
-                                                        setAttachments(prev => [...prev, ...Array.from(e.target.files!)]);
-                                                        e.target.value = '';
-                                                    }
-                                                }} />
-                                            <button onClick={() => fileInputRef.current?.click()}
-                                                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 transition-all shrink-0">
+                                            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
+                                            <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAttachment}
+                                                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 transition-all shrink-0 disabled:opacity-50">
                                                 <Paperclip size={14} />
                                             </button>
-                                            <button onClick={handlePost} disabled={!postInput.trim() || postLoading}
+                                            <button onClick={handlePost} disabled={!postInput.trim() || postLoading || uploadingAttachment}
                                                 className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
                                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                                 <Send size={13} />
@@ -1244,6 +1324,7 @@ export default function DivisionDetailPage() {
                                     isClassTeacher={true}
                                     isSubjectTeacher={false}
                                     divisionName={division.name}
+                                    divisionId={division.id}
                                 />
 
                                 {/* Results */}

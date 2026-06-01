@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import api from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     BookOpen, Trophy, Calendar, FileText, Rss, Megaphone,
@@ -69,22 +70,20 @@ const CAL_EVENT_CFG = {
 // Subject teacher sirf test add kar sakta hai
 const ALLOWED_TYPES_SUBJECT_TEACHER: CalEventType[] = ['test', 'submission'];
 const ALLOWED_TYPES_CLASS_TEACHER: CalEventType[] = ['holiday', 'event', 'test', 'termtest', 'exam', 'meeting', 'submission'];
-// Mock inherited events from main calendar
-const MOCK_INHERITED_EVENTS: CalEvent[] = [
-    { id: 'inh1', date: 15, type: 'holiday', label: 'Independence Day', inherited: true },
-    { id: 'inh2', date: 26, type: 'holiday', label: 'Republic Day', inherited: true },
-];
+const KNOWN_CAL_TYPES = new Set<string>(['holiday', 'event', 'test', 'termtest', 'exam', 'meeting', 'submission']);
 
 // ── Class Calendar Component ──────────────────────────────────────────────────
-function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName }: {
+function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName, divisionId }: {
     isClassTeacher: boolean;
     isSubjectTeacher: boolean;
     divisionName: string;
+    divisionId: string;
 }) {
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
-    const [events, setEvents] = useState<CalEvent[]>([...MOCK_INHERITED_EVENTS]);
+    const [events, setEvents] = useState<CalEvent[]>([]);
+    const [loadingEvents, setLoadingEvents] = useState(false);
     const [selectedDate, setSelectedDate] = useState<number | null>(null);
     const [showEventModal, setShowEventModal] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -114,30 +113,60 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName }: {
     const canEdit = isClassTeacher || isSubjectTeacher;
     const allowedTypes = isClassTeacher ? ALLOWED_TYPES_CLASS_TEACHER : ALLOWED_TYPES_SUBJECT_TEACHER;
 
-    const handleAddEvent = () => {
+    useEffect(() => {
+        setLoadingEvents(true);
+        api.get('/teacher/campus/feed/events', { params: { year, month, divisionId } })
+            .then(res => {
+                const data: CalEvent[] = (res.data.data ?? [])
+                    .filter((e: { type: string }) => KNOWN_CAL_TYPES.has(e.type))
+                    .map((e: { id: string; date: number; type: string; label: string }) => ({
+                        id: e.id,
+                        date: e.date,
+                        type: e.type as CalEventType,
+                        label: e.label,
+                    }));
+                setEvents(data);
+            })
+            .catch(() => { /* silent */ })
+            .finally(() => setLoadingEvents(false));
+    }, [year, month, divisionId]);
+
+    const handleAddEvent = async () => {
         if (!newLabel.trim() || !addDate) return;
         setSaving(true);
-        const newEvent: CalEvent = {
-            id: `ev-${Date.now()}`,
-            date: addDate,
-            type: newType,
-            label: newLabel.trim(),
-            inherited: false,
-        };
-        setEvents(prev => [...prev, newEvent]);
-        setNewLabel('');
-        setNewType('test');
-        setShowAddModal(false);
-        setSaving(false);
-        toast.success('Event added');
+        try {
+            const dateStr = new Date(Date.UTC(year, month, addDate)).toISOString().split('T')[0];
+            const res = await api.post('/teacher/campus/feed/events', {
+                type: newType.toUpperCase(),
+                label: newLabel.trim(),
+                date: dateStr,
+                divisionId,
+            });
+            const e = res.data.data;
+            setEvents(prev => [...prev, { id: e.id, date: e.date, type: newType, label: e.label }]);
+            setNewLabel('');
+            setNewType('test');
+            setShowAddModal(false);
+            toast.success('Event added');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to add event');
+        } finally {
+            setSaving(false);
+        }
     };
 
-    const handleDeleteEvent = (eventId: string) => {
-        setEvents(prev => prev.filter(e => e.id !== eventId));
-        if (selectedDate && eventsOn(selectedDate).filter(e => !e.inherited).length <= 1) {
-            setShowEventModal(false);
+    const handleDeleteEvent = async (eventId: string) => {
+        const remaining = eventsOn(selectedDate ?? 0).filter(e => e.id !== eventId);
+        try {
+            await api.delete(`/teacher/campus/feed/events/${eventId}`);
+            setEvents(prev => prev.filter(e => e.id !== eventId));
+            if (remaining.length === 0) setShowEventModal(false);
+            toast.success('Event removed');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to remove event');
         }
-        toast.success('Event removed');
     };
 
     return (
@@ -146,6 +175,7 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName }: {
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                     <Calendar size={14} /> {divisionName} Academic Calendar
+                    {loadingEvents && <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />}
                 </p>
                 <div className="flex items-center gap-1.5">
                     <button onClick={prevMonth} className="w-5.5 h-5.5 rounded-md border border-border flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
@@ -653,6 +683,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                     isClassTeacher={isClassTeacher}
                     isSubjectTeacher={!isClassTeacher}
                     divisionName={division.name}
+                    divisionId={division.id}
                 />
 
                 {/* Results */}
