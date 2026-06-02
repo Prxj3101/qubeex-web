@@ -6,13 +6,14 @@ import {
     Plus, X, Check, Upload, QrCode, CreditCard, Building2,
     ChevronDown, ChevronRight, Landmark, Wallet, Users, Save,
     Info, FileText, Tag, Calendar, Pencil, Trash2, ChevronUp,
+    RotateCw, RefreshCw, Rotate3d,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type FeeStructureType = 'REGULAR' | 'ADDON' | 'EVENT' | 'ONE_TIME';
+type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME';
 
 interface FeeSubItem { id: string; label: string; amount: number; }
 interface FeeItem { id: string; label: string; amount: number; subItems: FeeSubItem[]; }
@@ -25,23 +26,23 @@ interface BankDetails { accountName: string; accountNumber: string; ifsc: string
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg: string; text: string; emoji: string }> = {
-    REGULAR:  { label: 'Regular Monthly', color: '#7C3AED', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', emoji: '📅' },
-    ADDON:    { label: 'Add-on',           color: '#DA7756', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', emoji: '➕' },
-    EVENT:    { label: 'Event / Trip',     color: '#0891B2', bg: 'bg-cyan-100 dark:bg-cyan-950/40',    text: 'text-cyan-700 dark:text-cyan-400',    emoji: '🎒' },
-    ONE_TIME: { label: 'One-time',         color: '#059669', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', emoji: '⭐' },
+    REGULAR: { label: 'Regular Monthly', color: '#7C3AED', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', emoji: '📅' },
+    ADDON: { label: 'Add-on', color: '#DA7756', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', emoji: '➕' },
+    PENALTY: { label: 'Penalty / Fine', color: '#DC2626', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', emoji: '⚠️' },
+    ONE_TIME: { label: 'One-time', color: '#059669', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', emoji: '⭐' },
 };
 
 const STATUS_CFG = {
-    PAID:    { label: 'Paid',    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
+    PAID: { label: 'Paid', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
     PENDING: { label: 'Pending', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
 };
 
 const MOCK_STUDENTS = [
-    { id: 'st1', name: 'Aarav Mehta',   rollNo: '01', paid: true  },
-    { id: 'st2', name: 'Priya Singh',   rollNo: '02', paid: false },
-    { id: 'st3', name: 'Rohan Gupta',   rollNo: '03', paid: true  },
-    { id: 'st4', name: 'Sneha Patel',   rollNo: '04', paid: false },
-    { id: 'st5', name: 'Arjun Kumar',   rollNo: '05', paid: true  },
+    { id: 'st1', name: 'Aarav Mehta', rollNo: '01', paid: true },
+    { id: 'st2', name: 'Priya Singh', rollNo: '02', paid: false },
+    { id: 'st3', name: 'Rohan Gupta', rollNo: '03', paid: true },
+    { id: 'st4', name: 'Sneha Patel', rollNo: '04', paid: false },
+    { id: 'st5', name: 'Arjun Kumar', rollNo: '05', paid: true },
 ];
 const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 function getAvatarColor(n: string) { return AVATAR_COLORS[n.charCodeAt(0) % AVATAR_COLORS.length]; }
@@ -216,7 +217,7 @@ function FeeStructureModal({
                     {/* Name */}
                     <div>
                         <p className="text-[11px] font-semibold text-muted-foreground mb-1">Name</p>
-                        <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Regular Monthly Fee, Annual Picnic..."
+                        <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Regular Monthly Fee, Add-on, Penalty..."
                             className="w-full h-9 px-3 rounded-xl border border-border/50 bg-muted/30 text-sm focus:outline-none focus:border-primary/50 transition-all" />
                     </div>
 
@@ -378,11 +379,15 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
     const [extraColumns, setExtraColumns] = useState<{ label: string }[]>([]);
     const [addingColumn, setAddingColumn] = useState(false);
     const [newColumnLabel, setNewColumnLabel] = useState('');
+    const [feeCardFlipped, setFeeCardFlipped] = useState(false);
+    const [rulesAndRegs, setRulesAndRegs] = useState<{ id: string; text: string }[]>([]);
+    const [studentCardFlipped, setStudentCardFlipped] = useState(false);
 
     // Students tab
     const [selectedStudent, setSelectedStudent] = useState<typeof MOCK_STUDENTS[0] | null>(null);
     const [studentFilter, setStudentFilter] = useState<'all' | 'paid' | 'pending'>('all');
     const [showListMenu, setShowListMenu] = useState(false);
+    const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
     // ── Load / Save ─────────────────────────────────────────────────────────
 
@@ -419,7 +424,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                     if (data.isTemplate && data.templateFrom) setTemplateFrom(data.templateFrom);
                 }
             })
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setLoading(false));
     }, [divisionId, applyData]);
 
@@ -522,36 +527,27 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                             </div>
                         )}
 
-                        {/* Save + General Remark row */}
-                        <div className="flex items-start gap-3">
-                            <div className="flex-1 bg-card border border-border/50 rounded-2xl px-4 py-3">
-                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5 mb-2">
-                                    <FileText size={12} /> General Remark / Notes
-                                </p>
-                                <textarea
-                                    value={generalRemark}
-                                    onChange={e => setGeneralRemark(e.target.value)}
-                                    placeholder="e.g. Fee due by 10th of every month. Late fee ₹100 after 15th. Contact accounts@school.com for queries."
-                                    rows={2}
-                                    className="w-full px-3 py-2 rounded-xl border border-border/40 bg-muted/30 text-xs text-muted-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 transition-all resize-none"
-                                />
-                            </div>
-                            <button onClick={handleSave} disabled={saving}
-                                className="flex items-center gap-1.5 h-9 px-5 rounded-xl text-xs font-semibold text-white disabled:opacity-50 hover:opacity-90 transition-all shrink-0 mt-1"
-                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                <Save size={12} /> {saving ? 'Saving...' : 'Save'}
-                            </button>
-                        </div>
-
                         {/* ROW 1: Fee Structures + Payment Methods */}
                         <div className="flex gap-3">
 
                             {/* LEFT — Fee Structures */}
                             <div className="w-[55%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                 <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0">
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                        <Tag size={13} /> Fee Structures
-                                    </p>
+                                    <div className="flex items-center gap-2">
+                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                            <Tag size={13} /> Fee Structures
+                                        </p>
+                                        <div className="flex items-center gap-1.5">
+                                            {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
+                                                const cfg = FEE_TYPE_CFG[t];
+                                                return (
+                                                    <span key={t} className={`text-[10px] font-semibold flex items-center gap-1 ${cfg.text}`}>
+                                                        {cfg.emoji} {cfg.label}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                     <button onClick={() => { setEditingStructure(undefined); setShowStructureModal(true); }}
                                         className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
                                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
@@ -576,27 +572,15 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                         />
                                     ))}
 
-                                    {/* Type legend */}
-                                    {feeStructures.length > 0 && (
-                                        <div className="pt-2 border-t border-border/30 flex flex-wrap gap-x-3 gap-y-1">
-                                            {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
-                                                const cfg = FEE_TYPE_CFG[t];
-                                                return (
-                                                    <span key={t} className={`text-[10px] font-semibold flex items-center gap-1 ${cfg.text}`}>
-                                                        {cfg.emoji} {cfg.label}
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                    )}
+
                                 </div>
                             </div>
 
                             {/* RIGHT — Payment Methods */}
                             <div className="w-[45%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                                <div className="px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0">
+                                <div className="px-4 py-3.5 border-b border-border/50 bg-muted/20 shrink-0">
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                        <Landmark size={13} /> Payment Methods
+                                        <Landmark size={14} /> Payment Methods
                                     </p>
                                 </div>
                                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 divide-y divide-border/30">
@@ -604,7 +588,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                     {/* Bank Details */}
                                     <div className="pb-3">
                                         <div className="flex items-center justify-between mb-2">
-                                            <p className="text-xs font-semibold flex items-center gap-1.5"><Building2 size={13} /> Bank Details</p>
+                                            <p className="text-xs font-semibold flex items-center gap-1.5"><Building2 size={14} /> Bank Details</p>
                                             {!editingBank
                                                 ? <button onClick={() => { setBankDraft(bankDetails); setEditingBank(true); }} className="text-[11px] text-primary font-medium hover:underline">Edit</button>
                                                 : <div className="flex gap-2">
@@ -637,7 +621,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                     {/* QR Code */}
                                     <div className="pt-3">
                                         <div className="flex items-center justify-between mb-2">
-                                            <p className="text-xs font-semibold flex items-center gap-1.5"><QrCode size={13} /> QR Code</p>
+                                            <p className="text-xs font-semibold flex items-center gap-1.5"><QrCode size={14} /> QR Code</p>
                                             <button onClick={() => qrInputRef.current?.click()} disabled={uploadingQr}
                                                 className="flex items-center gap-1 text-[11px] font-semibold text-white h-6 px-2.5 rounded-lg hover:opacity-90 transition-all disabled:opacity-50"
                                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
@@ -667,7 +651,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
 
                                     {/* Payment Gateway placeholder */}
                                     <div className="pt-3">
-                                        <p className="text-xs font-semibold flex items-center gap-1.5 mb-2"><CreditCard size={13} /> Payment Gateway</p>
+                                        <p className="text-xs font-semibold flex items-center gap-1.5 mb-2"><CreditCard size={14} /> Payment Gateway</p>
                                         <div className="rounded-xl border-2 border-dashed border-border/40 px-4 py-4 flex flex-col items-center gap-1.5">
                                             <CreditCard size={18} className="text-muted-foreground/30" />
                                             <p className="text-xs text-muted-foreground">Coming Soon</p>
@@ -677,254 +661,322 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                             </div>
                         </div>
 
-                        {/* ROW 2: Fee Schedule (Monthly Planner) */}
-                        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20">
-                                <div>
-                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                        <Calendar size={13} /> Monthly Fee Schedule
-                                    </p>
-                                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">Assign fee structures to each month. Click a month to see breakdown.</p>
-                                </div>
-                                <button onClick={() => setAddingMonth(true)}
-                                    className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
-                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                    <Plus size={11} /> Add Month
+                        {/* ROW 3: Fee Card Template */}
+                        <div className="bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5" style={{ perspective: '1000px' }}>
+                            <div className="px-4 py-2.5 border-b border-border/50 bg-muted/20 flex items-center justify-between">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                    <Wallet size={14} /> Fee Card Template
+                                </p>
+                                <button
+                                    onClick={() => setFeeCardFlipped(v => !v)}
+                                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-all">
+                                    <motion.span animate={{ rotate: feeCardFlipped ? 180 : 0 }} transition={{ duration: 0.4 }}>
+                                        <span style={{ fontSize: '16px', display: 'inline-block', transform: feeCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
+                                    </motion.span>
+                                    {feeCardFlipped ? 'View Front' : 'View Back'}
                                 </button>
                             </div>
 
-                            {feeMonths.length === 0 && !addingMonth && (
-                                <div className="py-8 text-center">
-                                    <Calendar size={24} className="mx-auto text-muted-foreground/30 mb-2" />
-                                    <p className="text-xs text-muted-foreground/60">No months in the schedule yet</p>
-                                    <p className="text-[11px] text-muted-foreground/40 mt-1">Add months (e.g. June–March) to build the academic year fee calendar</p>
+                            <motion.div
+                                animate={{ rotateY: feeCardFlipped ? 180 : 0 }}
+                                transition={{ duration: 0.5, ease: 'easeInOut' }}
+                                style={{ transformStyle: 'preserve-3d', position: 'relative', minHeight: '200px' }}>
+
+                                {/* FRONT */}
+                                <div style={{ backfaceVisibility: 'hidden' }} className={feeCardFlipped ? 'invisible' : ''}>
+                                    <div className="px-4 py-3 space-y-4">
+
+                                        {/* 1. Student Details */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Student Details</p>
+                                                <button onClick={() => setAddingStudentField(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
+                                                    <Plus size={11} /> Add Field
+                                                </button>
+                                            </div>
+                                            <div className="rounded-xl border border-border/40 overflow-hidden">
+                                                {[{ label: 'Name', value: 'Student Name' }, { label: 'Roll No', value: 'Roll Number' }, { label: 'Class', value: 'Class Name' }, { label: 'Division', value: 'Division Name' }, ...extraStudentFields].map((f, i) => (
+                                                    <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border/20 last:border-none">
+                                                        <span className="text-[11px] text-muted-foreground w-24 shrink-0">{f.label}</span>
+                                                        <span className="text-[11px] font-medium text-foreground/50 italic">{f.value}</span>
+                                                    </div>
+                                                ))}
+                                                {addingStudentField && (
+                                                    <div className="flex items-center gap-2 px-3 py-2 border-t border-border/20">
+                                                        <input value={newStudentFieldLabel} onChange={e => setNewStudentFieldLabel(e.target.value)} placeholder="Field name"
+                                                            className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
+                                                        <button onClick={() => {
+                                                            if (!newStudentFieldLabel.trim()) return;
+                                                            setExtraStudentFields(prev => [...prev, { label: newStudentFieldLabel.trim(), value: newStudentFieldLabel.trim() }]);
+                                                            setNewStudentFieldLabel(''); setAddingStudentField(false);
+                                                        }} className="w-7 h-7 rounded-lg flex items-center justify-center text-white"
+                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                            <Check size={11} />
+                                                        </button>
+                                                        <button onClick={() => setAddingStudentField(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
+                                                            <X size={11} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="border-t border-border/40" />
+
+                                        {/* 2. Fee Table Columns */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Fee Table Columns</p>
+                                                <button onClick={() => setAddingColumn(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
+                                                    <Plus size={11} /> Add Column
+                                                </button>
+                                            </div>
+                                            <div className="rounded-xl border border-border/40 overflow-hidden">
+                                                <table className="text-xs w-full">
+                                                    <thead>
+                                                        <tr className="bg-muted/30 border-b border-border/40">
+                                                            {['Month', 'Fee Structures', 'Amount', 'Due Date', 'Paid Date', 'Status', 'Remark'].map((col, i) => (
+                                                                <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
+                                                            ))}
+                                                            {extraColumns.map((col, i) => (
+                                                                <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
+                                                                    <div className="flex items-center gap-1">
+                                                                        {col.label}
+                                                                        <button onClick={() => setExtraColumns(prev => prev.filter((_, j) => j !== i))}
+                                                                            className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
+                                                                            <X size={9} />
+                                                                        </button>
+                                                                    </div>
+                                                                </th>
+                                                            ))}
+                                                            <th className="px-2 py-2">
+                                                                {addingColumn && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <input value={newColumnLabel} onChange={e => setNewColumnLabel(e.target.value)}
+                                                                            placeholder="Name" autoFocus
+                                                                            onKeyDown={e => { if (e.key === 'Enter' && newColumnLabel.trim()) { setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); } }}
+                                                                            className="w-20 h-6 px-2 rounded-lg border border-primary/50 bg-primary/5 text-[10px] focus:outline-none" />
+                                                                        <button onClick={() => { if (!newColumnLabel.trim()) return; setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); }}
+                                                                            className="w-5 h-5 rounded flex items-center justify-center text-white"
+                                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                                            <Check size={9} />
+                                                                        </button>
+                                                                        <button onClick={() => setAddingColumn(false)} className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:bg-muted">
+                                                                            <X size={9} />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr className="text-muted-foreground/40 italic">
+                                                            {['June', '—', '—', '10 Jun', '—', 'Pending', '—', ...extraColumns.map(() => '—')].map((val, i) => (
+                                                                <td key={i} className="px-3 py-2 text-[11px]">{val}</td>
+                                                            ))}
+                                                            <td className="px-2 py-2"></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div className="border-t border-border/40" />
+
+                                        {/* 3. Monthly Fee Schedule */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div>
+                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Monthly Fee Schedule</p>
+                                                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">Assign fee structures to each month</p>
+                                                </div>
+                                                <button onClick={() => setAddingMonth(true)}
+                                                    className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                    <Plus size={11} /> Add Month
+                                                </button>
+                                            </div>
+
+                                            {feeMonths.length === 0 && !addingMonth && (
+                                                <div className="py-6 text-center rounded-xl border border-dashed border-border/40">
+                                                    <Calendar size={20} className="mx-auto text-muted-foreground/30 mb-2" />
+                                                    <p className="text-xs text-muted-foreground/60">No months added yet</p>
+                                                </div>
+                                            )}
+
+                                            <div className="space-y-1">
+                                                {feeMonths.map(m => {
+                                                    const total = monthTotal(m);
+                                                    const isExpanded = expandedMonthId === m.id;
+                                                    const isAssigning = assigningMonthId === m.id;
+                                                    const assignedCount = m.assignedStructureIds.length;
+                                                    return (
+                                                        <div key={m.id} className="rounded-xl border border-border/40 overflow-hidden">
+                                                            <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/20 hover:bg-muted/30 transition-colors">
+                                                                <div className="w-20 shrink-0">
+                                                                    <p className="text-xs font-semibold">{m.month}</p>
+                                                                    <p className="text-[10px] text-muted-foreground">{m.dueDate || 'No due date'}</p>
+                                                                </div>
+                                                                <div className="flex-1 flex flex-wrap gap-1 min-w-0">
+                                                                    {m.assignedStructureIds.length === 0 ? (
+                                                                        <span className="text-[11px] text-muted-foreground/50 italic">No structures assigned</span>
+                                                                    ) : (
+                                                                        feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).map(s => (
+                                                                            <span key={s.id} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                                                                style={{ background: s.color + '20', color: s.color }}>
+                                                                                {s.name}
+                                                                            </span>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                                {total > 0 && <p className="text-xs font-bold shrink-0" style={{ color: '#7C3AED' }}>₹{total.toLocaleString()}</p>}
+                                                                <input value={m.remark} onChange={e => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, remark: e.target.value } : x))}
+                                                                    placeholder="Remark..." className="w-24 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/40 shrink-0" />
+                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                    <button onClick={() => setAssigningMonthId(isAssigning ? null : m.id)}
+                                                                        className={`h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all ${isAssigning ? 'bg-primary text-white border-primary' : 'border-border/50 text-muted-foreground hover:border-primary/40 hover:text-primary'}`}>
+                                                                        {assignedCount > 0 ? `${assignedCount} assigned` : 'Assign'}
+                                                                    </button>
+                                                                    <button onClick={() => setExpandedMonthId(isExpanded ? null : m.id)}
+                                                                        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                                                                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                                                    </button>
+                                                                    <button onClick={() => setFeeMonths(prev => prev.filter(x => x.id !== m.id))}
+                                                                        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground/40 hover:text-red-500 transition-all">
+                                                                        <X size={11} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            <AnimatePresence>
+                                                                {isAssigning && (
+                                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                                                        <div className="px-3 pb-2.5 pt-2 bg-muted/10 border-t border-border/20">
+                                                                            <p className="text-[10px] font-semibold text-muted-foreground mb-2">Select fee structures for {m.month}</p>
+                                                                            {feeStructures.length === 0 ? (
+                                                                                <p className="text-[11px] text-muted-foreground/60 italic">Create fee structures first</p>
+                                                                            ) : (
+                                                                                <div className="flex flex-wrap gap-1.5">
+                                                                                    {feeStructures.map(s => {
+                                                                                        const active = m.assignedStructureIds.includes(s.id);
+                                                                                        return (
+                                                                                            <button key={s.id} onClick={() => toggleStructureForMonth(m.id, s.id)}
+                                                                                                className="flex items-center gap-1.5 h-7 px-3 rounded-xl border-2 text-[11px] font-semibold transition-all"
+                                                                                                style={active ? { borderColor: s.color, background: s.color + '20', color: s.color } : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}>
+                                                                                                {active && <Check size={10} />}
+                                                                                                {s.name}
+                                                                                                <span className="opacity-60 text-[10px]">₹{structureTotal(s).toLocaleString()}</span>
+                                                                                            </button>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+
+                                                            <AnimatePresence>
+                                                                {isExpanded && (
+                                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                                                        <div className="border-t border-border/20 bg-muted/5">
+                                                                            <MonthBreakdown month={m} feeStructures={feeStructures} />
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {addingMonth && (
+                                                <div className="mt-2 px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 flex items-center gap-2">
+                                                    <div ref={monthDropdownRef} className="relative">
+                                                        <button type="button" onClick={() => setMonthDropdownOpen(v => !v)}
+                                                            className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border/50 bg-card text-xs font-medium text-muted-foreground hover:border-primary/40 transition-all">
+                                                            {newMonth || 'Select Month'} <ChevronDown size={11} className={`transition-transform ${monthDropdownOpen ? 'rotate-180' : ''}`} />
+                                                        </button>
+                                                        <AnimatePresence>
+                                                            {monthDropdownOpen && (
+                                                                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                                                                    className="absolute bottom-9 left-0 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto">
+                                                                    {MONTHS.map(m => (
+                                                                        <button key={m} type="button" onClick={() => { setNewMonth(m); setMonthDropdownOpen(false); }}
+                                                                            className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors ${newMonth === m ? 'text-primary font-semibold' : 'text-foreground'}`}>
+                                                                            {m}
+                                                                        </button>
+                                                                    ))}
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </div>
+                                                    <input value={newDueDate} onChange={e => setNewDueDate(e.target.value)} placeholder="Due date (e.g. 10 Jun)"
+                                                        className="w-36 h-8 px-3 rounded-xl border border-border/50 bg-card text-xs focus:outline-none focus:border-primary/50" />
+                                                    <button onClick={addMonth} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
+                                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                        <Check size={13} />
+                                                    </button>
+                                                    <button onClick={() => { setAddingMonth(false); setNewMonth(''); setNewDueDate(''); }}
+                                                        className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
+                                                        <X size={13} />
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {feeMonths.length > 0 && (
+                                                <div className="flex items-center justify-between mt-2 px-1">
+                                                    <span className="text-[11px] text-muted-foreground">{feeMonths.length} months</span>
+                                                    <span className="text-xs font-bold">
+                                                        Annual Total: <span style={{ color: '#7C3AED' }}>₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}</span>
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                    </div>
                                 </div>
-                            )}
 
-                            <div className="divide-y divide-border/20">
-                                {feeMonths.map(m => {
-                                    const total = monthTotal(m);
-                                    const isExpanded = expandedMonthId === m.id;
-                                    const isAssigning = assigningMonthId === m.id;
-                                    const assignedCount = m.assignedStructureIds.length;
-
-                                    return (
-                                        <div key={m.id}>
-                                            {/* Month row */}
-                                            <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-muted/20 transition-colors">
-                                                {/* Month name */}
-                                                <div className="w-20 shrink-0">
-                                                    <p className="text-xs font-semibold">{m.month}</p>
-                                                    <p className="text-[10px] text-muted-foreground">{m.dueDate || 'No due date'}</p>
-                                                </div>
-
-                                                {/* Assigned structures chips */}
-                                                <div className="flex-1 flex flex-wrap gap-1 min-w-0">
-                                                    {m.assignedStructureIds.length === 0 ? (
-                                                        <span className="text-[11px] text-muted-foreground/50 italic">No structures assigned</span>
-                                                    ) : (
-                                                        feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).map(s => (
-                                                            <span key={s.id} className="flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                                                                style={{ background: s.color + '20', color: s.color }}>
-                                                                <span className="w-1.5 h-1.5 rounded-full" style={{ background: s.color }} />
-                                                                {s.name}
-                                                            </span>
-                                                        ))
-                                                    )}
-                                                </div>
-
-                                                {/* Total */}
-                                                <div className="text-right shrink-0 w-20">
-                                                    {total > 0
-                                                        ? <p className="text-sm font-bold" style={{ color: '#7C3AED' }}>₹{total.toLocaleString()}</p>
-                                                        : <p className="text-[11px] text-muted-foreground/50">—</p>
-                                                    }
-                                                </div>
-
-                                                {/* Remark */}
-                                                <input value={m.remark} onChange={e => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, remark: e.target.value } : x))}
-                                                    placeholder="Remark..."
-                                                    className="w-28 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 transition-all placeholder:text-muted-foreground/40 shrink-0" />
-
-                                                {/* Actions */}
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    <button
-                                                        onClick={() => setAssigningMonthId(isAssigning ? null : m.id)}
-                                                        className={`h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all ${isAssigning ? 'bg-primary text-white border-primary' : 'border-border/50 text-muted-foreground hover:border-primary/40 hover:text-primary'}`}>
-                                                        {assignedCount > 0 ? `${assignedCount} assigned` : 'Assign'}
-                                                    </button>
-                                                    <button onClick={() => setExpandedMonthId(isExpanded ? null : m.id)}
-                                                        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                                                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                                    </button>
-                                                    <button onClick={() => setFeeMonths(prev => prev.filter(x => x.id !== m.id))}
-                                                        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground/40 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all">
+                                {/* BACK — Rules & Regulations */}
+                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0 }}
+                                    className={!feeCardFlipped ? 'invisible' : ''}>
+                                    <div className="px-4 py-3 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Rules & Regulations</p>
+                                            <button onClick={() => {
+                                                setRulesAndRegs(prev => [...prev, { id: `r-${Date.now()}`, text: '' }]);
+                                            }} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
+                                                <Plus size={11} /> Add Rule
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {rulesAndRegs.map((rule, i) => (
+                                                <div key={rule.id} className="flex items-start gap-2">
+                                                    <span className="text-[11px] font-bold text-muted-foreground mt-2 w-5 shrink-0">{i + 1}.</span>
+                                                    <textarea
+                                                        value={rule.text}
+                                                        onChange={e => setRulesAndRegs(prev => prev.map(r => r.id === rule.id ? { ...r, text: e.target.value } : r))}
+                                                        placeholder="Enter rule or regulation..."
+                                                        rows={2}
+                                                        className="flex-1 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 text-xs focus:outline-none focus:border-primary/50 transition-all resize-none"
+                                                    />
+                                                    <button onClick={() => setRulesAndRegs(prev => prev.filter(r => r.id !== rule.id))}
+                                                        className="w-6 h-6 mt-1.5 rounded flex items-center justify-center text-muted-foreground/40 hover:text-red-500 shrink-0">
                                                         <X size={11} />
                                                     </button>
                                                 </div>
-                                            </div>
-
-                                            {/* Assign structures dropdown */}
-                                            <AnimatePresence>
-                                                {isAssigning && (
-                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                                        <div className="px-4 pb-3 pt-1 bg-muted/10 border-t border-border/20">
-                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Select fee structures for {m.month}</p>
-                                                            {feeStructures.length === 0 ? (
-                                                                <p className="text-[11px] text-muted-foreground/60 italic">Create fee structures first</p>
-                                                            ) : (
-                                                                <div className="flex flex-wrap gap-1.5">
-                                                                    {feeStructures.map(s => {
-                                                                        const active = m.assignedStructureIds.includes(s.id);
-                                                                        return (
-                                                                            <button key={s.id} onClick={() => toggleStructureForMonth(m.id, s.id)}
-                                                                                className={`flex items-center gap-1.5 h-7 px-3 rounded-xl border-2 text-[11px] font-semibold transition-all`}
-                                                                                style={active
-                                                                                    ? { borderColor: s.color, background: s.color + '20', color: s.color }
-                                                                                    : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}>
-                                                                                {active && <Check size={10} />}
-                                                                                {s.name}
-                                                                                <span className="opacity-60 text-[10px]">₹{structureTotal(s).toLocaleString()}</span>
-                                                                            </button>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-
-                                            {/* Month breakdown */}
-                                            <AnimatePresence>
-                                                {isExpanded && (
-                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                                        <div className="border-t border-border/20 bg-muted/5">
-                                                            <MonthBreakdown month={m} feeStructures={feeStructures} />
-                                                        </div>
-                                                    </motion.div>
-                                                )}
-                                            </AnimatePresence>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-
-                            {/* Add month form */}
-                            {addingMonth && (
-                                <div className="px-4 py-3 border-t border-border/40 bg-primary/5 flex items-center gap-2">
-                                    <div ref={monthDropdownRef} className="relative">
-                                        <button type="button" onClick={() => setMonthDropdownOpen(v => !v)}
-                                            className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border/50 bg-card text-xs font-medium text-muted-foreground hover:border-primary/40 transition-all">
-                                            {newMonth || 'Select Month'} <ChevronDown size={11} className={`transition-transform ${monthDropdownOpen ? 'rotate-180' : ''}`} />
-                                        </button>
-                                        <AnimatePresence>
-                                            {monthDropdownOpen && (
-                                                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                                                    className="absolute bottom-9 left-0 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto">
-                                                    {MONTHS.map(m => (
-                                                        <button key={m} type="button" onClick={() => { setNewMonth(m); setMonthDropdownOpen(false); }}
-                                                            className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors ${newMonth === m ? 'text-primary font-semibold' : 'text-foreground'}`}>
-                                                            {m}
-                                                        </button>
-                                                    ))}
-                                                </motion.div>
+                                            ))}
+                                            {rulesAndRegs.length === 0 && (
+                                                <div className="py-8 text-center rounded-xl border border-dashed border-border/40">
+                                                    <p className="text-xs text-muted-foreground/60">No rules added yet</p>
+                                                    <p className="text-[11px] text-muted-foreground/40 mt-1">Add fee counter timings, late fee rules, etc.</p>
+                                                </div>
                                             )}
-                                        </AnimatePresence>
-                                    </div>
-                                    <input value={newDueDate} onChange={e => setNewDueDate(e.target.value)} placeholder="Due date (e.g. 10 Jun)"
-                                        className="w-36 h-8 px-3 rounded-xl border border-border/50 bg-card text-xs focus:outline-none focus:border-primary/50" />
-                                    <button onClick={addMonth} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
-                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                        <Check size={13} />
-                                    </button>
-                                    <button onClick={() => { setAddingMonth(false); setNewMonth(''); setNewDueDate(''); }}
-                                        className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
-                                        <X size={13} />
-                                    </button>
-                                </div>
-                            )}
-
-                            {/* Annual summary */}
-                            {feeMonths.length > 0 && (
-                                <div className="px-4 py-2.5 border-t border-border/40 bg-muted/10 flex items-center justify-between">
-                                    <span className="text-[11px] text-muted-foreground">{feeMonths.length} months in schedule</span>
-                                    <span className="text-xs font-bold">
-                                        Annual Total: <span style={{ color: '#7C3AED' }}>₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}</span>
-                                    </span>
-                                </div>
-                            )}
-                        </div>
-
-                        {/* ROW 3: Fee Card Template */}
-                        <div className="bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5">
-                            <div className="px-4 py-2.5 border-b border-border/50 bg-muted/20">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                    <Wallet size={13} /> Fee Card Template
-                                </p>
-                            </div>
-                            <div className="flex gap-4 px-4 py-3">
-
-                                {/* Student fields */}
-                                <div className="flex-1">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="text-[11px] font-semibold text-muted-foreground">Student Details</p>
-                                        <button onClick={() => setAddingStudentField(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1"><Plus size={11} /> Add Field</button>
-                                    </div>
-                                    <div className="rounded-xl border border-border/40 overflow-hidden">
-                                        {[{ label: 'Name', value: 'Student Name' }, { label: 'Roll No', value: 'Roll Number' }, { label: 'Class', value: 'Class Name' }, { label: 'Division', value: 'Division Name' }, ...extraStudentFields].map((f, i) => (
-                                            <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border/20 last:border-none">
-                                                <span className="text-[11px] text-muted-foreground w-24 shrink-0">{f.label}</span>
-                                                <span className="text-[11px] font-medium text-foreground/50 italic">{f.value}</span>
-                                            </div>
-                                        ))}
-                                        {addingStudentField && (
-                                            <div className="flex items-center gap-2 px-3 py-2 border-t border-border/20">
-                                                <input value={newStudentFieldLabel} onChange={e => setNewStudentFieldLabel(e.target.value)} placeholder="Field name"
-                                                    className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
-                                                <button onClick={() => { if (!newStudentFieldLabel.trim()) return; setExtraStudentFields(prev => [...prev, { label: newStudentFieldLabel.trim(), value: newStudentFieldLabel.trim() }]); setNewStudentFieldLabel(''); setAddingStudentField(false); }}
-                                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white"
-                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                    <Check size={11} />
-                                                </button>
-                                                <button onClick={() => setAddingStudentField(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50"><X size={11} /></button>
-                                            </div>
-                                        )}
+                                        </div>
                                     </div>
                                 </div>
 
-                                {/* Extra columns */}
-                                <div className="flex-1">
-                                    <div className="flex items-center justify-between mb-2">
-                                        <p className="text-[11px] font-semibold text-muted-foreground">Extra Fee Table Columns</p>
-                                        <button onClick={() => setAddingColumn(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1"><Plus size={11} /> Add Column</button>
-                                    </div>
-                                    {extraColumns.length === 0 && !addingColumn && (
-                                        <p className="text-[11px] text-muted-foreground/50 italic">No extra columns added</p>
-                                    )}
-                                    <div className="space-y-1">
-                                        {extraColumns.map((col, i) => (
-                                            <div key={i} className="flex items-center justify-between px-3 py-1.5 rounded-lg bg-muted/30 border border-border/30">
-                                                <span className="text-[11px] font-medium">{col.label}</span>
-                                                <button onClick={() => setExtraColumns(prev => prev.filter((_, j) => j !== i))} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-red-500"><X size={10} /></button>
-                                            </div>
-                                        ))}
-                                        {addingColumn && (
-                                            <div className="flex items-center gap-2">
-                                                <input value={newColumnLabel} onChange={e => setNewColumnLabel(e.target.value)} placeholder="Column name" autoFocus
-                                                    onKeyDown={e => { if (e.key === 'Enter' && newColumnLabel.trim()) { setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); } }}
-                                                    className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
-                                                <button onClick={() => { if (!newColumnLabel.trim()) return; setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); }}
-                                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-white"
-                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                    <Check size={11} />
-                                                </button>
-                                                <button onClick={() => setAddingColumn(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50"><X size={11} /></button>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            </motion.div>
                         </div>
 
                     </motion.div>
@@ -993,7 +1045,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                         {/* RIGHT — Student fee card */}
                         <div className="flex-1 flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                             <div className="px-4 py-3 border-b border-border/40 shrink-0">
-                                <p className="text-sm font-bold">Fee Card</p>
+                                <p className="text-sm font-bold">Fee Details</p>
                             </div>
                             <div className="flex-1 overflow-y-auto bg-background px-4 py-3">
                                 {!selectedStudent ? (
@@ -1020,112 +1072,227 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                             </span>
                                         </div>
 
-                                        {/* Monthly payment schedule */}
-                                        {feeMonths.length > 0 && (
-                                            <div className="rounded-2xl border border-border/50 overflow-hidden">
-                                                <div className="px-4 py-2.5 bg-muted/20 border-b border-border/40">
-                                                    <p className="text-xs font-bold">Monthly Payment Schedule</p>
-                                                    {generalRemark && <p className="text-[11px] text-muted-foreground mt-0.5 italic">{generalRemark}</p>}
-                                                </div>
-                                                <table className="text-xs w-full">
-                                                    <thead>
-                                                        <tr className="bg-muted/10 border-b border-border/30">
-                                                            {['Month', 'Fee Structures', 'Amount (₹)', 'Due Date', 'Paid Date', 'Status', 'Remark', ...extraColumns.map(c => c.label)].map((col, i) => (
-                                                                <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
-                                                            ))}
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody className="divide-y divide-border/20">
-                                                        {feeMonths.map(m => {
-                                                            const total = monthTotal(m);
-                                                            const assigned = feeStructures.filter(s => m.assignedStructureIds.includes(s.id));
-                                                            return (
-                                                                <tr key={m.id} className="hover:bg-muted/10 transition-colors">
-                                                                    <td className="px-3 py-2 font-semibold whitespace-nowrap">{m.month}</td>
-                                                                    <td className="px-3 py-2">
-                                                                        <div className="flex flex-wrap gap-0.5">
-                                                                            {assigned.length === 0
-                                                                                ? <span className="text-[10px] text-muted-foreground/50 italic">—</span>
-                                                                                : assigned.map(s => (
-                                                                                    <span key={s.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                                                                                        style={{ background: s.color + '20', color: s.color }}>
-                                                                                        {s.name}
-                                                                                    </span>
-                                                                                ))
-                                                                            }
-                                                                        </div>
-                                                                    </td>
-                                                                    <td className="px-3 py-2 font-bold">{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
-                                                                    <td className="px-3 py-2 text-muted-foreground">{m.dueDate}</td>
-                                                                    <td className="px-3 py-2">
-                                                                        <input value={m.paidDate ?? ''} onChange={e => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, paidDate: e.target.value } : x))}
-                                                                            placeholder="—" className="w-20 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/40" />
-                                                                    </td>
-                                                                    <td className="px-3 py-2">
-                                                                        <button onClick={() => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, status: x.status === 'PAID' ? 'PENDING' : 'PAID' } : x))}
-                                                                            className={`flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-semibold transition-all ${STATUS_CFG[m.status].cls}`}>
-                                                                            {m.status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[m.status].label}
-                                                                        </button>
-                                                                    </td>
-                                                                    <td className="px-3 py-2 text-muted-foreground">{m.remark || '—'}</td>
-                                                                    {extraColumns.map((col, ci) => (
-                                                                        <td key={ci} className="px-3 py-2">
-                                                                            <input placeholder="—" className="w-16 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none" />
-                                                                        </td>
-                                                                    ))}
-                                                                </tr>
-                                                            );
-                                                        })}
-                                                        <tr className="bg-muted/20 border-t-2 border-border/40">
-                                                            <td className="px-3 py-2 font-bold text-[11px]">Annual Total</td>
-                                                            <td />
-                                                            <td className="px-3 py-2 text-[11px] font-black" style={{ color: '#7C3AED' }}>
-                                                                ₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}
-                                                            </td>
-                                                            <td colSpan={4 + extraColumns.length} />
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        )}
+                                        {/* Fee Card with flip */}
+                                        <div style={{ perspective: '1200px' }}>
+                                            <motion.div
+                                                animate={{ rotateY: studentCardFlipped ? 180 : 0 }}
+                                                transition={{ duration: 0.6, ease: 'easeInOut' }}
+                                                style={{ transformStyle: 'preserve-3d', position: 'relative' }}>
 
-                                        {/* Fee structure breakdown */}
-                                        {feeStructures.length > 0 && (
-                                            <div className="rounded-2xl border border-border/50 overflow-hidden">
-                                                <div className="px-4 py-2.5 bg-muted/20 border-b border-border/40">
-                                                    <p className="text-xs font-bold">Fee Structure Breakdown</p>
-                                                </div>
-                                                <div className="px-4 py-3 space-y-2">
-                                                    {feeStructures.map(fs => {
-                                                        const total = structureTotal(fs);
-                                                        const cfg = FEE_TYPE_CFG[fs.type];
-                                                        return (
-                                                            <div key={fs.id} className="rounded-xl border border-border/40 overflow-hidden">
-                                                                <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
-                                                                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: fs.color }} />
-                                                                    <span className="flex-1 text-xs font-semibold">{fs.name}</span>
-                                                                    <span className={`text-[10px] font-bold ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
-                                                                    <span className="text-xs font-bold">₹{total.toLocaleString()}</span>
-                                                                </div>
-                                                                {fs.items.map(item => (
-                                                                    <div key={item.id} className="flex items-center justify-between px-3 py-1.5 pl-5 border-t border-border/20 bg-background">
-                                                                        <span className="text-[11px] text-muted-foreground">{item.label}</span>
-                                                                        <span className="text-[11px] font-medium">₹{(item.subItems.reduce((n, s) => n + s.amount, 0) || item.amount).toLocaleString()}</span>
+                                                {/* FRONT */}
+                                                <div style={{ backfaceVisibility: 'hidden' }}
+                                                    className={`bg-card rounded-2xl border border-border/50 shadow-sm ${studentCardFlipped ? 'invisible' : ''}`}>
+
+                                                    {/* Header */}
+                                                    <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between bg-muted/20 rounded-t-2xl">
+                                                        <div>
+                                                            <p className="text-sm font-bold">{selectedStudent.name}'s Fee Card</p>
+                                                            <p className="text-[11px] text-muted-foreground">{divisionName}</p>
+                                                        </div>
+                                                        <button onClick={() => setStudentCardFlipped(true)}
+                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-all">
+                                                            <span style={{ fontSize: '16px', display: 'inline-block', transform: studentCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
+                                                            View Back
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Content */}
+                                                    <div className="space-y-4 px-4 py-3">
+
+                                                        {/* Student Details */}
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Student Details</p>
+                                                            <div className="rounded-xl border border-border/40 overflow-hidden">
+                                                                {[
+                                                                    { label: 'Name', value: selectedStudent.name },
+                                                                    { label: 'Roll No', value: selectedStudent.rollNo },
+                                                                    { label: 'Class', value: 'Class Name' },
+                                                                    { label: 'Division', value: divisionName },
+                                                                    ...extraStudentFields,
+                                                                ].map((f, i) => (
+                                                                    <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border/20 last:border-none">
+                                                                        <span className="text-[11px] text-muted-foreground w-24 shrink-0">{f.label}</span>
+                                                                        <span className="text-[11px] font-medium">{f.value}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            </div>
-                                        )}
+                                                        </div>
 
-                                        {feeMonths.length === 0 && feeStructures.length === 0 && (
-                                            <div className="text-center py-8">
-                                                <p className="text-sm text-muted-foreground">No fee structure set up yet</p>
-                                                <p className="text-xs text-muted-foreground/60 mt-1">Go to Fee Setup tab to configure fee structures</p>
-                                            </div>
-                                        )}
+                                                        <div className="border-t border-border/40" />
+
+                                                        {/* Monthly Payment Schedule */}
+                                                        {feeMonths.length > 0 && (
+                                                            <div>
+                                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Monthly Payment Schedule</p>
+                                                                <div className="rounded-xl border border-border/40 overflow-hidden">
+                                                                    <table className="text-xs w-full">
+                                                                        <thead>
+                                                                            <tr className="bg-muted/10 border-b border-border/30">
+                                                                                {['Month', 'Fee Structures', 'Amount (₹)', 'Due Date', 'Paid Date', 'Status', 'Remark', ...extraColumns.map(c => c.label)].map((col, i) => (
+                                                                                    <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
+                                                                                ))}
+                                                                            </tr>
+                                                                        </thead>
+                                                                        <tbody className="divide-y divide-border/20">
+                                                                            {feeMonths.map(m => {
+                                                                                const total = monthTotal(m);
+                                                                                const assigned = feeStructures.filter(s => m.assignedStructureIds.includes(s.id));
+                                                                                return (
+                                                                                    <tr key={m.id} className="hover:bg-muted/10 transition-colors">
+                                                                                        <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer"
+                                                                                            onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
+                                                                                            {m.month}
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2 cursor-pointer"
+                                                                                            onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
+                                                                                            <div className="flex flex-wrap gap-0.5">
+                                                                                                {assigned.length === 0
+                                                                                                    ? <span className="text-[10px] text-muted-foreground/50 italic">—</span>
+                                                                                                    : assigned.map(s => (
+                                                                                                        <span key={s.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                                                                                                            style={{ background: s.color + '20', color: s.color }}>
+                                                                                                            {s.name}
+                                                                                                        </span>
+                                                                                                    ))
+                                                                                                }
+                                                                                            </div>
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2 font-bold">{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
+                                                                                        <td className="px-3 py-2 text-muted-foreground">{m.dueDate}</td>
+                                                                                        <td className="px-3 py-2">
+                                                                                            <input value={m.paidDate ?? ''} onChange={e => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, paidDate: e.target.value } : x))}
+                                                                                                placeholder="—" className="w-20 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/40" />
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2">
+                                                                                            <button onClick={() => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, status: x.status === 'PAID' ? 'PENDING' : 'PAID' } : x))}
+                                                                                                className={`flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-semibold transition-all ${STATUS_CFG[m.status].cls}`}>
+                                                                                                {m.status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[m.status].label}
+                                                                                            </button>
+                                                                                        </td>
+                                                                                        <td className="px-3 py-2 text-muted-foreground text-[11px]">{m.remark || '—'}</td>
+                                                                                        {extraColumns.map((col, ci) => (
+                                                                                            <td key={ci} className="px-3 py-2">
+                                                                                                <input placeholder="—" className="w-16 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none" />
+                                                                                            </td>
+                                                                                        ))}
+                                                                                    </tr>
+                                                                                );
+                                                                            })}
+                                                                            <tr className="bg-muted/20 border-t-2 border-border/40">
+                                                                                <td className="px-3 py-2 font-bold text-[11px]">Annual Total</td>
+                                                                                <td />
+                                                                                <td className="px-3 py-2 text-[11px] font-black" style={{ color: '#7C3AED' }}>
+                                                                                    ₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}
+                                                                                </td>
+                                                                                <td colSpan={4 + extraColumns.length} />
+                                                                            </tr>
+                                                                        </tbody>
+                                                                    </table>
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                        <div className="border-t border-border/40" />
+
+                                                        {/* Fee Structure Breakdown */}
+                                                        <div className="border-t border-border/40" />
+                                                        <div>
+                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                                                {selectedMonth
+                                                                    ? `Fee Structure Breakdown — ${feeMonths.find(m => m.id === selectedMonth)?.month}`
+                                                                    : 'Fee Structure Breakdown'
+                                                                }
+                                                            </p>
+                                                            {!selectedMonth ? (
+                                                                <div className="py-6 text-center rounded-xl border border-dashed border-border/40">
+                                                                    <p className="text-xs text-muted-foreground/60">Click a month row to view breakdown</p>
+                                                                </div>
+                                                            ) : (() => {
+                                                                const month = feeMonths.find(m => m.id === selectedMonth);
+                                                                if (!month) return null;
+                                                                const assigned = feeStructures.filter(s => month.assignedStructureIds.includes(s.id));
+                                                                if (assigned.length === 0) return (
+                                                                    <div className="py-6 text-center rounded-xl border border-dashed border-border/40">
+                                                                        <p className="text-xs text-muted-foreground/60">No fee structures assigned to {month.month}</p>
+                                                                    </div>
+                                                                );
+                                                                return (
+                                                                    <div className="space-y-2">
+                                                                        {assigned.map(fs => {
+                                                                            const total = structureTotal(fs);
+                                                                            const cfg = FEE_TYPE_CFG[fs.type];
+                                                                            return (
+                                                                                <div key={fs.id} className="rounded-xl border border-border/40 overflow-hidden">
+                                                                                    <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
+                                                                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: fs.color }} />
+                                                                                        <span className="flex-1 text-xs font-semibold">{fs.name}</span>
+                                                                                        <span className={`text-[10px] font-bold ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
+                                                                                        <span className="text-xs font-bold">₹{total.toLocaleString()}</span>
+                                                                                    </div>
+                                                                                    {fs.items.map(item => (
+                                                                                        <div key={item.id} className="flex items-center justify-between px-3 py-1.5 pl-5 border-t border-border/20 bg-background">
+                                                                                            <span className="text-[11px] text-muted-foreground">{item.label}</span>
+                                                                                            <span className="text-[11px] font-medium">₹{(item.subItems.reduce((n, s) => n + s.amount, 0) || item.amount).toLocaleString()}</span>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            );
+                                                                        })}
+                                                                    </div>
+                                                                );
+                                                            })()}
+                                                        </div>
+
+                                                        {feeMonths.length === 0 && feeStructures.length === 0 && (
+                                                            <div className="text-center py-8">
+                                                                <p className="text-sm text-muted-foreground">No fee structure set up yet</p>
+                                                                <p className="text-xs text-muted-foreground/60 mt-1">Go to Fee Setup tab to configure fee structures</p>
+                                                            </div>
+                                                        )}
+
+                                                    </div>
+                                                </div>
+
+                                                {/* BACK — Rules & Regulations */}
+                                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0 }}
+                                                    className={`bg-card rounded-2xl border border-border/50 shadow-sm ${!studentCardFlipped ? 'invisible' : ''}`}>
+
+                                                    {/* Header */}
+                                                    <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between bg-muted/20 rounded-t-2xl">
+                                                        <div>
+                                                            <p className="text-sm font-bold">{selectedStudent.name}'s Fee Card</p>
+                                                            <p className="text-[11px] text-muted-foreground">{divisionName} · Rules & Regulations</p>
+                                                        </div>
+                                                        <button onClick={() => setStudentCardFlipped(false)}
+                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-all">
+                                                            <span style={{ fontSize: '16px', display: 'inline-block', transform: 'scaleX(-1)' }}>↺</span>
+                                                            View Front
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Rules Content */}
+                                                    <div className="px-4 py-3 space-y-3">
+                                                        {rulesAndRegs.length === 0 ? (
+                                                            <div className="py-8 text-center rounded-xl border border-dashed border-border/40">
+                                                                <p className="text-xs text-muted-foreground/60">No rules defined yet</p>
+                                                                <p className="text-[11px] text-muted-foreground/40 mt-1">Add rules from Fee Setup → Fee Card Template → View Back</p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="space-y-2">
+                                                                {rulesAndRegs.map((rule, i) => (
+                                                                    <div key={rule.id} className="flex items-start gap-2">
+                                                                        <span className="text-[11px] font-bold text-muted-foreground mt-0.5 w-5 shrink-0">{i + 1}.</span>
+                                                                        <p className="text-xs text-foreground leading-relaxed">{rule.text}</p>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+
+                                            </motion.div>
+                                        </div>
+
                                     </div>
                                 )}
                             </div>
