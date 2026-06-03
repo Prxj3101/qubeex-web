@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface PostAuthor { id: string; name: string; role: 'ADMIN' | 'TEACHER'; }
@@ -138,13 +139,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                     {post.text}
                     {post.attachmentUrl && post.attachmentName && post.attachmentType && (
                         <div className="mt-2">
-                            {post.attachmentType === 'image'
-                                ? <a href={post.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                    <img src={post.attachmentUrl} alt={post.attachmentName} className="max-w-[220px] rounded-xl mt-1 border border-white/20 object-cover" />
-                                </a>
-                                : <a href={post.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                    <AttachmentChip attachment={{ url: post.attachmentUrl, name: post.attachmentName, type: post.attachmentType }} dark={isMe} />
-                                </a>}
+                            <AttachmentPreview attachment={{ url: post.attachmentUrl, name: post.attachmentName, type: post.attachmentType }} dark={isMe} compact />
                         </div>
                     )}
                 </div>
@@ -550,13 +545,7 @@ export default function TeacherStaffroom() {
                                                                 {msg.text && <p>{msg.text}</p>}
                                                                 {msg.attachmentUrl && msg.attachmentName && msg.attachmentType && (
                                                                     <div className={msg.text ? 'mt-1.5' : ''}>
-                                                                        {msg.attachmentType === 'image'
-                                                                            ? <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                                                                <img src={msg.attachmentUrl} alt={msg.attachmentName} className="max-w-[180px] rounded-xl border border-white/20 object-cover" />
-                                                                            </a>
-                                                                            : <a href={msg.attachmentUrl} target="_blank" rel="noopener noreferrer">
-                                                                                <AttachmentChip attachment={{ url: msg.attachmentUrl, name: msg.attachmentName, type: msg.attachmentType }} dark={msg.isMe} />
-                                                                            </a>}
+                                                                        <AttachmentPreview attachment={{ url: msg.attachmentUrl, name: msg.attachmentName, type: msg.attachmentType }} dark={msg.isMe} compact />
                                                                     </div>
                                                                 )}
                                                             </div>

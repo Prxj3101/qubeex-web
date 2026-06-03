@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Send, X, Paperclip, Rss } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type EventType = 'holiday' | 'event' | 'sports' | 'trip' | 'meeting';
@@ -229,12 +230,10 @@ function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) =
                     <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>{post.body}</p>
                 )}
             </div>
-            {post.attachmentUrl && expanded && (
-                <a href={post.attachmentUrl} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-2 px-3 py-2 rounded-xl bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 hover:opacity-80 transition-opacity">
-                    <span>{post.attachmentType === 'image' ? '🖼️' : '📄'}</span>
-                    <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 truncate">{post.attachmentName ?? 'Attachment'}</span>
-                </a>
+            {post.attachmentUrl && post.attachmentName && post.attachmentType && (
+                <AttachmentPreview
+                    attachment={{ url: post.attachmentUrl, name: post.attachmentName, type: post.attachmentType }}
+                />
             )}
             <button onClick={() => setExpanded(v => !v)}
                 className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">

@@ -2,10 +2,11 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Send, X, Rss, Paperclip, Download, ExternalLink } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Send, X, Rss, Paperclip } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import api from '@/lib/api';
+import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type EventType = 'holiday' | 'event' | 'sports' | 'trip' | 'meeting';
@@ -288,24 +289,6 @@ function VerifiedBadge() {
     );
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-async function downloadAttachment(url: string, name: string) {
-    try {
-        const res = await fetch(url);
-        const blob = await res.blob();
-        const objUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = objUrl;
-        a.download = name;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(objUrl);
-    } catch {
-        window.open(url, '_blank', 'noopener,noreferrer');
-    }
-}
-
 // ── Feed Post Card ────────────────────────────────────────────────────────────
 function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) => void }) {
     const [expanded, setExpanded] = useState(false);
@@ -354,31 +337,10 @@ function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) =
                     <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>{post.body}</p>
                 )}
             </div>
-            {post.attachmentUrl && (
-                <div className="flex items-center gap-2 pt-2 border-t border-border/40">
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0">
-                        <span className="text-base shrink-0">{
-                            post.attachmentType?.startsWith('image/') ? '🖼️' :
-                                post.attachmentName?.endsWith('.pdf') ? '📄' :
-                                    post.attachmentName?.endsWith('.xlsx') || post.attachmentName?.endsWith('.xls') ? '📊' :
-                                        post.attachmentName?.endsWith('.docx') || post.attachmentName?.endsWith('.doc') ? '📝' : '📎'
-                        }</span>
-                        <span className="text-[11px] font-medium text-foreground truncate">
-                            {post.attachmentName ?? 'Attachment'}
-                        </span>
-                    </div>
-                    <div className="flex items-center gap-1 shrink-0">
-                        <button
-                            onClick={() => downloadAttachment(post.attachmentUrl!, post.attachmentName ?? 'attachment')}
-                            className="flex items-center gap-1 h-6 px-2 rounded-lg border border-border/50 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
-                            <Download size={10} /> Download
-                        </button>
-                        <a href={post.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 h-6 px-2 rounded-lg border border-border/50 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
-                            <ExternalLink size={10} /> Open
-                        </a>
-                    </div>
-                </div>
+            {post.attachmentUrl && post.attachmentName && post.attachmentType && (
+                <AttachmentPreview
+                    attachment={{ url: post.attachmentUrl, name: post.attachmentName, type: post.attachmentType }}
+                />
             )}
             <button onClick={() => setExpanded(v => !v)}
                 className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
