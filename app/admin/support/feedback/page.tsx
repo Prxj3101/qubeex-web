@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Star, Send, Edit2, X, Plus, Clock,
-    ChevronDown, ChevronUp, Loader2,
+    ChevronDown, ChevronUp, Loader2, MessageSquare,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatRelative } from 'date-fns';
@@ -19,6 +19,8 @@ interface Review {
     adminName: string;
     adminEmail: string;
     createdAt: string;
+    replyMessage: string | null;
+    repliedAt: string | null;
 }
 
 function relativeTime(iso: string) {
@@ -113,12 +115,20 @@ function ReviewCard({ review, index, expanded, onToggle, onEdit }: {
                 </div>
 
                 {/* Footer */}
-                <div className="flex items-center justify-end mt-3">
+                <div className="flex items-center justify-between mt-3">
+                    <div>
+                        {review.replyMessage && (
+                            <div className="flex items-center gap-1">
+                                <MessageSquare size={11} className="text-violet-500" />
+                                <span className="text-[11px] text-violet-600 dark:text-violet-400 font-medium">Reply from QubeEx</span>
+                            </div>
+                        )}
+                    </div>
                     <button onClick={onToggle}
                         className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
                         {expanded
                             ? <><ChevronUp size={13} /> Less</>
-                            : <><ChevronDown size={13} /> View full</>
+                            : <><ChevronDown size={13} /> {review.replyMessage ? 'View reply' : 'View full'}</>
                         }
                     </button>
                 </div>
@@ -129,11 +139,26 @@ function ReviewCard({ review, index, expanded, onToggle, onEdit }: {
                 {expanded && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-                        <div className="border-t border-border/40 px-4 py-4">
+                        <div className="border-t border-border/40 px-4 py-4 space-y-3">
                             {review.body && (
                                 <div className="p-3 bg-muted/30 rounded-xl overflow-hidden">
                                     <p className="text-[11px] font-semibold text-muted-foreground mb-1">Full Review</p>
                                     <p className="text-sm text-foreground leading-relaxed break-words">{review.body}</p>
+                                </div>
+                            )}
+                            {review.replyMessage && review.repliedAt && (
+                                <div className="flex gap-2.5 flex-row-reverse">
+                                    <div className="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-950 flex items-center justify-center text-[10px] font-bold text-violet-700 dark:text-violet-300 shrink-0">
+                                        SA
+                                    </div>
+                                    <div className="flex flex-col items-end flex-1">
+                                        <div className="px-3 py-2 rounded-xl text-sm bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-100 max-w-[90%]">
+                                            {review.replyMessage}
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground mt-1 px-1">
+                                            QubeEx · {relativeTime(review.repliedAt)}
+                                        </p>
+                                    </div>
                                 </div>
                             )}
                         </div>

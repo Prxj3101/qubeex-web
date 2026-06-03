@@ -79,6 +79,25 @@ function ReviewCard({ review, index, expanded, onToggle, onReply }: {
     const [replyMessage, setReplyMessage] = useState<string | null>(review.replyMessage);
     const [repliedAt, setRepliedAt]     = useState<string | null>(review.repliedAt);
     const [sending, setSending]         = useState(false);
+    const [likes, setLikes]             = useState(review.likes);
+    const [liked, setLiked]             = useState(false);
+    const [liking, setLiking]           = useState(false);
+
+    const handleLike = async () => {
+        if (liked || liking) return;
+        setLiking(true);
+        setLiked(true);
+        setLikes(l => l + 1);
+        try {
+            await api.post(`/superadmin/support/reviews/${review.id}/like`);
+        } catch {
+            setLiked(false);
+            setLikes(l => l - 1);
+            toast.error('Failed to like review');
+        } finally {
+            setLiking(false);
+        }
+    };
 
     const handleSendReply = async () => {
         if (!replyText.trim()) return;
@@ -131,11 +150,15 @@ function ReviewCard({ review, index, expanded, onToggle, onReply }: {
                         </div>
                     </div>
 
-                    {/* Likes */}
-                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0">
-                        <ThumbsUp size={12} />
-                        <span>{review.likes}</span>
-                    </div>
+                    {/* Like button */}
+                    <button
+                        onClick={handleLike}
+                        disabled={liked || liking}
+                        className={`flex items-center gap-1 text-[11px] font-medium transition-all disabled:cursor-default shrink-0 ${liked ? 'text-blue-500' : 'text-muted-foreground hover:text-blue-400'}`}
+                    >
+                        <ThumbsUp size={12} fill={liked ? 'currentColor' : 'none'} />
+                        <span>{likes}</span>
+                    </button>
                 </div>
 
                 {/* Review content */}
