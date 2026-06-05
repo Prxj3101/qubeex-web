@@ -44,10 +44,17 @@ function isPdf(type: string, name?: string) {
     return type === 'pdf' || type === 'application/pdf' || (name?.toLowerCase().endsWith('.pdf') ?? false);
 }
 
-// ── Fullscreen modal (image + PDF) ────────────────────────────────────────────
+function isVideo(type: string, name?: string) {
+    return type === 'video' || type.startsWith('video/') ||
+        (name ? /\.(mp4|webm|mov|avi)$/i.test(name) : false);
+}
 
-function PreviewModal({ url, name, isImg, onClose }: {
-    url: string; name: string; isImg: boolean; onClose: () => void;
+type ModalKind = 'image' | 'video' | 'pdf';
+
+// ── Fullscreen modal (image + video + PDF) ────────────────────────────────────
+
+function PreviewModal({ url, name, kind, onClose }: {
+    url: string; name: string; kind: ModalKind; onClose: () => void;
 }) {
     return (
         <AnimatePresence>
@@ -71,7 +78,7 @@ function PreviewModal({ url, name, isImg, onClose }: {
                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                 <Download size={12} /> Download
                             </button>
-                            {!isImg && (
+                            {kind === 'pdf' && (
                                 <a href={url} target="_blank" rel="noopener noreferrer"
                                     className="flex items-center gap-1.5 h-8 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold transition-all">
                                     <ExternalLink size={12} /> Open
@@ -84,9 +91,19 @@ function PreviewModal({ url, name, isImg, onClose }: {
                         </div>
                     </div>
 
-                    {isImg ? (
+                    {kind === 'image' && (
                         <img src={url} alt={name} className="w-full rounded-2xl object-contain max-h-[80vh]" />
-                    ) : (
+                    )}
+                    {kind === 'video' && (
+                        <video
+                            src={url}
+                            controls
+                            autoPlay
+                            className="w-full rounded-2xl max-h-[80vh] bg-black"
+                            onClick={e => e.stopPropagation()}
+                        />
+                    )}
+                    {kind === 'pdf' && (
                         <iframe src={url} title={name} className="w-full rounded-2xl border-0 bg-white" style={{ height: '80vh' }} />
                     )}
                 </motion.div>
@@ -108,7 +125,8 @@ export function AttachmentPreview({
 }) {
     const [open, setOpen] = useState(false);
     const { url, name, type } = attachment;
-    const isImg = isImage(type, name);
+    const isImg    = isImage(type, name);
+    const isVid    = isVideo(type, name);
     const isPdfFile = isPdf(type, name);
 
     if (isImg) {
@@ -129,7 +147,35 @@ export function AttachmentPreview({
                         </span>
                     </div>
                 </div>
-                {open && <PreviewModal url={url} name={name} isImg onClose={() => setOpen(false)} />}
+                {open && <PreviewModal url={url} name={name} kind="image" onClose={() => setOpen(false)} />}
+            </>
+        );
+    }
+
+    if (isVid) {
+        return (
+            <>
+                <div
+                    className={`relative group cursor-pointer overflow-hidden rounded-xl border transition-all ${compact ? 'max-w-[220px]' : 'max-w-[320px]'} ${dark ? 'border-white/20' : 'border-border/50'}`}
+                    onClick={() => setOpen(true)}>
+                    <video
+                        src={url}
+                        className="w-full object-cover bg-black"
+                        style={{ maxHeight: compact ? '120px' : '180px' }}
+                        muted
+                        preload="metadata"
+                    />
+                    {/* Play overlay */}
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/50 transition-all">
+                        <div className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center shadow-lg">
+                            <svg viewBox="0 0 24 24" className="w-5 h-5 text-gray-800 fill-current ml-0.5">
+                                <path d="M8 5v14l11-7z" />
+                            </svg>
+                        </div>
+                    </div>
+                    <p className={`absolute bottom-1.5 left-2 text-[10px] font-medium truncate max-w-[80%] ${dark ? 'text-white/80' : 'text-white'}`}>{name}</p>
+                </div>
+                {open && <PreviewModal url={url} name={name} kind="video" onClose={() => setOpen(false)} />}
             </>
         );
     }
@@ -153,7 +199,7 @@ export function AttachmentPreview({
                     </div>
                 )}
             </div>
-            {open && isPdfFile && <PreviewModal url={url} name={name} isImg={false} onClose={() => setOpen(false)} />}
+            {open && isPdfFile && <PreviewModal url={url} name={name} kind="pdf" onClose={() => setOpen(false)} />}
         </>
     );
 }

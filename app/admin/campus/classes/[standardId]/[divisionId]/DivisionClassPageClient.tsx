@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { assignSubjectColor } from '@/lib/subjectColors';
 import { FeesTab } from './fees';
@@ -622,6 +623,7 @@ function VerifiedBadge() {
 
 function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: string) => void }) {
     const [expanded, setExpanded] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const meta = POST_META[ann.type];
     const authorName = ann.author.name;
     const initials = authorName.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase();
@@ -646,7 +648,7 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
                 <div className="flex items-center gap-2">
                     <span className="text-[11px] text-muted-foreground">{timeAgo}</span>
                     {onDelete && (
-                        <button onClick={() => onDelete(ann.id)}
+                        <button onClick={() => setConfirmDelete(true)}
                             className="w-5 h-5 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all">
                             <X size={11} />
                         </button>
@@ -684,6 +686,25 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
                 {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                 {expanded ? 'Show less' : 'Read more'}
             </button>
+            {confirmDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                        <h3 className="text-base font-bold mb-1">Delete Announcement?</h3>
+                        <p className="text-sm text-muted-foreground mb-5">This announcement will be permanently deleted. Are you sure?</p>
+                        <div className="flex gap-2 justify-end">
+                            <button onClick={() => setConfirmDelete(false)}
+                                className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                Cancel
+                            </button>
+                            <button onClick={() => { onDelete?.(ann.id); setConfirmDelete(false); }}
+                                className="h-9 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition-all">
+                                Delete
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }
@@ -768,6 +789,8 @@ export default function DivisionDetailPage() {
         const file = e.target.files?.[0];
         if (!file) return;
         e.target.value = '';
+        const err = validateAttachment(file);
+        if (err) { toast.error(err); return; }
         setUploadingAttachment(true);
         try {
             const form = new FormData();
@@ -1157,7 +1180,7 @@ export default function DivisionDetailPage() {
                                                     </div>
                                                 )}
                                             </div>
-                                            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
+                                            <input ref={fileInputRef} type="file" accept={ATTACHMENT_ACCEPT} className="hidden" onChange={handleFileSelect} />
                                             <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAttachment}
                                                 className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 transition-all shrink-0 disabled:opacity-50">
                                                 <Paperclip size={14} />
