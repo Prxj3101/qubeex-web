@@ -1,15 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    FolderOpen, Folder, FileText, File, Plus,
+    FolderOpen, Folder, FileText, File,
     ChevronRight, Upload, MoreVertical, Trash2,
     FolderPlus, X, Check, Monitor, ArrowLeft,
-    FileImage, Film,
+    FileImage, Loader2,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface FileItem {
@@ -18,6 +19,8 @@ interface FileItem {
     type: 'pdf' | 'ppt' | 'word' | 'image' | 'other';
     size: string;
     uploadedAt: string;
+    fileUrl: string;
+    mimeType: string;
 }
 
 interface FolderItem {
@@ -27,45 +30,41 @@ interface FolderItem {
     files: FileItem[];
 }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-const INITIAL_FOLDERS: FolderItem[] = [
-    {
-        id: 'f1', name: 'Class 10', children: [
-            {
-                id: 'f1-1', name: 'Mathematics', children: [], files: [
-                    { id: 'file1', name: 'Chapter 1 - Real Numbers.pdf', type: 'pdf', size: '2.4 MB', uploadedAt: '12 May 2026' },
-                    { id: 'file2', name: 'Chapter 2 - Polynomials.pptx', type: 'ppt', size: '5.1 MB', uploadedAt: '15 May 2026' },
-                ],
-            },
-            {
-                id: 'f1-2', name: 'Science', children: [], files: [
-                    { id: 'file3', name: 'Photosynthesis.pdf', type: 'pdf', size: '3.2 MB', uploadedAt: '18 May 2026' },
-                    { id: 'file4', name: 'Chemical Reactions.pptx', type: 'ppt', size: '6.8 MB', uploadedAt: '20 May 2026' },
-                ],
-            },
-        ],
-        files: [],
-    },
-    {
-        id: 'f2', name: 'Class 9', children: [
-            {
-                id: 'f2-1', name: 'Mathematics', children: [], files: [
-                    { id: 'file5', name: 'Number Systems.pdf', type: 'pdf', size: '1.8 MB', uploadedAt: '10 May 2026' },
-                ],
-            },
-        ],
-        files: [
-            { id: 'file6', name: 'Syllabus 2026.pdf', type: 'pdf', size: '0.5 MB', uploadedAt: '1 Apr 2026' },
-        ],
-    },
-    {
-        id: 'f3', name: 'General', children: [], files: [
-            { id: 'file7', name: 'Teaching Notes.docx', type: 'word', size: '1.2 MB', uploadedAt: '5 May 2026' },
-        ],
-    },
-];
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
+function mimeToType(mimeType: string): FileItem['type'] {
+    if (mimeType === 'application/pdf') return 'pdf';
+    if (mimeType.includes('powerpoint') || mimeType.includes('presentation')) return 'ppt';
+    if (mimeType.includes('word') || mimeType.includes('document')) return 'word';
+    if (mimeType.startsWith('image/')) return 'image';
+    return 'other';
+}
+
+function formatBytes(bytes: number): string {
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function formatDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function mapFolder(f: any): FolderItem {
+    return {
+        id: f.id,
+        name: f.name,
+        children: (f.children ?? []).map(mapFolder),
+        files: (f.files ?? []).map((file: any) => ({
+            id: file.id,
+            name: file.name,
+            type: mimeToType(file.mimeType),
+            size: formatBytes(file.size),
+            uploadedAt: formatDate(file.createdAt),
+            fileUrl: file.fileUrl,
+            mimeType: file.mimeType,
+        })),
+    };
+}
+
 function getFileIcon(type: FileItem['type']) {
     switch (type) {
         case 'pdf': return { icon: FileText, color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-950' };
@@ -81,23 +80,10 @@ function findFolder(folders: FolderItem[], path: string[]): FolderItem | null {
     let current = folders.find(f => f.id === path[0]);
     if (!current) return null;
     for (let i = 1; i < path.length; i++) {
-        current = current.children.find(f => f.id === path[i]);
+        current = current!.children.find(f => f.id === path[i]);
         if (!current) return null;
     }
     return current;
-}
-
-function updateFolderTree(
-    folders: FolderItem[],
-    path: string[],
-    updater: (folder: FolderItem) => FolderItem
-): FolderItem[] {
-    if (path.length === 0) return folders;
-    return folders.map(f => {
-        if (f.id !== path[0]) return f;
-        if (path.length === 1) return updater(f);
-        return { ...f, children: updateFolderTree(f.children, path.slice(1), updater) };
-    });
 }
 
 // ── Folder Tree (Left sidebar) ────────────────────────────────────────────────
@@ -152,18 +138,32 @@ function FolderTree({ folders, selectedPath, onSelect, level = 0 }: {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function StoragePage() {
     const router = useRouter();
-    const [folders, setFolders] = useState<FolderItem[]>(INITIAL_FOLDERS);
+    const [folders, setFolders] = useState<FolderItem[]>([]);
+    const [loading, setLoading] = useState(true);
     const [currentPath, setCurrentPath] = useState<string[]>([]);
     const [addingFolder, setAddingFolder] = useState(false);
     const [newFolderName, setNewFolderName] = useState('');
     const [menuOpen, setMenuOpen] = useState<string | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<{ type: 'folder' | 'file'; id: string; name: string } | null>(null);
+    const [uploading, setUploading] = useState(false);
+
+    const fetchFolders = async () => {
+        try {
+            const res = await api.get('/teacher/blackboard/storage/folders');
+            setFolders((res.data.data ?? []).map(mapFolder));
+        } catch {
+            toast.error('Failed to load storage');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => { fetchFolders(); }, []);
 
     const currentFolder = currentPath.length === 0 ? null : findFolder(folders, currentPath);
     const currentFolders = currentPath.length === 0 ? folders : (currentFolder?.children ?? []);
     const currentFiles = currentPath.length === 0 ? [] : (currentFolder?.files ?? []);
 
-    // Breadcrumb
     const breadcrumb: { id: string; name: string }[] = [];
     if (currentPath.length > 0) {
         let cur = folders;
@@ -173,61 +173,84 @@ export default function StoragePage() {
         }
     }
 
-    const addFolder = () => {
+    const addFolder = async () => {
         if (!newFolderName.trim()) return;
-        const newFolder: FolderItem = {
-            id: `f-${Date.now()}`,
-            name: newFolderName.trim(),
-            children: [],
-            files: [],
-        };
-        if (currentPath.length === 0) {
-            setFolders(prev => [...prev, newFolder]);
-        } else {
-            setFolders(prev => updateFolderTree(prev, currentPath, f => ({ ...f, children: [...f.children, newFolder] })));
+        const parentId = currentPath.length > 0 ? currentPath[currentPath.length - 1] : undefined;
+        try {
+            await api.post('/teacher/blackboard/storage/folders', {
+                name: newFolderName.trim(),
+                ...(parentId ? { parentId } : {}),
+            });
+            setNewFolderName('');
+            setAddingFolder(false);
+            toast.success('Folder created');
+            await fetchFolders();
+        } catch {
+            toast.error('Failed to create folder');
         }
-        setNewFolderName('');
-        setAddingFolder(false);
-        toast.success('Folder created');
     };
 
-    const deleteFolder = (folderId: string) => {
-        if (currentPath.length === 0) {
-            setFolders(prev => prev.filter(f => f.id !== folderId));
-        } else {
-            setFolders(prev => updateFolderTree(prev, currentPath, f => ({ ...f, children: f.children.filter(c => c.id !== folderId) })));
+    const deleteFolder = async (folderId: string) => {
+        try {
+            await api.delete(`/teacher/blackboard/storage/folders/${folderId}`);
+            toast.success('Folder deleted');
+            if (currentPath.includes(folderId)) setCurrentPath([]);
+            await fetchFolders();
+        } catch {
+            toast.error('Failed to delete folder');
         }
-        toast.success('Folder deleted');
     };
 
-    const deleteFile = (fileId: string) => {
-        setFolders(prev => updateFolderTree(prev, currentPath, f => ({ ...f, files: f.files.filter(fi => fi.id !== fileId) })));
-        toast.success('File deleted');
+    const deleteFile = async (fileId: string) => {
+        try {
+            await api.delete(`/teacher/blackboard/storage/files/${fileId}`);
+            toast.success('File deleted');
+            await fetchFolders();
+        } catch {
+            toast.error('Failed to delete file');
+        }
     };
 
-    const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const files = e.target.files;
         if (!files || currentPath.length === 0) {
             toast.error('Please open a folder first to upload files');
+            e.target.value = '';
             return;
         }
-        const newFiles: FileItem[] = Array.from(files).map(f => ({
-            id: `file-${Date.now()}-${Math.random()}`,
-            name: f.name,
-            type: f.name.endsWith('.pdf') ? 'pdf'
-                : f.name.endsWith('.ppt') || f.name.endsWith('.pptx') ? 'ppt'
-                    : f.name.endsWith('.doc') || f.name.endsWith('.docx') ? 'word'
-                        : 'other',
-            size: `${(f.size / (1024 * 1024)).toFixed(1)} MB`,
-            uploadedAt: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }),
-        }));
-        setFolders(prev => updateFolderTree(prev, currentPath, f => ({ ...f, files: [...f.files, ...newFiles] })));
-        toast.success(`${newFiles.length} file(s) uploaded`);
+        const folderId = currentPath[currentPath.length - 1];
+        setUploading(true);
+        let successCount = 0;
+        for (const file of Array.from(files)) {
+            if (file.size > 25 * 1024 * 1024) {
+                toast.error(`${file.name} exceeds the 25 MB limit`);
+                continue;
+            }
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                await api.post(`/teacher/blackboard/storage/folders/${folderId}/files`, formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
+                successCount++;
+            } catch {
+                toast.error(`Failed to upload ${file.name}`);
+            }
+        }
+        setUploading(false);
         e.target.value = '';
+        if (successCount > 0) {
+            toast.success(`${successCount} file(s) uploaded`);
+            await fetchFolders();
+        }
     };
 
     const openInBlackboard = (file: FileItem) => {
-        toast.success(`Opening ${file.name} in Blackboard...`);
+        sessionStorage.setItem('blackboard_file', JSON.stringify({
+            url: file.fileUrl,
+            name: file.name,
+            type: file.mimeType,
+        }));
         router.push('/teacher/blackboard');
     };
 
@@ -236,6 +259,15 @@ export default function StoragePage() {
         setAddingFolder(false);
         setMenuOpen(null);
     };
+
+    if (loading) {
+        return (
+            <div className="flex flex-col h-full items-center justify-center gap-3">
+                <Loader2 size={24} className="animate-spin text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">Loading storage...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
@@ -253,10 +285,12 @@ export default function StoragePage() {
                             className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border/50 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
                             <FolderPlus size={13} /> New Folder
                         </button>
-                        <label className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all cursor-pointer"
+                        <label className={`flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white transition-all ${uploading ? 'opacity-60 pointer-events-none cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'}`}
                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                            <Upload size={13} /> Upload
-                            <input type="file" multiple accept=".pdf,.ppt,.pptx,.doc,.docx,.png,.jpg" className="hidden" onChange={handleUpload} />
+                            {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                            {uploading ? 'Uploading...' : 'Upload'}
+                            <input type="file" multiple accept=".pdf,.ppt,.pptx,.doc,.docx" className="hidden"
+                                onChange={handleUpload} disabled={uploading} />
                         </label>
                     </div>
                 </div>
@@ -272,7 +306,6 @@ export default function StoragePage() {
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Folders</p>
                     </div>
                     <div className="flex-1 overflow-y-auto px-2 py-2">
-                        {/* Root */}
                         <button
                             onClick={() => navigateTo([])}
                             className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-all text-xs mb-1 ${currentPath.length === 0 ? 'bg-primary/10 text-primary font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'}`}>
@@ -455,10 +488,11 @@ export default function StoragePage() {
                                     className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
                                     Cancel
                                 </button>
-                                <button onClick={() => {
-                                    if (confirmDelete.type === 'folder') deleteFolder(confirmDelete.id);
-                                    else deleteFile(confirmDelete.id);
+                                <button onClick={async () => {
+                                    const target = confirmDelete;
                                     setConfirmDelete(null);
+                                    if (target.type === 'folder') await deleteFolder(target.id);
+                                    else await deleteFile(target.id);
                                 }}
                                     className="h-9 px-4 rounded-xl text-xs font-semibold text-white bg-red-500 hover:opacity-90 transition-all">
                                     Yes, Delete

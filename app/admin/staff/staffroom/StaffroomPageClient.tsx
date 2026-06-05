@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { validateAttachment, ATTACHMENT_ACCEPT } from "@/lib/attachmentValidation";
 import { AttachmentPreview } from "@/components/shared/AttachmentPreview";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -188,6 +189,7 @@ function PostCard({
   const [commentInput, setCommentInput] = useState("");
   const [submittingComment, setSubmittingComment] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isMe = post.author.id === myUserId;
   const avatarColor =
@@ -251,10 +253,7 @@ function PostCard({
               {showMenu && (
                 <div className="absolute top-6 right-0 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[110px]">
                   <button
-                    onClick={() => {
-                      onDelete(post.id);
-                      setShowMenu(false);
-                    }}
+                    onClick={() => { setShowMenu(false); setConfirmDelete(true); }}
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-muted transition-colors"
                   >
                     <Trash2 size={11} /> Delete post
@@ -384,6 +383,25 @@ function PostCard({
           )}
         </AnimatePresence>
       </div>
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            <h3 className="text-base font-bold mb-1">Delete Post?</h3>
+            <p className="text-sm text-muted-foreground mb-5">This post will be permanently deleted.</p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConfirmDelete(false)}
+                className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                Cancel
+              </button>
+              <button onClick={() => { onDelete(post.id); setConfirmDelete(false); }}
+                className="h-9 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition-all">
+                Delete
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }
@@ -523,6 +541,9 @@ export default function StaffroomPage() {
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+
+    const err = validateAttachment(file);
+    if (err) { toast.error(err); return; }
 
     const setUploading = context === "post" ? setPostUploading : setDmUploading;
     const setAttachment =
@@ -888,6 +909,7 @@ export default function StaffroomPage() {
           <input
             ref={postFileRef}
             type="file"
+            accept={ATTACHMENT_ACCEPT}
             className="hidden"
             onChange={(e) => handleFileSelect(e, "post")}
           />
@@ -1217,6 +1239,7 @@ export default function StaffroomPage() {
                 <input
                   ref={dmFileRef}
                   type="file"
+                  accept={ATTACHMENT_ACCEPT}
                   className="hidden"
                   onChange={(e) => handleFileSelect(e, "dm")}
                 />

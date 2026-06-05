@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import api from '@/lib/api';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
+import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type EventType = 'holiday' | 'event' | 'sports' | 'trip' | 'meeting';
@@ -355,7 +356,7 @@ function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) =
                             className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
                             <h3 className="text-base font-bold mb-2">Delete Post?</h3>
                             <p className="text-sm text-muted-foreground mb-5">
-                                This post will be permanently deleted.
+                                This post will be permanently deleted. Are you sure?
                             </p>
                             <div className="flex gap-2 justify-end">
                                 <button onClick={() => setConfirmDelete(false)}
@@ -421,6 +422,8 @@ export default function AdminCampusPage() {
         const file = e.target.files?.[0];
         if (!file) return;
         e.target.value = '';
+        const err = validateAttachment(file);
+        if (err) { toast.error(err); return; }
         setUploadingAttachment(true);
         try {
             const form = new FormData();
@@ -583,7 +586,7 @@ export default function AdminCampusPage() {
                                     </div>
                                 )}
                             </div>
-                            <input ref={fileInputRef} type="file" className="hidden" onChange={handleFileSelect} />
+                            <input ref={fileInputRef} type="file" accept={ATTACHMENT_ACCEPT} className="hidden" onChange={handleFileSelect} />
                             <button onClick={() => fileInputRef.current?.click()} disabled={uploadingAttachment}
                                 className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 transition-all shrink-0 disabled:opacity-50">
                                 <Paperclip size={14} />
