@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import ViewTab from './ViewTab';
 import ManageTab from './ManageTab';
 import FeesTab from './FeesTab';
+import AttendanceTab, { AttendanceSubTab } from './AttendanceTab';
 
 export interface Subject {
     id: string;
@@ -63,7 +64,6 @@ export default function DivisionClassPageClient() {
 
     const role = searchParams.get('role') ?? 'class-teacher';
     const isClassTeacher = role === 'class-teacher';
-    const subjectId = searchParams.get('subjectId') ?? null;
 
     const TABS = isClassTeacher
         ? [
@@ -80,6 +80,10 @@ export default function DivisionClassPageClient() {
     const [division, setDivision] = useState<Division | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'attendance' | 'fees' | 'tasks'>('view');
+
+    // ── Attendance sub-tab state lifted here ──────────────────────────────────
+    const [attendanceSubTab, setAttendanceSubTab] = useState<AttendanceSubTab>('overall');
+
     const fetchedRef = useRef(false);
 
     const fetchDivision = useCallback(async () => {
@@ -129,15 +133,19 @@ export default function DivisionClassPageClient() {
     }
 
     const classTeacherAssignment = division.assignments.find((a: Assignment) => a.subjectId === null);
+
     return (
         <div className="flex flex-col h-full overflow-hidden">
             <div className="shrink-0 px-1 pt-1 pb-0">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
+                        {/* Back button */}
                         <button onClick={() => router.back()}
                             className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
                             <ArrowLeft size={16} />
                         </button>
+
+                        {/* Title */}
                         <div>
                             <h1 className="text-2xl font-bold flex items-center gap-2">
                                 <Users size={24} /> {division.name}
@@ -153,6 +161,7 @@ export default function DivisionClassPageClient() {
                             </p>
                         </div>
 
+                        {/* Main tab bar */}
                         <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 ml-4">
                             {TABS.map(tab => {
                                 const isActive = activeTab === tab.key;
@@ -170,9 +179,40 @@ export default function DivisionClassPageClient() {
                                 );
                             })}
                         </div>
+
                     </div>
 
+                    {/* Right side — attendance sub-tab toggle + Subjects + Students count */}
                     <div className="flex items-center gap-4">
+
+                        {/* Attendance sub-tab — exact same style as "Student Fees | Fee Setup" in screenshot */}
+                        <AnimatePresence>
+                            {activeTab === 'attendance' && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 8 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    exit={{ opacity: 0, x: 8 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
+                                    {([
+                                        { key: 'overall' as AttendanceSubTab, label: 'Overall' },
+                                        { key: 'daily' as AttendanceSubTab, label: 'Daily Attendance' },
+                                    ]).map(sub => {
+                                        const isActive = attendanceSubTab === sub.key;
+                                        return (
+                                            <button key={sub.key} onClick={() => setAttendanceSubTab(sub.key)}
+                                                className={`relative px-3 py-1 rounded-lg text-xs font-medium transition-all
+                                                    ${isActive
+                                                        ? 'bg-card text-foreground shadow-sm'
+                                                        : 'text-muted-foreground hover:text-foreground'}`}>
+                                                {sub.label}
+                                            </button>
+                                        );
+                                    })}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {[
                             { label: 'Subjects', value: division.subjects.length },
                             { label: 'Students', value: MOCK_STUDENTS.length },
@@ -187,6 +227,7 @@ export default function DivisionClassPageClient() {
                 <div className="h-px bg-border/60 mt-2" />
             </div>
 
+            {/* Tab content */}
             <div className="flex-1 min-h-0 overflow-hidden">
                 <AnimatePresence mode="wait">
                     {activeTab === 'view' && (
@@ -201,9 +242,12 @@ export default function DivisionClassPageClient() {
                     )}
                     {activeTab === 'attendance' && (
                         <motion.div key="attendance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                                Attendance — Coming soon
-                            </div>
+                            <AttendanceTab
+                                divisionId={divisionId}
+                                divisionName={division.name}
+                                isClassTeacher={isClassTeacher}
+                                attendanceSubTab={attendanceSubTab}
+                            />
                         </motion.div>
                     )}
                     {activeTab === 'fees' && isClassTeacher && (
