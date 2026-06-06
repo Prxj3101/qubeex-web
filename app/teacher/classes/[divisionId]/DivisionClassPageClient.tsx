@@ -275,6 +275,7 @@ export default function DivisionClassPageClient() {
                                 divisionName={division.name}
                                 isClassTeacher={isClassTeacher}
                                 attendanceSubTab={attendanceSubTab}
+                                onAttendanceSubTabChange={setAttendanceSubTab}
                             />
                         </motion.div>
                     )}

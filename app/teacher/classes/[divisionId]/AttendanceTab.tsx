@@ -427,9 +427,10 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                             })}
 
                             {/* Sticky right summary columns */}
-                            <th className="sticky right-[169px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap w-[36px] min-w-[36px]">P</th>
-                            <th className="sticky right-[133px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap w-[36px] min-w-[36px]">A</th>
-                            <th className="sticky right-[97px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap w-[36px] min-w-[36px]">L</th>
+                            <th title="Total Present" className="sticky right-[222px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap w-[40px] min-w-[40px]">P</th>
+                            <th title="Total Absent" className="sticky right-[182px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap w-[40px] min-w-[40px]">A</th>
+                            <th title="Total Late" className="sticky right-[142px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap w-[40px] min-w-[40px]">L</th>
+                            <th title="Total Working Days" className="sticky right-[97px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[45px]">T</th>
                             <th title="Current Month %" className="sticky right-[52px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[45px]">%</th>
                             <th title="Overall %" className="sticky right-0 z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[52px]">&#x2211;%</th>
                         </tr>
@@ -531,7 +532,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                                 {status ? (
                                                     <span style={{
                                                         fontFamily: "'Patrick Hand', cursive",
-                                                        fontSize: '17px',
+                                                        fontSize: '16px',
                                                         fontWeight: '700',
                                                         color: status === 'P' ? '#16a34a' : status === 'A' ? '#dc2626' : '#d97706',
                                                         lineHeight: 1,
@@ -551,9 +552,10 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                     })}
 
                                     {/* Sticky right — Summary columns */}
-                                    <td className="sticky right-[169px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-emerald-700 font-bold bg-[#F5F8EE] w-[36px]">{p || '—'}</td>
-                                    <td className="sticky right-[133px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-red-500 font-bold bg-[#F5F8EE] w-[36px]">{a || '—'}</td>
-                                    <td className="sticky right-[97px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-amber-600 font-bold bg-[#F5F8EE] w-[36px]">{l || '—'}</td>
+                                    <td className="sticky right-[222px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-emerald-700 font-bold bg-[#F5F8EE] w-[40px]">{p || '—'}</td>
+                                    <td className="sticky right-[182px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-red-500 font-bold bg-[#F5F8EE] w-[40px]">{a || '—'}</td>
+                                    <td className="sticky right-[142px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-amber-600 font-bold bg-[#F5F8EE] w-[40px]">{l || '—'}</td>
+                                    <td className="sticky right-[97px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center font-bold text-[#2A3A10] bg-[#F5F8EE] min-w-[45px]">{total || '—'}</td>
                                     <td className={`sticky right-[52px] z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-2 text-center font-black bg-[#F5F8EE] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
                                         {pct !== null ? `${pct}%` : '—'}
                                     </td>
@@ -688,7 +690,10 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
 }
 
 // ── Overall Tab ───────────────────────────────────────────────────────────────
-function OverallTab({ divisionName }: { divisionName: string }) {
+function OverallTab({ divisionName, onSwitchToDaily }: {
+    divisionName: string;
+    onSwitchToDaily: () => void;
+}) {
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(MOCK_STUDENTS[0]);
     const [showListMenu, setShowListMenu] = useState(false);
     const [overallRightTab, setOverallRightTab] = useState<'class' | 'student'>('class');
@@ -708,6 +713,31 @@ function OverallTab({ divisionName }: { divisionName: string }) {
         st11: { Jun: 85, Jul: 82, Aug: 79, Sep: 82 },
         st12: { Jun: 80, Jul: 76, Aug: 74, Sep: 77 },
     };
+
+    const MOCK_SHEET_DATA: Record<number, Record<number, AttendanceStatus>> = (() => {
+        const today = new Date();
+        const year = today.getFullYear();
+        const result: Record<number, Record<number, AttendanceStatus>> = {};
+        const statuses: AttendanceStatus[] = ['P', 'P', 'P', 'P', 'P', 'P', 'A', 'P', 'P', 'L'];
+        [5, 6, 7, 8].forEach(monthKey => {
+            result[monthKey] = {};
+            const days = new Date(year, monthKey + 1, 0).getDate();
+            let idx = 0;
+            for (let d = 1; d <= days; d++) {
+                const day = new Date(year, monthKey, d).getDay();
+                if (day === 0) continue; // skip sunday
+                result[monthKey][d] = statuses[idx % statuses.length];
+                idx++;
+            }
+        });
+        return result;
+    })();
+
+    const MOCK_SHEET_HOLIDAYS: Record<number, Record<number, string>> = {
+        5: { 1: 'Maharashtra Day' },
+        8: { 2: 'Ganesh Chaturthi' },
+    };
+
     const CURRENT_MONTH = 'Sep';
 
     const generateList = (type: 'all' | 'current') => {
@@ -856,8 +886,12 @@ function OverallTab({ divisionName }: { divisionName: string }) {
 
                             {/* Month wise breakdown */}
                             <div className="rounded-2xl border border-border/50 bg-background overflow-hidden">
-                                <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
+                                <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month-wise Class Average</p>
+                                    <button onClick={onSwitchToDaily}
+                                        className="flex items-center gap-1.5 h-6 px-2.5 rounded-lg border border-border/50 text-[10px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+                                        <CalendarDays size={10} /> View Daily
+                                    </button>
                                 </div>
                                 <div className="divide-y divide-border/20 max-h-[160px] overflow-y-auto">
                                     {[
@@ -955,14 +989,198 @@ function OverallTab({ divisionName }: { divisionName: string }) {
 
                         </div>
                     ) : (
-                        /* Student Details tab placeholder */
-                        <div className="flex flex-col items-center justify-center h-full text-center px-4">
-                            <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
-                                <Users size={20} className="text-muted-foreground" />
+                        /* Student Details */
+                        selectedStudent ? (
+                            <div className="space-y-4">
+                                {/* Top section — stats left, monthwise right */}
+                                <div className="flex gap-3">
+                                    {/* Left — 2 stat cards stacked */}
+                                    <div className="flex flex-col gap-3 w-[140px] shrink-0">
+                                        <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
+                                            <p className={`text-2xl font-black ${pctColor(MOCK_OVERALL[selectedStudent.id])}`}>
+                                                {MOCK_OVERALL[selectedStudent.id]}%
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground mt-1">Overall</p>
+                                        </div>
+                                        <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
+                                            <p className={`text-2xl font-black ${pctColor(MOCK_MONTH[selectedStudent.id])}`}>
+                                                {MOCK_MONTH[selectedStudent.id]}%
+                                            </p>
+                                            <p className="text-[11px] text-muted-foreground mt-1">This Month</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Right — Month-wise bars */}
+                                    <div className="flex-1 rounded-2xl border border-border/50 bg-background overflow-hidden">
+                                        <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month-wise Attendance</p>
+                                        </div>
+                                        <div className="divide-y divide-border/20 overflow-y-auto" style={{ maxHeight: '140px' }}>
+                                            {[
+                                                { month: 'June', key: 'Jun' }, { month: 'July', key: 'Jul' },
+                                                { month: 'August', key: 'Aug' }, { month: 'September', key: 'Sep' },
+                                                { month: 'October', key: 'Oct' }, { month: 'November', key: 'Nov' },
+                                                { month: 'December', key: 'Dec' }, { month: 'January', key: 'Jan' },
+                                                { month: 'February', key: 'Feb' }, { month: 'March', key: 'Mar' },
+                                                { month: 'April', key: 'Apr' }, { month: 'May', key: 'May' },
+                                            ].map(m => {
+                                                const pct = MOCK_MONTHS_DATA[selectedStudent.id]?.[m.key] ?? null;
+                                                return (
+                                                    <div key={m.key} className="flex items-center gap-2 px-3 py-1.5">
+                                                        <p className="text-[10px] font-semibold w-16 shrink-0">{m.month}</p>
+                                                        <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                                                            {pct !== null ? (
+                                                                <div className="h-full rounded-full"
+                                                                    style={{
+                                                                        width: `${pct}%`,
+                                                                        background: pct >= 75 ? 'linear-gradient(90deg, #10B981, #34D399)' : pct >= 65 ? 'linear-gradient(90deg, #F59E0B, #FBBF24)' : 'linear-gradient(90deg, #EF4444, #F87171)'
+                                                                    }} />
+                                                            ) : <div className="h-full w-0" />}
+                                                        </div>
+                                                        <p className={`text-[10px] font-black w-8 text-right ${pct !== null ? pctColor(pct) : 'text-muted-foreground/40'}`}>
+                                                            {pct !== null ? `${pct}%` : '—'}
+                                                        </p>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Individual Student Sheet */}
+                                <div className="rounded-2xl border border-border/50 overflow-hidden">
+                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center gap-3">
+                                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                            style={{ background: getAvatarColor(selectedStudent.name) }}>
+                                            {getInitials(selectedStudent.name)}
+                                        </div>
+                                        <p className="text-[11px] font-bold text-foreground">{selectedStudent.name}</p>
+                                        <p className="text-[10px] text-muted-foreground">Roll No. {selectedStudent.rollNo}</p>
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider ml-auto">Attendance Sheet</p>
+                                    </div>
+                                    <div style={{ overflowX: 'scroll', overflowY: 'auto', background: '#F5F8EE', scrollbarWidth: 'thin', scrollbarColor: '#BACE85 #F5F8EE', maxHeight: '260px' }}>
+                                        <table className="text-[10px] border-separate border-spacing-0 min-w-max">
+                                            <thead className="sticky top-0 z-30">
+                                                <tr>
+                                                    {/* Sticky left — Month */}
+                                                    <th className="sticky left-0 z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[40px]">Month</th>
+                                                    {/* Date columns 1-31 */}
+                                                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                                        <th key={d} className="bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[26px]">
+                                                            {d}
+                                                        </th>
+                                                    ))}
+                                                    {/* Sticky right summary */}
+                                                    <th title="Total Present" className="sticky right-[161px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap min-w-[32px]">P</th>
+                                                    <th title="Total Absent" className="sticky right-[129px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap min-w-[32px]">A</th>
+                                                    <th title="Total Late" className="sticky right-[97px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap min-w-[32px]">L</th>
+                                                    <th title="Total Working Days" className="sticky right-[52px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[45px]">T</th>
+                                                    <th title="Attendance %" className="sticky right-0 z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[52px]">%</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {[
+                                                    { month: 'Jun', key: 5 },
+                                                    { month: 'Jul', key: 6 },
+                                                    { month: 'Aug', key: 7 },
+                                                    { month: 'Sep', key: 8 },
+                                                    { month: 'Oct', key: 9 },
+                                                    { month: 'Nov', key: 10 },
+                                                    { month: 'Dec', key: 11 },
+                                                    { month: 'Jan', key: 0 },
+                                                    { month: 'Feb', key: 1 },
+                                                    { month: 'Mar', key: 2 },
+                                                    { month: 'Apr', key: 3 },
+                                                    { month: 'May', key: 4 },
+                                                ].map((m, mi) => {
+                                                    const today = new Date();
+                                                    const year = today.getFullYear();
+                                                    const daysInMonth = new Date(year, m.key + 1, 0).getDate();
+                                                    let p = 0, a = 0, l = 0;
+
+                                                    // Pehle saare dates ka count karo
+                                                    Array.from({ length: 31 }, (_, i) => i + 1).forEach(d => {
+                                                        const isOutOfMonth = d > daysInMonth;
+                                                        const isSunday = !isOutOfMonth && new Date(year, m.key, d).getDay() === 0;
+                                                        const isHolidayCell = !isOutOfMonth && !isSunday ? (MOCK_SHEET_HOLIDAYS[m.key]?.[d] ?? null) : null;
+                                                        const st: AttendanceStatus = !isOutOfMonth && !isSunday && !isHolidayCell
+                                                            ? (MOCK_SHEET_DATA[m.key]?.[d] ?? null)
+                                                            : null;
+                                                        if (st === 'P') p++;
+                                                        else if (st === 'A') a++;
+                                                        else if (st === 'L') l++;
+                                                    });
+
+                                                    const total = p + a + l;
+                                                    const pct = total > 0 ? Math.round(((p + l) / total) * 100) : null;
+
+                                                    return (
+                                                        <tr key={m.month} className="bg-[#F5F8EE] hover:bg-[#E0E8C8] transition-colors">
+
+                                                            {/* Month name — sticky left */}
+                                                            <td className="sticky left-0 z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-1.5 font-semibold text-center text-[#2A3A10] bg-[#ECF3D0] whitespace-nowrap">
+                                                                {m.month}
+                                                            </td>
+
+                                                            {/* Date cells 1-31 */}
+                                                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => {
+                                                                const isOutOfMonth = d > daysInMonth;
+                                                                const isSunday = !isOutOfMonth && new Date(year, m.key, d).getDay() === 0;
+                                                                const isHolidayCell = !isOutOfMonth && !isSunday ? (MOCK_SHEET_HOLIDAYS[m.key]?.[d] ?? null) : null;
+                                                                const status: AttendanceStatus = !isOutOfMonth && !isSunday && !isHolidayCell
+                                                                    ? (MOCK_SHEET_DATA[m.key]?.[d] ?? null)
+                                                                    : null;
+
+                                                                return (
+                                                                    <td key={d}
+                                                                        title={isHolidayCell || undefined}
+                                                                        className={`border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center relative
+                                                                            ${isOutOfMonth ? 'bg-[#ECF3D0]/40' : isSunday ? 'bg-[#FFF0F0]' : isHolidayCell ? 'bg-[#FEF2F2]' : ''}`}>
+                                                                        {isOutOfMonth ? (
+                                                                            <span className="text-[#BACE85]/30">·</span>
+                                                                        ) : isHolidayCell ? (
+                                                                            <span style={{ color: '#FCA5A5', fontSize: '12px', lineHeight: 1 }}>×</span>
+                                                                        ) : status ? (
+                                                                            <span style={{
+                                                                                fontFamily: "'Patrick Hand', cursive",
+                                                                                fontSize: '14px',
+                                                                                fontWeight: '700',
+                                                                                color: status === 'P' ? '#16a34a' : status === 'A' ? '#dc2626' : '#d97706',
+                                                                                lineHeight: 1,
+                                                                                display: 'block',
+                                                                            }}>{status}</span>
+                                                                        ) : (
+                                                                            <span className="text-[#BACE85]">—</span>
+                                                                        )}
+                                                                    </td>
+                                                                );
+                                                            })}
+
+                                                            {/* Sticky right — P A L % */}
+                                                            <td className="sticky right-[161px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-emerald-700 font-bold bg-[#F5F8EE]">{p || '—'}</td>
+                                                            <td className="sticky right-[129px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-red-500 font-bold bg-[#F5F8EE]">{a || '—'}</td>
+                                                            <td className="sticky right-[97px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-amber-600 font-bold bg-[#F5F8EE]">{l || '—'}</td>
+                                                            <td className="sticky right-[52px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center font-bold text-[#2A3A10] bg-[#F5F8EE]">{total || '—'}</td>
+                                                            <td className={`sticky right-0 z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center font-black bg-[#F5F8EE] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
+                                                                {pct !== null ? `${pct}%` : '—'}
+                                                            </td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
                             </div>
-                            <p className="text-sm font-medium text-muted-foreground">Select a student</p>
-                            <p className="text-xs text-muted-foreground/60 mt-1">Click any student from the list</p>
-                        </div>
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                                <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
+                                    <Users size={20} className="text-muted-foreground" />
+                                </div>
+                                <p className="text-sm font-medium text-muted-foreground">Select a student</p>
+                                <p className="text-xs text-muted-foreground/60 mt-1">Click any student from the list</p>
+                            </div>
+                        )
                     )}
                 </div>
             </div>
@@ -992,6 +1210,7 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
     const [dateRemarks, setDateRemarks] = useState<Record<string, string>>({});
 
     const currentDk = dateKey(selectedDate);
+    const isCurrentDaySunday = selectedDate.getDay() === 0;
     const isCurrentDayHoliday = !!holidays[currentDk];
 
     const handleHolidayChange = (dk: string, name: string | null) => {
@@ -1060,14 +1279,14 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                         <div className="relative w-[140px] shrink-0">
                             <button onClick={() => setShowDatePicker(v => !v)}
                                 className={`w-full flex flex-col justify-center px-3 rounded-xl border transition-all text-left h-10
-                                    ${isCurrentDayHoliday ? 'border-red-300 bg-red-50' : 'border-border/50 bg-muted/40 hover:border-primary/40'}`}>
+                                    ${isCurrentDayHoliday || isCurrentDaySunday ? 'border-red-300 bg-red-50' : 'border-border/50 bg-muted/40 hover:border-primary/40'}`}>
                                 <div className="flex items-center gap-2">
-                                    <CalendarDays size={13} className={isCurrentDayHoliday ? 'text-red-400 shrink-0' : 'text-muted-foreground shrink-0'} />
-                                    <span className={`flex-1 text-xs font-semibold ${isCurrentDayHoliday ? 'text-red-600' : ''}`}>{formatDate(selectedDate)}</span>
+                                    <CalendarDays size={13} className={isCurrentDayHoliday || isCurrentDaySunday ? 'text-red-400 shrink-0' : 'text-muted-foreground shrink-0'} />
+                                    <span className={`flex-1 text-xs font-semibold ${isCurrentDayHoliday || isCurrentDaySunday ? 'text-red-600' : ''}`}>{formatDate(selectedDate)}</span>
                                     <ChevronDown size={12} className="text-muted-foreground" />
                                 </div>
-                                <p className={`text-[10px] pl-5 ${isCurrentDayHoliday ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
-                                    {isCurrentDayHoliday ? `🏖️ ${holidays[currentDk]}` : selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
+                                <p className={`text-[10px] pl-5 ${isCurrentDayHoliday || isCurrentDaySunday ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
+                                    {isCurrentDayHoliday ? `🏖️ ${holidays[currentDk]}` : isCurrentDaySunday ? '🔴 Sunday' : selectedDate.toLocaleDateString('en-US', { weekday: 'long' })}
                                 </p>
                             </button>
 
@@ -1125,7 +1344,7 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                         </div>
 
                         {/* Mark all present */}
-                        <button onClick={markAllPresent} disabled={isCurrentDayHoliday}
+                        <button onClick={markAllPresent} disabled={isCurrentDayHoliday || isCurrentDaySunday}
                             className="flex items-center gap-1 h-8 px-2.5 rounded-xl text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40 hover:opacity-80 transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed">
                             <CheckCircle2 size={11} /> All P
                         </button>
@@ -1157,9 +1376,9 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                                     </div>
                                     {/* P / A / L buttons */}
                                     <div className="flex items-center gap-1 shrink-0">
-                                        <StatusBtn label="P" active={rec.status === 'P'} onClick={() => setStatus(student.id, 'P')} disabled={isCurrentDayHoliday} />
-                                        <StatusBtn label="A" active={rec.status === 'A'} onClick={() => setStatus(student.id, 'A')} disabled={isCurrentDayHoliday} />
-                                        <StatusBtn label="L" active={rec.status === 'L'} onClick={() => setStatus(student.id, 'L')} disabled={isCurrentDayHoliday} />
+                                        <StatusBtn label="P" active={rec.status === 'P'} onClick={() => setStatus(student.id, 'P')} disabled={isCurrentDayHoliday || isCurrentDaySunday} />
+                                        <StatusBtn label="A" active={rec.status === 'A'} onClick={() => setStatus(student.id, 'A')} disabled={isCurrentDayHoliday || isCurrentDaySunday} />
+                                        <StatusBtn label="L" active={rec.status === 'L'} onClick={() => setStatus(student.id, 'L')} disabled={isCurrentDayHoliday || isCurrentDaySunday} />
                                     </div>
                                     {/* Individual remark toggle */}
                                     <button onClick={() => setRemarkOpen(prev => prev === student.id ? null : student.id)}
@@ -1201,7 +1420,7 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                             ))}
                         </div>
                         {/* Save button */}
-                        <button onClick={handleSave} disabled={saving || (unmarked > 0 && !isCurrentDayHoliday)}
+                        <button onClick={handleSave} disabled={saving || (unmarked > 0 && !isCurrentDayHoliday && !isCurrentDaySunday)}
                             className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
                             style={{ background: saved ? '#10b981' : 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                             {saving ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1213,9 +1432,11 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                     <p className="text-[11px] text-muted-foreground">
                         {isCurrentDayHoliday
                             ? <span className="text-red-500 font-semibold">🏖️ Holiday — no attendance</span>
-                            : unmarked > 0
-                                ? <span className="text-amber-500 font-semibold">{unmarked} student{unmarked > 1 ? 's' : ''} unmarked</span>
-                                : <span className="text-emerald-500 font-semibold">All students marked ✓</span>
+                            : isCurrentDaySunday
+                                ? <span className="text-red-500 font-semibold">🔴 Sunday — no attendance</span>
+                                : unmarked > 0
+                                    ? <span className="text-amber-500 font-semibold">{unmarked} student{unmarked > 1 ? 's' : ''} unmarked</span>
+                                    : <span className="text-emerald-500 font-semibold">All students marked ✓</span>
                         }
                     </p>
                 </div>
@@ -1240,16 +1461,23 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
 export type AttendanceSubTab = 'overall' | 'daily';
 
 export default function AttendanceTab({
-    divisionId, divisionName, isClassTeacher, attendanceSubTab,
+    divisionId, divisionName, isClassTeacher, attendanceSubTab, onAttendanceSubTabChange,
 }: {
-    divisionId: string; divisionName: string; isClassTeacher: boolean; attendanceSubTab: AttendanceSubTab;
+    divisionId: string;
+    divisionName: string;
+    isClassTeacher: boolean;
+    attendanceSubTab: AttendanceSubTab;
+    onAttendanceSubTabChange: (tab: AttendanceSubTab) => void;
 }) {
     return (
         <div className="flex flex-col h-full pt-3 pb-3 px-1 min-h-0">
             <AnimatePresence mode="wait">
                 {attendanceSubTab === 'overall' ? (
                     <motion.div key="overall" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                        <OverallTab divisionName={divisionName} />
+                        <OverallTab
+                            divisionName={divisionName}
+                            onSwitchToDaily={() => onAttendanceSubTabChange('daily')}
+                        />
                     </motion.div>
                 ) : (
                     <motion.div key="daily" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full min-h-0 flex flex-col">
