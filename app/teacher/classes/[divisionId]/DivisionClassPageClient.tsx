@@ -82,7 +82,7 @@ export default function DivisionClassPageClient() {
     const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'attendance' | 'fees' | 'tasks'>('view');
 
     // ── Attendance sub-tab state lifted here ──────────────────────────────────
-    const [attendanceSubTab, setAttendanceSubTab] = useState<AttendanceSubTab>('overall');
+    const [attendanceSubTab, setAttendanceSubTab] = useState<AttendanceSubTab>('daily');
 
     const fetchedRef = useRef(false);
 
@@ -195,8 +195,8 @@ export default function DivisionClassPageClient() {
                                     transition={{ duration: 0.15 }}
                                     className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
                                     {([
-                                        { key: 'overall' as AttendanceSubTab, label: 'Overall' },
                                         { key: 'daily' as AttendanceSubTab, label: 'Daily Attendance' },
+                                        { key: 'overall' as AttendanceSubTab, label: 'Overall' },
                                     ]).map(sub => {
                                         const isActive = attendanceSubTab === sub.key;
                                         return (
@@ -213,15 +213,43 @@ export default function DivisionClassPageClient() {
                             )}
                         </AnimatePresence>
 
-                        {[
-                            { label: 'Subjects', value: division.subjects.length },
-                            { label: 'Students', value: MOCK_STUDENTS.length },
-                        ].map(({ label, value }) => (
-                            <div key={label} className="text-right">
-                                <p className="text-lg font-bold leading-tight">{value}</p>
-                                <p className="text-[11px] text-muted-foreground">{label}</p>
+                        {activeTab === 'attendance' ? (
+                            <div className="flex items-center gap-4">
+                                {[
+                                    { label: 'Class Overall', value: `${Math.round(MOCK_STUDENTS.reduce((s, st) => s + st.attendance, 0) / MOCK_STUDENTS.length)}%` },
+                                    { label: 'This Month', value: `${Math.round(MOCK_STUDENTS.reduce((s, st) => s + st.attendance, 0) / MOCK_STUDENTS.length)}%` },
+                                ].map(({ label, value }) => (
+                                    <div key={label} className="text-right">
+                                        <p className="text-lg font-bold leading-tight">{value}</p>
+                                        <p className="text-[11px] text-muted-foreground">{label}</p>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        ) : activeTab === 'fees' ? (
+                            <div className="flex items-center gap-4">
+                                {[
+                                    { label: 'Paid', value: '7', cls: 'text-emerald-500' },
+                                    { label: 'Pending', value: '3', cls: 'text-red-500' },
+                                ].map(({ label, value, cls }) => (
+                                    <div key={label} className="text-right">
+                                        <p className={`text-lg font-bold leading-tight ${cls}`}>{value}</p>
+                                        <p className="text-[11px] text-muted-foreground">{label}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="flex items-center gap-4">
+                                {[
+                                    { label: 'Subjects', value: division.subjects.length },
+                                    { label: 'Students', value: MOCK_STUDENTS.length },
+                                ].map(({ label, value }) => (
+                                    <div key={label} className="text-right">
+                                        <p className="text-lg font-bold leading-tight">{value}</p>
+                                        <p className="text-[11px] text-muted-foreground">{label}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="h-px bg-border/60 mt-2" />

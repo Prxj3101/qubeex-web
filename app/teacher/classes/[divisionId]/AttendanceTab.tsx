@@ -4,8 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Users, CalendarDays, ChevronLeft, ChevronRight, CheckCircle2,
-    MessageSquare, Save, ChevronDown, X,
+    MessageSquare, Save, ChevronDown, X, Flag, ExternalLink
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AttendanceStatus = 'P' | 'A' | 'L' | null;
@@ -46,8 +47,8 @@ function getAvatarColor(n: string) { return AVATAR_COLORS[n.charCodeAt(0) % AVAT
 function getInitials(n: string) { return n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
 
 function pctColor(p: number) {
-    if (p >= 75) return 'text-emerald-600 dark:text-emerald-400';
-    if (p >= 65) return 'text-amber-500 dark:text-amber-400';
+    if (p >= 75) return 'text-emerald-500';
+    if (p >= 65) return 'text-amber-500';
     return 'text-red-500';
 }
 
@@ -98,12 +99,13 @@ function StatusBtn({ label, active, onClick, disabled }: {
 }
 
 // ── Attendance Sheet (Right Panel) ────────────────────────────────────────────
-function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRemarks, onHolidayChange, onRemarkChange }: {
+function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRemarks, onHolidayChange, onRemarkChange, divisionName }: {
     students: Student[];
     selectedDate: Date;
     attendance: Record<string, { status: AttendanceStatus; remark: string }>;
     holidays: Record<string, string>;
     dateRemarks: Record<string, string>;
+    divisionName: string;
     onHolidayChange: (dk: string, name: string | null) => void;
     onRemarkChange: (dk: string, remark: string) => void;
 }) {
@@ -142,6 +144,103 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         return '';
     };
 
+    const exportToExcel = () => {
+        const headers = ['Roll No.', 'Name', 'Student ID', ...visibleDates.map(d => String(d)), 'P', 'A', 'L', '%', 'Overall %'];
+
+        const rows = students.map(student => {
+            let p = 0, a = 0, l = 0;
+            const dateCells = visibleDates.map(d => {
+                const dk = makeDateKey(year, activeMonth, d);
+                if (holidays[dk]) return 'H';
+                const status = getLiveStatus(student.id, dk);
+                if (status === 'P') p++;
+                else if (status === 'A') a++;
+                else if (status === 'L') l++;
+                return status ?? '—';
+            });
+            const total = p + a + l;
+            const pct = total > 0 ? `${Math.round(((p + l) / total) * 100)}%` : '—';
+            return [
+                student.rollNo,
+                student.name,
+                getStudentId(student.rollNo, year),
+                ...dateCells,
+                p || '—', a || '—', l || '—',
+                pct,
+                MOCK_OVERALL[student.id] !== undefined ? `${MOCK_OVERALL[student.id]}%` : '—',
+            ];
+        });
+
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, `${MONTHS_S[activeMonth]} Attendance`);
+        XLSX.writeFile(wb, `Attendance_${MONTHS_S[activeMonth]}_${year}.xlsx`);
+    };
+
+    // ── Export state ──────────────────────────────────────────────────────────────
+    const [showExportMenu, setShowExportMenu] = useState(false);
+    const [showMonthSelector, setShowMonthSelector] = useState(false);
+    const [selectedExportMonths, setSelectedExportMonths] = useState<number[]>([]);
+    const exportMenuRef = useRef<HTMLDivElement>(null);
+
+    // Close export menu on outside click
+    useEffect(() => {
+        const handler = (e: MouseEvent) => {
+            if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+                setShowExportMenu(false);
+            }
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    // ── Export function ───────────────────────────────────────────────────────────
+    const exportMonthSheet = (monthKey: number) => {
+        const days = new Date(year, monthKey + 1, 0).getDate();
+        const dates = Array.from({ length: days }, (_, i) => i + 1);
+        const headers = ['Roll No.', 'Name', 'Student ID', ...dates.map(String), 'P', 'A', 'L', '%', 'Overall %'];
+        const rows = students.map(student => {
+            let p = 0, a = 0, l = 0;
+            const dateCells = dates.map(d => {
+                const dk = makeDateKey(year, monthKey, d);
+                if (holidays[dk]) return 'H';
+                const status = getLiveStatus(student.id, dk);
+                if (status === 'P') p++;
+                else if (status === 'A') a++;
+                else if (status === 'L') l++;
+                return status ?? '—';
+            });
+            const total = p + a + l;
+            const pct = total > 0 ? `${Math.round(((p + l) / total) * 100)}%` : '—';
+            return [student.rollNo, student.name, getStudentId(student.rollNo, year), ...dateCells, p || '—', a || '—', l || '—', pct, MOCK_OVERALL[student.id] !== undefined ? `${MOCK_OVERALL[student.id]}%` : '—'];
+        });
+        return { headers, rows, sheetName: MONTHS_S[monthKey] };
+    };
+
+    const handleExportThisMonth = async () => {
+        const XLSX = await import('xlsx');
+        const { headers, rows, sheetName } = exportMonthSheet(activeMonth);
+        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, `${sheetName} Attendance`);
+        XLSX.writeFile(wb, `Attendance_${sheetName}_${year}.xlsx`);
+        setShowExportMenu(false);
+    };
+
+    const handleExportSelectedMonths = async () => {
+        if (selectedExportMonths.length === 0) return;
+        const XLSX = await import('xlsx');
+        const wb = XLSX.utils.book_new();
+        selectedExportMonths.forEach(monthKey => {
+            const { headers, rows, sheetName } = exportMonthSheet(monthKey);
+            const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+            XLSX.utils.book_append_sheet(wb, ws, `${sheetName} Attendance`);
+        });
+        XLSX.writeFile(wb, `Attendance_${year}_Selected.xlsx`);
+        setShowMonthSelector(false);
+        setSelectedExportMonths([]);
+    };
+
     // ── Close popup on outside click ──────────────────────────────────────────
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -159,14 +258,26 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         setPopupDate(prev => prev === d ? null : d);
     };
 
+    // Academic year auto detect — June se May tak hota hai
+    const academicYear = activeMonth >= 5
+        ? `${year}–${String(year + 1).slice(2)}`
+        : `${year - 1}–${String(year).slice(2)}`;
+
     return (
         <div className="w-[60%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5">
 
             {/* Header — Month navigator */}
             <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3">
-                <p className="text-sm font-bold flex items-center gap-2 shrink-0">
-                    <CalendarDays size={14} /> Attendance Sheet
-                </p>
+                <div className="shrink-0">
+                    <p className="text-[14px] font-bold flex items-center gap-2">
+                        <CalendarDays size={14} /> {divisionName} Attendance Sheet
+                    </p>
+                    <p className="px-6 text-[10.5px] text-muted-foreground">
+                        Academic Year {academicYear}
+                    </p>
+                </div>
+
+                {/* Month navigator */}
                 <div className="flex items-center gap-1">
                     <button onClick={() => setMonthOffset(v => Math.max(0, v - 1))} disabled={monthOffset === 0}
                         className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-30 transition-all">
@@ -192,7 +303,95 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                         <ChevronRight size={13} />
                     </button>
                 </div>
+
+                {/* Export button */}
+                <div className="ml-auto relative" ref={exportMenuRef}>
+                    <button onClick={() => setShowExportMenu(v => !v)}
+                        className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                        ⬇ Export <ChevronDown size={11} />
+                    </button>
+
+                    {/* Export dropdown */}
+                    <AnimatePresence>
+                        {showExportMenu && (
+                            <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                                className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[160px]">
+                                {/* This Month */}
+                                <button onClick={handleExportThisMonth}
+                                    className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
+                                    <span>📅</span>
+                                    <span>This Month ({MONTHS_S[activeMonth]})</span>
+                                </button>
+                                {/* Select Month */}
+                                <button onClick={() => { setShowExportMenu(false); setShowMonthSelector(true); setSelectedExportMonths([]); }}
+                                    className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
+                                    <span>🗓️</span>
+                                    <span>Select Months</span>
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
+
+            {/* Month selector modal */}
+            <AnimatePresence>
+                {showMonthSelector && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            <div className="flex items-center justify-between mb-4">
+                                <p className="text-sm font-bold">🗓️ Select Months to Export</p>
+                                <button onClick={() => setShowMonthSelector(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
+                                    <X size={14} />
+                                </button>
+                            </div>
+
+                            {/* Month checkboxes */}
+                            <div className="grid grid-cols-3 gap-2 mb-4">
+                                {SHEET_MONTHS.map(m => {
+                                    const isChecked = selectedExportMonths.includes(m.key);
+                                    return (
+                                        <button key={m.key}
+                                            onClick={() => setSelectedExportMonths(prev =>
+                                                prev.includes(m.key) ? prev.filter(k => k !== m.key) : [...prev, m.key]
+                                            )}
+                                            className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all
+                                    ${isChecked ? 'border-primary bg-primary/10 text-primary' : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                                            <div className={`w-3.5 h-3.5 rounded flex items-center justify-center shrink-0 border-2 transition-all
+                                    ${isChecked ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
+                                                {isChecked && <span className="text-white text-[8px] font-black">✓</span>}
+                                            </div>
+                                            {m.short}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+
+                            {/* Select all / Clear */}
+                            <div className="flex gap-2 mb-4">
+                                <button onClick={() => setSelectedExportMonths(SHEET_MONTHS.map(m => m.key))}
+                                    className="flex-1 h-7 rounded-lg border border-border/50 text-[11px] font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Select All
+                                </button>
+                                <button onClick={() => setSelectedExportMonths([])}
+                                    className="flex-1 h-7 rounded-lg border border-border/50 text-[11px] font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Clear
+                                </button>
+                            </div>
+
+                            {/* Download button */}
+                            <button onClick={handleExportSelectedMonths} disabled={selectedExportMonths.length === 0}
+                                className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                ⬇ Download {selectedExportMonths.length > 0 ? `(${selectedExportMonths.length} month${selectedExportMonths.length > 1 ? 's' : ''})` : ''}
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
 
             {/* Sheet table */}
             <div style={{ flex: 1, minHeight: 0, overflowX: 'scroll', overflowY: 'auto', background: '#F5F8EE', scrollbarWidth: 'thin', scrollbarColor: '#BACE85 #F5F8EE' }}>
@@ -330,8 +529,15 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                                     ${remark ? 'cursor-pointer' : 'cursor-default'}
                                                     ${isSelected ? 'bg-[#EEF4FF]' : weekend ? 'bg-[#FFF5F5]' : ''}`}>
                                                 {status ? (
-                                                    <span className={`inline-flex items-center justify-center w-4 h-4 rounded text-[9px] ${STATUS_CELL_CFG[status as keyof typeof STATUS_CELL_CFG].cls}`}>
-                                                        {STATUS_CELL_CFG[status as keyof typeof STATUS_CELL_CFG].label}
+                                                    <span style={{
+                                                        fontFamily: "'Patrick Hand', cursive",
+                                                        fontSize: '17px',
+                                                        fontWeight: '700',
+                                                        color: status === 'P' ? '#16a34a' : status === 'A' ? '#dc2626' : '#d97706',
+                                                        lineHeight: 1,
+                                                        display: 'block',
+                                                    }}>
+                                                        {status}
                                                     </span>
                                                 ) : (
                                                     <span className="text-[#BACE85]">—</span>
@@ -369,7 +575,9 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                     { label: 'Late', cls: 'bg-amber-400/20 text-amber-500' },
                 ].map(item => (
                     <div key={item.label} className="flex items-center gap-1.5">
-                        <span className={`text-[10px] font-black px-1.5 py-0.5 rounded ${item.cls}`}>{item.label[0]}</span>
+                        <span style={{ fontFamily: "'Patrick Hand', cursive", fontSize: '16px', fontWeight: '700', lineHeight: 1, color: item.label === 'Present' ? '#16a34a' : item.label === 'Absent' ? '#dc2626' : '#d97706' }}>
+                            {item.label[0]}
+                        </span>
                         <span className="text-[10px] text-muted-foreground">{item.label}</span>
                     </div>
                 ))}
@@ -483,6 +691,8 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
 function OverallTab({ divisionName }: { divisionName: string }) {
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(MOCK_STUDENTS[0]);
     const [showListMenu, setShowListMenu] = useState(false);
+    const [overallRightTab, setOverallRightTab] = useState<'class' | 'student'>('class');
+    const [shortTab, setShortTab] = useState<'month' | 'overall'>('month');
 
     const MOCK_MONTHS_DATA: Record<string, Record<string, number>> = {
         st1: { Jun: 95, Jul: 90, Aug: 88, Sep: 92 },
@@ -532,8 +742,8 @@ function OverallTab({ divisionName }: { divisionName: string }) {
         <div className="flex gap-3 h-full min-h-0">
 
             {/* LEFT — Students list */}
-            <div className="w-[40%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                <div className="px-4 py-3 border-b border-border/40 shrink-0">
+            <div className="w-[30%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="px-4 py-3.5 border-b border-border/40 shrink-0">
                     <div className="flex items-center justify-between">
                         <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({MOCK_STUDENTS.length})</p>
                         <div className="relative">
@@ -588,39 +798,170 @@ function OverallTab({ divisionName }: { divisionName: string }) {
 
             {/* RIGHT — Attendance details */}
             <div className="flex-1 flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                <div className="px-4 py-3 border-b border-border/40 shrink-0">
-                    <p className="text-sm font-bold">{selectedStudent ? `${selectedStudent.name} — Attendance Details` : 'Attendance Details'}</p>
+                <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3">
+                    <p className="text-sm font-bold shrink-0 flex items-center gap-1.5">
+                        <CalendarDays size={14} /> {divisionName}
+                    </p>
+                    <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
+                        {([
+                            { key: 'class' as const, label: 'Class Overview' },
+                            { key: 'student' as const, label: 'Student Details' },
+                        ]).map(tab => {
+                            const isActive = overallRightTab === tab.key;
+                            return (
+                                <button key={tab.key} onClick={() => setOverallRightTab(tab.key)}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${isActive ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                    {tab.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    {/* Report + View Details buttons — student tab active aur student selected hone pe */}
+                    <AnimatePresence>
+                        {overallRightTab === 'student' && selectedStudent && (
+                            <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
+                                className="flex items-center gap-2 ml-auto">
+                                <button
+                                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
+                                    <Flag size={11} /> Report
+                                </button>
+                                <button
+                                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+                                    <ExternalLink size={10} /> View Profile
+                                </button>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
                 </div>
-                <div className="flex-1 flex items-center justify-center bg-background">
-                    {!selectedStudent ? (
-                        <div className="flex flex-col items-center gap-3 text-center px-4">
-                            <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center"><Users size={20} className="text-muted-foreground" /></div>
-                            <p className="text-sm font-medium text-muted-foreground">Select a student</p>
-                            <p className="text-xs text-muted-foreground/60">Click any student to view their attendance details</p>
+                <div className="flex-1 overflow-y-auto bg-background px-4 py-3">
+                    {overallRightTab === 'class' ? (
+                        <div className="space-y-4">
+
+                            {/* Overall class stats */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
+                                    <p className={`text-2xl font-black ${pctColor(Math.round(Object.values(MOCK_OVERALL).reduce((a, b) => a + b, 0) / MOCK_STUDENTS.length))}`}>
+                                        {Math.round(Object.values(MOCK_OVERALL).reduce((a, b) => a + b, 0) / MOCK_STUDENTS.length)}%
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground mt-1">Class Overall</p>
+                                </div>
+                                <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
+                                    <p className={`text-2xl font-black ${pctColor(Math.round(Object.values(MOCK_MONTH).reduce((a, b) => a + b, 0) / MOCK_STUDENTS.length))}`}>
+                                        {Math.round(Object.values(MOCK_MONTH).reduce((a, b) => a + b, 0) / MOCK_STUDENTS.length)}%
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground mt-1">This Month Avg</p>
+                                </div>
+                            </div>
+
+                            {/* Month wise breakdown */}
+                            <div className="rounded-2xl border border-border/50 bg-background overflow-hidden">
+                                <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
+                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month-wise Class Average</p>
+                                </div>
+                                <div className="divide-y divide-border/20 max-h-[160px] overflow-y-auto">
+                                    {[
+                                        { month: 'June', key: 'Jun' },
+                                        { month: 'July', key: 'Jul' },
+                                        { month: 'August', key: 'Aug' },
+                                        { month: 'September', key: 'Sep' },
+                                        { month: 'October', key: 'Oct' },
+                                        { month: 'November', key: 'Nov' },
+                                        { month: 'December', key: 'Dec' },
+                                        { month: 'January', key: 'Jan' },
+                                        { month: 'February', key: 'Feb' },
+                                        { month: 'March', key: 'Mar' },
+                                        { month: 'April', key: 'Apr' },
+                                        { month: 'May', key: 'May' },
+                                    ].map(m => {
+                                        const monthData = Object.values(MOCK_MONTHS_DATA);
+                                        const hasData = monthData[0]?.[m.key] !== undefined;
+                                        const avg = hasData
+                                            ? Math.round(monthData.reduce((s, d) => s + (d[m.key] ?? 0), 0) / MOCK_STUDENTS.length)
+                                            : null;
+                                        return (
+                                            <div key={m.key} className="flex items-center gap-3 px-4 py-2.5">
+                                                <p className="text-xs font-semibold w-24 shrink-0">{m.month}</p>
+                                                <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                                                    {avg !== null ? (
+                                                        <div className="h-full rounded-full transition-all"
+                                                            style={{
+                                                                width: `${avg}%`,
+                                                                background: avg >= 75 ? 'linear-gradient(90deg, #10B981, #34D399)' : avg >= 65 ? 'linear-gradient(90deg, #F59E0B, #FBBF24)' : 'linear-gradient(90deg, #EF4444, #F87171)'
+                                                            }} />
+                                                    ) : (
+                                                        <div className="h-full w-0" />
+                                                    )}
+                                                </div>
+                                                <p className={`text-xs font-black w-10 text-right ${avg !== null ? pctColor(avg) : 'text-muted-foreground/40'}`}>
+                                                    {avg !== null ? `${avg}%` : '—'}
+                                                </p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Short Attendance */}
+                            <div className="rounded-2xl border border-border/50 bg-background overflow-hidden">
+                                <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center gap-2">
+                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex-1">Short Attendance</p>
+                                    {/* Toggle */}
+                                    <div className="flex gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border/40">
+                                        {([
+                                            { key: 'month' as const, label: 'This Month' },
+                                            { key: 'overall' as const, label: 'Overall' },
+                                        ]).map(t => (
+                                            <button key={t.key} onClick={() => setShortTab(t.key)}
+                                                className={`px-2.5 py-0.5 rounded-md text-[10px] font-semibold transition-all ${shortTab === t.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                {t.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <span className="text-[11px] font-bold text-red-500 shrink-0">
+                                        {shortTab === 'month'
+                                            ? MOCK_STUDENTS.filter(s => MOCK_MONTH[s.id] < 75).length
+                                            : MOCK_STUDENTS.filter(s => MOCK_OVERALL[s.id] < 75).length
+                                        } students
+                                    </span>
+                                </div>
+                                {/* List — max 4 rows visible */}
+                                <div className="divide-y divide-border/20 overflow-y-auto" style={{ maxHeight: '176px' }}>
+                                    {(shortTab === 'month'
+                                        ? MOCK_STUDENTS.filter(s => MOCK_MONTH[s.id] < 75)
+                                        : MOCK_STUDENTS.filter(s => MOCK_OVERALL[s.id] < 75)
+                                    ).map(student => {
+                                        const pct = shortTab === 'month' ? MOCK_MONTH[student.id] : MOCK_OVERALL[student.id];
+                                        return (
+                                            <div key={student.id} className="flex items-center gap-3 px-4 py-2.5">
+                                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                                    style={{ background: getAvatarColor(student.name) }}>
+                                                    {getInitials(student.name)}
+                                                </div>
+                                                <p className="text-xs font-semibold flex-1 truncate">{student.name}</p>
+                                                <p className="text-[11px] text-muted-foreground">Roll {student.rollNo}</p>
+                                                <p className={`text-xs font-black ${pctColor(pct)}`}>{pct}%</p>
+                                            </div>
+                                        );
+                                    })}
+                                    {(shortTab === 'month'
+                                        ? MOCK_STUDENTS.filter(s => MOCK_MONTH[s.id] < 75).length === 0
+                                        : MOCK_STUDENTS.filter(s => MOCK_OVERALL[s.id] < 75).length === 0
+                                    ) && (
+                                            <p className="px-4 py-3 text-xs text-emerald-500 font-semibold text-center">✓ All students above 75%</p>
+                                        )}
+                                </div>
+                            </div>
+
                         </div>
                     ) : (
-                        <div className="w-full h-full px-4 py-4 flex flex-col gap-4">
-                            {/* Stats cards */}
-                            <div className="grid grid-cols-3 gap-3 shrink-0">
-                                <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
-                                    <p className={`text-2xl font-black ${pctColor(MOCK_OVERALL[selectedStudent.id])}`}>{MOCK_OVERALL[selectedStudent.id]}%</p>
-                                    <p className="text-[11px] text-muted-foreground mt-1">Overall Attendance</p>
-                                </div>
-                                <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
-                                    <p className={`text-2xl font-black ${pctColor(MOCK_MONTH[selectedStudent.id])}`}>{MOCK_MONTH[selectedStudent.id]}%</p>
-                                    <p className="text-[11px] text-muted-foreground mt-1">This Month</p>
-                                </div>
-                                <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
-                                    <p className={`text-2xl font-black ${MOCK_OVERALL[selectedStudent.id] >= 75 ? 'text-emerald-500' : 'text-red-500'}`}>
-                                        {MOCK_OVERALL[selectedStudent.id] >= 75 ? '✓' : '✗'}
-                                    </p>
-                                    <p className="text-[11px] text-muted-foreground mt-1">{MOCK_OVERALL[selectedStudent.id] >= 75 ? 'Eligible' : 'Short'}</p>
-                                </div>
+                        /* Student Details tab placeholder */
+                        <div className="flex flex-col items-center justify-center h-full text-center px-4">
+                            <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
+                                <Users size={20} className="text-muted-foreground" />
                             </div>
-                            {/* Detailed breakdown placeholder */}
-                            <div className="flex-1 rounded-2xl border border-dashed border-border/50 flex items-center justify-center">
-                                <p className="text-xs text-muted-foreground/50 italic">Detailed breakdown — coming soon</p>
-                            </div>
+                            <p className="text-sm font-medium text-muted-foreground">Select a student</p>
+                            <p className="text-xs text-muted-foreground/60 mt-1">Click any student from the list</p>
                         </div>
                     )}
                 </div>
@@ -889,6 +1230,7 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                 dateRemarks={dateRemarks}
                 onHolidayChange={handleHolidayChange}
                 onRemarkChange={handleRemarkChange}
+                divisionName={divisionName}
             />
         </div>
     );
