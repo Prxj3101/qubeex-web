@@ -376,7 +376,6 @@ function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) =
     );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminCampusPage() {
     const { instType: _instType } = useMockInstType();
     const [activeFilter, setActiveFilter] = useState<PostType | 'all'>('all');
