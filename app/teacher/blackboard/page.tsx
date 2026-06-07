@@ -168,18 +168,75 @@ function AIScanPanel({ onClose, docName }: { onClose: () => void; docName?: stri
     );
 }
 
+// ── Chat persistence helpers ──────────────────────────────────────────────────
+const CHAT_STORAGE_KEY = 'blackboard_chat_v1';
+const CHAT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+type ChatMessage = { role: 'user' | 'ai'; text: string };
+
+function loadPersistedChat(): { messages: ChatMessage[]; savedAt: Date } | null {
+    try {
+        const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+        if (!raw) return null;
+        const { messages, savedAt } = JSON.parse(raw) as { messages: ChatMessage[]; savedAt: number };
+        if (Date.now() - savedAt > CHAT_TTL_MS) {
+            localStorage.removeItem(CHAT_STORAGE_KEY);
+            return null;
+        }
+        return { messages, savedAt: new Date(savedAt) };
+    } catch {
+        return null;
+    }
+}
+
+function persistChat(messages: ChatMessage[]) {
+    try {
+        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ messages, savedAt: Date.now() }));
+    } catch {}
+}
+
+function clearPersistedChat() {
+    try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch {}
+}
+
+const WELCOME_MESSAGE: ChatMessage = {
+    role: 'ai',
+    text: 'Hello! Ask me anything about your current topic. I can help with explanations, definitions, examples, and more.',
+};
+
 // ── AI Prompt Panel ───────────────────────────────────────────────────────────
 function AIPromptPanel({ onClose, context }: { onClose: () => void; context?: string }) {
     const [input, setInput] = useState('');
     const [aiLoading, setAiLoading] = useState(false);
-    const [messages, setMessages] = useState<{ role: 'user' | 'ai'; text: string }[]>([
-        { role: 'ai', text: 'Hello! Ask me anything about your current topic. I can help with explanations, definitions, examples, and more.' },
-    ]);
+    const [restoredAt, setRestoredAt] = useState<Date | null>(null);
+
+    const [messages, setMessages] = useState<ChatMessage[]>(() => {
+        const stored = loadPersistedChat();
+        if (stored && stored.messages.length > 0) {
+            setRestoredAt(stored.savedAt);
+            return stored.messages;
+        }
+        return [WELCOME_MESSAGE];
+    });
+
     const messagesEndRef = useRef<HTMLDivElement>(null);
+
+    // Persist whenever messages change (skip the initial welcome-only state)
+    useEffect(() => {
+        if (messages.length > 1 || (messages.length === 1 && messages[0] !== WELCOME_MESSAGE)) {
+            persistChat(messages);
+        }
+    }, [messages]);
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [messages, aiLoading]);
+
+    const handleClear = () => {
+        clearPersistedChat();
+        setMessages([WELCOME_MESSAGE]);
+        setRestoredAt(null);
+    };
 
     const handleSend = async () => {
         if (!input.trim() || aiLoading) return;
@@ -220,10 +277,32 @@ function AIPromptPanel({ onClose, context }: { onClose: () => void; context?: st
                 <p className="text-sm font-bold flex items-center gap-2">
                     <MessageSquare size={14} className="text-primary" /> AI Prompt
                 </p>
-                <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
-                    <X size={13} />
-                </button>
+                <div className="flex items-center gap-1.5">
+                    {messages.length > 1 && (
+                        <button onClick={handleClear}
+                            title="Clear chat history"
+                            className="text-[10px] text-muted-foreground hover:text-red-400 transition-colors px-2 py-0.5 rounded-md hover:bg-muted/40">
+                            Clear
+                        </button>
+                    )}
+                    <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
+                        <X size={13} />
+                    </button>
+                </div>
             </div>
+
+            {/* Restored banner */}
+            {restoredAt && (
+                <div className="px-4 py-1.5 bg-primary/5 border-b border-primary/10 flex items-center justify-between">
+                    <p className="text-[10px] text-primary/70">
+                        Restored from {restoredAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </p>
+                    <button onClick={handleClear} className="text-[10px] text-muted-foreground hover:text-red-400 transition-colors">
+                        Clear
+                    </button>
+                </div>
+            )}
+
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3 min-h-0">
                 {messages.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
