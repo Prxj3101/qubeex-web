@@ -800,8 +800,11 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                         const month = MOCK_MONTH[student.id] ?? 0;
                         const isSelected = selectedStudent?.id === student.id;
                         return (
-                            <button key={student.id} onClick={() => setSelectedStudent(prev => prev?.id === student.id ? null : student)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-all hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
+                            <button key={student.id} onClick={() => {
+                                setSelectedStudent(prev => prev?.id === student.id ? null : student);
+                                setOverallRightTab('student');
+                            }}
+                                className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-colors hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
                                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: getAvatarColor(student.name) }}>
                                     {getInitials(student.name)}
                                 </div>

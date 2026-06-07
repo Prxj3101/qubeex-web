@@ -152,9 +152,10 @@ export default function DivisionClassPageClient() {
                             </h1>
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 {division.standard.name} <ChevronRight size={11} /> {division.name}
-                                <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full ${isClassTeacher
-                                    ? 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300'
-                                    : 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                                <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full 
+                                ${isClassTeacher
+                                        ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
+                                        : 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300'
                                     }`}>
                                     {isClassTeacher ? 'Class Teacher' : 'Subject Teacher'}
                                 </span>

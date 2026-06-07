@@ -95,7 +95,7 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
     divisionId: string;
     divisionName: string;
 }) {
-    const [selectedStudent, setSelectedStudent] = useState<typeof MOCK_STUDENTS[0] | null>(null);
+    const [selectedStudent, setSelectedStudent] = useState<typeof MOCK_STUDENTS[0] | null>(MOCK_STUDENTS[0]);
     const [studentFilter, setStudentFilter] = useState<'all' | 'paid' | 'pending'>('all');
     const [showListMenu, setShowListMenu] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
@@ -164,8 +164,13 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
 
                 <div className="flex-1 overflow-y-auto bg-background">
                     {MOCK_STUDENTS.filter(s => studentFilter === 'all' ? true : studentFilter === 'paid' ? s.paid : !s.paid).map(student => (
-                        <button key={student.id} onClick={() => { setSelectedStudent(student); setSelectedMonth(null); setStudentCardFlipped(false); }}
-                            className={`w-full flex items-center gap-3 px-3.5 py-3 border-b border-border/20 text-left hover:bg-muted/30 transition-all ${selectedStudent?.id === student.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
+                        <button key={student.id}
+                            onClick={() => {
+                                setSelectedStudent(prev => prev?.id === student.id ? null : student);
+                                setSelectedMonth(null);
+                                setStudentCardFlipped(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3.5 py-3 border-b border-border/20 text-left hover:bg-muted/30 transition-colors ${selectedStudent?.id === student.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
                             <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
                                 style={{ background: getAvatarColor(student.name) }}>
                                 {getInitials(student.name)}
