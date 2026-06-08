@@ -173,6 +173,7 @@ function AttachmentChip({
 function PostCard({
   post,
   myUserId,
+  isAdmin,
   onLike,
   onDelete,
   onAddComment,
@@ -180,6 +181,7 @@ function PostCard({
 }: {
   post: FeedPost;
   myUserId: string;
+  isAdmin: boolean;
   onLike: (id: string) => void;
   onDelete: (id: string) => void;
   onAddComment: (postId: string, text: string) => Promise<PostComment>;
@@ -192,6 +194,7 @@ function PostCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isMe = post.author.id === myUserId;
+  const canDelete = isMe || isAdmin;
   const avatarColor =
     post.author.role === "ADMIN"
       ? "bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300"
@@ -242,7 +245,7 @@ function PostCard({
           <span className="text-[10px] text-muted-foreground">
             {fmtTime(post.createdAt)}
           </span>
-          {isMe && (
+          {canDelete && (
             <div className="relative">
               <button
                 onClick={() => setShowMenu((v) => !v)}
@@ -411,6 +414,7 @@ function PostCard({
 export default function StaffroomPage() {
   const [myUserId, setMyUserId] = useState("");
   const [myName, setMyName] = useState("Admin");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Feed state
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -456,6 +460,7 @@ export default function StaffroomPage() {
         if (adminUser) {
           setMyUserId(adminUser.id);
           setMyName(adminUser.name ?? "Admin");
+          setIsAdmin(true);
         }
       })
       .catch(() => {});
@@ -817,6 +822,7 @@ export default function StaffroomPage() {
                   key={post.id}
                   post={post}
                   myUserId={myUserId}
+                  isAdmin={isAdmin}
                   onLike={handleLike}
                   onDelete={handleDeletePost}
                   onAddComment={handleAddComment}

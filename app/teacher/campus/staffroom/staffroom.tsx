@@ -276,7 +276,12 @@ export default function TeacherStaffroom() {
             const res = await api.get(`/teacher/staffroom/dms/${teacherUserId}`);
             setMessages(res.data.data);
             setThreads(prev => prev.map(t => t.teacherUserId === teacherUserId ? { ...t, unread: 0 } : t));
-        } catch { if (!silent) toast.error('Failed to load messages'); }
+        } catch (err: unknown) {
+            if (!silent) {
+                const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                toast.error(msg ?? 'Failed to load messages');
+            }
+        }
         finally { if (!silent) setMessagesLoading(false); }
     }, []);
 
@@ -366,8 +371,13 @@ export default function TeacherStaffroom() {
             setThreads(prev => prev.map(t => t.teacherUserId === activeDm.teacherUserId
                 ? { ...t, lastMessage: newMsg.text ?? newMsg.attachmentName ?? 'Attachment', lastMessageAt: newMsg.createdAt, lastMessageIsMe: true } : t));
             setDmInput(''); setDmAttachment(null);
-        } catch { toast.error('Failed to send message'); }
-        finally { setDmSubmitting(false); }
+        } catch (err: unknown) {
+            const data = (err as { response?: { data?: { message?: string; errors?: { field: string; message: string }[] } } })?.response?.data;
+            const msg = data?.errors?.length
+                ? `${data.message ?? 'Validation failed'}: ${data.errors.map(e => e.message).join(', ')}`
+                : (data?.message ?? 'Failed to send message');
+            toast.error(msg);
+        } finally { setDmSubmitting(false); }
     };
 
     const openDm = (thread: DmThread) => { setActiveDm(thread); setMessages([]); setDmInput(''); setDmAttachment(null); };
