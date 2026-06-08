@@ -90,7 +90,8 @@ export default function DivisionClassPageClient() {
     const fetchDivision = useCallback(async () => {
         try {
             const res = await api.get(`/teacher/classes/${divisionId}`);
-            setDivision(res.data.data);
+            const raw = res.data.data;
+            setDivision({ ...raw, subjects: raw.standard?.subjects ?? [] });
         } catch {
             setDivision({
                 id: divisionId,
