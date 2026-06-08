@@ -60,7 +60,7 @@ export default function AdminOverviewPage() {
     const planName = overview.plan.name.toUpperCase() as 'PRO' | 'BASIC';
 
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 pb-3">
             <OverviewHero
                 adminName={adminName}
                 institutionName={overview.institution.name}
@@ -78,10 +78,10 @@ export default function AdminOverviewPage() {
                 plan={overview.plan}
             />
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-7 gap-3 items-stretch">
 
                 {/* Graph — 2 cols */}
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-3">
                     <EnrollmentGrowthChart
                         data={overview.enrollmentGrowth}
                         institutionType={instType}
@@ -101,7 +101,7 @@ export default function AdminOverviewPage() {
                 </div>
 
                 {/* Plan — 1 col */}
-                <div className="lg:col-span-1">
+                <div className="lg:col-span-2">
                     <PlanUsageCard plan={overview.plan} />
                 </div>
 

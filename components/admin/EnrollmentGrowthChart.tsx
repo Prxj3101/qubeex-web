@@ -1,5 +1,7 @@
 'use client';
 
+import { TrendingUp } from 'lucide-react';
+
 import {
     ComposedChart, Bar, Line, XAxis, YAxis,
     CartesianGrid, Tooltip, ResponsiveContainer
@@ -18,7 +20,10 @@ export function EnrollmentGrowthChart({ data, institutionType }: EnrollmentGrowt
     return (
         <div className="bg-card border border-border/50 rounded-xl p-5 h-full">
             <div className="flex items-center justify-between mb-4">
-                <p className="text-sm font-medium">Enrollment growth</p>
+                <div className="flex items-center gap-2">
+                    <TrendingUp size={15} className="text-muted-foreground" />
+                    <p className="text-sm font-medium">Enrollment growth</p>
+                </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                         <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: accent.bg }} />

@@ -206,7 +206,7 @@ export default function StudentOverview() {
                         <p style={{ fontFamily: '"Caveat", cursive', fontSize: '72px', color: 'rgba(255,255,255,0.08)', lineHeight: '0.6', marginBottom: 8, position: 'relative', zIndex: 1 }}>&quot;</p>
 
                         {/* Thought */}
-                        <p className="chalk-flicker" style={{ fontFamily: '"Caveat", cursive', fontSize: '26px', color: 'rgba(255,255,255,0.92)', lineHeight: '1.5', marginBottom: 12, textShadow: '0 0 8px rgba(255,255,255,0.15), 1px 1px 2px rgba(0,0,0,0.4)', position: 'relative', zIndex: 1 }}>
+                        <p className="chalk-flicker" style={{ fontFamily: '"Caveat", cursive', fontSize: '27px', color: 'rgba(255,255,255,0.92)', lineHeight: '1.5', marginBottom: 12, textShadow: '0 0 8px rgba(255,255,255,0.15), 1px 1px 2px rgba(0,0,0,0.4)', position: 'relative', zIndex: 1 }}>
                             {thought.text}
                         </p>
 

@@ -1,9 +1,10 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
-import { AlertCircle, Users, LayoutGrid, BookOpen, TrendingUp, ArrowUpRight, ArrowDownRight, Bell, X, CalendarDays } from 'lucide-react';
+import { TeacherAttendanceChart } from '@/components/teacher/TeacherAttendanceChart';
+import { AlertCircle, Users, LayoutGrid, BookOpen, ScrollText, ClipboardList, Sparkles, AlertTriangle, TrendingUp, ArrowUpRight, ArrowDownRight, Bell, X, CalendarDays } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -12,37 +13,61 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const MOCK_TEACHER = {
     name: 'Ritu Sharma',
     institutionName: 'Viva Institute of Technology',
+    classTeacher: '10-A',
 };
+
 
 const MOCK_STATS = [
     { label: 'Classes Assigned', value: '5', sub: '+1 this month', trend: 'up', icon: LayoutGrid, iconBg: 'bg-violet-100 dark:bg-violet-950', iconColor: 'text-violet-600 dark:text-violet-400' },
-    { label: 'Total Students', value: '210', sub: '+8 this week', trend: 'up', icon: Users, iconBg: 'bg-emerald-100 dark:bg-emerald-950', iconColor: 'text-emerald-600 dark:text-emerald-400' },
-    { label: 'Subjects Teaching', value: '3', sub: 'This semester', trend: 'up', icon: BookOpen, iconBg: 'bg-amber-100 dark:bg-amber-950', iconColor: 'text-amber-600 dark:text-amber-400' },
+    { label: 'Subjects Teaching', value: '3', sub: 'this academic year', trend: 'up', icon: BookOpen, iconBg: 'bg-amber-100 dark:bg-amber-950', iconColor: 'text-amber-600 dark:text-amber-400' },
+    { label: 'Tests Conducted', value: '24', sub: '+3 this month', trend: 'up', icon: ClipboardList, iconBg: 'bg-green-100 dark:bg-green-950', iconColor: 'text-green-600 dark:text-green-400' },
     { label: 'Avg Attendance', value: '87%', sub: '+2% this month', trend: 'up', icon: TrendingUp, iconBg: 'bg-sky-100 dark:bg-sky-950', iconColor: 'text-sky-600 dark:text-sky-400' },
 ];
 
-const MOCK_ATTENDANCE_TREND = [
-    { month: 'Jun', pct: 92 },
-    { month: 'Jul', pct: 88 },
-    { month: 'Aug', pct: 85 },
-    { month: 'Sep', pct: 90 },
-    { month: 'Oct', pct: 87 },
-    { month: 'Nov', pct: 91 },
+type LogEntry = {
+    id: string; action: string; category: string;
+    severity: string; details: string; ip: string; createdAt: string;
+};
+
+const ACTION_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
+    STUDENT_ADDED: { label: 'Student Added', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400', dot: 'bg-violet-500' },
+    STUDENT_UPDATED: { label: 'Student Updated', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400', dot: 'bg-blue-500' },
+    STUDENT_DEACTIVATED: { label: 'Student Deactivated', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
+    STUDENT_ACTIVATED: { label: 'Student Activated', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    POST_CREATED: { label: 'Post Created', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    POST_DELETED: { label: 'Post Deleted', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
+    ATTENDANCE_MARKED: { label: 'Attendance Marked', cls: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400', dot: 'bg-sky-500' },
+    TIMETABLE_UPLOADED: { label: 'Timetable Uploaded', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', dot: 'bg-amber-500' },
+    RESULT_UPLOADED: { label: 'Result Uploaded', cls: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-400', dot: 'bg-pink-500' },
+    CALENDAR_EVENT_ADDED: { label: 'Calendar Event Added', cls: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400', dot: 'bg-indigo-500' },
+    CALENDAR_EVENT_DELETED: { label: 'Calendar Event Deleted', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400', dot: 'bg-orange-500' },
+    LOGIN_SUCCESS: { label: 'Login', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', dot: 'bg-slate-400' },
+    LOGIN_FAILED: { label: 'Login Failed', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400', dot: 'bg-rose-500' },
+    PASSWORD_CHANGED: { label: 'Password Changed', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', dot: 'bg-amber-500' },
+};
+
+const MOCK_LOGS: LogEntry[] = [
+    { id: '1', action: 'LOGIN_SUCCESS', category: 'SECURITY', severity: 'INFO', details: 'Teacher logged in successfully', ip: '192.168.1.1', createdAt: '2026-05-29T08:30:00Z' },
+    { id: '2', action: 'POST_CREATED', category: 'ACTIVITY', severity: 'INFO', details: 'Posted announcement: PTM this Saturday', ip: '192.168.1.1', createdAt: '2026-05-29T09:15:00Z' },
+    { id: '3', action: 'STUDENT_ADDED', category: 'ACTIVITY', severity: 'INFO', details: 'Added student Aarav Mehta to Class 10-A', ip: '192.168.1.1', createdAt: '2026-05-29T10:00:00Z' },
+    { id: '4', action: 'ATTENDANCE_MARKED', category: 'ACTIVITY', severity: 'INFO', details: 'Marked attendance for Class 10-A (42 students)', ip: '192.168.1.2', createdAt: '2026-05-28T08:45:00Z' },
+    { id: '5', action: 'TIMETABLE_UPLOADED', category: 'ACTIVITY', severity: 'INFO', details: 'Uploaded timetable for Class 10-A', ip: '192.168.1.2', createdAt: '2026-05-28T11:20:00Z' },
+    { id: '6', action: 'RESULT_UPLOADED', category: 'ACTIVITY', severity: 'INFO', details: 'Uploaded Unit Test 1 results for Class 10-A', ip: '192.168.1.1', createdAt: '2026-05-27T14:30:00Z' },
 ];
+
+function toIST(iso: string) {
+    const d = new Date(iso);
+    return {
+        date: d.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short', year: 'numeric' }),
+        time: d.toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata', hour: '2-digit', minute: '2-digit', hour12: true }),
+    };
+}
 
 const MOCK_SHORT_ATTENDANCE = [
     { name: 'Sneha Patel', rollNo: '04', pct: 61 },
     { name: 'Karan Joshi', rollNo: '07', pct: 48 },
     { name: 'Ananya Nair', rollNo: '08', pct: 55 },
     { name: 'Ishaan Verma', rollNo: '10', pct: 69 },
-];
-
-const MOCK_RECENT_ACTIVITY = [
-    { id: '1', action: 'Marked attendance for 10-A', time: '10 mins ago', icon: '✅' },
-    { id: '2', action: 'Added remark for Sneha Patel', time: '1 hour ago', icon: '💬' },
-    { id: '3', action: 'Exported attendance report', time: '2 hours ago', icon: '📥' },
-    { id: '4', action: 'Marked holiday — Maharashtra Day', time: 'Yesterday', icon: '🏖️' },
-    { id: '5', action: 'Updated student profile', time: '2 days ago', icon: '✏️' },
 ];
 
 const MOCK_ANNOUNCEMENTS = [
@@ -66,8 +91,20 @@ function getTodaysThought() {
 
 const now = new Date();
 const hour = now.getHours();
-const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 const dateStr = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+
+const TEACHER_CHARACTERS = [
+    '/images/teacher1.png',
+    '/images/teacher2.png',
+    '/images/teacher3.png',
+    '/images/teacher4.png',
+    '/images/teacher5.png',
+    '/images/teacher6.png',
+    '/images/teacher7.png',
+    '/images/teacher8.png',
+];
+
+
 
 // ── Subcomponents ─────────────────────────────────────────────────────────────
 
@@ -98,7 +135,7 @@ function WoodStrip({ position }: { position: 'top' | 'bottom' }) {
     );
 }
 
-function Blackboard({ thought }: { thought: { text: string; author: string } }) {
+function Blackboard({ thought, teacherClass }: { thought: { text: string; author: string }; teacherClass: string }) {
     return (
         <div style={{ display: 'flex', flexDirection: 'column', borderRadius: '10px', overflow: 'visible', boxShadow: '0 6px 24px rgba(0,0,0,0.3)', border: '12px solid #6B3F1F', outline: '2px solid #4A2A0E', outlineOffset: '0px', height: '100%' }}>
             <WoodStrip position="top" />
@@ -109,19 +146,24 @@ function Blackboard({ thought }: { thought: { text: string; author: string } }) 
                     <div style={{ position: 'absolute', bottom: 40, left: 50, width: 80, height: 4, background: 'rgba(255,255,255,0.03)', borderRadius: 4, transform: 'rotate(-0.5deg)' }} />
                     <div style={{ position: 'absolute', inset: 8, border: '1px solid rgba(255,255,255,0.07)', borderRadius: 2 }} />
                 </div>
-                <p style={{ fontFamily: '"Caveat", cursive', fontSize: '17px', color: 'rgba(255,255,255,0.38)', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
-                    {now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, position: 'relative', zIndex: 1 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', position: 'relative', zIndex: 1 }}>
+                    <p style={{ fontFamily: '"Caveat", cursive', fontSize: '17px', color: 'rgba(255,255,255,0.38)' }}>
+                        {now.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                    </p>
+                    <p style={{ fontFamily: '"Caveat", cursive', fontSize: '17px', color: 'rgba(255,255,255,0.38)' }}>
+                        Class: {teacherClass}
+                    </p>
+                </div>
+                <div className="chalk-flicker" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, position: 'relative', zIndex: 1 }}>
                     <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.2)' }} />
                     <p style={{ fontFamily: '"Caveat", cursive', fontSize: '18px', color: 'rgba(255,255,255,0.5)', letterSpacing: '3px', textTransform: 'uppercase', textShadow: '0 0 8px rgba(255,255,255,0.2)' }}>✦ Thought of the Day ✦</p>
                     <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.2)' }} />
                 </div>
                 <p style={{ fontFamily: '"Caveat", cursive', fontSize: '72px', color: 'rgba(255,255,255,0.08)', lineHeight: '0.6', marginBottom: 8, position: 'relative', zIndex: 1 }}>&quot;</p>
-                <p style={{ fontFamily: '"Caveat", cursive', fontSize: '22px', color: 'rgba(255,255,255,0.92)', lineHeight: '1.5', marginBottom: 12, textShadow: '0 0 8px rgba(255,255,255,0.15), 1px 1px 2px rgba(0,0,0,0.4)', position: 'relative', zIndex: 1 }}>
+                <p className="chalk-flicker" style={{ fontFamily: '"Caveat", cursive', fontSize: '27px', color: 'rgba(255,255,255,0.92)', lineHeight: '1.5', marginBottom: 12, textShadow: '0 0 8px rgba(255,255,255,0.15), 1px 1px 2px rgba(0,0,0,0.4)', position: 'relative', zIndex: 1 }}>
                     {thought.text}
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', position: 'relative', zIndex: 1 }}>
+                <div className="chalk-flicker" style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', position: 'relative', zIndex: 1 }}>
                     <div style={{ width: 50, height: '1px', background: 'rgba(255,255,255,0.2)' }} />
                     <p style={{ fontFamily: '"Caveat", cursive', fontSize: '21px', color: 'rgba(255,255,255,0.5)', textShadow: '0 0 6px rgba(255,255,255,0.1)' }}>— {thought.author}</p>
                 </div>
@@ -146,6 +188,57 @@ function Blackboard({ thought }: { thought: { text: string; author: string } }) 
     );
 }
 
+const CASUAL_MESSAGES = [
+    "Good morning! ☕ Ready to inspire some young minds today?",
+    "GM teacher! 🌅 May your first period be as energetic as your coffee!",
+    "Rise & shine! 🌞 Aaj ka din productive lagta hai!",
+    "Good morning! May your chalk never break and students always listen ✏️",
+    "Goood morningggg! 🎉 Today feels like a great teaching day!",
+    "GM! 👋 Wonder if anyone did their homework last night...",
+    "Morning teacher! The classroom is waiting for its superhero 🦸",
+    "Hey! ☀️ Aaj attendance mein kitne 'present sir' milenge?",
+    "Quick question — strict mode or chill mode today? 😎",
+    "Pro tip: Jo sabse peeche baitha hai, usse aaj zaroor bulao 😄",
+    "Today's forecast: 100% chance of someone forgetting their textbook 📚",
+    "Reminder: You are literally shaping the future. No pressure! 😅",
+    "Fun fact: Your students are more nervous than you right now 😄",
+    "Hey! Someone in your class today will remember you for life 🌟",
+    "That 'aha!' moment from a student — absolutely priceless ✨",
+    "Teacher mode: ACTIVATED 🚀 Aaj ka din legendary hone wala hai!",
+    "You don't just teach, you inspire — never forget that 💫",
+    "Best moment today? When a student finally gets it 😊",
+    "Lesson plan ready? Students ready? Chalein phir! 🎯",
+    "Hey teacher! Maybe try something different in class today? 🔬",
+    "Reminder: You're the world's most underrated superhero 🦸‍♀️",
+    "Monday energy ON! ⚡ Time to charge up the whole class!",
+    "Midweek check-in — class ki energy kaisi hai aaj? 😊",
+    "Almost Friday! 🎊 Just one more day — hang in there!",
+    "Friday vibes! 🥳 Finish strong, last period matters too!",
+    "Psst! 🤖 Busy day ahead — chai pehle, baaki sab baad mein!",
+    "AI observation: Your students seem surprisingly motivated today 👀",
+    "Fun stat: Your class attendance is improving — keep it up! 📈",
+    "Quick check: Aaj ka thought of the day board pe likha kya? 🖊️",
+    "Hey! The little things you do in class matter more than you know 💙",
+    "Good morning! Every class is a fresh start — make it count 🌟",
+    "Teaching tip: A little humor goes a long way in class 😄",
+    "Today is a great day to be a great teacher! ✨",
+    "GM! Aaj koi student zaroor surprise karega — ready rehna 😊",
+    "Good morning! Your energy sets the tone for the whole class today ⚡",
+];
+
+function getCasualMessage() {
+    const today = new Date();
+    const day = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+    return CASUAL_MESSAGES[day % CASUAL_MESSAGES.length];
+}
+
+const greeting = hour < 12
+    ? 'Good Mooorningggg, Teeeacherrrr! 👋'
+    : hour < 17
+        ? 'Good Afternooooon, Teeeacherrrr! 👋'
+        : 'Good Evening, Teacher! 👋';
+
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function TeacherOverviewPage() {
     const { user } = useAuthStore();
@@ -154,30 +247,58 @@ export default function TeacherOverviewPage() {
 
     const teacherName = user?.name ?? user?.email?.split('@')[0] ?? MOCK_TEACHER.name;
 
+    // State
+    const [currentChar, setCurrentChar] = useState(0);
+
+    useEffect(() => {
+        const iv = setInterval(() => setCurrentChar(p => (p + 1) % TEACHER_CHARACTERS.length), 7000);
+        return () => clearInterval(iv);
+    }, []);
+
     return (
-        <div className="space-y-3">
+        <div className="space-y-3 pb-3">
 
             {/* ── Hero — same as OverviewHero ── */}
-            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-10 flex items-center justify-between min-h-[200px]">
+            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-5 flex items-center justify-between min-h-[160px]">
+                {/* Orbs */}
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
+                {/* Stars */}
                 <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-5 left-16 animate-pulse" />
                 <div className="absolute w-1 h-1 rounded-full bg-white/70 top-20 left-36 animate-pulse delay-300" />
                 <div className="absolute w-1 h-1 rounded-full bg-white/70 top-12 left-5 animate-pulse delay-500" />
+                <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-4 left-52 animate-pulse delay-700" />
+
+                {/* Text */}
                 <div className="space-y-1 z-10">
-                    <p className="text-white/70 text-base">{greeting} 👋</p>
-                    <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>{teacherName}</p>
-                    <p className="text-white/60 text-sm">Here&apos;s your teaching overview for today.</p>
+                    <p className="text-white/70 text-base">{greeting}</p>
+                    <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
+                        {teacherName}
+                    </p>
+                    <p className="text-white/60 text-sm">{getCasualMessage()}</p>
                     <p className="text-white/50 text-xs mt-2">{dateStr}</p>
                 </div>
-                <div className="z-10 flex flex-col items-center gap-2">
-                    <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold text-white border-2 border-white/30">
-                        {teacherName.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase()}
-                    </div>
-                    <div className="flex gap-1.5 flex-wrap justify-center">
-                        <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full">Class Teacher</span>
-                        <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full">{MOCK_TEACHER.institutionName}</span>
-                    </div>
+
+                {/* Animated character */}
+                <div className="z-10 relative w-[250px] h-[200px] hidden sm:block self-end mb-[-40px]">
+                    <motion.div
+                        animate={{ y: [0, -4, 0] }}
+                        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                        <AnimatePresence mode="wait">
+                            <motion.img
+                                key={currentChar}
+                                src={TEACHER_CHARACTERS[currentChar]}
+                                alt="teacher character"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 1.2 }}
+                                className="w-[300px] h-[230px] object-contain"
+                                style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3))' }}
+                            />
+                        </AnimatePresence>
+                    </motion.div>
                 </div>
             </div>
 
@@ -206,7 +327,7 @@ export default function TeacherOverviewPage() {
                 {MOCK_STATS.map((s, i) => {
                     const Icon = s.icon;
                     return (
-                        <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} className="bg-muted/50 rounded-xl p-4 relative">
+                        <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} className="bg-card border border-border/50 rounded-xl p-4 relative shadow-sm shadow-black/10">
                             <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
                                 <Icon size={15} className={s.iconColor} />
                             </div>
@@ -224,40 +345,79 @@ export default function TeacherOverviewPage() {
                 })}
             </div>
 
-            {/* ── EnrollmentGrowthChart + Blackboard + PlanUsageCard equivalent ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-3 items-stretch">
+            {/* ── Blackboard + Short Attendance (same as student overview) ── */}
+            <div className="grid grid-cols-2 gap-3" style={{ alignItems: 'stretch' }}>
 
-                {/* Attendance Trend Chart — 2 cols */}
-                <div className="lg:col-span-2 bg-card border border-border/50 rounded-xl p-5">
-                    <div className="flex items-center gap-2 mb-4">
-                        <CalendarDays size={15} className="text-muted-foreground" />
-                        <p className="text-sm font-medium">Class Attendance Trend</p>
-                        <span className="ml-auto text-[10px] text-muted-foreground/50 uppercase tracking-wide">10-A</span>
-                    </div>
-                    <ResponsiveContainer width="100%" height={160}>
-                        <BarChart data={MOCK_ATTENDANCE_TREND} barSize={20}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" opacity={0.4} />
-                            <XAxis dataKey="month" tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                            <YAxis domain={[70, 100]} tick={{ fontSize: 11 }} axisLine={false} tickLine={false} />
-                            <Tooltip content={<CustomTooltip />} />
-                            <Bar dataKey="pct" fill="#7C3AED" radius={[4, 4, 0, 0]} opacity={0.85} />
-                        </BarChart>
-                    </ResponsiveContainer>
+                {/* Blackboard — left, same size as student */}
+                <div className="lg:col-span-1">
+                    <Blackboard thought={thought} teacherClass={MOCK_TEACHER.classTeacher} />
+                </div>
+            </div>
+
+            {/* ── Graph + AI Token + Short Attendance ── */}
+            <div className="grid grid-cols-6 gap-3 items-stretch">
+
+                {/* Graph — 2 cols */}
+                <div className="col-span-3">
+                    <TeacherAttendanceChart />
                 </div>
 
-                {/* Blackboard — 2 cols */}
-                <div className="lg:col-span-2" style={{ minHeight: '240px' }}>
-                    <Blackboard thought={thought} />
+                {/* AI Token — 2 cols */}
+                <div className="col-span-2 bg-card border border-border/50 rounded-xl p-4">
+                    <div className="flex items-center gap-2 mb-4">
+                        <Sparkles size={15} className="text-muted-foreground" />
+                        <p className="text-sm font-medium">AI Token Usage</p>
+                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">This Month</span>
+                    </div>
+                    <div className="p-4 space-y-2">
+                        <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                                <p className="text-xs font-semibold">Your usage this month</p>
+                                <span className="text-xs font-bold">1.2M <span className="text-muted-foreground font-normal">/ 10M pool</span></span>
+                            </div>
+                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: '12%', background: '#7C3AED' }} />
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-1">12% of institution pool</p>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-muted/40 rounded-xl p-3 text-center">
+                                <p className="text-sm font-bold">1.2M</p>
+                                <p className="text-[10px] text-muted-foreground">Used</p>
+                            </div>
+                            <div className="bg-muted/40 rounded-xl p-3 text-center">
+                                <p className="text-sm font-bold">8.8M</p>
+                                <p className="text-[10px] text-muted-foreground">Remaining</p>
+                            </div>
+                            <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(124,58,237,0.08)' }}>
+                                <p className="text-sm font-bold" style={{ color: '#7C3AED' }}>12%</p>
+                                <p className="text-[10px] text-muted-foreground">Pool share</p>
+                            </div>
+                        </div>
+                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+                            <div className="flex items-center justify-between mb-1.5">
+                                <p className="text-[11px] font-semibold text-muted-foreground">Institution pool</p>
+                                <span className="text-[11px] font-semibold">4.4M <span className="font-normal text-muted-foreground">/ 10M used</span></span>
+                            </div>
+                            <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: '44%', background: '#DA7756' }} />
+                            </div>
+                            <p className="text-[11px] text-muted-foreground mt-1">🔄 Resets 1st of every month</p>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Short Attendance — 1 col */}
-                <div className="lg:col-span-1 bg-card border border-border/50 rounded-xl p-4 flex flex-col">
+                <div className="col-span-1 bg-card border border-border/50 rounded-xl p-4 flex flex-col">
                     <div className="flex items-center justify-between mb-3">
-                        <p className="text-sm font-medium">⚠️ Short Attendance</p>
+                        <div className="flex items-center gap-2">
+                            <AlertTriangle size={15} className="text-muted-foreground" />
+                            <p className="text-sm font-medium">Short Attendance</p>
+                        </div>
                         <span className="text-[10px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 px-2 py-0.5 rounded-full">{MOCK_SHORT_ATTENDANCE.length}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground mb-3">Students below 75%</p>
-                    <div className="space-y-2 flex-1">
+                    <div className="space-y-2 flex-1 overflow-y-auto" style={{ maxHeight: '168px' }}>
                         {MOCK_SHORT_ATTENDANCE.map((s, i) => (
                             <motion.div key={s.rollNo} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
                                 className="flex items-center gap-2 p-2 rounded-xl border border-border/50 bg-muted/20">
@@ -282,41 +442,48 @@ export default function TeacherOverviewPage() {
             {/* ── RecentActivityCard + NotificationsPreviewCard equivalent ── */}
             <div className="flex flex-col gap-3">
 
-                {/* Recent Activity */}
+                {/* Recent Audit Logs */}
                 <div className="bg-card border border-border/50 rounded-xl p-5">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm font-medium">Recent Activity</p>
-                        <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wide">Last 7 days</span>
+                        <div className="flex items-center gap-2">
+                            <ScrollText size={15} className="text-muted-foreground" />
+                            <p className="text-sm font-medium">Recent Audit Logs</p>
+                        </div>
+                        <a href="/teacher/audit-logs" className="text-xs text-primary hover:underline">
+                            View all →
+                        </a>
                     </div>
-                    <div className="space-y-1">
-                        {MOCK_RECENT_ACTIVITY.map((a, i) => (
-                            <motion.div key={a.id} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
-                                className="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted/30 transition-colors">
-                                <span className="text-base shrink-0">{a.icon}</span>
-                                <p className="text-xs flex-1">{a.action}</p>
-                                <span className="text-[10px] text-muted-foreground/50 shrink-0">{a.time}</span>
-                            </motion.div>
-                        ))}
-                    </div>
+                    {MOCK_LOGS.length === 0 ? (
+                        <p className="text-xs text-muted-foreground py-4">No recent activity.</p>
+                    ) : (
+                        <div className="space-y-0.5">
+                            {MOCK_LOGS.slice(0, 6).map((log) => {
+                                const actionCfg = ACTION_CONFIG[log.action] ?? {
+                                    label: log.action.replace(/_/g, ' '),
+                                    cls: 'bg-muted text-muted-foreground',
+                                    dot: 'bg-muted-foreground',
+                                };
+                                const { date, time } = toIST(log.createdAt);
+                                return (
+                                    <div key={log.id} className="grid grid-cols-[140px_1fr] items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
+                                        {/* Action badge */}
+                                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full w-fit mt-0.5 ${actionCfg.cls}`}>
+                                            {actionCfg.label}
+                                        </span>
+                                        <div className="min-w-0">
+                                            <p className="text-xs text-foreground leading-relaxed">{log.details}</p>
+                                            <div className="flex items-center gap-2 mt-0.5">
+                                                <p className="text-[11px] text-muted-foreground">{log.ip}</p>
+                                                <span className="text-muted-foreground/40">·</span>
+                                                <p className="text-[11px] text-muted-foreground">{date} · {time}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
                 </div>
-
-                {/* Announcements */}
-                <div className="bg-card border border-border/50 rounded-xl p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm font-medium">📢 Announcements</p>
-                        <span className="text-[10px] text-muted-foreground/50 uppercase tracking-wide">{MOCK_ANNOUNCEMENTS.length} new</span>
-                    </div>
-                    <div className="space-y-2">
-                        {MOCK_ANNOUNCEMENTS.map((a, i) => (
-                            <motion.div key={a.id} initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-                                className="flex items-start gap-3 px-3 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-200/50 dark:border-amber-900/30">
-                                <Bell size={13} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                                <p className="text-xs text-amber-700 dark:text-amber-400">{a.text}</p>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-
             </div>
         </div>
     );

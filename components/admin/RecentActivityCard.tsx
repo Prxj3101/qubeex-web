@@ -50,12 +50,11 @@ export function RecentActivityCard({ auditLogs }: RecentAuditLogsCardProps) {
             ) : (
                 <div className="space-y-0.5">
                     {auditLogs.map((log) => (
-                        <div key={log.id} className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
-                            {/* Action badge */}
-                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${dotBg[log.dot]} ${dotText[log.dot]}`}>
+                        <div key={log.id} className="grid grid-cols-[140px_1fr] items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full w-fit mt-0.5 ${dotBg[log.dot]} ${dotText[log.dot]}`}>
                                 {log.action}
                             </span>
-                            <div className="flex-1 min-w-0">
+                            <div className="min-w-0">
                                 <p className="text-xs text-foreground leading-relaxed">{log.detail}</p>
                                 <div className="flex items-center gap-2 mt-0.5">
                                     <p className="text-[11px] text-muted-foreground">{log.actor}</p>
