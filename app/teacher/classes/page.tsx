@@ -190,6 +190,7 @@ export default function TeacherClassesPage() {
     const [classTeacher, setClassTeacher] = useState<ClassTeacherAssignment[]>([]);
     const [subjectTeacher, setSubjectTeacher] = useState<SubjectTeacherAssignment[]>([]);
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
     const fetchedRef = useRef(false);
 
     useEffect(() => {
@@ -200,7 +201,10 @@ export default function TeacherClassesPage() {
                 setClassTeacher(res.data.data.classTeacher);
                 setSubjectTeacher(res.data.data.subjectTeacher);
             })
-            .catch(() => toast.error('Failed to load classes'))
+            .catch(() => {
+                toast.error('Failed to load classes');
+                setError(true);
+            })
             .finally(() => setLoading(false));
     }, []);
 
@@ -208,6 +212,14 @@ export default function TeacherClassesPage() {
         return (
             <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
                 Loading...
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                Failed to load classes. Please refresh.
             </div>
         );
     }
