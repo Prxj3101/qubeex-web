@@ -466,7 +466,9 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
             if (attachments.length > 0) {
                 const formData = new FormData();
                 formData.append('file', attachments[0]);
-                const uploadRes = await api.post('/teacher/campus/feed/upload', formData);
+                const uploadRes = await api.post('/teacher/campus/feed/upload', formData, {
+                    headers: { 'Content-Type': 'multipart/form-data' },
+                });
                 attachmentUrl = uploadRes.data.data.url;
                 attachmentType = uploadRes.data.data.type;
                 attachmentName = uploadRes.data.data.name;
@@ -505,7 +507,9 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
         try {
             const formData = new FormData();
             formData.append('file', file);
-            const uploadRes = await api.post('/teacher/campus/feed/upload', formData);
+            const uploadRes = await api.post('/teacher/campus/feed/upload', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
             const { url, name, type } = uploadRes.data.data;
 
             const res = await api.post('/teacher/campus/feed/posts', {
