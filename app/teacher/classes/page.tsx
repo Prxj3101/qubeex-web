@@ -29,25 +29,6 @@ interface SubjectTeacherAssignment {
     studentCount: number;
 }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-const MOCK_CLASS_TEACHER: ClassTeacherAssignment[] = [
-    {
-        id: '1', divisionId: 'd1', divisionName: '10-A', standardName: 'Class 10', studentCount: 42,
-        subjects: [
-            { id: 's1', name: 'Mathematics', color: '#7C3AED', teacherName: 'Rahul Sharma' },
-            { id: 's2', name: 'Science', color: '#0891B2', teacherName: null },
-            { id: 's3', name: 'English', color: '#DA7756', teacherName: 'Priya Patel' },
-            { id: 's4', name: 'Hindi', color: '#059669', teacherName: null },
-        ],
-    },
-];
-
-const MOCK_SUBJECT_TEACHER: SubjectTeacherAssignment[] = [
-    { id: '2', divisionId: 'd2', divisionName: '9-B', standardName: 'Class 9', subjectId: 's1', subjectName: 'Mathematics', subjectColor: '#7C3AED', studentCount: 38 },
-    { id: '3', divisionId: 'd3', divisionName: '8-C', standardName: 'Class 8', subjectId: 's2', subjectName: 'Science', subjectColor: '#0891B2', studentCount: 40 },
-    { id: '4', divisionId: 'd4', divisionName: '10-B', standardName: 'Class 10', subjectId: 's1', subjectName: 'Mathematics', subjectColor: '#7C3AED', studentCount: 44 },
-    { id: '5', divisionId: 'd5', divisionName: '7-A', standardName: 'Class 7', subjectId: 's3', subjectName: 'English', subjectColor: '#DA7756', studentCount: 36 },
-];
 
 const GRADIENTS = [
     'linear-gradient(135deg, #7C3AED, #9F67FF)',
@@ -206,22 +187,42 @@ function SubjectTeacherCard({ item, index }: { item: SubjectTeacherAssignment; i
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function TeacherClassesPage() {
-    const [classTeacher, setClassTeacher] = useState<ClassTeacherAssignment[]>(MOCK_CLASS_TEACHER);
-    const [subjectTeacher, setSubjectTeacher] = useState<SubjectTeacherAssignment[]>(MOCK_SUBJECT_TEACHER);
-    const [loading, setLoading] = useState(false);
+    const [classTeacher, setClassTeacher] = useState<ClassTeacherAssignment[]>([]);
+    const [subjectTeacher, setSubjectTeacher] = useState<SubjectTeacherAssignment[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(false);
     const fetchedRef = useRef(false);
 
+    useEffect(() => {
+        if (fetchedRef.current) return;
+        fetchedRef.current = true;
+        api.get('/teacher/classes')
+            .then(res => {
+                setClassTeacher(res.data.data.classTeacher);
+                setSubjectTeacher(res.data.data.subjectTeacher);
+            })
+            .catch(() => {
+                toast.error('Failed to load classes');
+                setError(true);
+            })
+            .finally(() => setLoading(false));
+    }, []);
 
-    // Uncomment when API ready:
-    // useEffect(() => {
-    //     if (fetchedRef.current) return;
-    //     fetchedRef.current = true;
-    //     api.get('/teacher/classes').then(res => {
-    //         setClassTeacher(res.data.data.classTeacher);
-    //         setSubjectTeacher(res.data.data.subjectTeacher);
-    //     }).catch(() => toast.error('Failed to load classes'))
-    //     .finally(() => setLoading(false));
-    // }, []);
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                Loading...
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                Failed to load classes. Please refresh.
+            </div>
+        );
+    }
 
     return (
         <div className="flex flex-col h-full overflow-hidden pb-3">

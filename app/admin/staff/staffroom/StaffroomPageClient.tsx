@@ -173,6 +173,7 @@ function AttachmentChip({
 function PostCard({
   post,
   myUserId,
+  isAdmin,
   onLike,
   onDelete,
   onAddComment,
@@ -180,6 +181,7 @@ function PostCard({
 }: {
   post: FeedPost;
   myUserId: string;
+  isAdmin: boolean;
   onLike: (id: string) => void;
   onDelete: (id: string) => void;
   onAddComment: (postId: string, text: string) => Promise<PostComment>;
@@ -192,6 +194,7 @@ function PostCard({
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const isMe = post.author.id === myUserId;
+  const canDelete = isMe || isAdmin;
   const avatarColor =
     post.author.role === "ADMIN"
       ? "bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300"
@@ -242,7 +245,7 @@ function PostCard({
           <span className="text-[10px] text-muted-foreground">
             {fmtTime(post.createdAt)}
           </span>
-          {isMe && (
+          {canDelete && (
             <div className="relative">
               <button
                 onClick={() => setShowMenu((v) => !v)}
@@ -411,6 +414,7 @@ function PostCard({
 export default function StaffroomPage() {
   const [myUserId, setMyUserId] = useState("");
   const [myName, setMyName] = useState("Admin");
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Feed state
   const [posts, setPosts] = useState<FeedPost[]>([]);
@@ -443,6 +447,31 @@ export default function StaffroomPage() {
   const postFileRef = useRef<HTMLInputElement>(null);
   const dmFileRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const threadPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Presence heartbeat: ping every 30s to stay online
+  // After the first heartbeat, re-fetch threads so online contacts appear immediately
+  useEffect(() => {
+    const sendBeat = () => api.post("/admin/presence").catch(() => {});
+    sendBeat().then(() => {
+      api.get("/admin/staffroom/dms")
+        .then((res) => setThreads(res.data.data))
+        .catch(() => {});
+    });
+    heartbeatRef.current = setInterval(sendBeat, 30000);
+    return () => { if (heartbeatRef.current) clearInterval(heartbeatRef.current); };
+  }, []);
+
+  // Thread list refresh every 15s to pick up presence changes
+  useEffect(() => {
+    threadPollRef.current = setInterval(() => {
+      api.get("/admin/staffroom/dms")
+        .then((res) => setThreads(res.data.data))
+        .catch(() => {});
+    }, 15000);
+    return () => { if (threadPollRef.current) clearInterval(threadPollRef.current); };
+  }, []);
 
   // ── Bootstrap: get own user id ──
   useEffect(() => {
@@ -456,6 +485,7 @@ export default function StaffroomPage() {
         if (adminUser) {
           setMyUserId(adminUser.id);
           setMyName(adminUser.name ?? "Admin");
+          setIsAdmin(true);
         }
       })
       .catch(() => {});
@@ -712,6 +742,10 @@ export default function StaffroomPage() {
     : threads;
 
   const myInitials = getInitials(myName);
+  // Derive live presence from threads so chat header updates without reopening the DM
+  const activeIsOnline = activeDm
+    ? (threads.find((t) => t.teacherUserId === activeDm.teacherUserId)?.isActive ?? activeDm.isActive)
+    : false;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -817,6 +851,7 @@ export default function StaffroomPage() {
                   key={post.id}
                   post={post}
                   myUserId={myUserId}
+                  isAdmin={isAdmin}
                   onLike={handleLike}
                   onDelete={handleDeletePost}
                   onAddComment={handleAddComment}
@@ -1081,13 +1116,13 @@ export default function StaffroomPage() {
                       </div>
                     )}
                     <div
-                      className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${activeDm.isActive ? "bg-emerald-500" : "bg-muted-foreground/30"}`}
+                      className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${activeIsOnline ? "bg-emerald-500" : "bg-muted-foreground/30"}`}
                     />
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold">{activeDm.name}</p>
                     <p className="text-[10px] text-muted-foreground">
-                      {activeDm.isActive ? "🟢 Active" : "⚫ Inactive"}
+                      {activeIsOnline ? "🟢 Active" : "⚫ Inactive"}
                     </p>
                   </div>
                 </div>

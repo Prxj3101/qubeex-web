@@ -247,6 +247,8 @@ export default function TeacherStaffroom() {
     const postFileRef = useRef<HTMLInputElement>(null);
     const dmFileRef = useRef<HTMLInputElement>(null);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const threadPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
         api.get('/teacher/me').then(res => {
@@ -254,6 +256,29 @@ export default function TeacherStaffroom() {
             setMyUserId(u?.id ?? '');
             setMyName(u?.name ?? 'Teacher');
         }).catch(() => { });
+    }, []);
+
+    // Presence heartbeat: ping every 30s to stay online
+    // After the first heartbeat, re-fetch threads so online contacts appear immediately
+    useEffect(() => {
+        const sendBeat = () => api.post('/teacher/presence').catch(() => {});
+        sendBeat().then(() => {
+            api.get('/teacher/staffroom/dms')
+                .then(res => setThreads(res.data.data))
+                .catch(() => {});
+        });
+        heartbeatRef.current = setInterval(sendBeat, 30000);
+        return () => { if (heartbeatRef.current) clearInterval(heartbeatRef.current); };
+    }, []);
+
+    // Thread list refresh every 15s to pick up presence changes
+    useEffect(() => {
+        threadPollRef.current = setInterval(() => {
+            api.get('/teacher/staffroom/dms')
+                .then(res => setThreads(res.data.data))
+                .catch(() => {});
+        }, 15000);
+        return () => { if (threadPollRef.current) clearInterval(threadPollRef.current); };
     }, []);
 
     useEffect(() => {
@@ -276,7 +301,12 @@ export default function TeacherStaffroom() {
             const res = await api.get(`/teacher/staffroom/dms/${teacherUserId}`);
             setMessages(res.data.data);
             setThreads(prev => prev.map(t => t.teacherUserId === teacherUserId ? { ...t, unread: 0 } : t));
-        } catch { if (!silent) toast.error('Failed to load messages'); }
+        } catch (err: unknown) {
+            if (!silent) {
+                const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                toast.error(msg ?? 'Failed to load messages');
+            }
+        }
         finally { if (!silent) setMessagesLoading(false); }
     }, []);
 
@@ -366,14 +396,23 @@ export default function TeacherStaffroom() {
             setThreads(prev => prev.map(t => t.teacherUserId === activeDm.teacherUserId
                 ? { ...t, lastMessage: newMsg.text ?? newMsg.attachmentName ?? 'Attachment', lastMessageAt: newMsg.createdAt, lastMessageIsMe: true } : t));
             setDmInput(''); setDmAttachment(null);
-        } catch { toast.error('Failed to send message'); }
-        finally { setDmSubmitting(false); }
+        } catch (err: unknown) {
+            const data = (err as { response?: { data?: { message?: string; errors?: { field: string; message: string }[] } } })?.response?.data;
+            const msg = data?.errors?.length
+                ? `${data.message ?? 'Validation failed'}: ${data.errors.map(e => e.message).join(', ')}`
+                : (data?.message ?? 'Failed to send message');
+            toast.error(msg);
+        } finally { setDmSubmitting(false); }
     };
 
     const openDm = (thread: DmThread) => { setActiveDm(thread); setMessages([]); setDmInput(''); setDmAttachment(null); };
     const filteredPosts = feedSearch.trim() ? posts.filter(p => p.text.toLowerCase().includes(feedSearch.toLowerCase()) || p.author.name.toLowerCase().includes(feedSearch.toLowerCase())) : posts;
     const filteredThreads = dmSearch.trim() ? threads.filter(t => t.name.toLowerCase().includes(dmSearch.toLowerCase())) : threads;
     const myInitials = getInitials(myName);
+    // Derive live presence from threads so chat header updates without reopening the DM
+    const activeIsOnline = activeDm
+        ? (threads.find(t => t.teacherUserId === activeDm.teacherUserId)?.isActive ?? activeDm.isActive)
+        : false;
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
@@ -543,11 +582,11 @@ export default function TeacherStaffroom() {
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${getAvatarColor(activeDm.teacherUserId)}`}>
                                             {getInitials(activeDm.name)}
                                         </div>
-                                        <div className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${activeDm.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
+                                        <div className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${activeIsOnline ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-semibold">{activeDm.name}</p>
-                                        <p className="text-[10px] text-muted-foreground">{activeDm.isActive ? '🟢 Active' : '⚫ Inactive'}</p>
+                                        <p className="text-[10px] text-muted-foreground">{activeIsOnline ? '🟢 Active' : '⚫ Inactive'}</p>
                                     </div>
                                 </div>
 

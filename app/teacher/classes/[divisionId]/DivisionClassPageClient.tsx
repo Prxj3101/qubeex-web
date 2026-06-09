@@ -9,6 +9,7 @@ import ViewTab from './ViewTab';
 import ManageTab from './ManageTab';
 import FeesTab from './FeesTab';
 import AttendanceTab, { AttendanceSubTab } from './AttendanceTab';
+import TasksTab from './TasksTab';
 
 export interface Subject {
     id: string;
@@ -89,7 +90,8 @@ export default function DivisionClassPageClient() {
     const fetchDivision = useCallback(async () => {
         try {
             const res = await api.get(`/teacher/classes/${divisionId}`);
-            setDivision(res.data.data);
+            const raw = res.data.data;
+            setDivision({ ...raw, subjects: raw.standard?.subjects ?? [] });
         } catch {
             setDivision({
                 id: divisionId,
@@ -287,9 +289,7 @@ export default function DivisionClassPageClient() {
                     )}
                     {activeTab === 'tasks' && (
                         <motion.div key="tasks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                            <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                                Tasks — Coming soon
-                            </div>
+                            <TasksTab divisionId={divisionId} />
                         </motion.div>
                     )}
                 </AnimatePresence>
