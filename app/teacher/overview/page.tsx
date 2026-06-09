@@ -4,6 +4,7 @@ import { useRef, useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TeacherAttendanceChart } from '@/components/teacher/TeacherAttendanceChart';
+import TeacherNotepad from '@/components/teacher/TeacherNotepad';
 import { AlertCircle, Users, LayoutGrid, BookOpen, ScrollText, ClipboardList, Sparkles, AlertTriangle, TrendingUp, ArrowUpRight, ArrowDownRight, Bell, X, CalendarDays } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -76,8 +77,8 @@ const MOCK_ANNOUNCEMENTS = [
 ];
 
 const THOUGHTS = [
-    { text: "The mediocre teacher tells. The good teacher explains. The superior teacher demonstrates. The great teacher inspires.", author: "William Arthur Ward" },
-    { text: "Teaching is the greatest act of optimism.", author: "Colleen Wilcox" },
+    { text: "Teaching is the greatest act of optimism.", author: "William Arthur Ward" },
+    { text: "The mediocre teacher tells. The good teacher explains. The superior teacher demonstrates. The great teacher inspires.", author: "Colleen Wilcox" },
     { text: "A good teacher can inspire hope, ignite the imagination, and instill a love of learning.", author: "Brad Henry" },
     { text: "The art of teaching is the art of assisting discovery.", author: "Mark Van Doren" },
     { text: "Teachers, I believe, are the most responsible and important members of society.", author: "Kurt Vonnegut" },
@@ -160,7 +161,7 @@ function Blackboard({ thought, teacherClass }: { thought: { text: string; author
                     <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.2)' }} />
                 </div>
                 <p style={{ fontFamily: '"Caveat", cursive', fontSize: '72px', color: 'rgba(255,255,255,0.08)', lineHeight: '0.6', marginBottom: 8, position: 'relative', zIndex: 1 }}>&quot;</p>
-                <p className="chalk-flicker" style={{ fontFamily: '"Caveat", cursive', fontSize: '27px', color: 'rgba(255,255,255,0.92)', lineHeight: '1.5', marginBottom: 12, textShadow: '0 0 8px rgba(255,255,255,0.15), 1px 1px 2px rgba(0,0,0,0.4)', position: 'relative', zIndex: 1 }}>
+                <p className="chalk-flicker" style={{ fontFamily: '"Caveat", cursive', fontSize: '25px', color: 'rgba(255,255,255,0.92)', lineHeight: '1.5', marginBottom: 12, textShadow: '0 0 8px rgba(255,255,255,0.15), 1px 1px 2px rgba(0,0,0,0.4)', position: 'relative', zIndex: 1 }}>
                     {thought.text}
                 </p>
                 <div className="chalk-flicker" style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'flex-end', position: 'relative', zIndex: 1 }}>
@@ -346,11 +347,16 @@ export default function TeacherOverviewPage() {
             </div>
 
             {/* ── Blackboard + Short Attendance (same as student overview) ── */}
-            <div className="grid grid-cols-2 gap-3" style={{ alignItems: 'stretch' }}>
+            <div className="grid grid-cols-2 gap-3" style={{ height: '390px' }}>
 
                 {/* Blackboard — left, same size as student */}
                 <div className="lg:col-span-1">
                     <Blackboard thought={thought} teacherClass={MOCK_TEACHER.classTeacher} />
+                </div>
+
+                {/* Notepad */}
+                <div className="col-span-1" style={{ height: '390px' }}>
+                    <TeacherNotepad />
                 </div>
             </div>
 
