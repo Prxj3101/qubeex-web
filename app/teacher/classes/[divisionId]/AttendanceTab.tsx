@@ -1052,16 +1052,14 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
 
                                 {/* Individual Student Sheet */}
                                 <div className="rounded-2xl border border-border/50 overflow-hidden">
-                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center gap-3">
-                                        <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                            style={{ background: getAvatarColor(selectedStudent.name) }}>
-                                            {getInitials(selectedStudent.name)}
+                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between relative">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Attendance Sheet</p>
+                                        <div className="absolute left-1/2 -translate-x-1/2 flex items-baseline gap-2">
+                                            <span className="text-[12px] font-semibold text-foreground">{selectedStudent.name}</span>
+                                            <span className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo}</span>
                                         </div>
-                                        <p className="text-[11px] font-bold text-foreground">{selectedStudent.name}</p>
-                                        <p className="text-[10px] text-muted-foreground">Roll No. {selectedStudent.rollNo}</p>
-                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider ml-auto">Attendance Sheet</p>
                                     </div>
-                                    <div style={{ overflowX: 'scroll', overflowY: 'auto', background: '#F5F8EE', scrollbarWidth: 'thin', scrollbarColor: '#BACE85 #F5F8EE', maxHeight: '260px' }}>
+                                    <div style={{ overflowX: 'scroll', overflowY: 'auto', background: '#F5F8EE', scrollbarWidth: 'thin', scrollbarColor: '#BACE85 #F5F8EE', height: '375px' }}>
                                         <table className="text-[10px] border-separate border-spacing-0 min-w-max">
                                             <thead className="sticky top-0 z-30">
                                                 <tr>
@@ -1172,6 +1170,22 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                                                 })}
                                             </tbody>
                                         </table>
+                                    </div>
+                                    {/* Footer — Legend */}
+                                    <div className="px-4 py-2 border-t border-border/40 shrink-0 flex items-center gap-4 bg-card">
+                                        {[
+                                            { label: 'Present' },
+                                            { label: 'Absent' },
+                                            { label: 'Late' },
+                                        ].map(item => (
+                                            <div key={item.label} className="flex items-center gap-1.5">
+                                                <span style={{ fontFamily: "'Patrick Hand', cursive", fontSize: '16px', fontWeight: '700', lineHeight: 1, color: item.label === 'Present' ? '#16a34a' : item.label === 'Absent' ? '#dc2626' : '#d97706' }}>
+                                                    {item.label[0]}
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground">{item.label}</span>
+                                            </div>
+                                        ))}
+                                        <span className="text-[10px] text-muted-foreground/50 ml-auto italic">% = (P + L) / Total</span>
                                     </div>
                                 </div>
                             </div>

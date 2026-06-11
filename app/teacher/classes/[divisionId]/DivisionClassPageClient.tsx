@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, ChevronRight, Users } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Users, NotebookPen, Smartphone, BarChart2, CalendarCheck, TrendingUp } from 'lucide-react';
 import api from '@/lib/api';
 import ViewTab from './ViewTab';
 import ManageTab from './ManageTab';
 import FeesTab from './FeesTab';
 import AttendanceTab, { AttendanceSubTab } from './AttendanceTab';
+import MarksTab, { MarksSubTab, MarksStats } from './MarksTab';
 import TasksTab from './TasksTab';
 
 export interface Subject {
@@ -71,6 +72,7 @@ export default function DivisionClassPageClient() {
             { key: 'view' as const, label: 'View' },
             { key: 'manage' as const, label: 'Manage' },
             { key: 'attendance' as const, label: 'Attendance' },
+            { key: 'marks' as const, label: 'Marksheet' },
             { key: 'fees' as const, label: 'Fees' },
         ]
         : [
@@ -80,10 +82,14 @@ export default function DivisionClassPageClient() {
 
     const [division, setDivision] = useState<Division | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'attendance' | 'fees' | 'tasks'>('view');
+    const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'attendance' | 'marks' | 'fees' | 'tasks'>('view');
 
     // ── Attendance sub-tab state lifted here ──────────────────────────────────
     const [attendanceSubTab, setAttendanceSubTab] = useState<AttendanceSubTab>('daily');
+
+    // ── Marks sub-tab state ───────────────────────────────────────────────────
+    const [marksSubTab, setMarksSubTab] = useState<MarksSubTab>('offline');
+    const [marksStats, setMarksStats] = useState<MarksStats>({ avg: null, topGrade: null });
 
     const fetchedRef = useRef(false);
 
@@ -188,6 +194,32 @@ export default function DivisionClassPageClient() {
                     {/* Right side — attendance sub-tab toggle + Subjects + Students count */}
                     <div className="flex items-center gap-4">
 
+                        {/* Marks sub-tab toggle */}
+                        <AnimatePresence>
+                            {activeTab === 'marks' && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
+                                    {([
+                                        { key: 'offline' as MarksSubTab, label: 'Offline', Icon: NotebookPen },
+                                        { key: 'online' as MarksSubTab, label: 'Online', Icon: Smartphone },
+                                        { key: 'overall' as MarksSubTab, label: 'Overall', Icon: BarChart2 },
+                                    ]).map(({ key, label, Icon }) => {
+                                        const isActive = marksSubTab === key;
+                                        return (
+                                            <button key={key} onClick={() => setMarksSubTab(key)}
+                                                className={`relative flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all
+                                                    ${isActive ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                <Icon size={14} />
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {/* Attendance sub-tab — exact same style as "Student Fees | Fee Setup" in screenshot */}
                         <AnimatePresence>
                             {activeTab === 'attendance' && (
@@ -198,17 +230,18 @@ export default function DivisionClassPageClient() {
                                     transition={{ duration: 0.15 }}
                                     className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
                                     {([
-                                        { key: 'daily' as AttendanceSubTab, label: 'Daily Attendance' },
-                                        { key: 'overall' as AttendanceSubTab, label: 'Overall' },
-                                    ]).map(sub => {
-                                        const isActive = attendanceSubTab === sub.key;
+                                        { key: 'daily' as AttendanceSubTab, label: 'Daily Attendance', Icon: CalendarCheck },
+                                        { key: 'overall' as AttendanceSubTab, label: 'Overall', Icon: BarChart2 },
+                                    ]).map(({ key, label, Icon }) => {
+                                        const isActive = attendanceSubTab === key;
                                         return (
-                                            <button key={sub.key} onClick={() => setAttendanceSubTab(sub.key)}
-                                                className={`relative px-3 py-1 rounded-lg text-xs font-medium transition-all
+                                            <button key={key} onClick={() => setAttendanceSubTab(key)}
+                                                className={`relative flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all
                                                     ${isActive
                                                         ? 'bg-card text-foreground shadow-sm'
                                                         : 'text-muted-foreground hover:text-foreground'}`}>
-                                                {sub.label}
+                                                <Icon size={14} />
+                                                {label}
                                             </button>
                                         );
                                     })}
@@ -239,6 +272,22 @@ export default function DivisionClassPageClient() {
                                         <p className="text-[11px] text-muted-foreground">{label}</p>
                                     </div>
                                 ))}
+                            </div>
+                        ) : activeTab === 'marks' ? (
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="text-lg font-bold leading-tight">
+                                        {marksStats.avg !== null ? `${marksStats.avg}%` : '—'}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">{marksStats.pill1Label ?? 'Class Avg'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-bold leading-tight"
+                                        style={{ color: marksStats.pill2Color ?? (marksStats.topGrade === 'A' ? '#059669' : marksStats.topGrade === 'B' ? '#F59E0B' : marksStats.topGrade === 'C' ? '#d97706' : marksStats.topGrade === 'D' ? '#DC2626' : undefined) }}>
+                                        {marksStats.pill2Value ?? marksStats.topGrade ?? '—'}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">{marksStats.pill2Label ?? 'Top Grade'}</p>
+                                </div>
                             </div>
                         ) : (
                             <div className="flex items-center gap-4">
@@ -279,6 +328,21 @@ export default function DivisionClassPageClient() {
                                 isClassTeacher={isClassTeacher}
                                 attendanceSubTab={attendanceSubTab}
                                 onAttendanceSubTabChange={setAttendanceSubTab}
+                            />
+                        </motion.div>
+                    )}
+                    {activeTab === 'marks' && isClassTeacher && (
+                        <motion.div key="marks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                            <MarksTab
+                                divisionName={division.name}
+                                subjects={division.subjects.map(s => ({
+                                    id: s.id, name: s.name,
+                                    code: s.code ?? s.name.slice(0, 4).toUpperCase(),
+                                    color: s.color ?? '#7C3AED',
+                                }))}
+                                subTab={marksSubTab}
+                                onSubTabChange={setMarksSubTab}
+                                onStatsChange={setMarksStats}
                             />
                         </motion.div>
                     )}

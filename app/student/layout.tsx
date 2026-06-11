@@ -7,7 +7,7 @@ const NAV_ITEMS = [
     { label: 'Overview', href: '/student/overview', icon: LayoutDashboard },
     { label: 'Feed', href: '/student/feed', icon: Rss },
     { label: 'Tasks', href: '/student/tasks', icon: ClipboardList },
-    { label: 'Courses', href: '/student/courses', icon: BookOpen },
+    { label: 'Class', href: '/student/class', icon: BookOpen },
     { label: 'Profile', href: '/student/profile', icon: User },
 ];
 

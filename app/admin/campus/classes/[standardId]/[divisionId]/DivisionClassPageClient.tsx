@@ -750,6 +750,7 @@ export default function DivisionDetailPage() {
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
     const [feesSubTab, setFeesSubTab] = useState<'setup' | 'students'>('students');
     const [timetableImage, setTimetableImage] = useState<string | null>(null);
+    const [leaderTab, setLeaderTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const timetableInputRef = useRef<HTMLInputElement>(null);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -1241,10 +1242,18 @@ export default function DivisionDetailPage() {
 
                                 {/* Leaderboard */}
                                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
+                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                             <Trophy size={12} /> Leaderboard — Top 5
                                         </p>
+                                        <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40">
+                                            {(['offline', 'online', 'combined'] as const).map(t => (
+                                                <button key={t} onClick={() => setLeaderTab(t)}
+                                                    className={`px-2.5 py-0.5 rounded-md text-[10px] font-semibold capitalize transition-all ${leaderTab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                    {t}
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     {/* Podium — top 3 */}
