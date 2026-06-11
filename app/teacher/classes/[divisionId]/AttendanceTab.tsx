@@ -1050,7 +1050,6 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
 
                                                         const total = p + a + l;
                                                         const pct = total > 0 ? Math.round(((p + l) / total) * 100) : null;
-
                                                         return (
                                                             <tr key={m.month} className="bg-[#F5F8EE] hover:bg-[#E0E8C8] transition-colors">
                                                                 {/* Month name — sticky left */}
