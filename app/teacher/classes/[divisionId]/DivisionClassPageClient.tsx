@@ -86,6 +86,7 @@ export default function DivisionClassPageClient() {
 
     // ── Attendance sub-tab state lifted here ──────────────────────────────────
     const [attendanceSubTab, setAttendanceSubTab] = useState<AttendanceSubTab>('daily');
+    const [attendanceHeaderStats, setAttendanceHeaderStats] = useState<{ overall: number | null; thisMonth: number | null }>({ overall: null, thisMonth: null });
 
     // ── Marks sub-tab state ───────────────────────────────────────────────────
     const [marksSubTab, setMarksSubTab] = useState<MarksSubTab>('offline');
@@ -252,8 +253,8 @@ export default function DivisionClassPageClient() {
                         {activeTab === 'attendance' ? (
                             <div className="flex items-center gap-4">
                                 {[
-                                    { label: 'Class Overall', value: `${Math.round(MOCK_STUDENTS.reduce((s, st) => s + st.attendance, 0) / MOCK_STUDENTS.length)}%` },
-                                    { label: 'This Month', value: `${Math.round(MOCK_STUDENTS.reduce((s, st) => s + st.attendance, 0) / MOCK_STUDENTS.length)}%` },
+                                    { label: 'Class Overall', value: attendanceHeaderStats.overall !== null ? `${attendanceHeaderStats.overall}%` : '—' },
+                                    { label: 'This Month', value: attendanceHeaderStats.thisMonth !== null ? `${attendanceHeaderStats.thisMonth}%` : '—' },
                                 ].map(({ label, value }) => (
                                     <div key={label} className="text-right">
                                         <p className="text-lg font-bold leading-tight">{value}</p>
@@ -328,6 +329,7 @@ export default function DivisionClassPageClient() {
                                 isClassTeacher={isClassTeacher}
                                 attendanceSubTab={attendanceSubTab}
                                 onAttendanceSubTabChange={setAttendanceSubTab}
+                                onHeaderStatsLoad={setAttendanceHeaderStats}
                             />
                         </motion.div>
                     )}

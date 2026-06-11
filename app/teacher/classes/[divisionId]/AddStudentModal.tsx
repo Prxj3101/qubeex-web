@@ -419,14 +419,14 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                                     </div>
 
                                     {/* Row 3 */}
-                                    {/* Student ID — auto generated */}
+                                    {/* Student ID — assigned by backend on creation */}
                                     <div>
                                         <FL>Student ID</FL>
-                                        <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between">
-                                            <span className="text-sm font-mono font-semibold" style={{ color: '#DA7756' }}>
-                                                {`STU-2026-${Math.random().toString(36).substring(2, 6).toUpperCase()}`}
+                                        <div className="h-8 px-3 rounded-md border border-dashed border-border/60 bg-muted/20 flex items-center justify-between">
+                                            <span className="text-xs text-muted-foreground/60 italic">
+                                                Assigned on save (e.g. ABC-2026-0001)
                                             </span>
-                                            <span className="text-[10px] text-muted-foreground/50">Auto generated</span>
+                                            <span className="text-[10px] text-muted-foreground/40">Auto generated</span>
                                         </div>
                                     </div>
 

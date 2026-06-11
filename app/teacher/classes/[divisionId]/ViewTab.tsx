@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Division, Assignment, getInitials, getAvatarColor, AVATAR_COLORS, MOCK_STUDENTS } from './DivisionClassPageClient';
+import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
@@ -392,13 +393,11 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
                     </p>
                 )}
             </div>
-            {ann.attachmentUrl && expanded && (
+            {ann.attachmentUrl && ann.attachmentName && ann.attachmentType && (
                 <div className="pt-2 border-t border-border/40">
-                    <a href={ann.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-muted border border-border/50 text-[11px] font-medium hover:bg-muted/80 transition-all">
-                        <span>{ann.attachmentType === 'image' ? '🖼️' : ann.attachmentType === 'pdf' ? '📄' : '📎'}</span>
-                        <span className="text-muted-foreground truncate max-w-[160px]">{ann.attachmentName ?? 'Attachment'}</span>
-                    </a>
+                    <AttachmentPreview
+                        attachment={{ url: ann.attachmentUrl, name: ann.attachmentName, type: ann.attachmentType }}
+                    />
                 </div>
             )}
             <button onClick={() => setExpanded(v => !v)}

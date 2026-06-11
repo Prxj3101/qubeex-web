@@ -1,52 +1,47 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Users, CalendarDays, ChevronLeft, ChevronRight, CheckCircle2,
     MessageSquare, Save, ChevronDown, X, Flag, ExternalLink
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AttendanceStatus = 'P' | 'A' | 'L' | null;
 type SheetEntry = Record<string, AttendanceStatus>;
-interface Student { id: string; name: string; rollNo: string; }
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-const MOCK_STUDENTS: Student[] = [
-    { id: 'st1', name: 'Aarav Mehta', rollNo: '01' },
-    { id: 'st2', name: 'Priya Singh', rollNo: '02' },
-    { id: 'st3', name: 'Rohan Gupta', rollNo: '03' },
-    { id: 'st4', name: 'Sneha Patel', rollNo: '04' },
-    { id: 'st5', name: 'Arjun Kumar', rollNo: '05' },
-    { id: 'st6', name: 'Meera Sharma', rollNo: '06' },
-    { id: 'st7', name: 'Karan Joshi', rollNo: '07' },
-    { id: 'st8', name: 'Ananya Nair', rollNo: '08' },
-    { id: 'st9', name: 'Vikram Rao', rollNo: '09' },
-    { id: 'st10', name: 'Ishaan Verma', rollNo: '10' },
-    { id: 'st11', name: 'Divya Reddy', rollNo: '11' },
-    { id: 'st12', name: 'Sahil Khan', rollNo: '12' },
-];
+interface AttendanceStudent {
+    id: string;
+    name: string;
+    rollNo: string;
+    overallPct: number | null;
+}
 
-const MOCK_OVERALL: Record<string, number> = {
-    st1: 92, st2: 78, st3: 85, st4: 61, st5: 95,
-    st6: 73, st7: 88, st8: 55, st9: 91, st10: 69,
-    st11: 82, st12: 77,
-};
+interface SummaryStudent {
+    studentId: string;
+    name: string;
+    rollNo: string;
+    overallPct: number | null;
+    currentMonthPct: number | null;
+    monthlyStats: { monthKey: string; p: number; a: number; l: number; pct: number | null }[];
+}
 
-const MOCK_MONTH: Record<string, number> = {
-    st1: 88, st2: 72, st3: 80, st4: 58, st5: 96,
-    st6: 68, st7: 84, st8: 50, st9: 89, st10: 65,
-    st11: 79, st12: 74,
-};
+interface ClassStats {
+    overallPct: number | null;
+    currentMonthPct: number | null;
+    monthlyStats: { monthKey: string; avg: number | null }[];
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 function getAvatarColor(n: string) { return AVATAR_COLORS[n.charCodeAt(0) % AVATAR_COLORS.length]; }
 function getInitials(n: string) { return n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
 
-function pctColor(p: number) {
+function pctColor(p: number | null) {
+    if (p === null) return 'text-muted-foreground/40';
     if (p >= 75) return 'text-emerald-500';
     if (p >= 65) return 'text-amber-500';
     return 'text-red-500';
@@ -66,6 +61,11 @@ function makeDateKey(year: number, month: number, day: number) {
 }
 function getStudentId(rollNo: string, year: number) {
     return `STU-${year}-${rollNo.padStart(4, '0')}`;
+}
+// Parse "YYYY-MM" → { short: "Jun", monthIndex: 5 }
+function parseMonthKey(mk: string): { short: string; monthIndex: number } {
+    const mm = parseInt(mk.split('-')[1]) - 1;
+    return { short: MONTHS_S[mm], monthIndex: mm };
 }
 
 // ── Sheet config ──────────────────────────────────────────────────────────────
@@ -99,22 +99,22 @@ function StatusBtn({ label, active, onClick, disabled }: {
 }
 
 // ── Attendance Sheet (Right Panel) ────────────────────────────────────────────
-function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRemarks, onHolidayChange, onRemarkChange, divisionName }: {
-    students: Student[];
+function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRemarks, onHolidayChange, onRemarkChange, divisionName, divisionId, refreshKey }: {
+    students: AttendanceStudent[];
     selectedDate: Date;
     attendance: Record<string, { status: AttendanceStatus; remark: string }>;
     holidays: Record<string, string>;
     dateRemarks: Record<string, string>;
     divisionName: string;
+    divisionId: string;
+    refreshKey: number;
     onHolidayChange: (dk: string, name: string | null) => void;
     onRemarkChange: (dk: string, remark: string) => void;
 }) {
     const today = new Date();
     const [activeMonth, setActiveMonth] = useState(selectedDate.getMonth());
     const [monthOffset, setMonthOffset] = useState(0);
-    const [sheetData] = useState<Record<string, SheetEntry>>(() =>
-        Object.fromEntries(students.map(s => [s.id, {}]))
-    );
+    const [monthlyRecords, setMonthlyRecords] = useState<Record<string, AttendanceStatus>>({});
 
     // ── Popup + Modal state ───────────────────────────────────────────────────
     const [popupDate, setPopupDate] = useState<number | null>(null);
@@ -133,10 +133,24 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     const isWeekend = (d: number) => new Date(year, activeMonth, d).getDay() === 0;
     const isSelectedDateCell = (d: number) => d === selectedDate.getDate() && activeMonth === selectedDate.getMonth();
 
+    // ── Fetch monthly data when activeMonth or refreshKey changes ─────────────
+    useEffect(() => {
+        const monthStr = `${year}-${String(activeMonth + 1).padStart(2, '0')}`;
+        api.get(`/teacher/attendance/${divisionId}/monthly?month=${monthStr}`)
+            .then(res => {
+                const recs: Record<string, AttendanceStatus> = {};
+                res.data.data.records.forEach((r: { studentId: string; date: string; status: string }) => {
+                    recs[`${r.studentId}::${r.date}`] = r.status as AttendanceStatus;
+                });
+                setMonthlyRecords(recs);
+            })
+            .catch(() => setMonthlyRecords({}));
+    }, [activeMonth, divisionId, year, refreshKey]);
+
     // ── Live data getters ─────────────────────────────────────────────────────
     const getLiveStatus = (studentId: string, dk: string): AttendanceStatus => {
         if (dk === currentKey) return attendance[studentId]?.status ?? null;
-        return sheetData[studentId]?.[dk] ?? null;
+        return monthlyRecords[`${studentId}::${dk}`] ?? null;
     };
 
     const getLiveRemark = (studentId: string, dk: string): string => {
@@ -144,46 +158,12 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         return '';
     };
 
-    const exportToExcel = () => {
-        const headers = ['Roll No.', 'Name', 'Student ID', ...visibleDates.map(d => String(d)), 'P', 'A', 'L', '%', 'Overall %'];
-
-        const rows = students.map(student => {
-            let p = 0, a = 0, l = 0;
-            const dateCells = visibleDates.map(d => {
-                const dk = makeDateKey(year, activeMonth, d);
-                if (holidays[dk]) return 'H';
-                const status = getLiveStatus(student.id, dk);
-                if (status === 'P') p++;
-                else if (status === 'A') a++;
-                else if (status === 'L') l++;
-                return status ?? '—';
-            });
-            const total = p + a + l;
-            const pct = total > 0 ? `${Math.round(((p + l) / total) * 100)}%` : '—';
-            return [
-                student.rollNo,
-                student.name,
-                getStudentId(student.rollNo, year),
-                ...dateCells,
-                p || '—', a || '—', l || '—',
-                pct,
-                MOCK_OVERALL[student.id] !== undefined ? `${MOCK_OVERALL[student.id]}%` : '—',
-            ];
-        });
-
-        const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, `${MONTHS_S[activeMonth]} Attendance`);
-        XLSX.writeFile(wb, `Attendance_${MONTHS_S[activeMonth]}_${year}.xlsx`);
-    };
-
-    // ── Export state ──────────────────────────────────────────────────────────────
+    // ── Export state ──────────────────────────────────────────────────────────
     const [showExportMenu, setShowExportMenu] = useState(false);
     const [showMonthSelector, setShowMonthSelector] = useState(false);
     const [selectedExportMonths, setSelectedExportMonths] = useState<number[]>([]);
     const exportMenuRef = useRef<HTMLDivElement>(null);
 
-    // Close export menu on outside click
     useEffect(() => {
         const handler = (e: MouseEvent) => {
             if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
@@ -194,7 +174,6 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    // ── Export function ───────────────────────────────────────────────────────────
     const exportMonthSheet = (monthKey: number) => {
         const days = new Date(year, monthKey + 1, 0).getDate();
         const dates = Array.from({ length: days }, (_, i) => i + 1);
@@ -212,7 +191,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
             });
             const total = p + a + l;
             const pct = total > 0 ? `${Math.round(((p + l) / total) * 100)}%` : '—';
-            return [student.rollNo, student.name, getStudentId(student.rollNo, year), ...dateCells, p || '—', a || '—', l || '—', pct, MOCK_OVERALL[student.id] !== undefined ? `${MOCK_OVERALL[student.id]}%` : '—'];
+            return [student.rollNo, student.name, getStudentId(student.rollNo, year), ...dateCells, p || '—', a || '—', l || '—', pct, student.overallPct !== null ? `${student.overallPct}%` : '—'];
         });
         return { headers, rows, sheetName: MONTHS_S[monthKey] };
     };
@@ -258,7 +237,6 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         setPopupDate(prev => prev === d ? null : d);
     };
 
-    // Academic year auto detect — June se May tak hota hai
     const academicYear = activeMonth >= 5
         ? `${year}–${String(year + 1).slice(2)}`
         : `${year - 1}–${String(year).slice(2)}`;
@@ -311,23 +289,17 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                         ⬇ Export <ChevronDown size={11} />
                     </button>
-
-                    {/* Export dropdown */}
                     <AnimatePresence>
                         {showExportMenu && (
                             <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
                                 className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[160px]">
-                                {/* This Month */}
                                 <button onClick={handleExportThisMonth}
                                     className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
-                                    <span>📅</span>
-                                    <span>This Month ({MONTHS_S[activeMonth]})</span>
+                                    <span>📅</span><span>This Month ({MONTHS_S[activeMonth]})</span>
                                 </button>
-                                {/* Select Month */}
                                 <button onClick={() => { setShowExportMenu(false); setShowMonthSelector(true); setSelectedExportMonths([]); }}
                                     className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
-                                    <span>🗓️</span>
-                                    <span>Select Months</span>
+                                    <span>🗓️</span><span>Select Months</span>
                                 </button>
                             </motion.div>
                         )}
@@ -347,8 +319,6 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                     <X size={14} />
                                 </button>
                             </div>
-
-                            {/* Month checkboxes */}
                             <div className="grid grid-cols-3 gap-2 mb-4">
                                 {SHEET_MONTHS.map(m => {
                                     const isChecked = selectedExportMonths.includes(m.key);
@@ -368,8 +338,6 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                     );
                                 })}
                             </div>
-
-                            {/* Select all / Clear */}
                             <div className="flex gap-2 mb-4">
                                 <button onClick={() => setSelectedExportMonths(SHEET_MONTHS.map(m => m.key))}
                                     className="flex-1 h-7 rounded-lg border border-border/50 text-[11px] font-semibold text-muted-foreground hover:bg-muted transition-all">
@@ -380,8 +348,6 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                     Clear
                                 </button>
                             </div>
-
-                            {/* Download button */}
                             <button onClick={handleExportSelectedMonths} disabled={selectedExportMonths.length === 0}
                                 className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
@@ -392,18 +358,14 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                 )}
             </AnimatePresence>
 
-
             {/* Sheet table */}
             <div style={{ flex: 1, minHeight: 0, overflowX: 'scroll', overflowY: 'auto', background: '#F5F8EE', scrollbarWidth: 'thin', scrollbarColor: '#BACE85 #F5F8EE' }}>
                 <table className="text-[10px] border-separate border-spacing-0 min-w-max">
                     <thead className="sticky top-0 z-30">
                         <tr>
-                            {/* Sticky left columns */}
                             <th className="sticky left-[0px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-left font-semibold text-[#2A3A10] whitespace-nowrap min-w-[55px]">Roll No.</th>
                             <th className="sticky left-[55px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-left font-semibold text-[#2A3A10] whitespace-nowrap min-w-[120px]">Name</th>
                             <th className="bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-left font-semibold text-[#2A3A10] whitespace-nowrap min-w-[95px]">Student ID</th>
-
-                            {/* Date columns — clickable */}
                             {visibleDates.map(d => {
                                 const dk = makeDateKey(year, activeMonth, d);
                                 const isSelected = isSelectedDateCell(d);
@@ -418,15 +380,12 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                                     : weekend ? 'bg-[#FFF0F0] text-red-500'
                                                         : 'bg-[#ECF3D0] text-[#2A3A10]'}`}>
                                         {d}
-                                        {/* Date remark dot */}
                                         {hasRemark && !isHoliday && (
                                             <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-[#DA7756]" />
                                         )}
                                     </th>
                                 );
                             })}
-
-                            {/* Sticky right summary columns */}
                             <th title="Total Present" className="sticky right-[222px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap w-[40px] min-w-[40px]">P</th>
                             <th title="Total Absent" className="sticky right-[182px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap w-[40px] min-w-[40px]">A</th>
                             <th title="Total Late" className="sticky right-[142px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap w-[40px] min-w-[40px]">L</th>
@@ -437,7 +396,6 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                     </thead>
                     <tbody>
                         {students.map((student, si) => {
-                            // ── Count P/A/L for this month (skip holidays) ────
                             let p = 0, a = 0, l = 0;
                             visibleDates.forEach(d => {
                                 const dk = makeDateKey(year, activeMonth, d);
@@ -452,11 +410,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
 
                             return (
                                 <tr key={student.id} className="bg-[#F5F8EE] hover:bg-[#E0E8C8] transition-colors">
-
-                                    {/* Sticky left — Roll No */}
                                     <td className="sticky left-0 z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-2 font-semibold text-center text-[#2A3A10] bg-[#F5F8EE] w-[55px]">{student.rollNo}</td>
-
-                                    {/* Sticky left — Name */}
                                     <td className="sticky left-[55px] z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-1.5 font-medium whitespace-nowrap text-[#2A3A10] bg-[#F5F8EE]">
                                         <div className="flex items-center gap-1.5">
                                             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
@@ -466,13 +420,9 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                             {student.name}
                                         </div>
                                     </td>
-
-                                    {/* Student ID */}
                                     <td className="border-[0.1px] border-[#BACE85]/50 px-2 py-2 font-mono text-[11px] whitespace-nowrap bg-[#F5F8EE]" style={{ color: '#DA7756' }}>
                                         {getStudentId(student.rollNo, year)}
                                     </td>
-
-                                    {/* Date cells */}
                                     {visibleDates.map(d => {
                                         const dk = makeDateKey(year, activeMonth, d);
                                         const status = getLiveStatus(student.id, dk);
@@ -480,33 +430,21 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                         const isSelected = isSelectedDateCell(d);
                                         const weekend = isWeekend(d);
                                         const isHoliday = !!holidays[dk];
-
-                                        // ── Holiday column — rowSpan for first student ──
                                         if (isHoliday) {
                                             if (si === 0) {
                                                 return (
                                                     <td key={d} rowSpan={students.length}
                                                         className="border-[0.1px] border-red-200 text-center align-middle relative"
                                                         style={{ background: '#FEF2F2', minWidth: '30px' }}>
-                                                        {/* Center vertical line */}
                                                         <div className="absolute inset-0 flex items-center justify-center">
                                                             <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                                                                 <line x1="50%" y1="0" x2="50%" y2="100%" stroke="#FCA5A5" strokeWidth="1" />
                                                             </svg>
-                                                            {/* Rotated holiday text */}
                                                             <span style={{
-                                                                color: '#ef4444',
-                                                                fontSize: '10px',
-                                                                fontWeight: '700',
-                                                                whiteSpace: 'nowrap',
-                                                                writingMode: 'vertical-rl',
-                                                                transform: 'rotate(180deg)',
-                                                                background: '#FEF2F2',
-                                                                padding: '2px 0',
-                                                                position: 'relative',
-                                                                zIndex: 1,
-                                                                fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif",
-                                                                letterSpacing: '0.5px',
+                                                                color: '#ef4444', fontSize: '10px', fontWeight: '700',
+                                                                whiteSpace: 'nowrap', writingMode: 'vertical-rl', transform: 'rotate(180deg)',
+                                                                background: '#FEF2F2', padding: '2px 0', position: 'relative', zIndex: 1,
+                                                                fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif", letterSpacing: '0.5px',
                                                             }}>
                                                                 {holidays[dk] ? `Holiday — ${holidays[dk]}` : 'Holiday'}
                                                             </span>
@@ -514,44 +452,27 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                                     </td>
                                                 );
                                             }
-                                            return null; // other rows handled by rowSpan
+                                            return null;
                                         }
-
-                                        // ── Normal attendance cell ────────────
                                         return (
                                             <td key={d}
-                                                onClick={() => {
-                                                    if (remark) {
-                                                        setRemarkInput(remark);
-                                                        setRemarkModalDk(`${student.id}::${dk}`);
-                                                    }
-                                                }}
+                                                onClick={() => { if (remark) { setRemarkInput(remark); setRemarkModalDk(`${student.id}::${dk}`); } }}
                                                 className={`border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center relative
                                                     ${remark ? 'cursor-pointer' : 'cursor-default'}
                                                     ${isSelected ? 'bg-[#EEF4FF]' : weekend ? 'bg-[#FFF5F5]' : ''}`}>
                                                 {status ? (
                                                     <span style={{
-                                                        fontFamily: "'Patrick Hand', cursive",
-                                                        fontSize: '16px',
-                                                        fontWeight: '700',
+                                                        fontFamily: "'Patrick Hand', cursive", fontSize: '16px', fontWeight: '700',
                                                         color: status === 'P' ? '#16a34a' : status === 'A' ? '#dc2626' : '#d97706',
-                                                        lineHeight: 1,
-                                                        display: 'block',
-                                                    }}>
-                                                        {status}
-                                                    </span>
+                                                        lineHeight: 1, display: 'block',
+                                                    }}>{status}</span>
                                                 ) : (
                                                     <span className="text-[#BACE85]">—</span>
                                                 )}
-                                                {/* Student remark dot */}
-                                                {remark && (
-                                                    <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-[#DA7756]" />
-                                                )}
+                                                {remark && <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-[#DA7756]" />}
                                             </td>
                                         );
                                     })}
-
-                                    {/* Sticky right — Summary columns */}
                                     <td className="sticky right-[222px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-emerald-700 font-bold bg-[#F5F8EE] w-[40px]">{p || '—'}</td>
                                     <td className="sticky right-[182px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-red-500 font-bold bg-[#F5F8EE] w-[40px]">{a || '—'}</td>
                                     <td className="sticky right-[142px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-amber-600 font-bold bg-[#F5F8EE] w-[40px]">{l || '—'}</td>
@@ -559,8 +480,8 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                     <td className={`sticky right-[52px] z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-2 text-center font-black bg-[#F5F8EE] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
                                         {pct !== null ? `${pct}%` : '—'}
                                     </td>
-                                    <td className={`sticky right-0 z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-2 text-center font-black bg-[#F5F8EE] ${MOCK_OVERALL[student.id] !== undefined ? pctColor(MOCK_OVERALL[student.id]) : 'text-[#BACE85]'}`}>
-                                        {MOCK_OVERALL[student.id] !== undefined ? `${MOCK_OVERALL[student.id]}%` : '—'}
+                                    <td className={`sticky right-0 z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-2 text-center font-black bg-[#F5F8EE] ${pctColor(student.overallPct)}`}>
+                                        {student.overallPct !== null ? `${student.overallPct}%` : '—'}
                                     </td>
                                 </tr>
                             );
@@ -599,29 +520,22 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                         <p className="px-3 py-1.5 text-[10px] font-semibold text-muted-foreground border-b border-border/40">
                             {popupDate} {MONTHS_S[activeMonth]}, {year}
                         </p>
-                        {/* Mark / Remove Holiday */}
                         <button onClick={() => {
                             const dk = makeDateKey(year, activeMonth, popupDate);
-                            if (holidays[dk]) {
-                                onHolidayChange(dk, null);
-                            } else {
-                                setHolidayInput('');
-                                setHolidayModalDk(dk);
-                            }
+                            if (holidays[dk]) { onHolidayChange(dk, null); }
+                            else { setHolidayInput(''); setHolidayModalDk(dk); }
                             setPopupDate(null);
                         }} className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
                             <span>🏖️</span>
                             <span>{holidays[makeDateKey(year, activeMonth, popupDate)] ? 'Remove Holiday' : 'Mark as Holiday'}</span>
                         </button>
-                        {/* View / Edit Date Remark */}
                         <button onClick={() => {
                             const dk = makeDateKey(year, activeMonth, popupDate);
                             setRemarkInput(dateRemarks[dk] ?? '');
                             setRemarkModalDk(dk);
                             setPopupDate(null);
                         }} className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
-                            <span>💬</span>
-                            <span>View / Edit Remark</span>
+                            <span>💬</span><span>View / Edit Remark</span>
                         </button>
                     </motion.div>
                 )}
@@ -635,9 +549,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                             className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
                             <div className="flex items-center justify-between mb-3">
                                 <p className="text-sm font-bold">🏖️ Mark as Holiday</p>
-                                <button onClick={() => setHolidayModalDk(null)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
-                                    <X size={14} />
-                                </button>
+                                <button onClick={() => setHolidayModalDk(null)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted"><X size={14} /></button>
                             </div>
                             <p className="text-xs text-muted-foreground mb-3">Enter holiday name (e.g. Maharashtra Day)</p>
                             <input autoFocus value={holidayInput} onChange={e => setHolidayInput(e.target.value)}
@@ -654,32 +566,41 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                 )}
             </AnimatePresence>
 
-            {/* Remark modal — for both date remarks and student remarks */}
+            {/* Remark modal */}
             <AnimatePresence>
                 {remarkModalDk && (
                     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                             className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
-                            <div className="flex items-center justify-between mb-3">
-                                <p className="text-sm font-bold">💬 Remark</p>
-                                <button onClick={() => setRemarkModalDk(null)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
-                                    <X size={14} />
-                                </button>
+                            <div className="flex items-center justify-between mb-1">
+                                <p className="text-sm font-bold">💬 {remarkModalDk.includes('::') ? 'Student Remark' : 'Date Note'}</p>
+                                <button onClick={() => setRemarkModalDk(null)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted"><X size={14} /></button>
                             </div>
-                            <textarea autoFocus value={remarkInput} onChange={e => setRemarkInput(e.target.value)}
+                            {remarkModalDk.includes('::') ? (
+                                <p className="text-xs text-muted-foreground mb-3">This remark is read-only in the sheet view. Edit it from the daily attendance list.</p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground mb-3">Note for this date (saved instantly).</p>
+                            )}
+                            <textarea
+                                autoFocus
+                                value={remarkInput}
+                                onChange={e => setRemarkInput(e.target.value)}
+                                readOnly={remarkModalDk.includes('::')}
                                 placeholder="Write remark..."
                                 rows={3}
-                                className="w-full px-3 py-2 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all mb-3 resize-none" />
+                                className="w-full px-3 py-2 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all mb-3 resize-none disabled:opacity-60" />
                             <div className="flex gap-2">
                                 <button onClick={() => setRemarkModalDk(null)}
                                     className="flex-1 h-9 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
-                                    Cancel
+                                    {remarkModalDk.includes('::') ? 'Close' : 'Cancel'}
                                 </button>
-                                <button onClick={() => { onRemarkChange(remarkModalDk, remarkInput); setRemarkModalDk(null); }}
-                                    className="flex-1 h-9 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
-                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                    Save Remark
-                                </button>
+                                {!remarkModalDk.includes('::') && (
+                                    <button onClick={() => { onRemarkChange(remarkModalDk, remarkInput); setRemarkModalDk(null); }}
+                                        className="flex-1 h-9 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
+                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                        Save Note
+                                    </button>
+                                )}
                             </div>
                         </motion.div>
                     </div>
@@ -690,75 +611,96 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
 }
 
 // ── Overall Tab ───────────────────────────────────────────────────────────────
-function OverallTab({ divisionName, onSwitchToDaily }: {
+function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onStatsLoad }: {
     divisionName: string;
+    divisionId: string;
+    holidays: Record<string, string>;
     onSwitchToDaily: () => void;
+    onStatsLoad?: (stats: { overall: number | null; thisMonth: number | null }) => void;
 }) {
-    const [selectedStudent, setSelectedStudent] = useState<Student | null>(MOCK_STUDENTS[0]);
+    const [summaryStudents, setSummaryStudents] = useState<SummaryStudent[]>([]);
+    const [classStats, setClassStats] = useState<ClassStats | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [selectedStudent, setSelectedStudent] = useState<SummaryStudent | null>(null);
     const [showListMenu, setShowListMenu] = useState(false);
     const [overallRightTab, setOverallRightTab] = useState<'class' | 'student'>('class');
     const [shortTab, setShortTab] = useState<'month' | 'overall'>('month');
+    const [studentRecords, setStudentRecords] = useState<Record<string, AttendanceStatus>>({});
+    const [loadingStudentRec, setLoadingStudentRec] = useState(false);
 
-    const MOCK_MONTHS_DATA: Record<string, Record<string, number>> = {
-        st1: { Jun: 95, Jul: 90, Aug: 88, Sep: 92 },
-        st2: { Jun: 80, Jul: 75, Aug: 72, Sep: 78 },
-        st3: { Jun: 88, Jul: 82, Aug: 80, Sep: 85 },
-        st4: { Jun: 65, Jul: 60, Aug: 58, Sep: 61 },
-        st5: { Jun: 98, Jul: 95, Aug: 96, Sep: 95 },
-        st6: { Jun: 75, Jul: 70, Aug: 68, Sep: 73 },
-        st7: { Jun: 90, Jul: 88, Aug: 84, Sep: 88 },
-        st8: { Jun: 60, Jul: 55, Aug: 50, Sep: 55 },
-        st9: { Jun: 94, Jul: 90, Aug: 89, Sep: 91 },
-        st10: { Jun: 72, Jul: 68, Aug: 65, Sep: 69 },
-        st11: { Jun: 85, Jul: 82, Aug: 79, Sep: 82 },
-        st12: { Jun: 80, Jul: 76, Aug: 74, Sep: 77 },
-    };
+    useEffect(() => {
+        let cancelled = false;
+        setLoading(true);
+        api.get(`/teacher/attendance/${divisionId}/summary`)
+            .then(res => {
+                if (cancelled) return;
+                const { students, classStats: cs } = res.data.data;
+                setSummaryStudents(students);
+                setClassStats(cs);
+                if (students.length > 0) setSelectedStudent(students[0]);
+                onStatsLoad?.({ overall: cs.overallPct ?? null, thisMonth: cs.currentMonthPct ?? null });
+            })
+            .catch(err => { if (!cancelled) console.error(err); })
+            .finally(() => { if (!cancelled) setLoading(false); });
+        return () => { cancelled = true; };
+    }, [divisionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const MOCK_SHEET_DATA: Record<number, Record<number, AttendanceStatus>> = (() => {
-        const today = new Date();
-        const year = today.getFullYear();
-        const result: Record<number, Record<number, AttendanceStatus>> = {};
-        const statuses: AttendanceStatus[] = ['P', 'P', 'P', 'P', 'P', 'P', 'A', 'P', 'P', 'L'];
-        [5, 6, 7, 8].forEach(monthKey => {
-            result[monthKey] = {};
-            const days = new Date(year, monthKey + 1, 0).getDate();
-            let idx = 0;
-            for (let d = 1; d <= days; d++) {
-                const day = new Date(year, monthKey, d).getDay();
-                if (day === 0) continue; // skip sunday
-                result[monthKey][d] = statuses[idx % statuses.length];
-                idx++;
-            }
-        });
-        return result;
-    })();
+    // Fetch student records when selected student changes
+    useEffect(() => {
+        if (!selectedStudent) return;
+        setLoadingStudentRec(true);
+        const year = new Date().getFullYear();
+        api.get(`/teacher/attendance/${divisionId}/student-records/${selectedStudent.studentId}?year=${year}`)
+            .then(res => {
+                const recs: Record<string, AttendanceStatus> = {};
+                res.data.data.records.forEach((r: { date: string; status: string }) => {
+                    recs[r.date] = r.status as AttendanceStatus;
+                });
+                setStudentRecords(recs);
+            })
+            .catch(console.error)
+            .finally(() => setLoadingStudentRec(false));
+    }, [selectedStudent?.studentId, divisionId]);
 
-    const MOCK_SHEET_HOLIDAYS: Record<number, Record<number, string>> = {
-        5: { 1: 'Maharashtra Day' },
-        8: { 2: 'Ganesh Chaturthi' },
-    };
+    // Convert holidays to month/day format for the student sheet
+    const holidaysByMonthDay: Record<number, Record<number, string>> = {};
+    Object.entries(holidays).forEach(([date, name]) => {
+        const parts = date.split('-');
+        const mm = parseInt(parts[1]) - 1;
+        const dd = parseInt(parts[2]);
+        if (!holidaysByMonthDay[mm]) holidaysByMonthDay[mm] = {};
+        holidaysByMonthDay[mm][dd] = name;
+    });
 
-    const CURRENT_MONTH = 'Sep';
+    const year = new Date().getFullYear();
 
     const generateList = (type: 'all' | 'current') => {
-        const months = Object.keys(MOCK_MONTHS_DATA['st1']);
+        const now = new Date();
+        const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const currentMonthShort = MONTHS_S[now.getMonth()];
         const lines: string[] = [];
+
         if (type === 'all') {
+            const allMonths = new Set<string>();
+            summaryStudents.forEach(s => s.monthlyStats.forEach(m => allMonths.add(m.monthKey)));
+            const monthKeys = Array.from(allMonths).sort();
             lines.push(`Attendance Report — All Months\n`);
-            lines.push(`${'Roll'.padEnd(6)}${'Name'.padEnd(22)}${months.map(m => m.padEnd(8)).join('')}Overall`);
+            lines.push(`${'Roll'.padEnd(6)}${'Name'.padEnd(22)}${monthKeys.map(mk => parseMonthKey(mk).short.padEnd(8)).join('')}Overall`);
             lines.push('─'.repeat(70));
-            MOCK_STUDENTS.forEach(s => {
-                const mData = MOCK_MONTHS_DATA[s.id];
-                const monthCols = months.map(m => `${mData[m]}%`.padEnd(8)).join('');
-                lines.push(`${s.rollNo.padEnd(6)}${s.name.padEnd(22)}${monthCols}${MOCK_OVERALL[s.id]}%`);
+            summaryStudents.forEach(s => {
+                const monthCols = monthKeys.map(mk => {
+                    const m = s.monthlyStats.find(ms => ms.monthKey === mk);
+                    return `${m?.pct ?? '—'}%`.padEnd(8);
+                }).join('');
+                lines.push(`${s.rollNo.padEnd(6)}${s.name.padEnd(22)}${monthCols}${s.overallPct ?? '—'}%`);
             });
         } else {
-            lines.push(`Attendance Report — ${CURRENT_MONTH} (Current Month)\n`);
-            lines.push(`${'Roll'.padEnd(6)}${'Name'.padEnd(22)}${CURRENT_MONTH.padEnd(10)}Overall`);
+            lines.push(`Attendance Report — ${currentMonthShort} (Current Month)\n`);
+            lines.push(`${'Roll'.padEnd(6)}${'Name'.padEnd(22)}${currentMonthShort.padEnd(10)}Overall`);
             lines.push('─'.repeat(45));
-            MOCK_STUDENTS.forEach(s => {
-                const mData = MOCK_MONTHS_DATA[s.id];
-                lines.push(`${s.rollNo.padEnd(6)}${s.name.padEnd(22)}${`${mData[CURRENT_MONTH]}%`.padEnd(10)}${MOCK_OVERALL[s.id]}%`);
+            summaryStudents.forEach(s => {
+                const m = s.monthlyStats.find(ms => ms.monthKey === currentMonthKey);
+                lines.push(`${s.rollNo.padEnd(6)}${s.name.padEnd(22)}${`${m?.pct ?? '—'}%`.padEnd(10)}${s.overallPct ?? '—'}%`);
             });
         }
         const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
@@ -768,6 +710,17 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
         URL.revokeObjectURL(url);
     };
 
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
     return (
         <div className="flex gap-3 h-full min-h-0">
 
@@ -775,7 +728,7 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
             <div className="w-[30%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                 <div className="px-4 py-3.5 border-b border-border/40 shrink-0">
                     <div className="flex items-center justify-between">
-                        <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({MOCK_STUDENTS.length})</p>
+                        <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({summaryStudents.length})</p>
                         <div className="relative">
                             <button onClick={() => setShowListMenu(v => !v)}
                                 className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90"
@@ -795,13 +748,13 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto bg-background">
-                    {MOCK_STUDENTS.map(student => {
-                        const overall = MOCK_OVERALL[student.id] ?? 0;
-                        const month = MOCK_MONTH[student.id] ?? 0;
-                        const isSelected = selectedStudent?.id === student.id;
+                    {summaryStudents.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-8">No students found</p>
+                    ) : summaryStudents.map(student => {
+                        const isSelected = selectedStudent?.studentId === student.studentId;
                         return (
-                            <button key={student.id} onClick={() => {
-                                setSelectedStudent(prev => prev?.id === student.id ? null : student);
+                            <button key={student.studentId} onClick={() => {
+                                setSelectedStudent(prev => prev?.studentId === student.studentId ? null : student);
                                 setOverallRightTab('student');
                             }}
                                 className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-colors hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
@@ -814,12 +767,12 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
                                     <div className="text-right">
-                                        <p className={`text-[11px] font-black ${pctColor(overall)}`}>{overall}%</p>
+                                        <p className={`text-[11px] font-black ${pctColor(student.overallPct)}`}>{student.overallPct !== null ? `${student.overallPct}%` : '—'}</p>
                                         <p className="text-[9px] text-muted-foreground/60">overall</p>
                                     </div>
                                     <div className="w-px h-6 bg-border/40" />
                                     <div className="text-right">
-                                        <p className={`text-[11px] font-black ${pctColor(month)}`}>{month}%</p>
+                                        <p className={`text-[11px] font-black ${pctColor(student.currentMonthPct)}`}>{student.currentMonthPct !== null ? `${student.currentMonthPct}%` : '—'}</p>
                                         <p className="text-[9px] text-muted-foreground/60">this month</p>
                                     </div>
                                 </div>
@@ -849,18 +802,14 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                             );
                         })}
                     </div>
-
-                    {/* Report + View Details buttons — student tab active aur student selected hone pe */}
                     <AnimatePresence>
                         {overallRightTab === 'student' && selectedStudent && (
                             <motion.div initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
                                 className="flex items-center gap-2 ml-auto">
-                                <button
-                                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
+                                <button className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
                                     <Flag size={11} /> Report
                                 </button>
-                                <button
-                                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
+                                <button className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
                                     <ExternalLink size={10} /> View Profile
                                 </button>
                             </motion.div>
@@ -870,18 +819,17 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                 <div className="flex-1 overflow-y-auto bg-background px-4 py-3">
                     {overallRightTab === 'class' ? (
                         <div className="space-y-4">
-
-                            {/* Overall class stats */}
+                            {/* Class overall stats */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
-                                    <p className={`text-2xl font-black ${pctColor(Math.round(Object.values(MOCK_OVERALL).reduce((a, b) => a + b, 0) / MOCK_STUDENTS.length))}`}>
-                                        {Math.round(Object.values(MOCK_OVERALL).reduce((a, b) => a + b, 0) / MOCK_STUDENTS.length)}%
+                                    <p className={`text-2xl font-black ${pctColor(classStats?.overallPct ?? null)}`}>
+                                        {classStats?.overallPct !== null && classStats?.overallPct !== undefined ? `${classStats.overallPct}%` : '—'}
                                     </p>
                                     <p className="text-[11px] text-muted-foreground mt-1">Class Overall</p>
                                 </div>
                                 <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
-                                    <p className={`text-2xl font-black ${pctColor(Math.round(Object.values(MOCK_MONTH).reduce((a, b) => a + b, 0) / MOCK_STUDENTS.length))}`}>
-                                        {Math.round(Object.values(MOCK_MONTH).reduce((a, b) => a + b, 0) / MOCK_STUDENTS.length)}%
+                                    <p className={`text-2xl font-black ${pctColor(classStats?.currentMonthPct ?? null)}`}>
+                                        {classStats?.currentMonthPct !== null && classStats?.currentMonthPct !== undefined ? `${classStats.currentMonthPct}%` : '—'}
                                     </p>
                                     <p className="text-[11px] text-muted-foreground mt-1">This Month Avg</p>
                                 </div>
@@ -898,24 +846,17 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                                 </div>
                                 <div className="divide-y divide-border/20 max-h-[160px] overflow-y-auto">
                                     {[
-                                        { month: 'June', key: 'Jun' },
-                                        { month: 'July', key: 'Jul' },
-                                        { month: 'August', key: 'Aug' },
-                                        { month: 'September', key: 'Sep' },
-                                        { month: 'October', key: 'Oct' },
-                                        { month: 'November', key: 'Nov' },
-                                        { month: 'December', key: 'Dec' },
-                                        { month: 'January', key: 'Jan' },
-                                        { month: 'February', key: 'Feb' },
-                                        { month: 'March', key: 'Mar' },
-                                        { month: 'April', key: 'Apr' },
-                                        { month: 'May', key: 'May' },
+                                        { month: 'June', key: '06' }, { month: 'July', key: '07' },
+                                        { month: 'August', key: '08' }, { month: 'September', key: '09' },
+                                        { month: 'October', key: '10' }, { month: 'November', key: '11' },
+                                        { month: 'December', key: '12' }, { month: 'January', key: '01' },
+                                        { month: 'February', key: '02' }, { month: 'March', key: '03' },
+                                        { month: 'April', key: '04' }, { month: 'May', key: '05' },
                                     ].map(m => {
-                                        const monthData = Object.values(MOCK_MONTHS_DATA);
-                                        const hasData = monthData[0]?.[m.key] !== undefined;
-                                        const avg = hasData
-                                            ? Math.round(monthData.reduce((s, d) => s + (d[m.key] ?? 0), 0) / MOCK_STUDENTS.length)
-                                            : null;
+                                        const yr = parseInt(m.key) >= 6 ? year : year + 1;
+                                        const mk = `${yr}-${m.key}`;
+                                        const stat = classStats?.monthlyStats.find(s => s.monthKey === mk);
+                                        const avg = stat?.avg ?? null;
                                         return (
                                             <div key={m.key} className="flex items-center gap-3 px-4 py-2.5">
                                                 <p className="text-xs font-semibold w-24 shrink-0">{m.month}</p>
@@ -926,9 +867,7 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                                                                 width: `${avg}%`,
                                                                 background: avg >= 75 ? 'linear-gradient(90deg, #10B981, #34D399)' : avg >= 65 ? 'linear-gradient(90deg, #F59E0B, #FBBF24)' : 'linear-gradient(90deg, #EF4444, #F87171)'
                                                             }} />
-                                                    ) : (
-                                                        <div className="h-full w-0" />
-                                                    )}
+                                                    ) : <div className="h-full w-0" />}
                                                 </div>
                                                 <p className={`text-xs font-black w-10 text-right ${avg !== null ? pctColor(avg) : 'text-muted-foreground/40'}`}>
                                                     {avg !== null ? `${avg}%` : '—'}
@@ -943,7 +882,6 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                             <div className="rounded-2xl border border-border/50 bg-background overflow-hidden">
                                 <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center gap-2">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex-1">Short Attendance</p>
-                                    {/* Toggle */}
                                     <div className="flex gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border/40">
                                         {([
                                             { key: 'month' as const, label: 'This Month' },
@@ -956,78 +894,73 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                                         ))}
                                     </div>
                                     <span className="text-[11px] font-bold text-red-500 shrink-0">
-                                        {shortTab === 'month'
-                                            ? MOCK_STUDENTS.filter(s => MOCK_MONTH[s.id] < 75).length
-                                            : MOCK_STUDENTS.filter(s => MOCK_OVERALL[s.id] < 75).length
-                                        } students
+                                        {summaryStudents.filter(s => shortTab === 'month' ? (s.currentMonthPct ?? 100) < 75 : (s.overallPct ?? 100) < 75).length} students
                                     </span>
                                 </div>
-                                {/* List — max 4 rows visible */}
                                 <div className="divide-y divide-border/20 overflow-y-auto" style={{ maxHeight: '176px' }}>
-                                    {(shortTab === 'month'
-                                        ? MOCK_STUDENTS.filter(s => MOCK_MONTH[s.id] < 75)
-                                        : MOCK_STUDENTS.filter(s => MOCK_OVERALL[s.id] < 75)
-                                    ).map(student => {
-                                        const pct = shortTab === 'month' ? MOCK_MONTH[student.id] : MOCK_OVERALL[student.id];
-                                        return (
-                                            <div key={student.id} className="flex items-center gap-3 px-4 py-2.5">
-                                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                    style={{ background: getAvatarColor(student.name) }}>
-                                                    {getInitials(student.name)}
-                                                </div>
-                                                <p className="text-xs font-semibold flex-1 truncate">{student.name}</p>
-                                                <p className="text-[11px] text-muted-foreground">Roll {student.rollNo}</p>
-                                                <p className={`text-xs font-black ${pctColor(pct)}`}>{pct}%</p>
-                                            </div>
+                                    {(() => {
+                                        const filtered = summaryStudents.filter(s =>
+                                            shortTab === 'month' ? (s.currentMonthPct ?? 100) < 75 : (s.overallPct ?? 100) < 75
                                         );
-                                    })}
-                                    {(shortTab === 'month'
-                                        ? MOCK_STUDENTS.filter(s => MOCK_MONTH[s.id] < 75).length === 0
-                                        : MOCK_STUDENTS.filter(s => MOCK_OVERALL[s.id] < 75).length === 0
-                                    ) && (
-                                            <p className="px-4 py-3 text-xs text-emerald-500 font-semibold text-center">✓ All students above 75%</p>
-                                        )}
+                                        if (filtered.length === 0) {
+                                            return <p className="px-4 py-3 text-xs text-emerald-500 font-semibold text-center">✓ All students above 75%</p>;
+                                        }
+                                        return filtered.map(student => {
+                                            const pct = shortTab === 'month' ? student.currentMonthPct : student.overallPct;
+                                            return (
+                                                <div key={student.studentId} className="flex items-center gap-3 px-4 py-2.5">
+                                                    <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                                        style={{ background: getAvatarColor(student.name) }}>
+                                                        {getInitials(student.name)}
+                                                    </div>
+                                                    <p className="text-xs font-semibold flex-1 truncate">{student.name}</p>
+                                                    <p className="text-[11px] text-muted-foreground">Roll {student.rollNo}</p>
+                                                    <p className={`text-xs font-black ${pctColor(pct)}`}>{pct !== null ? `${pct}%` : '—'}</p>
+                                                </div>
+                                            );
+                                        });
+                                    })()}
                                 </div>
                             </div>
-
                         </div>
                     ) : (
-                        /* Student Details */
                         selectedStudent ? (
                             <div className="space-y-4">
                                 {/* Top section — stats left, monthwise right */}
                                 <div className="flex gap-3">
-                                    {/* Left — 2 stat cards stacked */}
                                     <div className="flex flex-col gap-3 w-[140px] shrink-0">
                                         <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
-                                            <p className={`text-2xl font-black ${pctColor(MOCK_OVERALL[selectedStudent.id])}`}>
-                                                {MOCK_OVERALL[selectedStudent.id]}%
+                                            <p className={`text-2xl font-black ${pctColor(selectedStudent.overallPct)}`}>
+                                                {selectedStudent.overallPct !== null ? `${selectedStudent.overallPct}%` : '—'}
                                             </p>
                                             <p className="text-[11px] text-muted-foreground mt-1">Overall</p>
                                         </div>
                                         <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
-                                            <p className={`text-2xl font-black ${pctColor(MOCK_MONTH[selectedStudent.id])}`}>
-                                                {MOCK_MONTH[selectedStudent.id]}%
+                                            <p className={`text-2xl font-black ${pctColor(selectedStudent.currentMonthPct)}`}>
+                                                {selectedStudent.currentMonthPct !== null ? `${selectedStudent.currentMonthPct}%` : '—'}
                                             </p>
                                             <p className="text-[11px] text-muted-foreground mt-1">This Month</p>
                                         </div>
                                     </div>
 
-                                    {/* Right — Month-wise bars */}
+                                    {/* Month-wise bars */}
                                     <div className="flex-1 rounded-2xl border border-border/50 bg-background overflow-hidden">
                                         <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
                                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month-wise Attendance</p>
                                         </div>
                                         <div className="divide-y divide-border/20 overflow-y-auto" style={{ maxHeight: '140px' }}>
                                             {[
-                                                { month: 'June', key: 'Jun' }, { month: 'July', key: 'Jul' },
-                                                { month: 'August', key: 'Aug' }, { month: 'September', key: 'Sep' },
-                                                { month: 'October', key: 'Oct' }, { month: 'November', key: 'Nov' },
-                                                { month: 'December', key: 'Dec' }, { month: 'January', key: 'Jan' },
-                                                { month: 'February', key: 'Feb' }, { month: 'March', key: 'Mar' },
-                                                { month: 'April', key: 'Apr' }, { month: 'May', key: 'May' },
+                                                { month: 'June', key: '06' }, { month: 'July', key: '07' },
+                                                { month: 'August', key: '08' }, { month: 'September', key: '09' },
+                                                { month: 'October', key: '10' }, { month: 'November', key: '11' },
+                                                { month: 'December', key: '12' }, { month: 'January', key: '01' },
+                                                { month: 'February', key: '02' }, { month: 'March', key: '03' },
+                                                { month: 'April', key: '04' }, { month: 'May', key: '05' },
                                             ].map(m => {
-                                                const pct = MOCK_MONTHS_DATA[selectedStudent.id]?.[m.key] ?? null;
+                                                const yr = parseInt(m.key) >= 6 ? year : year + 1;
+                                                const mk = `${yr}-${m.key}`;
+                                                const stat = selectedStudent.monthlyStats.find(s => s.monthKey === mk);
+                                                const pct = stat?.pct ?? null;
                                                 return (
                                                     <div key={m.key} className="flex items-center gap-2 px-3 py-1.5">
                                                         <p className="text-[10px] font-semibold w-16 shrink-0">{m.month}</p>
@@ -1059,118 +992,123 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
                                             <span className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo}</span>
                                         </div>
                                     </div>
-                                    <div style={{ overflowX: 'scroll', overflowY: 'auto', background: '#F5F8EE', scrollbarWidth: 'thin', scrollbarColor: '#BACE85 #F5F8EE', height: '375px' }}>
-                                        <table className="text-[10px] border-separate border-spacing-0 min-w-max">
-                                            <thead className="sticky top-0 z-30">
-                                                <tr>
-                                                    {/* Sticky left — Month */}
-                                                    <th className="sticky left-0 z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[40px]">Month</th>
-                                                    {/* Date columns 1-31 */}
-                                                    {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                                                        <th key={d} className="bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[26px]">
-                                                            {d}
-                                                        </th>
-                                                    ))}
-                                                    {/* Sticky right summary */}
-                                                    <th title="Total Present" className="sticky right-[161px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap min-w-[32px]">P</th>
-                                                    <th title="Total Absent" className="sticky right-[129px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap min-w-[32px]">A</th>
-                                                    <th title="Total Late" className="sticky right-[97px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap min-w-[32px]">L</th>
-                                                    <th title="Total Working Days" className="sticky right-[52px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[45px]">T</th>
-                                                    <th title="Attendance %" className="sticky right-0 z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[52px]">%</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {[
-                                                    { month: 'Jun', key: 5 },
-                                                    { month: 'Jul', key: 6 },
-                                                    { month: 'Aug', key: 7 },
-                                                    { month: 'Sep', key: 8 },
-                                                    { month: 'Oct', key: 9 },
-                                                    { month: 'Nov', key: 10 },
-                                                    { month: 'Dec', key: 11 },
-                                                    { month: 'Jan', key: 0 },
-                                                    { month: 'Feb', key: 1 },
-                                                    { month: 'Mar', key: 2 },
-                                                    { month: 'Apr', key: 3 },
-                                                    { month: 'May', key: 4 },
-                                                ].map((m, mi) => {
-                                                    const today = new Date();
-                                                    const year = today.getFullYear();
-                                                    const daysInMonth = new Date(year, m.key + 1, 0).getDate();
-                                                    let p = 0, a = 0, l = 0;
+                                    {loadingStudentRec ? (
+                                        <div className="flex items-center justify-center py-8">
+                                            <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                        </div>
+                                    ) : (
+                                        <div style={{ overflowX: 'scroll', overflowY: 'auto', background: '#F5F8EE', scrollbarWidth: 'thin', scrollbarColor: '#BACE85 #F5F8EE', height: '375px' }}>
+                                            <table className="text-[10px] border-separate border-spacing-0 min-w-max">
+                                                <thead className="sticky top-0 z-30">
+                                                    <tr>
+                                                        {/* Sticky left — Month */}
+                                                        <th className="sticky left-0 z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[40px]">Month</th>
+                                                        {/* Date columns 1-31 */}
+                                                        {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
+                                                            <th key={d} className="bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[26px]">
+                                                                {d}
+                                                            </th>
+                                                        ))}
+                                                        {/* Sticky right summary */}
+                                                        <th title="Total Present" className="sticky right-[161px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap min-w-[32px]">P</th>
+                                                        <th title="Total Absent" className="sticky right-[129px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap min-w-[32px]">A</th>
+                                                        <th title="Total Late" className="sticky right-[97px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap min-w-[32px]">L</th>
+                                                        <th title="Total Working Days" className="sticky right-[52px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[45px]">T</th>
+                                                        <th title="Attendance %" className="sticky right-0 z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[52px]">%</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {[
+                                                        { month: 'Jun', key: 5 },
+                                                        { month: 'Jul', key: 6 },
+                                                        { month: 'Aug', key: 7 },
+                                                        { month: 'Sep', key: 8 },
+                                                        { month: 'Oct', key: 9 },
+                                                        { month: 'Nov', key: 10 },
+                                                        { month: 'Dec', key: 11 },
+                                                        { month: 'Jan', key: 0 },
+                                                        { month: 'Feb', key: 1 },
+                                                        { month: 'Mar', key: 2 },
+                                                        { month: 'Apr', key: 3 },
+                                                        { month: 'May', key: 4 },
+                                                    ].map(m => {
+                                                        const daysInMonth = new Date(year, m.key + 1, 0).getDate();
+                                                        let p = 0, a = 0, l = 0;
 
-                                                    // Pehle saare dates ka count karo
-                                                    Array.from({ length: 31 }, (_, i) => i + 1).forEach(d => {
-                                                        const isOutOfMonth = d > daysInMonth;
-                                                        const isSunday = !isOutOfMonth && new Date(year, m.key, d).getDay() === 0;
-                                                        const isHolidayCell = !isOutOfMonth && !isSunday ? (MOCK_SHEET_HOLIDAYS[m.key]?.[d] ?? null) : null;
-                                                        const st: AttendanceStatus = !isOutOfMonth && !isSunday && !isHolidayCell
-                                                            ? (MOCK_SHEET_DATA[m.key]?.[d] ?? null)
-                                                            : null;
-                                                        if (st === 'P') p++;
-                                                        else if (st === 'A') a++;
-                                                        else if (st === 'L') l++;
-                                                    });
+                                                        Array.from({ length: 31 }, (_, i) => i + 1).forEach(d => {
+                                                            const isOutOfMonth = d > daysInMonth;
+                                                            const isSunday = !isOutOfMonth && new Date(year, m.key, d).getDay() === 0;
+                                                            const isHol = !isOutOfMonth && !isSunday && !!holidaysByMonthDay[m.key]?.[d];
+                                                            const dateStr = makeDateKey(year, m.key, d);
+                                                            const st: AttendanceStatus = !isOutOfMonth && !isSunday && !isHol
+                                                                ? (studentRecords[dateStr] ?? null)
+                                                                : null;
+                                                            if (st === 'P') p++;
+                                                            else if (st === 'A') a++;
+                                                            else if (st === 'L') l++;
+                                                        });
 
-                                                    const total = p + a + l;
-                                                    const pct = total > 0 ? Math.round(((p + l) / total) * 100) : null;
+                                                        const total = p + a + l;
+                                                        const pct = total > 0 ? Math.round(((p + l) / total) * 100) : null;
 
-                                                    return (
-                                                        <tr key={m.month} className="bg-[#F5F8EE] hover:bg-[#E0E8C8] transition-colors">
+                                                        return (
+                                                            <tr key={m.month} className="bg-[#F5F8EE] hover:bg-[#E0E8C8] transition-colors">
+                                                                {/* Month name — sticky left */}
+                                                                <td className="sticky left-0 z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-1.5 font-semibold text-center text-[#2A3A10] bg-[#ECF3D0] whitespace-nowrap">
+                                                                    {m.month}
+                                                                </td>
 
-                                                            {/* Month name — sticky left */}
-                                                            <td className="sticky left-0 z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-1.5 font-semibold text-center text-[#2A3A10] bg-[#ECF3D0] whitespace-nowrap">
-                                                                {m.month}
-                                                            </td>
+                                                                {/* Date cells 1-31 */}
+                                                                {Array.from({ length: 31 }, (_, i) => i + 1).map(d => {
+                                                                    const isOutOfMonth = d > daysInMonth;
+                                                                    const isSunday = !isOutOfMonth && new Date(year, m.key, d).getDay() === 0;
+                                                                    const isHol = !isOutOfMonth && !isSunday && !!holidaysByMonthDay[m.key]?.[d];
+                                                                    const holName = holidaysByMonthDay[m.key]?.[d];
+                                                                    const dateStr = makeDateKey(year, m.key, d);
+                                                                    const status: AttendanceStatus = !isOutOfMonth && !isSunday && !isHol
+                                                                        ? (studentRecords[dateStr] ?? null)
+                                                                        : null;
 
-                                                            {/* Date cells 1-31 */}
-                                                            {Array.from({ length: 31 }, (_, i) => i + 1).map(d => {
-                                                                const isOutOfMonth = d > daysInMonth;
-                                                                const isSunday = !isOutOfMonth && new Date(year, m.key, d).getDay() === 0;
-                                                                const isHolidayCell = !isOutOfMonth && !isSunday ? (MOCK_SHEET_HOLIDAYS[m.key]?.[d] ?? null) : null;
-                                                                const status: AttendanceStatus = !isOutOfMonth && !isSunday && !isHolidayCell
-                                                                    ? (MOCK_SHEET_DATA[m.key]?.[d] ?? null)
-                                                                    : null;
+                                                                    return (
+                                                                        <td key={d}
+                                                                            title={holName ?? undefined}
+                                                                            className={`border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center relative
+                                                                                ${isOutOfMonth ? 'bg-[#ECF3D0]/40' : isSunday ? 'bg-[#FFF0F0]' : isHol ? 'bg-[#FEF2F2]' : ''}`}>
+                                                                            {isOutOfMonth ? (
+                                                                                <span className="text-[#BACE85]/30">·</span>
+                                                                            ) : isHol ? (
+                                                                                <span style={{ color: '#FCA5A5', fontSize: '12px', lineHeight: 1 }}>×</span>
+                                                                            ) : status ? (
+                                                                                <span style={{
+                                                                                    fontFamily: "'Patrick Hand', cursive",
+                                                                                    fontSize: '14px',
+                                                                                    fontWeight: '700',
+                                                                                    color: status === 'P' ? '#16a34a' : status === 'A' ? '#dc2626' : '#d97706',
+                                                                                    lineHeight: 1,
+                                                                                    display: 'block',
+                                                                                }}>{status}</span>
+                                                                            ) : (
+                                                                                <span className="text-[#BACE85]">—</span>
+                                                                            )}
+                                                                        </td>
+                                                                    );
+                                                                })}
 
-                                                                return (
-                                                                    <td key={d}
-                                                                        title={isHolidayCell || undefined}
-                                                                        className={`border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center relative
-                                                                            ${isOutOfMonth ? 'bg-[#ECF3D0]/40' : isSunday ? 'bg-[#FFF0F0]' : isHolidayCell ? 'bg-[#FEF2F2]' : ''}`}>
-                                                                        {isOutOfMonth ? (
-                                                                            <span className="text-[#BACE85]/30">·</span>
-                                                                        ) : isHolidayCell ? (
-                                                                            <span style={{ color: '#FCA5A5', fontSize: '12px', lineHeight: 1 }}>×</span>
-                                                                        ) : status ? (
-                                                                            <span style={{
-                                                                                fontFamily: "'Patrick Hand', cursive",
-                                                                                fontSize: '14px',
-                                                                                fontWeight: '700',
-                                                                                color: status === 'P' ? '#16a34a' : status === 'A' ? '#dc2626' : '#d97706',
-                                                                                lineHeight: 1,
-                                                                                display: 'block',
-                                                                            }}>{status}</span>
-                                                                        ) : (
-                                                                            <span className="text-[#BACE85]">—</span>
-                                                                        )}
-                                                                    </td>
-                                                                );
-                                                            })}
-
-                                                            {/* Sticky right — P A L % */}
-                                                            <td className="sticky right-[161px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-emerald-700 font-bold bg-[#F5F8EE]">{p || '—'}</td>
-                                                            <td className="sticky right-[129px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-red-500 font-bold bg-[#F5F8EE]">{a || '—'}</td>
-                                                            <td className="sticky right-[97px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-amber-600 font-bold bg-[#F5F8EE]">{l || '—'}</td>
-                                                            <td className="sticky right-[52px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center font-bold text-[#2A3A10] bg-[#F5F8EE]">{total || '—'}</td>
-                                                            <td className={`sticky right-0 z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center font-black bg-[#F5F8EE] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
-                                                                {pct !== null ? `${pct}%` : '—'}
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
-                                    </div>
+                                                                {/* Sticky right — P A L T % */}
+                                                                <td className="sticky right-[161px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-emerald-700 font-bold bg-[#F5F8EE]">{p || '—'}</td>
+                                                                <td className="sticky right-[129px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-red-500 font-bold bg-[#F5F8EE]">{a || '—'}</td>
+                                                                <td className="sticky right-[97px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-amber-600 font-bold bg-[#F5F8EE]">{l || '—'}</td>
+                                                                <td className="sticky right-[52px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center font-bold text-[#2A3A10] bg-[#F5F8EE]">{total || '—'}</td>
+                                                                <td className={`sticky right-0 z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center font-black bg-[#F5F8EE] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
+                                                                    {pct !== null ? `${pct}%` : '—'}
+                                                                </td>
+                                                            </tr>
+                                                        );
+                                                    })}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    )}
                                     {/* Footer — Legend */}
                                     <div className="px-4 py-2 border-t border-border/40 shrink-0 flex items-center gap-4 bg-card">
                                         {[
@@ -1206,60 +1144,121 @@ function OverallTab({ divisionName, onSwitchToDaily }: {
 }
 
 // ── Daily Attendance Tab ──────────────────────────────────────────────────────
-function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
+function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHolidayChange, onStudentsWithPctLoad }: {
+    divisionName: string;
+    divisionId: string;
+    students: AttendanceStudent[];
+    holidays: Record<string, string>;
+    onHolidayChange: (dk: string, name: string | null) => void;
+    onStudentsWithPctLoad: (pcts: Record<string, number | null>) => void;
+}) {
     const today = new Date();
     const [selectedDate, setSelectedDate] = useState<Date>(today);
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
+    const [refreshKey, setRefreshKey] = useState(0);
 
-    // ── Per-student attendance state ──────────────────────────────────────────
-    const [attendance, setAttendance] = useState<Record<string, { status: AttendanceStatus; remark: string }>>(() =>
-        Object.fromEntries(MOCK_STUDENTS.map(s => [s.id, { status: null, remark: '' }]))
-    );
+    const [attendance, setAttendance] = useState<Record<string, { status: AttendanceStatus; remark: string }>>({});
     const [remarkOpen, setRemarkOpen] = useState<string | null>(null);
     const [globalRemark, setGlobalRemark] = useState('');
+    const [dateRemarks, setDateRemarks] = useState<Record<string, string>>({});
     const [saving, setSaving] = useState(false);
     const [saved, setSaved] = useState(false);
+    const [loadingDate, setLoadingDate] = useState(false);
 
-    // ── Holiday + date remark state ───────────────────────────────────────────
-    const [holidays, setHolidays] = useState<Record<string, string>>({});
-    const [dateRemarks, setDateRemarks] = useState<Record<string, string>>({});
+    // Initialize attendance state when students load
+    useEffect(() => {
+        if (students.length === 0) return;
+        setAttendance(Object.fromEntries(students.map(s => [s.id, { status: null, remark: '' }])));
+    }, [students]);
 
+    // Fetch attendance when date or students change
     const currentDk = dateKey(selectedDate);
+    useEffect(() => {
+        if (students.length === 0) return;
+        setLoadingDate(true);
+        api.get(`/teacher/attendance/${divisionId}/daily?date=${currentDk}`)
+            .then(res => {
+                const { records, dateNote } = res.data.data;
+                const newAtt = Object.fromEntries(students.map(s => [s.id, { status: null as AttendanceStatus, remark: '' }]));
+                records.forEach((r: { studentId: string; status: string; remark?: string }) => {
+                    if (newAtt[r.studentId] !== undefined) {
+                        newAtt[r.studentId] = { status: r.status as AttendanceStatus, remark: r.remark ?? '' };
+                    }
+                });
+                setAttendance(newAtt);
+                setGlobalRemark(dateNote ?? '');
+                if (dateNote) setDateRemarks(prev => ({ ...prev, [currentDk]: dateNote }));
+            })
+            .catch(() => {
+                setAttendance(Object.fromEntries(students.map(s => [s.id, { status: null as AttendanceStatus, remark: '' }])));
+                setGlobalRemark('');
+            })
+            .finally(() => setLoadingDate(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [currentDk, divisionId, students.length]);
+
     const isCurrentDaySunday = selectedDate.getDay() === 0;
     const isCurrentDayHoliday = !!holidays[currentDk];
 
-    const handleHolidayChange = (dk: string, name: string | null) => {
-        setHolidays(prev => {
-            const next = { ...prev };
-            if (name === null) delete next[dk];
-            else next[dk] = name;
-            return next;
-        });
+    const handleHolidayChange = async (dk: string, name: string | null) => {
+        onHolidayChange(dk, name);
+        try {
+            await api.post(`/teacher/attendance/${divisionId}/holidays`, { date: dk, name });
+        } catch (err) {
+            console.error('Failed to save holiday', err);
+            onHolidayChange(dk, name === null ? (holidays[dk] ?? null) : null);
+        }
     };
 
     const handleRemarkChange = (dk: string, remark: string) => {
-        // If it's a student remark (format: "studentId::dateKey"), ignore — handled locally
-        // If it's a date remark, update dateRemarks
-        if (!dk.includes('::')) {
-            setDateRemarks(prev => ({ ...prev, [dk]: remark }));
-            if (dk === currentDk) setGlobalRemark(remark);
+        if (dk.includes('::')) return;
+        setDateRemarks(prev => ({ ...prev, [dk]: remark }));
+        if (dk === currentDk) {
+            setGlobalRemark(remark);
+        } else {
+            // Save date note for non-current dates immediately (empty records = just update note)
+            api.post(`/teacher/attendance/${divisionId}/daily`, {
+                date: dk,
+                records: [],
+                dateNote: remark,
+            }).catch(err => console.error('Failed to save date remark', err));
         }
     };
 
     const setStatus = (id: string, status: AttendanceStatus) => {
-        setAttendance(prev => ({ ...prev, [id]: { ...prev[id], status: prev[id].status === status ? null : status } }));
+        setAttendance(prev => ({ ...prev, [id]: { ...prev[id], status: prev[id]?.status === status ? null : status } }));
     };
     const setRemark = (id: string, remark: string) => {
         setAttendance(prev => ({ ...prev, [id]: { ...prev[id], remark } }));
     };
+
     const handleSave = async () => {
         setSaving(true);
-        await new Promise(r => setTimeout(r, 800));
-        setSaving(false); setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        try {
+            const records = students
+                .filter(s => attendance[s.id]?.status !== null)
+                .map(s => ({
+                    studentId: s.id,
+                    status: attendance[s.id].status as 'P' | 'A' | 'L',
+                    remark: attendance[s.id].remark ?? '',
+                }));
+            await api.post(`/teacher/attendance/${divisionId}/daily`, {
+                date: currentDk,
+                records,
+                dateNote: globalRemark || undefined,
+            });
+            setSaved(true);
+            setRefreshKey(k => k + 1);
+            setTimeout(() => setSaved(false), 2000);
+        } catch (err) {
+            console.error('Failed to save attendance', err);
+        } finally {
+            setSaving(false);
+        }
     };
+
     const markAllPresent = () => {
         const allPresent = Object.values(attendance).every(a => a.status === 'P');
         setAttendance(prev => Object.fromEntries(Object.entries(prev).map(([id, v]) => [id, { ...v, status: allPresent ? null : 'P' as AttendanceStatus }])));
@@ -1268,9 +1267,9 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
     const present = Object.values(attendance).filter(a => a.status === 'P').length;
     const absent = Object.values(attendance).filter(a => a.status === 'A').length;
     const late = Object.values(attendance).filter(a => a.status === 'L').length;
-    const unmarked = Object.values(attendance).filter(a => a.status === null).length;
+    const unmarked = students.filter(s => !attendance[s.id]?.status).length;
 
-    // ── Calendar cells ────────────────────────────────────────────────────────
+    // Calendar cells
     const startOffset = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
     const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
     const cells: (number | null)[] = [...Array(startOffset).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)];
@@ -1291,8 +1290,6 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                 <div className="px-3 py-2 border-b border-border/40 shrink-0 space-y-1.5">
                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Attendance Date</p>
                     <div className="flex items-center gap-2">
-
-                        {/* Date picker button */}
                         <div className="relative w-[140px] shrink-0">
                             <button onClick={() => setShowDatePicker(v => !v)}
                                 className={`w-full flex flex-col justify-center px-3 rounded-xl border transition-all text-left h-10
@@ -1307,24 +1304,20 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                                 </p>
                             </button>
 
-                            {/* Calendar dropdown */}
                             <AnimatePresence>
                                 {showDatePicker && (
                                     <motion.div initial={{ opacity: 0, y: -4, scale: 0.97 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -4, scale: 0.97 }}
                                         className="absolute top-12 left-0 z-50 bg-card border border-border rounded-2xl shadow-2xl p-3 min-w-[240px]">
-                                        {/* Month nav */}
                                         <div className="flex items-center justify-between mb-2">
                                             <button onClick={prevCal} className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted"><ChevronLeft size={13} /></button>
                                             <span className="text-xs font-bold">{MONTHS[calMonth]} {calYear}</span>
                                             <button onClick={() => { const n = new Date(calYear, calMonth + 1, 1); if (n > today) return; nextCal(); }} className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted"><ChevronRight size={13} /></button>
                                         </div>
-                                        {/* Day headers */}
                                         <div className="grid grid-cols-7 mb-1">
                                             {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
                                                 <div key={i} className={`text-center text-[9px] font-semibold py-0.5 ${i === 6 ? 'text-red-500' : 'text-muted-foreground'}`}>{d}</div>
                                             ))}
                                         </div>
-                                        {/* Calendar grid */}
                                         <div className="grid grid-cols-7 gap-0.5">
                                             {cells.map((d, i) => {
                                                 if (!d) return <div key={i} />;
@@ -1334,7 +1327,11 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                                                 const isHol = !!holidays[dk];
                                                 return (
                                                     <button key={i}
-                                                        onClick={() => { if (isFuture) return; setSelectedDate(new Date(calYear, calMonth, d)); setShowDatePicker(false); setAttendance(Object.fromEntries(MOCK_STUDENTS.map(s => [s.id, { status: null, remark: '' }]))); }}
+                                                        onClick={() => {
+                                                            if (isFuture) return;
+                                                            setSelectedDate(new Date(calYear, calMonth, d));
+                                                            setShowDatePicker(false);
+                                                        }}
                                                         className={`aspect-square rounded-lg text-[10px] font-medium transition-all flex items-center justify-center
                                                             ${isFuture ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer'}
                                                             ${isHol ? 'bg-red-100 text-red-500 font-bold' : ''}
@@ -1352,7 +1349,6 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                             </AnimatePresence>
                         </div>
 
-                        {/* Global remark input */}
                         <div className="flex-1 flex items-center gap-2 h-8 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 transition-all">
                             <MessageSquare size={12} className="text-muted-foreground shrink-0" />
                             <input value={globalRemark} onChange={e => { setGlobalRemark(e.target.value); setDateRemarks(prev => ({ ...prev, [currentDk]: e.target.value })); }}
@@ -1360,14 +1356,12 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                                 className="flex-1 bg-transparent text-xs placeholder:text-muted-foreground/50 focus:outline-none" />
                         </div>
 
-                        {/* Mark all present */}
-                        <button onClick={markAllPresent} disabled={isCurrentDayHoliday || isCurrentDaySunday}
+                        <button onClick={markAllPresent} disabled={isCurrentDayHoliday || isCurrentDaySunday || students.length === 0}
                             className="flex items-center gap-1 h-8 px-2.5 rounded-xl text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40 hover:opacity-80 transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed">
                             <CheckCircle2 size={11} /> All P
                         </button>
                     </div>
 
-                    {/* Holiday banner */}
                     {isCurrentDayHoliday && (
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-600 text-[11px] font-semibold">
                             🏖️ Holiday — {holidays[currentDk]}
@@ -1376,34 +1370,36 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                 </div>
 
                 {/* Students list */}
-                <div className="flex-1 overflow-y-auto bg-background">
-                    {MOCK_STUDENTS.map(student => {
-                        const rec = attendance[student.id];
+                <div className="flex-1 overflow-y-auto bg-background relative">
+                    {loadingDate && (
+                        <div className="absolute inset-0 bg-background/60 flex items-center justify-center z-10">
+                            <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                        </div>
+                    )}
+                    {students.length === 0 ? (
+                        <p className="text-xs text-muted-foreground text-center py-8">Loading students...</p>
+                    ) : students.map(student => {
+                        const rec = attendance[student.id] ?? { status: null, remark: '' };
                         return (
                             <div key={student.id} className="border-b border-border/20 last:border-none">
                                 <div className="flex items-center gap-3 px-4 py-2.5">
-                                    {/* Avatar */}
                                     <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: getAvatarColor(student.name) }}>
                                         {getInitials(student.name)}
                                     </div>
-                                    {/* Name + Roll */}
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-semibold truncate">{student.name}</p>
                                         <p className="text-[10px] text-muted-foreground">Roll No. {student.rollNo}</p>
                                     </div>
-                                    {/* P / A / L buttons */}
                                     <div className="flex items-center gap-1 shrink-0">
                                         <StatusBtn label="P" active={rec.status === 'P'} onClick={() => setStatus(student.id, 'P')} disabled={isCurrentDayHoliday || isCurrentDaySunday} />
                                         <StatusBtn label="A" active={rec.status === 'A'} onClick={() => setStatus(student.id, 'A')} disabled={isCurrentDayHoliday || isCurrentDaySunday} />
                                         <StatusBtn label="L" active={rec.status === 'L'} onClick={() => setStatus(student.id, 'L')} disabled={isCurrentDayHoliday || isCurrentDaySunday} />
                                     </div>
-                                    {/* Individual remark toggle */}
                                     <button onClick={() => setRemarkOpen(prev => prev === student.id ? null : student.id)}
                                         className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 ${rec.remark ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:bg-muted border border-border/40'}`}>
                                         <MessageSquare size={12} />
                                     </button>
                                 </div>
-                                {/* Inline remark input */}
                                 <AnimatePresence>
                                     {remarkOpen === student.id && (
                                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
@@ -1423,9 +1419,7 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                 {/* Footer — Stats + Save */}
                 <div className="px-3 py-1.5 border-t border-border/40 shrink-0 bg-card relative">
                     <div className="flex items-center justify-between mb-0">
-                        {/* Total */}
-                        <span className="text-[11px] text-muted-foreground/60">Total: {MOCK_STUDENTS.length}</span>
-                        {/* P A L pills — center */}
+                        <span className="text-[11px] text-muted-foreground/60">Total: {students.length}</span>
                         <div className="flex items-center gap-1.5 absolute left-1/2 -translate-x-1/2">
                             {[
                                 { label: 'P', count: present, cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' },
@@ -1436,8 +1430,7 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                                 <span key={s.label} className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}`}>{s.label}: {s.count}</span>
                             ))}
                         </div>
-                        {/* Save button */}
-                        <button onClick={handleSave} disabled={saving || (unmarked > 0 && !isCurrentDayHoliday && !isCurrentDaySunday)}
+                        <button onClick={handleSave} disabled={saving || students.length === 0 || (unmarked > 0 && !isCurrentDayHoliday && !isCurrentDaySunday)}
                             className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
                             style={{ background: saved ? '#10b981' : 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                             {saving ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -1445,7 +1438,6 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                             {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Attendance'}
                         </button>
                     </div>
-                    {/* Unmarked status text */}
                     <p className="text-[11px] text-muted-foreground">
                         {isCurrentDayHoliday
                             ? <span className="text-red-500 font-semibold">🏖️ Holiday — no attendance</span>
@@ -1461,7 +1453,7 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
 
             {/* ── RIGHT (60%) — Attendance Sheet ── */}
             <AttendanceSheet
-                students={MOCK_STUDENTS}
+                students={students}
                 selectedDate={selectedDate}
                 attendance={attendance}
                 holidays={holidays}
@@ -1469,6 +1461,8 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
                 onHolidayChange={handleHolidayChange}
                 onRemarkChange={handleRemarkChange}
                 divisionName={divisionName}
+                divisionId={divisionId}
+                refreshKey={refreshKey}
             />
         </div>
     );
@@ -1478,14 +1472,54 @@ function DailyAttendanceTab({ divisionName }: { divisionName: string }) {
 export type AttendanceSubTab = 'overall' | 'daily';
 
 export default function AttendanceTab({
-    divisionId, divisionName, isClassTeacher, attendanceSubTab, onAttendanceSubTabChange,
+    divisionId, divisionName, isClassTeacher, attendanceSubTab, onAttendanceSubTabChange, onHeaderStatsLoad,
 }: {
     divisionId: string;
     divisionName: string;
     isClassTeacher: boolean;
     attendanceSubTab: AttendanceSubTab;
     onAttendanceSubTabChange: (tab: AttendanceSubTab) => void;
+    onHeaderStatsLoad?: (stats: { overall: number | null; thisMonth: number | null }) => void;
 }) {
+    const [students, setStudents] = useState<AttendanceStudent[]>([]);
+    const [holidays, setHolidays] = useState<Record<string, string>>({});
+
+    useEffect(() => {
+        let cancelled = false;
+        Promise.all([
+            api.get(`/teacher/classes/${divisionId}/students`),
+            api.get(`/teacher/attendance/${divisionId}/holidays`),
+        ]).then(([studRes, holRes]) => {
+            if (cancelled) return;
+            const s: AttendanceStudent[] = studRes.data.data.map((st: {
+                id: string; user: { name: string }; rollNo: string | null;
+            }) => ({
+                id: st.id,
+                name: st.user.name,
+                rollNo: st.rollNo ?? '',
+                overallPct: null,
+            }));
+            setStudents(s);
+            const h: Record<string, string> = {};
+            holRes.data.data.forEach((hol: { date: string; name: string }) => { h[hol.date] = hol.name; });
+            setHolidays(h);
+        }).catch(err => { if (!cancelled) console.error('Failed to load attendance base data', err); });
+        return () => { cancelled = true; };
+    }, [divisionId]);
+
+    const handleHolidayChange = (dk: string, name: string | null) => {
+        setHolidays(prev => {
+            const next = { ...prev };
+            if (name === null) delete next[dk];
+            else next[dk] = name;
+            return next;
+        });
+    };
+
+    const handleStudentsWithPctLoad = useCallback((pcts: Record<string, number | null>) => {
+        setStudents(prev => prev.map(s => ({ ...s, overallPct: pcts[s.id] ?? s.overallPct })));
+    }, []);
+
     return (
         <div className="flex flex-col h-full pt-3 pb-3 px-1 min-h-0">
             <AnimatePresence mode="wait">
@@ -1493,12 +1527,22 @@ export default function AttendanceTab({
                     <motion.div key="overall" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                         <OverallTab
                             divisionName={divisionName}
+                            divisionId={divisionId}
+                            holidays={holidays}
                             onSwitchToDaily={() => onAttendanceSubTabChange('daily')}
+                            onStatsLoad={onHeaderStatsLoad}
                         />
                     </motion.div>
                 ) : (
                     <motion.div key="daily" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full min-h-0 flex flex-col">
-                        <DailyAttendanceTab divisionName={divisionName} />
+                        <DailyAttendanceTab
+                            divisionName={divisionName}
+                            divisionId={divisionId}
+                            students={students}
+                            holidays={holidays}
+                            onHolidayChange={handleHolidayChange}
+                            onStudentsWithPctLoad={handleStudentsWithPctLoad}
+                        />
                     </motion.div>
                 )}
             </AnimatePresence>
