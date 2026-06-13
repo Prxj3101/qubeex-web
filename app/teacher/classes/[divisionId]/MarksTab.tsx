@@ -6,6 +6,7 @@ import {
     Users, BookOpen, ChevronDown, Plus, X, Pencil, Save, Trophy, Flag, ExternalLink,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Student { id: string; name: string; rollNo: string; }
@@ -61,9 +62,10 @@ const MOCK_SUBJECTS: Subject[] = [
     { id: 's3', name: 'Marathi', code: 'MAR', color: '#0891B2' },
     { id: 's4', name: 'Algebra', code: 'ALG', color: '#7C3AED' },
     { id: 's5', name: 'Geometry', code: 'GEO', color: '#059669' },
-    { id: 's6', name: 'Science', code: 'SCI', color: '#0EA5E9' },
-    { id: 's7', name: 'History', code: 'HIS', color: '#D97706' },
-    { id: 's8', name: 'Geography', code: 'GEOG', color: '#16A34A' },
+    { id: 's6', name: 'Science 1', code: 'SC1', color: '#0EA5E9' },
+    { id: 's7', name: 'Science 2', code: 'SC2', color: '#6366F1' },
+    { id: 's8', name: 'History', code: 'HIS', color: '#D97706' },
+    { id: 's9', name: 'Geography', code: 'GEOG', color: '#16A34A' },
 ];
 
 // ── Offline exams (teacher-defined, same for all subjects) ────────────────────
@@ -1190,6 +1192,8 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
     const [rankTab, setRankTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const [subjectTopperTab, setSubjectTopperTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const [reportCardTab, setReportCardTab] = useState<'offline' | 'online'>('offline');
+    const [trendSubjectId, setTrendSubjectId] = useState<string>(MOCK_SUBJECTS[0]?.id ?? '');
+    const [trendMode, setTrendMode] = useState<'offline' | 'online' | 'combined'>('combined');
 
     // per-subject top-5 computation
     const subjectToppers = useMemo(() => {
@@ -1476,80 +1480,127 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                             </div>
                         );
                         const rank = rankMap[sel.student.id];
-
-                        // per-subject stats for this student
-                        const subjectRows = subjects.map(sub => {
-                            const offMax = OFFLINE_EXAMS.reduce((s, ex) => s + ex.maxMarks, 0);
-                            const onMax = (ONLINE_EXAMS[sub.id] ?? []).reduce((s, ex) => s + ex.maxMarks, 0);
-                            const offScored = OFFLINE_EXAMS.reduce((s, ex) => s + (INITIAL_OFFLINE[sub.id]?.[sel.student.id]?.[ex.id] ?? 0), 0);
-                            const onScored = (ONLINE_EXAMS[sub.id] ?? []).reduce((s, ex) => s + ((INITIAL_ONLINE[sub.id]?.[sel.student.id]?.[ex.id] ?? 0) as number), 0);
-                            const offPct = offMax > 0 ? Math.round((offScored / offMax) * 100) : null;
-                            const onPct = onMax > 0 ? Math.round((onScored / onMax) * 100) : null;
-                            const combPct = offPct !== null && onPct !== null ? Math.round((offPct + onPct) / 2) : offPct ?? onPct ?? 0;
-                            return { sub, offPct, onPct, combPct };
-                        });
-                        const combs = subjectRows.map(r => r.combPct);
-                        const maxComb = Math.max(...combs);
-                        const minComb = Math.min(...combs);
+                        const trendSub = MOCK_SUBJECTS.find(s => s.id === trendSubjectId) ?? MOCK_SUBJECTS[0];
+                        const offExams = OFFLINE_EXAMS;
+                        const onExams = trendSub ? (ONLINE_EXAMS[trendSub.id] ?? []) : [];
+                        const trendData = (() => {
+                            if (!trendSub) return [];
+                            const offRows = offExams.map(ex => ({
+                                name: ex.name,
+                                score: Math.round(((INITIAL_OFFLINE[trendSub.id]?.[sel.student.id]?.[ex.id] ?? 0) / ex.maxMarks) * 100),
+                            }));
+                            const onRows = onExams.map(ex => ({
+                                name: ex.name,
+                                score: Math.round((((INITIAL_ONLINE[trendSub.id]?.[sel.student.id]?.[ex.id] ?? 0) as number) / ex.maxMarks) * 100),
+                            }));
+                            if (trendMode === 'offline') return offRows;
+                            if (trendMode === 'online') return onRows;
+                            return [...offRows, ...onRows];
+                        })();
 
                         return (
                             <div className="h-full overflow-y-auto space-y-3">
 
-                                {/* Top row: header 30% + subject breakdown 70% */}
-                                <div className="flex gap-3">
-
-                                    {/* Student header card 30% */}
-                                    <div className="w-[30%] shrink-0 bg-card border border-border/50 rounded-2xl px-4 py-4 flex flex-col items-center gap-3 shadow-sm shadow-black/5">
-                                        <div className="w-12 h-12 rounded-full flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20"
-                                            style={{ background: getAvatarColor(sel.student.name) }}>
-                                            {getInitials(sel.student.name)}
+                                {/* Top card: 380px */}
+                                <div className="shrink-0 bg-background border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col" style={{ height: '380px' }}>
+                                    {/* Header: subject pills + mode toggle */}
+                                    <div className="px-3 py-2 border-b border-border/40 bg-muted/20 flex items-center gap-2 shrink-0">
+                                        <div className="flex-1 min-w-0 overflow-x-auto">
+                                            <div className="flex gap-1.5">
+                                                {MOCK_SUBJECTS.map(s => (
+                                                    <button key={s.id} onClick={() => setTrendSubjectId(s.id)}
+                                                        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all shrink-0"
+                                                        style={trendSubjectId === s.id ? { background: s.color + '20', color: s.color, border: '1px solid ' + s.color + '40' } : { background: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))', border: '1px solid hsl(var(--border))' }}>
+                                                        <BookOpen size={10} />
+                                                        {s.name}
+                                                    </button>
+                                                ))}
+                                            </div>
                                         </div>
-                                        <div className="text-center">
-                                            <p className="text-sm font-bold">{sel.student.name}</p>
-                                            <p className="text-[10px] text-muted-foreground">Roll No. {sel.student.rollNo}</p>
-                                        </div>
-                                        <div className="text-center px-6 py-2.5 rounded-xl border border-amber-400/30 bg-amber-400/5 min-w-[80px]">
-                                            <p className="text-[15px] font-black text-amber-500">#{rank}</p>
-                                            <p className="text-[9px] text-muted-foreground">Rank</p>
-                                        </div>
-                                    </div>
-
-                                    {/* Subject breakdown 70% */}
-                                    <div className="flex-1 min-w-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col">
-                                        <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0">
-                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Subject Breakdown</p>
-                                        </div>
-                                        <div className="divide-y divide-border/20 overflow-y-auto" style={{ maxHeight: "160px" }}>
-                                            {subjectRows.map(({ sub, offPct, onPct, combPct }) => {
-                                                const isStrong = combPct === maxComb;
-                                                const isWeak = combPct === minComb && minComb !== maxComb;
-                                                return (
-                                                    <div key={sub.id} className="px-4 py-3">
-                                                        <div className="flex items-center justify-between mb-2">
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sub.color }} />
-                                                                <p className="text-xs font-semibold">{sub.name}</p>
-                                                                {isStrong && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-500">Strong</span>}
-                                                                {isWeak && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/15 text-red-500">Needs Attention</span>}
-                                                            </div>
-                                                            <span className="text-xs font-black" style={{ color: scoreColor(combPct) }}>{combPct}%</span>
-                                                        </div>
-                                                        <div className="w-full h-1.5 rounded-full bg-muted/50 overflow-hidden">
-                                                            <div className="h-full rounded-full transition-all" style={{ width: combPct + '%', background: scoreColor(combPct) }} />
-                                                        </div>
-                                                        <div className="flex gap-4 mt-1.5">
-                                                            <p className="text-[10px] text-muted-foreground">Offline: <span className="font-semibold" style={{ color: offPct !== null ? scoreColor(offPct) : undefined }}>{offPct !== null ? offPct + '%' : '\u2014'}</span></p>
-                                                            <p className="text-[10px] text-muted-foreground">Online: <span className="font-semibold" style={{ color: onPct !== null ? scoreColor(onPct) : undefined }}>{onPct !== null ? onPct + '%' : '\u2014'}</span></p>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
+                                        <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40 shrink-0">
+                                            {(['offline', 'online', 'combined'] as const).map(t => (
+                                                <button key={t} onClick={() => setTrendMode(t)}
+                                                    className={'px-2 py-0.5 rounded-md text-[9px] font-semibold capitalize transition-all ' + (trendMode === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>
+                                                    {t}
+                                                </button>
+                                            ))}
                                         </div>
                                     </div>
-                                </div>{/* end top row */}
+                                    {/* Body: student info left + chart right */}
+                                    <div className="flex flex-1 min-h-0">
+                                        <div className="w-[22%] shrink-0 border-r border-border/40 px-3 py-3 flex flex-col items-center gap-2">
+                                            <div className="w-14 h-14 rounded-full flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20"
+                                                style={{ background: getAvatarColor(sel.student.name) }}>
+                                                {getInitials(sel.student.name)}
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="text-sm font-bold leading-tight">{sel.student.name}</p>
+                                                <p className="text-[10px] text-muted-foreground mt-0.5">Roll No. {sel.student.rollNo}</p>
+                                            </div>
+                                            <div className="text-center px-3 py-2 rounded-xl border border-amber-400/30 bg-amber-400/5 w-full">
+                                                <p className="text-[18px] font-black text-amber-500">#{rank}</p>
+                                                <p className="text-[9px] text-muted-foreground">Class Rank</p>
+                                            </div>
+                                            <div className="text-center w-full">
+                                                <p className="text-[11px] font-black" style={{ color: scoreColor(sel.combPct) }}>{sel.combPct}%</p>
+                                                <p className="text-[9px] text-muted-foreground">Overall</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex-1 min-w-0 min-h-0 p-3 flex flex-col">
+                                            <p className="text-xs font-bold shrink-0 mb-2">Performance Trend</p>
+                                            {trendData.length === 0
+                                                ? <p className="text-xs text-muted-foreground text-center py-8">No data</p>
+                                                : <div className="flex-1 min-h-0">
+                                                    <ResponsiveContainer width="100%" height="100%">
+                                                        <AreaChart data={trendData} margin={{ top: 28, right: 8, left: -20, bottom: 0 }}>
+                                                            <defs>
+                                                                <linearGradient id={`trendGrad-${trendSub?.id}`} x1="0" y1="0" x2="0" y2="1">
+                                                                    <stop offset="5%" stopColor={trendSub?.color ?? '#7C3AED'} stopOpacity={0.3} />
+                                                                    <stop offset="95%" stopColor={trendSub?.color ?? '#7C3AED'} stopOpacity={0} />
+                                                                </linearGradient>
+                                                            </defs>
+                                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
+                                                            <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94A3B8' }} />
+                                                            <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#94A3B8' }} unit="%" />
+                                                            <Tooltip
+                                                                contentStyle={{ background: '#1A1030', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, fontSize: 11 }}
+                                                                labelStyle={{ color: '#F1F5F9' }}
+                                                                formatter={(val: unknown) => [`${val}%`, 'Score']}
+                                                                itemStyle={{ color: trendSub?.color ?? '#7C3AED' }}
+                                                            />
+                                                            <Area type="monotone" dataKey="score" stroke={trendSub?.color ?? '#7C3AED'} strokeWidth={2}
+                                                                fill={`url(#trendGrad-${trendSub?.id})`}
+                                                                dot={(dotProps: any) => {
+                                                                    const { cx, cy, payload } = dotProps;
+                                                                    const score = payload.score;
+                                                                    const vals = trendData.map((d: any) => d.score);
+                                                                    const isMax = score === Math.max(...vals);
+                                                                    const isMin = score === Math.min(...vals);
+                                                                    const labelColor = isMin ? '#EF4444' : '#10B981';
+                                                                    return (
+                                                                        <g style={{ overflow: 'visible' }}>
+                                                                            <circle cx={cx} cy={cy} r={4} fill={trendSub?.color ?? '#7C3AED'} />
+                                                                            {(isMax || isMin) && (
+                                                                                <>
+                                                                                    <rect x={cx - 14} y={isMin ? cy + 7 : cy - 21} width={28} height={14} rx={3} fill={labelColor} />
+                                                                                    <text x={cx} y={isMin ? cy + 17 : cy - 10} textAnchor="middle" fill="white" fontSize={9} fontWeight="600">{score}%</text>
+                                                                                </>
+                                                                            )}
+                                                                        </g>
+                                                                    );
+                                                                }}
+                                                                activeDot={{ r: 6 }}
+                                                            />
+                                                        </AreaChart>
+                                                    </ResponsiveContainer>
+                                                </div>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
 
                                 {/* Report Card */}
-                                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between relative">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Report Card</p>
                                         <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">

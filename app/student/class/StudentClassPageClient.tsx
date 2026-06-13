@@ -12,12 +12,15 @@ const DIVISION = {
     totalStudents: 45,
     classTeacher: 'Mrs. Priya Sharma',
     subjects: [
-        { id: 's1', name: 'Mathematics', code: 'M1',  color: '#7C3AED', teacher: 'Mrs. Priya Sharma' },
-        { id: 's2', name: 'Science',     code: 'S1',  color: '#0891B2', teacher: 'Mr. Rahul Verma' },
-        { id: 's3', name: 'English',     code: 'Eng', color: '#DA7756', teacher: 'Mrs. Sunita Rao' },
-        { id: 's4', name: 'History',     code: 'His', color: '#059669', teacher: 'Mr. Anil Kumar' },
-        { id: 's5', name: 'Geography',   code: 'Geo', color: '#D97706', teacher: 'Mrs. Deepa Nair' },
-        { id: 's6', name: 'Hindi',       code: 'Hin', color: '#DC2626', teacher: 'Mrs. Kavita Joshi' },
+        { id: 's1', name: 'English',   code: 'ENG',  color: '#DA7756', teacher: 'Mrs. Sunita Rao' },
+        { id: 's2', name: 'Hindi',     code: 'HIN',  color: '#EC4899', teacher: 'Mrs. Kavita Joshi' },
+        { id: 's3', name: 'Marathi',   code: 'MAR',  color: '#0891B2', teacher: 'Mrs. Rekha Patil' },
+        { id: 's4', name: 'Algebra',   code: 'ALG',  color: '#7C3AED', teacher: 'Mrs. Priya Sharma' },
+        { id: 's5', name: 'Geometry',  code: 'GEO',  color: '#059669', teacher: 'Mr. Suresh Iyer' },
+        { id: 's6', name: 'Science 1', code: 'SC1',  color: '#0EA5E9', teacher: 'Mr. Rahul Verma' },
+        { id: 's7', name: 'Science 2', code: 'SC2',  color: '#6366F1', teacher: 'Mr. Vijay Nair' },
+        { id: 's8', name: 'History',   code: 'HIS',  color: '#D97706', teacher: 'Mr. Anil Kumar' },
+        { id: 's9', name: 'Geography', code: 'GEOG', color: '#16A34A', teacher: 'Mrs. Deepa Nair' },
     ],
 };
 
@@ -47,6 +50,10 @@ const MY_RESULTS: Record<string, { test: string; scored: number; total: number }
         { test: 'Online Test 1',scored: 18, total: 20 },
         { test: 'Unit Test 2',  scored: 36, total: 40 },
         { test: 'Online Test 2',scored: 17, total: 20 },
+        { test: 'Unit Test 3',  scored: 34, total: 40 },
+        { test: 'Online Test 3',scored: 16, total: 20 },
+        { test: 'Unit Test 4',  scored: 38, total: 40 },
+        { test: 'Online Test 4',scored: 19, total: 20 },
         { test: 'Term Test',    scored: 68, total: 80 },
     ],
     s2: [
@@ -81,6 +88,26 @@ const MY_RESULTS: Record<string, { test: string; scored: number; total: number }
         { test: 'Unit Test 2',  scored: 37, total: 40 },
         { test: 'Online Test 2',scored: 16, total: 20 },
         { test: 'Term Test',    scored: 70, total: 80 },
+    ],
+    s7: [
+        { test: 'Unit Test 1',  scored: 29, total: 40 },
+        { test: 'Online Test 1',scored: 15, total: 20 },
+        { test: 'Unit Test 2',  scored: 32, total: 40 },
+        { test: 'Online Test 2',scored: 14, total: 20 },
+        { test: 'Term Test',    scored: 63, total: 80 },
+    ],
+    s8: [
+        { test: 'Unit Test 1',  scored: 34, total: 40 },
+        { test: 'Online Test 1',scored: 16, total: 20 },
+        { test: 'Unit Test 2',  scored: 31, total: 40 },
+        { test: 'Term Test',    scored: 66, total: 80 },
+    ],
+    s9: [
+        { test: 'Unit Test 1',  scored: 27, total: 40 },
+        { test: 'Online Test 1',scored: 13, total: 20 },
+        { test: 'Unit Test 2',  scored: 35, total: 40 },
+        { test: 'Online Test 2',scored: 17, total: 20 },
+        { test: 'Term Test',    scored: 60, total: 80 },
     ],
 };
 
@@ -166,7 +193,7 @@ function ViewTab() {
             </div>
 
             {/* RIGHT — 2x2 grid */}
-            <div className="flex-1 min-w-0 grid grid-cols-2 gap-3 overflow-y-auto" style={{ gridTemplateRows: 'repeat(2, minmax(390px, 1fr))' }}>
+            <div className="flex-1 min-w-0 grid grid-cols-2 gap-3 overflow-y-auto" style={{ gridTemplateRows: 'repeat(2, 360px)' }}>
 
                 {/* TOP-LEFT: Timetable */}
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col min-h-0">
@@ -312,60 +339,233 @@ function ViewTab() {
 }
 
 // ── Mock subject leaderboard ──────────────────────────────────────────────────
-const SUBJECT_LEADERBOARD: Record<string, { name: string; scored: number; total: number }[]> = {
-    s1: [
-        { name: 'Aarav Mehta',  scored: 156, total: 160 },
-        { name: 'Ananya Nair',  scored: 151, total: 160 },
-        { name: 'Arjun Kumar',  scored: 148, total: 160 },
-        { name: 'Meera Sharma', scored: 141, total: 160 },
-        { name: 'Ishaan Verma', scored: 138, total: 160 },
-    ],
-    s2: [
-        { name: 'Ananya Nair',  scored: 155, total: 160 },
-        { name: 'Priya Singh',  scored: 149, total: 160 },
-        { name: 'Aarav Mehta',  scored: 144, total: 160 },
-        { name: 'Rohan Gupta',  scored: 139, total: 160 },
-        { name: 'Arjun Kumar',  scored: 135, total: 160 },
-    ],
-    s3: [
-        { name: 'Sneha Patel',  scored: 158, total: 160 },
-        { name: 'Meera Sharma', scored: 153, total: 160 },
-        { name: 'Priya Singh',  scored: 147, total: 160 },
-        { name: 'Aarav Mehta',  scored: 142, total: 160 },
-        { name: 'Ananya Nair',  scored: 137, total: 160 },
-    ],
-    s4: [
-        { name: 'Rohan Gupta',  scored: 152, total: 160 },
-        { name: 'Karan Joshi',  scored: 148, total: 160 },
-        { name: 'Vikram Rao',   scored: 143, total: 160 },
-        { name: 'Sneha Patel',  scored: 138, total: 160 },
-        { name: 'Ishaan Verma', scored: 133, total: 160 },
-    ],
-    s5: [
-        { name: 'Arjun Kumar',  scored: 154, total: 160 },
-        { name: 'Aarav Mehta',  scored: 149, total: 160 },
-        { name: 'Rohan Gupta',  scored: 144, total: 160 },
-        { name: 'Ananya Nair',  scored: 139, total: 160 },
-        { name: 'Priya Singh',  scored: 134, total: 160 },
-    ],
-    s6: [
-        { name: 'Meera Sharma', scored: 157, total: 160 },
-        { name: 'Sneha Patel',  scored: 152, total: 160 },
-        { name: 'Vikram Rao',   scored: 146, total: 160 },
-        { name: 'Karan Joshi',  scored: 141, total: 160 },
-        { name: 'Ishaan Verma', scored: 136, total: 160 },
-    ],
+type LBEntry = { name: string; scored: number; total: number };
+type LBMode  = { combined: LBEntry[]; offline: LBEntry[]; online: LBEntry[] };
+const SUBJECT_LEADERBOARD: Record<string, LBMode> = {
+    s1: {
+        combined: [
+            { name: 'Aarav Mehta',  scored: 156, total: 160 },
+            { name: 'Ananya Nair',  scored: 151, total: 160 },
+            { name: 'Arjun Kumar',  scored: 148, total: 160 },
+            { name: 'Meera Sharma', scored: 141, total: 160 },
+            { name: 'Ishaan Verma', scored: 138, total: 160 },
+        ],
+        offline: [
+            { name: 'Arjun Kumar',  scored: 78, total: 80 },
+            { name: 'Aarav Mehta',  scored: 75, total: 80 },
+            { name: 'Meera Sharma', scored: 72, total: 80 },
+            { name: 'Ananya Nair',  scored: 69, total: 80 },
+            { name: 'Ishaan Verma', scored: 65, total: 80 },
+        ],
+        online: [
+            { name: 'Aarav Mehta',  scored: 78, total: 80 },
+            { name: 'Ananya Nair',  scored: 76, total: 80 },
+            { name: 'Priya Singh',  scored: 71, total: 80 },
+            { name: 'Arjun Kumar',  scored: 68, total: 80 },
+            { name: 'Rohan Gupta',  scored: 64, total: 80 },
+        ],
+    },
+    s2: {
+        combined: [
+            { name: 'Ananya Nair',  scored: 155, total: 160 },
+            { name: 'Priya Singh',  scored: 149, total: 160 },
+            { name: 'Aarav Mehta',  scored: 144, total: 160 },
+            { name: 'Rohan Gupta',  scored: 139, total: 160 },
+            { name: 'Arjun Kumar',  scored: 135, total: 160 },
+        ],
+        offline: [
+            { name: 'Priya Singh',  scored: 77, total: 80 },
+            { name: 'Ananya Nair',  scored: 74, total: 80 },
+            { name: 'Rohan Gupta',  scored: 70, total: 80 },
+            { name: 'Aarav Mehta',  scored: 67, total: 80 },
+            { name: 'Arjun Kumar',  scored: 63, total: 80 },
+        ],
+        online: [
+            { name: 'Ananya Nair',  scored: 79, total: 80 },
+            { name: 'Aarav Mehta',  scored: 75, total: 80 },
+            { name: 'Sneha Patel',  scored: 72, total: 80 },
+            { name: 'Priya Singh',  scored: 70, total: 80 },
+            { name: 'Rohan Gupta',  scored: 67, total: 80 },
+        ],
+    },
+    s3: {
+        combined: [
+            { name: 'Sneha Patel',  scored: 158, total: 160 },
+            { name: 'Meera Sharma', scored: 153, total: 160 },
+            { name: 'Priya Singh',  scored: 147, total: 160 },
+            { name: 'Aarav Mehta',  scored: 142, total: 160 },
+            { name: 'Ananya Nair',  scored: 137, total: 160 },
+        ],
+        offline: [
+            { name: 'Meera Sharma', scored: 78, total: 80 },
+            { name: 'Sneha Patel',  scored: 75, total: 80 },
+            { name: 'Aarav Mehta',  scored: 71, total: 80 },
+            { name: 'Priya Singh',  scored: 68, total: 80 },
+            { name: 'Karan Joshi',  scored: 64, total: 80 },
+        ],
+        online: [
+            { name: 'Sneha Patel',  scored: 80, total: 80 },
+            { name: 'Priya Singh',  scored: 76, total: 80 },
+            { name: 'Ananya Nair',  scored: 73, total: 80 },
+            { name: 'Meera Sharma', scored: 69, total: 80 },
+            { name: 'Aarav Mehta',  scored: 66, total: 80 },
+        ],
+    },
+    s4: {
+        combined: [
+            { name: 'Rohan Gupta',  scored: 152, total: 160 },
+            { name: 'Karan Joshi',  scored: 148, total: 160 },
+            { name: 'Vikram Rao',   scored: 143, total: 160 },
+            { name: 'Sneha Patel',  scored: 138, total: 160 },
+            { name: 'Ishaan Verma', scored: 133, total: 160 },
+        ],
+        offline: [
+            { name: 'Karan Joshi',  scored: 76, total: 80 },
+            { name: 'Rohan Gupta',  scored: 73, total: 80 },
+            { name: 'Sneha Patel',  scored: 70, total: 80 },
+            { name: 'Vikram Rao',   scored: 66, total: 80 },
+            { name: 'Ishaan Verma', scored: 62, total: 80 },
+        ],
+        online: [
+            { name: 'Rohan Gupta',  scored: 77, total: 80 },
+            { name: 'Vikram Rao',   scored: 74, total: 80 },
+            { name: 'Karan Joshi',  scored: 70, total: 80 },
+            { name: 'Arjun Kumar',  scored: 67, total: 80 },
+            { name: 'Sneha Patel',  scored: 64, total: 80 },
+        ],
+    },
+    s5: {
+        combined: [
+            { name: 'Arjun Kumar',  scored: 154, total: 160 },
+            { name: 'Aarav Mehta',  scored: 149, total: 160 },
+            { name: 'Rohan Gupta',  scored: 144, total: 160 },
+            { name: 'Ananya Nair',  scored: 139, total: 160 },
+            { name: 'Priya Singh',  scored: 134, total: 160 },
+        ],
+        offline: [
+            { name: 'Aarav Mehta',  scored: 75, total: 80 },
+            { name: 'Arjun Kumar',  scored: 73, total: 80 },
+            { name: 'Ananya Nair',  scored: 69, total: 80 },
+            { name: 'Rohan Gupta',  scored: 66, total: 80 },
+            { name: 'Priya Singh',  scored: 62, total: 80 },
+        ],
+        online: [
+            { name: 'Arjun Kumar',  scored: 79, total: 80 },
+            { name: 'Rohan Gupta',  scored: 76, total: 80 },
+            { name: 'Priya Singh',  scored: 70, total: 80 },
+            { name: 'Aarav Mehta',  scored: 72, total: 80 },
+            { name: 'Ananya Nair',  scored: 68, total: 80 },
+        ],
+    },
+    s6: {
+        combined: [
+            { name: 'Meera Sharma', scored: 157, total: 160 },
+            { name: 'Sneha Patel',  scored: 152, total: 160 },
+            { name: 'Vikram Rao',   scored: 146, total: 160 },
+            { name: 'Karan Joshi',  scored: 141, total: 160 },
+            { name: 'Ishaan Verma', scored: 136, total: 160 },
+        ],
+        offline: [
+            { name: 'Sneha Patel',  scored: 77, total: 80 },
+            { name: 'Meera Sharma', scored: 74, total: 80 },
+            { name: 'Karan Joshi',  scored: 70, total: 80 },
+            { name: 'Vikram Rao',   scored: 67, total: 80 },
+            { name: 'Ishaan Verma', scored: 63, total: 80 },
+        ],
+        online: [
+            { name: 'Meera Sharma', scored: 80, total: 80 },
+            { name: 'Vikram Rao',   scored: 76, total: 80 },
+            { name: 'Sneha Patel',  scored: 73, total: 80 },
+            { name: 'Ishaan Verma', scored: 70, total: 80 },
+            { name: 'Karan Joshi',  scored: 66, total: 80 },
+        ],
+    },
+    s7: {
+        combined: [
+            { name: 'Ishaan Verma', scored: 153, total: 160 },
+            { name: 'Aarav Mehta',  scored: 147, total: 160 },
+            { name: 'Sneha Patel',  scored: 142, total: 160 },
+            { name: 'Priya Singh',  scored: 136, total: 160 },
+            { name: 'Rohan Gupta',  scored: 131, total: 160 },
+        ],
+        offline: [
+            { name: 'Aarav Mehta',  scored: 76, total: 80 },
+            { name: 'Ishaan Verma', scored: 73, total: 80 },
+            { name: 'Sneha Patel',  scored: 69, total: 80 },
+            { name: 'Priya Singh',  scored: 65, total: 80 },
+            { name: 'Rohan Gupta',  scored: 62, total: 80 },
+        ],
+        online: [
+            { name: 'Ishaan Verma', scored: 78, total: 80 },
+            { name: 'Sneha Patel',  scored: 74, total: 80 },
+            { name: 'Aarav Mehta',  scored: 70, total: 80 },
+            { name: 'Rohan Gupta',  scored: 67, total: 80 },
+            { name: 'Priya Singh',  scored: 63, total: 80 },
+        ],
+    },
+    s8: {
+        combined: [
+            { name: 'Vikram Rao',   scored: 155, total: 160 },
+            { name: 'Meera Sharma', scored: 149, total: 160 },
+            { name: 'Karan Joshi',  scored: 143, total: 160 },
+            { name: 'Ananya Nair',  scored: 138, total: 160 },
+            { name: 'Arjun Kumar',  scored: 132, total: 160 },
+        ],
+        offline: [
+            { name: 'Meera Sharma', scored: 77, total: 80 },
+            { name: 'Vikram Rao',   scored: 74, total: 80 },
+            { name: 'Karan Joshi',  scored: 71, total: 80 },
+            { name: 'Ananya Nair',  scored: 67, total: 80 },
+            { name: 'Arjun Kumar',  scored: 63, total: 80 },
+        ],
+        online: [
+            { name: 'Vikram Rao',   scored: 79, total: 80 },
+            { name: 'Karan Joshi',  scored: 75, total: 80 },
+            { name: 'Meera Sharma', scored: 71, total: 80 },
+            { name: 'Arjun Kumar',  scored: 67, total: 80 },
+            { name: 'Ananya Nair',  scored: 64, total: 80 },
+        ],
+    },
+    s9: {
+        combined: [
+            { name: 'Priya Singh',  scored: 151, total: 160 },
+            { name: 'Arjun Kumar',  scored: 146, total: 160 },
+            { name: 'Aarav Mehta',  scored: 140, total: 160 },
+            { name: 'Sneha Patel',  scored: 134, total: 160 },
+            { name: 'Vikram Rao',   scored: 129, total: 160 },
+        ],
+        offline: [
+            { name: 'Arjun Kumar',  scored: 74, total: 80 },
+            { name: 'Priya Singh',  scored: 71, total: 80 },
+            { name: 'Aarav Mehta',  scored: 68, total: 80 },
+            { name: 'Vikram Rao',   scored: 64, total: 80 },
+            { name: 'Sneha Patel',  scored: 60, total: 80 },
+        ],
+        online: [
+            { name: 'Priya Singh',  scored: 78, total: 80 },
+            { name: 'Sneha Patel',  scored: 74, total: 80 },
+            { name: 'Aarav Mehta',  scored: 70, total: 80 },
+            { name: 'Arjun Kumar',  scored: 66, total: 80 },
+            { name: 'Vikram Rao',   scored: 63, total: 80 },
+        ],
+    },
 };
 
 // ── Subjects Tab ──────────────────────────────────────────────────────────────
 function SubjectsTab() {
     const [selectedId, setSelectedId] = useState<string>(DIVISION.subjects[0].id);
-    const [subTab, setSubTab] = useState<'results' | 'materials' | 'leaderboard'>('results');
+    const [subTab, setSubTab] = useState<'results' | 'materials'>('results');
+    const [resultMode, setResultMode] = useState<'offline' | 'online' | 'combined'>('combined');
 
     const subject     = DIVISION.subjects.find(s => s.id === selectedId)!;
-    const results     = MY_RESULTS[selectedId] ?? [];
+    const allResults  = MY_RESULTS[selectedId] ?? [];
+    const results     = allResults.filter(r =>
+        resultMode === 'combined' ? true :
+        resultMode === 'online'   ? r.test.toLowerCase().includes('online') :
+                                    !r.test.toLowerCase().includes('online')
+    );
     const materials   = MY_MATERIALS[selectedId] ?? [];
-    const leaderboard = SUBJECT_LEADERBOARD[selectedId] ?? [];
+    const leaderboard = SUBJECT_LEADERBOARD[selectedId]?.[resultMode] ?? [];
     const chartData   = results.map(r => ({ name: r.test, score: Math.round((r.scored / r.total) * 100) }));
 
     return (
@@ -397,7 +597,7 @@ function SubjectsTab() {
             {/* LEFT + RIGHT split */}
             <div className="flex-1 min-h-0 flex gap-3">
 
-                {/* LEFT — teacher info + performance trend */}
+                {/* LEFT — teacher info + leaderboard */}
                 <div className="w-[35%] shrink-0 flex flex-col gap-3 overflow-hidden">
 
                     {/* Teacher card */}
@@ -416,155 +616,169 @@ function SubjectsTab() {
                                 <p className="text-[11px] text-muted-foreground truncate">{subject.teacher}</p>
                             </div>
                         </div>
+                        <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40 shrink-0">
+                            {(['offline', 'online', 'combined'] as const).map(t => (
+                                <button key={t} onClick={() => setResultMode(t)}
+                                    className={`px-2 py-0.5 rounded-md text-[9px] font-semibold capitalize transition-all ${resultMode === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                    {t}
+                                </button>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Performance trend chart */}
-                    <div className="flex-1 min-h-0 bg-card border border-border/50 rounded-2xl p-4 shadow-sm shadow-black/5 flex flex-col">
-                        <p className="text-sm font-bold shrink-0 mb-2">
-                            Performance Trend
-                        </p>
-                        {chartData.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-8">No data yet</p>
-                        ) : (
-                            <div className="flex-1 min-h-0">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={chartData} margin={{ top: 28, right: 8, left: -20, bottom: 0 }}>
-                                        <defs>
-                                            <linearGradient id={`grad-${subject.id}`} x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor={subject.color} stopOpacity={0.3} />
-                                                <stop offset="95%" stopColor={subject.color} stopOpacity={0} />
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
-                                        <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94A3B8' }} />
-                                        <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#94A3B8' }} unit="%" />
-                                        <Tooltip
-                                            contentStyle={{ background: '#1A1030', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, fontSize: 11 }}
-                                            labelStyle={{ color: '#F1F5F9' }}
-                                            formatter={(val: any) => [`${val}%`, 'Score']}
-                                            itemStyle={{ color: subject.color }}
-                                        />
-                                        <Area type="monotone" dataKey="score" stroke={subject.color} strokeWidth={2}
-                                            fill={`url(#grad-${subject.id})`}
-                                            dot={(dotProps: any) => {
-                                                const { cx, cy, payload } = dotProps;
-                                                const score = payload.score;
-                                                const vals = chartData.map(d => d.score);
-                                                const max = Math.max(...vals);
-                                                const min = Math.min(...vals);
-                                                const isMax = score === max;
-                                                const isMin = score === min;
-                                                const labelColor = isMin ? '#EF4444' : '#10B981';
-                                                return (
-                                                    <g style={{ overflow: 'visible' }}>
-                                                        <circle cx={cx} cy={cy} r={4} fill={subject.color} />
-                                                        {(isMax || isMin) && (
-                                                            <>
-                                                                <rect x={cx - 14} y={isMin ? cy + 7 : cy - 21} width={28} height={14} rx={3} fill={labelColor} />
-                                                                <text x={cx} y={isMin ? cy + 17 : cy - 10} textAnchor="middle" fill="white" fontSize={9} fontWeight="600">{score}%</text>
-                                                            </>
-                                                        )}
-                                                    </g>
-                                                );
-                                            }}
-                                            activeDot={{ r: 6 }}
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            </div>
-                        )}
+                    {/* Leaderboard */}
+                    <div className="flex-1 min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col">
+                        <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2">
+                            <span className="text-sm">🏆</span>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{subject.name} — Top 5</p>
+                        </div>
+                        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
+                            {leaderboard.length === 0
+                                ? <p className="text-xs text-muted-foreground py-8 text-center">No data yet</p>
+                                : leaderboard.map((s, i) => {
+                                    const pct = Math.round((s.scored / s.total) * 100);
+                                    const isMe = s.name === CLASSMATES.find(c => c.id === CURRENT_STUDENT_ID)?.name;
+                                    return (
+                                        <div key={i} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border transition-colors ${isMe ? 'border-violet-500/30 bg-violet-500/10' : 'border-border/40 bg-background'}`}
+                                            style={i === 0 ? { borderColor: subject.color + '40', background: subject.color + '10' } : {}}>
+                                            <span className="text-sm w-5 text-center shrink-0">
+                                                {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : <span className="text-[10px] font-black text-muted-foreground">#{i + 1}</span>}
+                                            </span>
+                                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0"
+                                                style={{ background: getAvatarColor(s.name) }}>
+                                                {getInitials(s.name)}
+                                            </div>
+                                            <p className="text-[11px] font-semibold flex-1 truncate">
+                                                {s.name}
+                                                {isMe && <span className="ml-1 text-[8px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#7C3AED22', color: '#7C3AED' }}>You</span>}
+                                            </p>
+                                            <span className="text-[11px] font-bold shrink-0" style={{ color: subject.color }}>{pct}%</span>
+                                        </div>
+                                    );
+                                })
+                            }
+                        </div>
                     </div>
                 </div>
 
-                {/* RIGHT — 3 sub tabs */}
+                {/* RIGHT — 2 sub tabs */}
                 <div className="flex-1 min-w-0 bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col shadow-sm shadow-black/5">
 
                     {/* Sub tab bar */}
-                    <div className="shrink-0 px-3 pt-3 pb-2">
+                    <div className="shrink-0 px-3 pt-3 pb-2 flex items-center justify-between">
                         <div className="flex gap-1 bg-muted/50 border border-border/50 rounded-2xl p-1 w-fit">
-                            {(['results', 'materials', 'leaderboard'] as const).map(t => (
+                            {(['results', 'materials'] as const).map(t => (
                                 <button key={t} onClick={() => setSubTab(t)}
                                     className="px-3 py-1.5 rounded-xl text-[11px] font-semibold transition-all"
                                     style={subTab === t ? { background: subject.color, color: '#fff' } : { color: 'hsl(var(--muted-foreground))' }}>
-                                    {t === 'results' ? '📊 Results' : t === 'materials' ? '📄 Materials' : '🏆 Top'}
+                                    {t === 'results' ? '📊 Results' : '📄 Materials'}
                                 </button>
                             ))}
                         </div>
                     </div>
 
                     {/* Content */}
-                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
+                    <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
 
                         {subTab === 'results' && (
-                            results.length === 0
-                                ? <p className="text-xs text-muted-foreground py-8 text-center">No results yet</p>
-                                : results.map((r, i) => {
-                                    const pct = Math.round((r.scored / r.total) * 100);
-                                    return (
-                                        <div key={i} className="bg-background border border-border/40 rounded-xl p-3 space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <p className="text-xs font-semibold">{r.test}</p>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold" style={{ color: subject.color }}>{r.scored}/{r.total}</span>
-                                                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pct >= 75 ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400' : pct >= 40 ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400' : 'bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400'}`}>{pct}%</span>
-                                                </div>
-                                            </div>
-                                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: subject.color }} />
-                                            </div>
+                            <div className="flex-1 min-h-0 flex gap-0 overflow-hidden">
+                                {/* Left — performance chart */}
+                                <div className="w-[70%] shrink-0 min-h-0 p-4 flex flex-col border-r border-border/30 overflow-hidden">
+                                    <p className="text-xs font-bold shrink-0 mb-2">Performance Trend</p>
+                                    {chartData.length === 0
+                                        ? <p className="text-xs text-muted-foreground text-center py-8">No data yet</p>
+                                        : <div className="flex-1 min-h-0">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <AreaChart data={chartData} margin={{ top: 28, right: 8, left: -20, bottom: 0 }}>
+                                                    <defs>
+                                                        <linearGradient id={`grad-${subject.id}`} x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="5%" stopColor={subject.color} stopOpacity={0.3} />
+                                                            <stop offset="95%" stopColor={subject.color} stopOpacity={0} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
+                                                    <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94A3B8' }} />
+                                                    <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#94A3B8' }} unit="%" />
+                                                    <Tooltip
+                                                        contentStyle={{ background: '#1A1030', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, fontSize: 11 }}
+                                                        labelStyle={{ color: '#F1F5F9' }}
+                                                        formatter={(val: any) => [`${val}%`, 'Score']}
+                                                        itemStyle={{ color: subject.color }}
+                                                    />
+                                                    <Area type="monotone" dataKey="score" stroke={subject.color} strokeWidth={2}
+                                                        fill={`url(#grad-${subject.id})`}
+                                                        dot={(dotProps: any) => {
+                                                            const { cx, cy, payload } = dotProps;
+                                                            const score = payload.score;
+                                                            const vals = chartData.map(d => d.score);
+                                                            const isMax = score === Math.max(...vals);
+                                                            const isMin = score === Math.min(...vals);
+                                                            const labelColor = isMin ? '#EF4444' : '#10B981';
+                                                            return (
+                                                                <g style={{ overflow: 'visible' }}>
+                                                                    <circle cx={cx} cy={cy} r={4} fill={subject.color} />
+                                                                    {(isMax || isMin) && (
+                                                                        <>
+                                                                            <rect x={cx - 14} y={isMin ? cy + 7 : cy - 21} width={28} height={14} rx={3} fill={labelColor} />
+                                                                            <text x={cx} y={isMin ? cy + 17 : cy - 10} textAnchor="middle" fill="white" fontSize={9} fontWeight="600">{score}%</text>
+                                                                        </>
+                                                                    )}
+                                                                </g>
+                                                            );
+                                                        }}
+                                                        activeDot={{ r: 6 }}
+                                                    />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
                                         </div>
-                                    );
-                                })
+                                    }
+                                </div>
+                                {/* Right — results list */}
+                                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2" style={{ maxHeight: '340px' }}>
+                                    {results.length === 0
+                                        ? <p className="text-xs text-muted-foreground py-8 text-center">No results yet</p>
+                                        : results.map((r, i) => {
+                                            const pct = Math.round((r.scored / r.total) * 100);
+                                            return (
+                                                <div key={i} className="bg-background border border-border/40 rounded-xl p-3 space-y-2">
+                                                    <div className="flex items-center justify-between">
+                                                        <p className="text-xs font-semibold">{r.test}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className="text-xs font-bold" style={{ color: subject.color }}>{r.scored}/{r.total}</span>
+                                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pct >= 75 ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-400' : pct >= 40 ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-400' : 'bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400'}`}>{pct}%</span>
+                                                        </div>
+                                                    </div>
+                                                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: subject.color }} />
+                                                    </div>
+                                                </div>
+                                            );
+                                        })
+                                    }
+                                </div>
+                            </div>
                         )}
 
                         {subTab === 'materials' && (
-                            materials.length === 0
-                                ? <p className="text-xs text-muted-foreground py-8 text-center">No materials yet</p>
-                                : materials.map((mat, i) => (
-                                    <div key={i} className="flex items-center gap-3 bg-background border border-border/40 rounded-xl p-3">
-                                        <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: subject.color + '20' }}>
-                                            <FileText size={16} style={{ color: subject.color }} />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-xs font-semibold truncate">{mat.name}</p>
-                                            {mat.size && <p className="text-[10px] text-muted-foreground">{mat.type.toUpperCase()} · {mat.size}</p>}
-                                        </div>
-                                        <div className="flex items-center gap-1.5 shrink-0">
-                                            <button className="w-7 h-7 rounded-lg flex items-center justify-center transition-opacity hover:opacity-70" style={{ background: subject.color + '20' }}>
+                            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-2" style={{ maxHeight: '340px' }}>
+                                {materials.length === 0
+                                    ? <p className="text-xs text-muted-foreground py-8 text-center">No materials yet</p>
+                                    : materials.map((mat, i) => (
+                                        <div key={i} className="flex items-center gap-3 bg-background border border-border/40 rounded-xl p-3">
+                                            <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: subject.color + '20' }}>
+                                                <FileText size={16} style={{ color: subject.color }} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-xs font-semibold truncate">{mat.name}</p>
+                                                {mat.size && <p className="text-[10px] text-muted-foreground">{mat.type.toUpperCase()} · {mat.size}</p>}
+                                            </div>
+                                            <button className="w-7 h-7 rounded-lg flex items-center justify-center transition-opacity hover:opacity-70 shrink-0" style={{ background: subject.color + '20' }}>
                                                 <Download size={12} style={{ color: subject.color }} />
                                             </button>
                                         </div>
-                                    </div>
-                                ))
-                        )}
-
-                        {subTab === 'leaderboard' && (
-                            leaderboard.length === 0
-                                ? <p className="text-xs text-muted-foreground py-8 text-center">No data yet</p>
-                                : leaderboard.map((s, i) => {
-                                    const pct = Math.round((s.scored / s.total) * 100);
-                                    const isMe = s.name === CLASSMATES.find(c => c.id === CURRENT_STUDENT_ID)?.name;
-                                    return (
-                                        <div key={i} className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-colors ${isMe ? 'border-violet-500/30 bg-violet-500/10' : 'border-border/40 bg-background'}`}
-                                            style={i === 0 ? { borderColor: subject.color + '40', background: subject.color + '10' } : {}}>
-                                            <span className="text-base w-6 text-center shrink-0">
-                                                {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : <span className="text-xs font-black text-muted-foreground">#{i + 1}</span>}
-                                            </span>
-                                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                style={{ background: getAvatarColor(s.name) }}>
-                                                {getInitials(s.name)}
-                                            </div>
-                                            <p className="text-xs font-semibold flex-1 truncate">
-                                                {s.name}
-                                                {isMe && <span className="ml-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: '#7C3AED22', color: '#7C3AED' }}>You</span>}
-                                            </p>
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                <span className="text-xs font-bold" style={{ color: subject.color }}>{s.scored}/{s.total}</span>
-                                                <span className="text-[10px] text-muted-foreground">{pct}%</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })
+                                    ))
+                                }
+                            </div>
                         )}
                     </div>
                 </div>
