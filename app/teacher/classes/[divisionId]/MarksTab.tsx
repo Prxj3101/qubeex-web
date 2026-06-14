@@ -8,7 +8,6 @@ import {
 import * as XLSX from 'xlsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-// ── Types ─────────────────────────────────────────────────────────────────────
 interface Student { id: string; name: string; rollNo: string; }
 
 interface Exam {
