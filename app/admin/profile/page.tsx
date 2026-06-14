@@ -22,7 +22,7 @@ import {
     Building2,
 } from 'lucide-react';
 
-// ─── schema ────────────────────────────────────────────────────────────────
+// ─── schema ───────────────────────────────────────────────────────────────
 const nameSchema = z.object({
     name: z.string().min(2, 'Name must be at least 2 characters').max(100),
 });
