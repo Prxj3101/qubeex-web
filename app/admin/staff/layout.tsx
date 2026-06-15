@@ -3,11 +3,12 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Users, MessageSquare } from 'lucide-react';
+import { Users, MessageSquare, Shield } from 'lucide-react';
 
 const PEOPLE_TABS = [
     { label: 'Teachers', href: '/admin/staff/teachers', icon: Users },
     { label: 'Staffroom', href: '/admin/staff/staffroom', icon: MessageSquare },
+    { label: 'Subadmins', href: '/admin/staff/subadmins', icon: Shield },
 ];
 
 export default function PeopleLayout({ children }: { children: React.ReactNode }) {
