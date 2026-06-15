@@ -15,6 +15,7 @@ import { Eye, EyeOff, LogIn, AtSign, Lock, ChevronRight } from 'lucide-react';
 const ROLE_REDIRECT: Record<string, string> = {
     SUPER_ADMIN: '/superadmin/overview',
     ADMIN: '/admin/overview',
+    SUB_ADMIN: '/admin/overview',
     TEACHER: '/teacher/overview',
     STUDENT: '/student/overview',
 };
@@ -68,7 +69,7 @@ export function LoginForm() {
                 password,
             });
             const { token, user, institution } = res.data.data;
-            setAuth(user, token);
+            setAuth({ ...user, permissions: user.permissions ?? null }, token);
 
             const subStatus = institution?.subscriptionStatus;
             const instStatus = institution?.status;

@@ -5,9 +5,10 @@ interface User {
     id: string;
     name?: string | null;
     email: string;
-    role: 'SUPER_ADMIN' | 'ADMIN' | 'TEACHER' | 'STUDENT';
+    role: 'SUPER_ADMIN' | 'ADMIN' | 'SUB_ADMIN' | 'TEACHER' | 'STUDENT';
     institutionId?: string | null;
     institutionType?: 'SCHOOL' | 'COLLEGE' | 'COACHING' | null;
+    permissions?: string[] | null;
 }
 
 interface AuthStore {
