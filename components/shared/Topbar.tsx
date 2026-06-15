@@ -31,11 +31,12 @@ interface TopbarProps {
     devToggle?: React.ReactNode; // ← add
 }
 
-type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'TEACHER' | 'STUDENT';
+type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'SUB_ADMIN' | 'TEACHER' | 'STUDENT';
 
 const emojiMap: Record<RoleKey, string> = {
     SUPER_ADMIN: '👑',
     ADMIN: '🏛️',
+    SUB_ADMIN: '🛡️',
     TEACHER: '🧑‍🏫',
     STUDENT: '🎓',
 };
@@ -43,6 +44,7 @@ const emojiMap: Record<RoleKey, string> = {
 const labelMap: Record<RoleKey, string> = {
     SUPER_ADMIN: 'SuperAdmin',
     ADMIN: 'Admin',
+    SUB_ADMIN: 'SubAdmin',
     TEACHER: 'Teacher',
     STUDENT: 'Student',
 };
@@ -50,16 +52,20 @@ const labelMap: Record<RoleKey, string> = {
 const initialMap: Record<RoleKey, string> = {
     SUPER_ADMIN: 'SA',
     ADMIN: 'A',
+    SUB_ADMIN: 'SA',
     TEACHER: 'T',
     STUDENT: 'S',
 };
 
 function getRole(pathname: string, userRole?: string | null): RoleKey {
     if (pathname.startsWith('/superadmin')) return 'SUPER_ADMIN';
-    if (pathname.startsWith('/admin')) return 'ADMIN';
+    if (pathname.startsWith('/admin')) {
+        if (userRole === 'SUB_ADMIN') return 'SUB_ADMIN';
+        return 'ADMIN';
+    }
     if (pathname.startsWith('/teacher')) return 'TEACHER';
     if (pathname.startsWith('/student')) return 'STUDENT';
-    const validRoles: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STUDENT'];
+    const validRoles: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'TEACHER', 'STUDENT'];
     if (userRole && validRoles.includes(userRole as RoleKey)) return userRole as RoleKey;
     return 'STUDENT';
 }
