@@ -852,21 +852,22 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
                         onClick={() => setShowTimetable(false)}>
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="relative max-w-4xl w-full mx-4" onClick={e => e.stopPropagation()}>
-                            <div className="flex items-center justify-between mb-2">
+                            className="relative max-w-4xl w-full mx-4 flex flex-col" style={{ maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between mb-2 shrink-0">
                                 <p className="text-white text-sm font-semibold">Timetable — {division.name}</p>
                                 <div className="flex items-center gap-2">
                                     <a href={timetableImage ?? '/timetable.jpeg'} download
                                         className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
                                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                        ⬇ Download                                    </a>
+                                        ⬇ Download
+                                    </a>
                                     <button onClick={() => setShowTimetable(false)}
-                                        className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border text-xs font-semibold hover:bg-muted transition-all">
-                                        ✕ Close
+                                        className="flex items-center justify-center w-8 h-8 rounded-xl border border-border text-xs font-semibold hover:bg-muted transition-all">
+                                        ✕
                                     </button>
                                 </div>
                             </div>
-                            <img src={timetableImage ?? '/timetable.jpeg'} alt="Timetable" className="w-full rounded-2xl" />
+                            <img src={timetableImage ?? '/timetable.jpeg'} alt="Timetable" className="rounded-2xl w-full object-contain" style={{ maxHeight: 'calc(90vh - 48px)' }} />
                         </motion.div>
                     </div>
                 )}

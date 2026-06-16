@@ -66,6 +66,7 @@ export default function DivisionClassPageClient() {
 
     const role = searchParams.get('role') ?? 'class-teacher';
     const isClassTeacher = role === 'class-teacher';
+    const subjectId = searchParams.get('subjectId');
 
     const TABS = isClassTeacher
         ? [
@@ -78,6 +79,7 @@ export default function DivisionClassPageClient() {
         : [
             { key: 'view' as const, label: 'View' },
             { key: 'tasks' as const, label: 'Tasks' },
+            { key: 'marks' as const, label: 'Marksheet' },
         ];
 
     const [division, setDivision] = useState<Division | null>(null);
@@ -94,6 +96,7 @@ export default function DivisionClassPageClient() {
 
     // ── Tasks sub-tab state ───────────────────────────────────────────────────
     const [tasksSubTab, setTasksSubTab] = useState<TasksSubTab>('questions');
+    const [tasksStats, setTasksStats] = useState({ tests: 0, assignments: 0 });
 
     const fetchedRef = useRef(false);
 
@@ -164,13 +167,22 @@ export default function DivisionClassPageClient() {
                             </h1>
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
                                 {division.standard.name} <ChevronRight size={11} /> {division.name}
-                                <span className={`ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full 
-                                ${isClassTeacher
-                                        ? 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300'
-                                        : 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300'
-                                    }`}>
-                                    {isClassTeacher ? 'Class Teacher' : 'Subject Teacher'}
-                                </span>
+                                {isClassTeacher ? (
+                                    <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+                                        Class Teacher
+                                    </span>
+                                ) : (() => {
+                                    const sub = division.subjects.find(s => s.id === subjectId);
+                                    return (
+                                        <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                                            Subject Teacher
+                                            {sub && <>
+                                                <span className="opacity-40">·</span>
+                                                <span>{sub.name}</span>
+                                            </>}
+                                        </span>
+                                    );
+                                })()}
                             </p>
                         </div>
 
@@ -209,7 +221,7 @@ export default function DivisionClassPageClient() {
                                         { key: 'offline' as MarksSubTab, label: 'Offline', Icon: NotebookPen },
                                         { key: 'online' as MarksSubTab, label: 'Online', Icon: Smartphone },
                                         { key: 'overall' as MarksSubTab, label: 'Overall', Icon: BarChart2 },
-                                    ]).map(({ key, label, Icon }) => {
+                                    ].filter(t => isClassTeacher || t.key !== 'overall')).map(({ key, label, Icon }) => {
                                         const isActive = marksSubTab === key;
                                         return (
                                             <button key={key} onClick={() => setMarksSubTab(key)}
@@ -261,15 +273,20 @@ export default function DivisionClassPageClient() {
                                     transition={{ duration: 0.15 }}
                                     className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
                                     {([
-                                        { key: 'questions' as const, label: 'AI Ques. Generator' },
-                                        { key: 'tests' as const, label: 'Tests' },
-                                        { key: 'assignments' as const, label: 'Assignments' },
-                                        { key: 'modules' as const, label: 'Modules' },
-                                    ]).map(({ key, label }) => (
+                                        { key: 'questions' as const, label: 'AI Questions', count: null },
+                                        { key: 'tests' as const, label: 'Tests', count: tasksStats.tests },
+                                        { key: 'assignments' as const, label: 'Assignments', count: tasksStats.assignments },
+                                        { key: 'modules' as const, label: 'Modules', count: null },
+                                    ]).map(({ key, label, count }) => (
                                         <button key={key} onClick={() => setTasksSubTab(key)}
-                                            className={`relative px-3 py-1 rounded-lg text-xs font-medium transition-all
+                                            className={`relative flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all
                                             ${tasksSubTab === key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                                             {label}
+                                            {count !== null && (
+                                                <span className={`text-[10px] font-bold px-1.5 py-0 rounded-full leading-5 ${tasksSubTab === key ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+                                                    {count}
+                                                </span>
+                                            )}
                                         </button>
                                     ))}
                                 </motion.div>
@@ -316,6 +333,18 @@ export default function DivisionClassPageClient() {
                                     <p className="text-[11px] text-muted-foreground">{marksStats.pill2Label ?? 'Top Grade'}</p>
                                 </div>
                             </div>
+                        ) : activeTab === 'tasks' ? (
+                            <div className="flex items-center gap-4">
+                                {[
+                                    { label: 'Tests', value: tasksStats.tests },
+                                    { label: 'Assignments', value: tasksStats.assignments },
+                                ].map(({ label, value }) => (
+                                    <div key={label} className="text-right">
+                                        <p className="text-lg font-bold leading-tight">{value}</p>
+                                        <p className="text-[11px] text-muted-foreground">{label}</p>
+                                    </div>
+                                ))}
+                            </div>
                         ) : (
                             <div className="flex items-center gap-4">
                                 {[
@@ -359,7 +388,7 @@ export default function DivisionClassPageClient() {
                             />
                         </motion.div>
                     )}
-                    {activeTab === 'marks' && isClassTeacher && (
+                    {activeTab === 'marks' && (
                         <motion.div key="marks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                             <MarksTab
                                 divisionName={division.name}
@@ -371,6 +400,7 @@ export default function DivisionClassPageClient() {
                                 subTab={marksSubTab}
                                 onSubTabChange={setMarksSubTab}
                                 onStatsChange={setMarksStats}
+                                restrictToSubjectId={isClassTeacher ? null : subjectId}
                             />
                         </motion.div>
                     )}
@@ -381,7 +411,7 @@ export default function DivisionClassPageClient() {
                     )}
                     {activeTab === 'tasks' && (
                         <motion.div key="tasks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                            <TasksTab divisionId={divisionId} subTab={tasksSubTab} onSubTabChange={setTasksSubTab} />
+                            <TasksTab divisionId={divisionId} subTab={tasksSubTab} onSubTabChange={setTasksSubTab} onStatsChange={setTasksStats} />
                         </motion.div>
                     )}
                 </AnimatePresence>

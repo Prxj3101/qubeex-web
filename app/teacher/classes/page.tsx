@@ -76,7 +76,7 @@ function ClassTeacherCard({ item, index }: { item: ClassTeacherAssignment; index
                         </div>
                     </div>
                     <div className="flex flex-col items-end gap-1">
-                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 uppercase tracking-wide">
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
                             Class Teacher
                         </span>
                         <div className="flex items-center gap-2">

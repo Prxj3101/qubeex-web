@@ -173,7 +173,7 @@ interface Assignment {
 
 export type TasksSubTab = 'questions' | 'tests' | 'assignments' | 'modules';
 
-interface TasksTabProps { divisionId: string; subTab: TasksSubTab; onSubTabChange: (tab: TasksSubTab) => void; }
+interface TasksTabProps { divisionId: string; subTab: TasksSubTab; onSubTabChange: (tab: TasksSubTab) => void; onStatsChange?: (stats: { tests: number; assignments: number }) => void; }
 
 const MOCK_HISTORY_TEST: Test = {
     id: 'mock-history-1',
@@ -217,7 +217,7 @@ const MOCK_ASSIGNMENTS: Assignment[] = [
     },
 ];
 
-export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTabChange }: TasksTabProps) {
+export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTabChange, onStatsChange }: TasksTabProps) {
 
     // ── Containers ────────────────────────────────────────────────────────────
     interface QContainer { id: string; name: string; createdAt: string; }
@@ -317,6 +317,13 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     const [newAssignment, setNewAssignment] = useState({ title: '', description: '', totalMarks: 10, dueDate: '' });
     const [savingAssignment, setSavingAssignment] = useState(false);
 
+    // ── Report stats to parent ────────────────────────────────────────────────
+    const onStatsChangeRef = useRef(onStatsChange);
+    useEffect(() => { onStatsChangeRef.current = onStatsChange; });
+    useEffect(() => {
+        onStatsChangeRef.current?.({ tests: tests.length, assignments: assignments.length });
+    }, [tests.length, assignments.length]);
+
     // ── Modules ───────────────────────────────────────────────────────────────
     const [modules, setModules] = useState<TaskModule[]>([]);
     const [mLoading, setMLoading] = useState(false);
@@ -396,12 +403,12 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     }, [fetchQuestions]);
 
     useEffect(() => {
-        if (subTab === 'tests' && tests.length === 0) fetchTests();
-    }, [subTab, tests.length, fetchTests]);
+        fetchTests();
+    }, [fetchTests]);
 
     useEffect(() => {
-        if (subTab === 'assignments' && assignments.length === 0) fetchAssignments();
-    }, [subTab, assignments.length, fetchAssignments]);
+        fetchAssignments();
+    }, [fetchAssignments]);
 
     useEffect(() => {
         fetchModules();
@@ -789,7 +796,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                 <path d="M6 18a4 4 0 0 1-1.967-.516"/>
                                 <path d="M19.967 17.484A4 4 0 0 1 18 18"/>
                             </svg>
-                            AI Question Generator
+                            AI Questions
                         </h2>
                         <p className="text-[13px] text-muted-foreground">Create containers and generate questions from PDFs</p>
                     </div>
