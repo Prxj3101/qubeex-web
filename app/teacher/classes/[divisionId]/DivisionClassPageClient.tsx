@@ -263,6 +263,7 @@ export default function DivisionClassPageClient() {
                                     {([
                                         { key: 'questions' as const, label: 'AI Ques. Generator' },
                                         { key: 'tests' as const, label: 'Tests' },
+                                        { key: 'assignments' as const, label: 'Assignments' },
                                         { key: 'modules' as const, label: 'Modules' },
                                     ]).map(({ key, label }) => (
                                         <button key={key} onClick={() => setTasksSubTab(key)}
@@ -334,7 +335,7 @@ export default function DivisionClassPageClient() {
             </div>
 
             {/* Tab content */}
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-hidden relative">
                 <AnimatePresence mode="wait">
                     {activeTab === 'view' && (
                         <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">

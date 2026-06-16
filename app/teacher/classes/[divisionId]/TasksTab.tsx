@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Upload, FileText, X, Plus, Trash2, Download,
     Loader2, BookOpen, Layers, Check, X as XIcon,
     Clock, Link2, Play, Eye, ChevronDown, ChevronUp,
     FlaskConical, Brain, Users, Copy, CheckCircle2, AlertCircle,
-    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, BarChart2,
+    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -154,9 +154,24 @@ function getQuizUrl(testLink: string): string {
     return `${window.location.origin}/quiz/${testLink}`;
 }
 
+// ── Assignment types ──────────────────────────────────────────────────────────
+
+type AssignmentStatus = 'DRAFT' | 'ACTIVE' | 'COMPLETED';
+
+interface Assignment {
+    id: string;
+    title: string;
+    description: string | null;
+    status: AssignmentStatus;
+    totalMarks: number;
+    dueDate: string | null;
+    createdAt?: string;
+    _count: { submissions: number; totalStudents?: number };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
-export type TasksSubTab = 'questions' | 'tests' | 'modules';
+export type TasksSubTab = 'questions' | 'tests' | 'assignments' | 'modules';
 
 interface TasksTabProps { divisionId: string; subTab: TasksSubTab; onSubTabChange: (tab: TasksSubTab) => void; }
 
@@ -178,6 +193,29 @@ const MOCK_HISTORY_TEST: Test = {
     questions: Array(18).fill({ id: 'q', isCompulsory: false }),
     _count: { attempts: 34, submissions: 31 },
 };
+
+const MOCK_ASSIGNMENTS: Assignment[] = [
+    {
+        id: 'mock-assign-1',
+        title: 'Chapter 2 : Hadoop Assignment',
+        description: 'Implement a basic MapReduce job and submit the output logs',
+        status: 'ACTIVE',
+        totalMarks: 20,
+        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        _count: { submissions: 12, totalStudents: 45 },
+    },
+    {
+        id: 'mock-assign-2',
+        title: 'Chapter 1 : DFS Practical Assignment',
+        description: 'Trace DFS and BFS traversal on given graphs and submit handwritten answers',
+        status: 'COMPLETED',
+        totalMarks: 15,
+        dueDate: '2026-05-15T23:59:00.000Z',
+        createdAt: '2026-05-01T09:00:00.000Z',
+        _count: { submissions: 41, totalStudents: 45 },
+    },
+];
 
 export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTabChange }: TasksTabProps) {
 
@@ -270,6 +308,14 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     const [copiedLink, setCopiedLink] = useState<string | null>(null);
     const [paperBuilderOpen, setPaperBuilderOpen] = useState(false);
     const [paperBuilderTestId, setPaperBuilderTestId] = useState<string | null>(null);
+    const [paperBuilderType, setPaperBuilderType] = useState<'TEST' | 'ASSIGNMENT'>('TEST');
+
+    // ── Assignments ───────────────────────────────────────────────────────────
+    const [assignments, setAssignments] = useState<Assignment[]>([]);
+    const [aLoading, setALoading] = useState(false);
+    const [createAssignmentOpen, setCreateAssignmentOpen] = useState(false);
+    const [newAssignment, setNewAssignment] = useState({ title: '', description: '', totalMarks: 10, dueDate: '' });
+    const [savingAssignment, setSavingAssignment] = useState(false);
 
     // ── Modules ───────────────────────────────────────────────────────────────
     const [modules, setModules] = useState<TaskModule[]>([]);
@@ -279,6 +325,19 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     const [newModName, setNewModName] = useState('');
     const [newModDesc, setNewModDesc] = useState('');
     const [savingModule, setSavingModule] = useState(false);
+    const [dragModuleId, setDragModuleId] = useState<string | null>(null);
+    const [dragOverModuleId, setDragOverModuleId] = useState<string | null>(null);
+    const [deleteModuleConfirmId, setDeleteModuleConfirmId] = useState<string | null>(null);
+    const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
+    const [editModName, setEditModName] = useState('');
+    const [editModDesc, setEditModDesc] = useState('');
+    const [savingEditModule, setSavingEditModule] = useState(false);
+    const [addQModuleId, setAddQModuleId] = useState<string | null>(null);
+    const [customQ, setCustomQ] = useState<{
+        type: QuestionType; question: string; answer: string;
+        options: [string, string, string, string]; formula: string;
+    }>({ type: 'MCQ', question: '', answer: '', options: ['', '', '', ''], formula: '' });
+    const [savingCustomQ, setSavingCustomQ] = useState(false);
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -308,6 +367,18 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         }
     }, [divisionId]);
 
+    const fetchAssignments = useCallback(async () => {
+        setALoading(true);
+        try {
+            const res = await api.get(`/teacher/tasks/assignments?divisionId=${divisionId}`);
+            setAssignments([...res.data.data, ...MOCK_ASSIGNMENTS]);
+        } catch {
+            setAssignments(MOCK_ASSIGNMENTS);
+        } finally {
+            setALoading(false);
+        }
+    }, [divisionId]);
+
     const fetchModules = useCallback(async () => {
         setMLoading(true);
         try {
@@ -327,6 +398,10 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     useEffect(() => {
         if (subTab === 'tests' && tests.length === 0) fetchTests();
     }, [subTab, tests.length, fetchTests]);
+
+    useEffect(() => {
+        if (subTab === 'assignments' && assignments.length === 0) fetchAssignments();
+    }, [subTab, assignments.length, fetchAssignments]);
 
     useEffect(() => {
         fetchModules();
@@ -411,6 +486,41 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
 
     // ── Tests ──────────────────────────────────────────────────────────────────
 
+    const handleCreateAssignment = async () => {
+        if (!newAssignment.title.trim()) return toast.error('Assignment title is required');
+        setSavingAssignment(true);
+        try {
+            const payload: Record<string, unknown> = {
+                divisionId, title: newAssignment.title,
+                description: newAssignment.description || undefined,
+                totalMarks: newAssignment.totalMarks,
+            };
+            if (newAssignment.dueDate) payload.dueDate = new Date(newAssignment.dueDate).toISOString();
+            const res = await api.post('/teacher/tasks/assignments', payload);
+            const created: Assignment = res.data.data;
+            setAssignments(prev => [created, ...prev]);
+            toast.success('Assignment created');
+        } catch {
+            // optimistic fallback: add a local DRAFT card
+            const local: Assignment = {
+                id: `local-${Date.now()}`,
+                title: newAssignment.title,
+                description: newAssignment.description || null,
+                status: 'DRAFT',
+                totalMarks: newAssignment.totalMarks,
+                dueDate: newAssignment.dueDate ? new Date(newAssignment.dueDate).toISOString() : null,
+                createdAt: new Date().toISOString(),
+                _count: { submissions: 0, totalStudents: 0 },
+            };
+            setAssignments(prev => [local, ...prev]);
+            toast.success('Assignment created');
+        } finally {
+            setSavingAssignment(false);
+            setCreateAssignmentOpen(false);
+            setNewAssignment({ title: '', description: '', totalMarks: 10, dueDate: '' });
+        }
+    };
+
     const handleCreateTest = async () => {
         if (!newTest.title.trim()) return toast.error('Test title is required');
         setSavingTest(true);
@@ -448,8 +558,9 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         } catch (err) { toast.error(apiError(err)); }
     };
 
-    const openBuilder = (testId: string) => {
+    const openBuilder = (testId: string, type: 'TEST' | 'ASSIGNMENT' = 'TEST') => {
         setPaperBuilderTestId(testId);
+        setPaperBuilderType(type);
         setPaperBuilderOpen(true);
     };
 
@@ -504,6 +615,23 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         } catch (err) { toast.error(apiError(err)); } finally { setSavingModule(false); }
     };
 
+    const handleModuleDragStart = (id: string) => setDragModuleId(id);
+    const handleModuleDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); if (id !== dragModuleId) setDragOverModuleId(id); };
+    const handleModuleDrop = (targetId: string) => {
+        if (!dragModuleId || dragModuleId === targetId) { setDragModuleId(null); setDragOverModuleId(null); return; }
+        setModules(prev => {
+            const arr = [...prev];
+            const fromIdx = arr.findIndex(m => m.id === dragModuleId);
+            const toIdx = arr.findIndex(m => m.id === targetId);
+            const [item] = arr.splice(fromIdx, 1);
+            arr.splice(toIdx, 0, item);
+            return arr;
+        });
+        setDragModuleId(null);
+        setDragOverModuleId(null);
+    };
+    const handleModuleDragEnd = () => { setDragModuleId(null); setDragOverModuleId(null); };
+
     const deleteModule = async (id: string) => {
         try {
             await api.delete(`/teacher/tasks/modules/${id}`);
@@ -511,6 +639,70 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
             if (selectedModuleId === id) setSelectedModuleId(null);
             toast.success('Module deleted');
         } catch (err) { toast.error(apiError(err)); }
+    };
+
+    const startEditModule = (m: TaskModule) => {
+        setEditingModuleId(m.id);
+        setEditModName(m.name);
+        setEditModDesc((m as any).description ?? '');
+        setSelectedModuleId(null);
+    };
+
+    const saveEditModule = async () => {
+        if (!editModName.trim() || !editingModuleId) return;
+        setSavingEditModule(true);
+        try {
+            const res = await api.patch(`/teacher/tasks/modules/${editingModuleId}`, { name: editModName, description: editModDesc || undefined });
+            setModules(prev => prev.map(m => m.id === editingModuleId ? { ...m, ...res.data.data } : m));
+            toast.success('Module updated');
+        } catch {
+            setModules(prev => prev.map(m => m.id === editingModuleId ? { ...m, name: editModName, description: editModDesc } as any : m));
+            toast.success('Module updated');
+        } finally {
+            setSavingEditModule(false);
+            setEditingModuleId(null);
+        }
+    };
+
+    const saveCustomQuestion = async (moduleId: string) => {
+        if (!customQ.question.trim()) return toast.error('Question text is required');
+        if (customQ.type === 'MCQ' && customQ.options.some(o => !o.trim())) return toast.error('Fill all 4 MCQ options');
+        if (!customQ.answer.trim()) return toast.error('Answer is required');
+        setSavingCustomQ(true);
+        try {
+            const payload: Record<string, unknown> = {
+                type: customQ.type,
+                question: customQ.question,
+                answer: customQ.answer,
+                moduleId,
+                status: 'APPROVED',
+            };
+            if (customQ.type === 'MCQ') payload.options = customQ.options;
+            if (customQ.type === 'NUMERICAL') payload.details = { correct_answer_formula: customQ.formula, variables: {} };
+            const res = await api.post('/teacher/tasks/questions/custom', payload);
+            const newMQ: ModuleQuestion = res.data.data;
+            setModules(prev => prev.map(m => m.id === moduleId ? { ...m, questions: [...m.questions, newMQ] } : m));
+            toast.success('Question added');
+        } catch {
+            // optimistic local add
+            const localMQ: ModuleQuestion = {
+                id: `local-${Date.now()}`, questionId: `local-q-${Date.now()}`, assignedAt: new Date().toISOString(),
+                question: {
+                    id: `local-q-${Date.now()}`, type: customQ.type, status: 'APPROVED',
+                    question: customQ.question,
+                    options: customQ.type === 'MCQ' ? customQ.options : null,
+                    answer: customQ.answer, createdAt: new Date().toISOString(),
+                    details: customQ.type === 'NUMERICAL' ? { correct_answer_formula: customQ.formula, variables: {} } : null,
+                    category: null,
+                },
+            };
+            setModules(prev => prev.map(m => m.id === moduleId ? { ...m, questions: [...m.questions, localMQ] } : m));
+            toast.success('Question added');
+        } finally {
+            setSavingCustomQ(false);
+            setAddQModuleId(null);
+            setCustomQ({ type: 'MCQ', question: '', answer: '', options: ['', '', '', ''], formula: '' });
+        }
     };
 
     // ── Filtered questions ─────────────────────────────────────────────────────
@@ -530,7 +722,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         return acc;
     }, {});
 
-    const approvedQuestions = containerQuestions.filter(q => q.status === 'APPROVED');
+    const approvedQuestions = questions.filter(q => q.status === 'APPROVED');
 
     // Group displayed questions by upload batch.
     // If uploadBatchId is present, use it. Otherwise fall back to date-proximity:
@@ -566,7 +758,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     return (
         <div className="flex flex-col h-full overflow-hidden">
             {/* Action buttons */}
-            <div className="shrink-0 px-2 pt-3 pb-3 flex items-center justify-between relative">
+            <div className="shrink-0 px-2 pt-1 pb-1 flex items-center justify-between relative">
                 {subTab === 'questions' && selectedContainerId && (
                     <h2 className="text-xl font-bold flex items-center gap-2 shrink-0">
                         <PackageOpen size={21} />
@@ -611,6 +803,24 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                         <p className="text-[13px] text-muted-foreground">Create and manage tests for your students</p>
                     </div>
                 )}
+                {subTab === 'assignments' && (
+                    <div>
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            <ClipboardCheck size={21} />
+                            Assignments
+                        </h2>
+                        <p className="text-[13px] text-muted-foreground">Create and manage assignments for your students</p>
+                    </div>
+                )}
+                {subTab === 'modules' && (
+                    <div>
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            <BookOpen size={21} />
+                            Modules
+                        </h2>
+                        <p className="text-[13px] text-muted-foreground">Organise questions into modules for tests and assignments</p>
+                    </div>
+                )}
                 {subTab === 'questions' && selectedContainerId && (
                     <div className="absolute left-1/2 -translate-x-1/2 flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
                         {(['ALL', 'PENDING_REVIEW', 'APPROVED', 'REJECTED'] as const).map(s => (
@@ -650,6 +860,13 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                             className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl text-white"
                             style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
                             <Plus size={14} /> Create Test
+                        </button>
+                    )}
+                    {subTab === 'assignments' && (
+                        <button onClick={() => setCreateAssignmentOpen(true)}
+                            className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl text-white"
+                            style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                            <Plus size={14} /> Create Assignment
                         </button>
                     )}
                     {subTab === 'modules' && (
@@ -1015,7 +1232,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                         {liveTests.length === 0 ? (
                                             <p className="text-xs text-muted-foreground pl-1">No active or draft tests</p>
                                         ) : (
-                                            <div className="grid grid-cols-1 gap-2">{liveTests.map(renderCard)}</div>
+                                            <div className="grid grid-cols-1 gap-3 px-1">{liveTests.map(renderCard)}</div>
                                         )}
                                     </div>
 
@@ -1030,7 +1247,68 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                                 </div>
                                                 <div className="flex-1 h-px bg-border/60" />
                                             </div>
-                                            <div className="grid grid-cols-1 gap-2">{historyTests.map(renderCard)}</div>
+                                            <div className="grid grid-cols-1 gap-3 px-1">{historyTests.map(renderCard)}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
+                    </>
+                )}
+
+                {/* ── ASSIGNMENTS TAB ── */}
+                {subTab === 'assignments' && (
+                    <>
+                        {aLoading ? (
+                            <div className="flex items-center justify-center py-16 text-muted-foreground gap-2 text-sm">
+                                <Loader2 size={16} className="animate-spin" /> Loading assignments…
+                            </div>
+                        ) : assignments.length === 0 ? (
+                            <div className="text-center py-16 text-muted-foreground">
+                                <BookOpen size={32} className="mx-auto mb-3 opacity-30" />
+                                <p className="text-sm">No assignments yet</p>
+                                <p className="text-xs mt-1 opacity-60">Create an assignment to get started</p>
+                            </div>
+                        ) : (() => {
+                            const now = new Date();
+                            const isExpiredA = (a: Assignment) => a.status === 'COMPLETED' || (!!a.dueDate && new Date(a.dueDate) < now);
+                            const liveAssignments = assignments.filter(a => !isExpiredA(a));
+                            const historyAssignments = assignments.filter(a => isExpiredA(a));
+                            return (
+                                <div className="space-y-6">
+                                    {/* Live Assignments */}
+                                    <div>
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground/70 uppercase tracking-wider shrink-0">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                Live Assignments
+                                                <span className="text-muted-foreground font-normal normal-case tracking-normal">{liveAssignments.length}</span>
+                                            </div>
+                                            <div className="flex-1 h-px bg-border/60" />
+                                        </div>
+                                        {liveAssignments.length === 0 ? (
+                                            <p className="text-xs text-muted-foreground pl-1">No active or draft assignments</p>
+                                        ) : (
+                                            <div className="grid grid-cols-1 gap-3 px-1">
+                                                {liveAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} />)}
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* History */}
+                                    {historyAssignments.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground/70 uppercase tracking-wider shrink-0">
+                                                    <Clock size={11} className="text-muted-foreground" />
+                                                    History
+                                                    <span className="text-muted-foreground font-normal normal-case tracking-normal">{historyAssignments.length}</span>
+                                                </div>
+                                                <div className="flex-1 h-px bg-border/60" />
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-3 px-1">
+                                                {historyAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} />)}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
@@ -1077,32 +1355,181 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                 <p className="text-xs mt-1 opacity-60">Group questions by chapter or topic</p>
                             </div>
                         ) : (
-                            <div className="space-y-2">
+                            <div className="space-y-3 px-1">
                                 {modules.map(m => (
-                                    <div key={m.id} className="rounded-xl border border-border bg-card overflow-hidden">
-                                        <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/40 transition-all"
-                                            onClick={() => setSelectedModuleId(selectedModuleId === m.id ? null : m.id)}>
-                                            <div className="flex items-center gap-2">
-                                                <BookOpen size={15} className="text-muted-foreground" />
-                                                <span className="font-medium text-sm">{m.name}</span>
-                                                <span className="text-xs text-muted-foreground">{m.questions.length} questions</span>
+                                    <div key={m.id}
+                                        draggable={editingModuleId !== m.id}
+                                        onDragStart={() => handleModuleDragStart(m.id)}
+                                        onDragOver={e => handleModuleDragOver(e, m.id)}
+                                        onDrop={() => handleModuleDrop(m.id)}
+                                        onDragEnd={handleModuleDragEnd}
+                                        className={`rounded-xl border bg-card overflow-hidden transition-all ${dragOverModuleId === m.id ? 'border-primary shadow-md scale-[1.01]' : 'border-border'} ${dragModuleId === m.id ? 'opacity-40' : 'opacity-100'}`}>
+
+                                        {editingModuleId === m.id ? (
+                                            <div className="px-4 py-3 space-y-2">
+                                                <input autoFocus value={editModName} onChange={e => setEditModName(e.target.value)}
+                                                    placeholder="Module name"
+                                                    className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                <input value={editModDesc} onChange={e => setEditModDesc(e.target.value)}
+                                                    placeholder="Description (optional)"
+                                                    className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                <div className="flex justify-end gap-2 pt-1">
+                                                    <button onClick={() => setEditingModuleId(null)}
+                                                        className="px-3 py-1.5 text-sm rounded-lg border border-border hover:bg-muted transition-all">Cancel</button>
+                                                    <button onClick={saveEditModule} disabled={savingEditModule || !editModName.trim()}
+                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50"
+                                                        style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                                                        {savingEditModule ? <><Loader2 size={13} className="animate-spin" />Saving…</> : 'Save'}
+                                                    </button>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <button onClick={e => { e.stopPropagation(); deleteModule(m.id); }} className="text-xs text-muted-foreground hover:text-red-500 p-1 rounded transition-all"><Trash2 size={13} /></button>
-                                                {selectedModuleId === m.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                                            </div>
-                                        </div>
-                                        {selectedModuleId === m.id && (
-                                            <div className="px-4 pb-3 space-y-1.5 border-t border-border/50 pt-2">
-                                                {m.questions.length === 0 ? (
-                                                    <p className="text-xs text-muted-foreground py-2">No questions in this module</p>
-                                                ) : m.questions.map(mq => (
-                                                    <div key={mq.id} className="flex items-start gap-2 py-1.5 text-sm">
-                                                        <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${TYPE_META[mq.question.type]?.color ?? 'bg-muted text-muted-foreground'}`}>{TYPE_META[mq.question.type]?.label}</span>
-                                                        <span className="flex-1 text-sm">{mq.question.question}</span>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/40 transition-all"
+                                                    onClick={() => setSelectedModuleId(selectedModuleId === m.id ? null : m.id)}>
+                                                    <div className="flex items-center gap-2">
+                                                        <GripVertical size={14} className="text-muted-foreground/40 cursor-grab shrink-0" onClick={e => e.stopPropagation()} />
+                                                        <BookOpen size={15} className="text-muted-foreground" />
+                                                        <span className="font-medium text-sm">{m.name}</span>
+                                                        <span className="text-xs text-muted-foreground">{m.questions.length} questions</span>
                                                     </div>
-                                                ))}
-                                            </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <button onClick={e => { e.stopPropagation(); startEditModule(m); }} className="text-xs text-muted-foreground hover:text-primary p-1 rounded transition-all"><Pencil size={13} /></button>
+                                                        <button onClick={e => { e.stopPropagation(); setDeleteModuleConfirmId(m.id); }} className="text-xs text-muted-foreground hover:text-red-500 p-1 rounded transition-all"><Trash2 size={13} /></button>
+                                                        {selectedModuleId === m.id ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                                    </div>
+                                                </div>
+                                                {selectedModuleId === m.id && (
+                                                    <div className="border-t border-border/50">
+                                                        {/* description + question list */}
+                                                        <div className="px-4 pt-2 pb-1 space-y-1.5">
+                                                            {(m as any).description && (
+                                                                <p className="text-xs text-muted-foreground pt-1 pb-0.5 italic">{(m as any).description}</p>
+                                                            )}
+                                                            {m.questions.length === 0 ? (
+                                                                <p className="text-xs text-muted-foreground py-2">No questions in this module</p>
+                                                            ) : m.questions.map(mq => (
+                                                                <div key={mq.id} className="flex items-start gap-2 py-1.5">
+                                                                    <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[mq.question.type]?.color ?? 'bg-muted text-muted-foreground'}`}>{TYPE_META[mq.question.type]?.label}</span>
+                                                                    <span className="flex-1 text-sm">{mq.question.question}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+
+                                                        {/* Add custom question form / button */}
+                                                        {addQModuleId === m.id ? (
+                                                            <div className="px-4 pb-4 pt-2 border-t border-border/40 space-y-3">
+                                                                {/* Type chips */}
+                                                                <div>
+                                                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Question Type</p>
+                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                        {(['MCQ','SHORT_ANSWER','TRUE_FALSE','FILL_BLANK','NUMERICAL'] as QuestionType[]).map(t => (
+                                                                            <button key={t} onClick={() => setCustomQ(q => ({ ...q, type: t, answer: '', options: ['','','',''], formula: '' }))}
+                                                                                className={`text-[11px] font-semibold px-2.5 py-1 rounded-lg border transition-all ${customQ.type === t ? `${TYPE_META[t]?.color} border-current/30` : 'border-border text-muted-foreground hover:text-foreground'}`}>
+                                                                                {TYPE_META[t]?.label}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+
+                                                                {/* Question text */}
+                                                                <div>
+                                                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Question</p>
+                                                                    <textarea value={customQ.question} onChange={e => setCustomQ(q => ({ ...q, question: e.target.value }))}
+                                                                        placeholder="Type your question here…" rows={2}
+                                                                        className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                                </div>
+
+                                                                {/* MCQ options */}
+                                                                {customQ.type === 'MCQ' && (
+                                                                    <div>
+                                                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Options</p>
+                                                                        <div className="space-y-1.5">
+                                                                            {customQ.options.map((opt, i) => (
+                                                                                <div key={i} className="flex items-center gap-2">
+                                                                                    <span className="text-[11px] font-bold text-muted-foreground w-4 shrink-0">{String.fromCharCode(65+i)}.</span>
+                                                                                    <input value={opt} onChange={e => setCustomQ(q => { const o = [...q.options] as [string,string,string,string]; o[i] = e.target.value; return { ...q, options: o }; })}
+                                                                                        placeholder={`Option ${String.fromCharCode(65+i)}`}
+                                                                                        className="flex-1 text-sm rounded-lg border border-border bg-background px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                                                    <input type="radio" name={`correct-${m.id}`} checked={customQ.answer === opt && opt !== ''}
+                                                                                        onChange={() => setCustomQ(q => ({ ...q, answer: opt }))}
+                                                                                        className="accent-primary shrink-0" title="Mark as correct" />
+                                                                                </div>
+                                                                            ))}
+                                                                            <p className="text-[10px] text-muted-foreground pl-6">Select the radio button next to the correct answer</p>
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* True/False answer */}
+                                                                {customQ.type === 'TRUE_FALSE' && (
+                                                                    <div>
+                                                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Answer</p>
+                                                                        <div className="flex gap-2">
+                                                                            {['True','False'].map(v => (
+                                                                                <button key={v} onClick={() => setCustomQ(q => ({ ...q, answer: v }))}
+                                                                                    className={`px-4 py-1.5 text-sm rounded-lg border font-medium transition-all ${customQ.answer === v ? 'bg-primary text-primary-foreground border-primary' : 'border-border text-muted-foreground hover:text-foreground'}`}>
+                                                                                    {v}
+                                                                                </button>
+                                                                            ))}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Numerical: formula + answer */}
+                                                                {customQ.type === 'NUMERICAL' && (
+                                                                    <div className="space-y-2">
+                                                                        <div>
+                                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Formula <span className="normal-case font-normal">(optional)</span></p>
+                                                                            <input value={customQ.formula} onChange={e => setCustomQ(q => ({ ...q, formula: e.target.value }))}
+                                                                                placeholder="e.g. 2 * π * r"
+                                                                                className="w-full text-sm rounded-lg border border-border bg-background px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40 font-mono" />
+                                                                        </div>
+                                                                        <div>
+                                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Answer</p>
+                                                                            <input value={customQ.answer} onChange={e => setCustomQ(q => ({ ...q, answer: e.target.value }))}
+                                                                                placeholder="Numerical answer"
+                                                                                className="w-full text-sm rounded-lg border border-border bg-background px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Short / Fill blank answer */}
+                                                                {(customQ.type === 'SHORT_ANSWER' || customQ.type === 'FILL_BLANK') && (
+                                                                    <div>
+                                                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Answer</p>
+                                                                        <input value={customQ.answer} onChange={e => setCustomQ(q => ({ ...q, answer: e.target.value }))}
+                                                                            placeholder="Expected answer"
+                                                                            className="w-full text-sm rounded-lg border border-border bg-background px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                                    </div>
+                                                                )}
+
+                                                                {/* MCQ answer sync on blur */}
+                                                                {customQ.type === 'MCQ' && customQ.answer === '' && (
+                                                                    <p className="text-[11px] text-amber-500">Please select the correct option above</p>
+                                                                )}
+
+                                                                <div className="flex justify-end gap-2 pt-1">
+                                                                    <button onClick={() => { setAddQModuleId(null); setCustomQ({ type: 'MCQ', question: '', answer: '', options: ['','','',''], formula: '' }); }}
+                                                                        className="px-3 py-1.5 text-sm rounded-lg border border-border hover:bg-muted transition-all">Cancel</button>
+                                                                    <button onClick={() => saveCustomQuestion(m.id)} disabled={savingCustomQ}
+                                                                        className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50"
+                                                                        style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                                                                        {savingCustomQ ? <><Loader2 size={13} className="animate-spin" />Adding…</> : <><Plus size={13} />Add Question</>}
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="px-4 pb-3 pt-2">
+                                                                <button onClick={() => { setAddQModuleId(m.id); setSelectedModuleId(m.id); }}
+                                                                    className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-1.5 rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-all">
+                                                                    <Plus size={12} /> Add Custom Question
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                )}
+                                            </>
                                         )}
                                     </div>
                                 ))}
@@ -1117,6 +1544,8 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                 <PaperBuilder
                     testId={paperBuilderTestId}
                     approvedQuestions={approvedQuestions}
+                    modules={modules}
+                    lockedPaperType={paperBuilderType}
                     onClose={() => { setPaperBuilderOpen(false); setPaperBuilderTestId(null); }}
                     onSaved={handlePaperSaved}
                 />
@@ -1210,6 +1639,85 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                 )}
             </AnimatePresence>
 
+            {/* Create Assignment draggable modal */}
+            <AnimatePresence>
+                {createAssignmentOpen && (
+                    <>
+                        <motion.div
+                            key="ca-overlay"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-40"
+                            onClick={() => setCreateAssignmentOpen(false)}
+                        />
+                        <motion.div
+                            key="ca-modal"
+                            drag
+                            dragMomentum={false}
+                            dragElastic={0}
+                            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                            className="fixed z-50 bg-card border border-border rounded-2xl shadow-2xl w-[420px]"
+                            style={{ top: '15%', left: '50%', x: '-50%' }}
+                        >
+                            {/* Drag handle */}
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 cursor-grab active:cursor-grabbing select-none">
+                                <div className="flex items-center gap-2">
+                                    <BookOpen size={15} className="text-muted-foreground" />
+                                    <h3 className="font-semibold text-sm">Create New Assignment</h3>
+                                </div>
+                                <button onClick={() => setCreateAssignmentOpen(false)} className="text-muted-foreground hover:text-foreground">
+                                    <X size={15} />
+                                </button>
+                            </div>
+
+                            {/* Form */}
+                            <div className="px-5 py-4 grid grid-cols-2 gap-3">
+                                <div className="col-span-2">
+                                    <label className="text-xs text-muted-foreground">Title *</label>
+                                    <input value={newAssignment.title} onChange={e => setNewAssignment(p => ({ ...p, title: e.target.value }))}
+                                        placeholder="e.g. Chapter 3 Assignment"
+                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="text-xs text-muted-foreground">Description</label>
+                                    <input value={newAssignment.description} onChange={e => setNewAssignment(p => ({ ...p, description: e.target.value }))}
+                                        placeholder="Optional"
+                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-muted-foreground">Total Marks</label>
+                                    <input type="number" min={1} max={500}
+                                        value={newAssignment.totalMarks}
+                                        onChange={e => setNewAssignment(p => ({ ...p, totalMarks: Number(e.target.value) }))}
+                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-muted-foreground">Due Date (optional)</label>
+                                    <input type="datetime-local" value={newAssignment.dueDate}
+                                        onChange={e => setNewAssignment(p => ({ ...p, dueDate: e.target.value }))}
+                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="flex justify-end gap-2 px-5 pb-5">
+                                <button onClick={() => setCreateAssignmentOpen(false)}
+                                    className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={handleCreateAssignment} disabled={savingAssignment || !newAssignment.title.trim()}
+                                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                                    {savingAssignment ? <><Loader2 size={13} className="animate-spin" />Creating…</> : 'Create Assignment'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
             {/* Delete container confirm modal */}
             <AnimatePresence>
                 {deleteConfirmId && (
@@ -1241,6 +1749,47 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                         Cancel
                                     </button>
                                     <button onClick={() => { setContainers(prev => prev.filter(x => x.id !== deleteConfirmId)); setDeleteConfirmId(null); }}
+                                        className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Delete module confirm modal */}
+            <AnimatePresence>
+                {deleteModuleConfirmId && (
+                    <>
+                        <motion.div
+                            key="mod-overlay"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                            onClick={() => setDeleteModuleConfirmId(null)}
+                        />
+                        <motion.div
+                            key="mod-modal"
+                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+                        >
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-80 pointer-events-auto flex flex-col gap-4">
+                                <div className="flex flex-col gap-1">
+                                    <p className="text-sm font-semibold text-foreground">Delete this module?</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        "{modules.find(m => m.id === deleteModuleConfirmId)?.name}" will be permanently deleted. This cannot be undone.
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <button onClick={() => setDeleteModuleConfirmId(null)}
+                                        className="px-4 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                        Cancel
+                                    </button>
+                                    <button onClick={() => { deleteModule(deleteModuleConfirmId); setDeleteModuleConfirmId(null); }}
                                         className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
                                         Delete
                                     </button>
@@ -1508,6 +2057,102 @@ function QuestionCard({ question, modules, index, onApprove, onReject, onDelete,
     );
 }
 
+// ── Assignment Card ───────────────────────────────────────────────────────────
+
+function AssignmentCard({ assignment, onOpen }: { assignment: Assignment; onOpen: () => void }) {
+    const [deleteConfirm, setDeleteConfirm] = useState(false);
+    const effectiveStatus: AssignmentStatus = (assignment.dueDate && new Date(assignment.dueDate) < new Date()) ? 'COMPLETED' : assignment.status;
+    const statusColor = {
+        DRAFT: 'text-muted-foreground bg-muted',
+        ACTIVE: 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950',
+        COMPLETED: 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950',
+    }[effectiveStatus];
+
+    return (
+        <div className="rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]">
+            {/* Top row */}
+            <div className="flex gap-4">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 mb-2 flex-wrap">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md shrink-0 ${statusColor}`}>{effectiveStatus}</span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><FileText size={12} />{assignment.totalMarks} marks</span>
+                        <span className="text-muted-foreground opacity-40">·</span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 size={12} />— submitted</span>
+                        {assignment._count.totalStudents != null && (
+                            <>
+                                <span className="text-muted-foreground opacity-40">·</span>
+                                <span className="flex items-center gap-1 text-xs text-muted-foreground"><Users size={12} />{assignment._count.totalStudents} students</span>
+                            </>
+                        )}
+                    </div>
+                    <h3 className="font-semibold text-base truncate mb-1.5">{assignment.title}</h3>
+                    {assignment.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-1">{assignment.description}</p>
+                    )}
+                </div>
+                {/* Top-right icons */}
+                <div className="flex items-start gap-1 shrink-0">
+                    <div className="relative">
+                        <button onClick={() => setDeleteConfirm(v => !v)} className="text-muted-foreground hover:text-red-500 p-1 rounded transition-all">
+                            <Trash2 size={15} />
+                        </button>
+                        <AnimatePresence>
+                            {deleteConfirm && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                    className="absolute right-0 top-7 z-30 bg-card border border-border rounded-xl shadow-xl p-3 w-56 flex flex-col gap-2">
+                                    <p className="text-xs font-semibold text-foreground">Delete this assignment?</p>
+                                    <p className="text-[11px] text-muted-foreground">&quot;{assignment.title}&quot; will be permanently deleted.</p>
+                                    <div className="flex gap-1.5 justify-end">
+                                        <button onClick={() => setDeleteConfirm(false)}
+                                            className="px-2.5 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                            Cancel
+                                        </button>
+                                        <button onClick={() => setDeleteConfirm(false)}
+                                            className="px-2.5 py-1 text-xs rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
+                </div>
+            </div>
+
+            {/* Bottom row */}
+            <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span><span className="text-foreground/50">Created at:</span> {assignment.createdAt ? `${new Date(assignment.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
+                    <span className="opacity-40">·</span>
+                    <span><span className="text-foreground/50">{effectiveStatus === 'COMPLETED' ? 'Due was:' : 'Due:'}</span> {assignment.dueDate ? `${new Date(assignment.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.dueDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    {effectiveStatus === 'DRAFT' && (
+                        <button className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
+                            <Play size={12} /> Activate
+                        </button>
+                    )}
+                    {effectiveStatus === 'ACTIVE' && (
+                        <button className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
+                            <ArrowRight size={12} /> Resend
+                        </button>
+                    )}
+                    <button onClick={onOpen} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
+                        <Eye size={12} /> Open & Edit
+                    </button>
+                    <button className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
+                        <BarChart2 size={12} /> Results
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // ── Test Card ─────────────────────────────────────────────────────────────────
 
 function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, copiedLink }: {
@@ -1542,7 +2187,7 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, copiedLink }
                 </div>
                 {/* Top-right icons: copy + delete */}
                 <div className="flex items-start gap-1 shrink-0">
-                    {test.status === 'ACTIVE' && (
+                    {effectiveStatus === 'ACTIVE' && (
                         <div className="relative">
                             <button onClick={onCopyLink} className="text-muted-foreground hover:text-foreground p-1 rounded transition-all" title="Copy link">
                                 {copiedLink === test.testLink ? <CheckCircle2 size={15} className="text-emerald-500" /> : <Copy size={15} />}
@@ -1606,18 +2251,18 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, copiedLink }
                     <span><span className="text-foreground/50">{test.status === 'COMPLETED' ? 'Ended at:' : 'Ends at:'}</span> {test.validUntil ? `${new Date(test.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(test.validUntil).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                    {test.status === 'DRAFT' && (
+                    {effectiveStatus === 'DRAFT' && (
                         <button onClick={onActivate} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
                             <Play size={12} /> Activate
                         </button>
                     )}
-                    {test.status === 'ACTIVE' && (
+                    {effectiveStatus === 'ACTIVE' && (
                         <button className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
                             <ArrowRight size={12} /> Resend
                         </button>
                     )}
                     <button onClick={onOpen} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
-                        <Eye size={12} /> Open
+                        <Eye size={12} /> Open & Edit
                     </button>
                     <button className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
                         <BarChart2 size={12} /> Results
@@ -1630,19 +2275,29 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, copiedLink }
 
 // ── Paper Builder ─────────────────────────────────────────────────────────────
 
-function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
+function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onClose, onSaved }: {
     testId: string;
     approvedQuestions: Question[];
+    modules: TaskModule[];
+    lockedPaperType: 'TEST' | 'ASSIGNMENT';
     onClose: () => void;
     onSaved: () => void;
 }) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [mainTop, setMainTop] = useState(0);
+
+    useLayoutEffect(() => {
+        if (!isFullscreen) return;
+        const main = document.querySelector('main');
+        if (main) setMainTop(main.getBoundingClientRect().top);
+    }, [isFullscreen]);
 
     // Metadata
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
-    const [paperType, setPaperType] = useState<'TEST' | 'ASSIGNMENT'>('TEST');
+    const [paperType, setPaperType] = useState<'TEST' | 'ASSIGNMENT'>(lockedPaperType);
     const [durationMinutes, setDurationMinutes] = useState(60);
     const [maxAttempts, setMaxAttempts] = useState(1);
     const [validUntil, setValidUntil] = useState('');
@@ -1654,8 +2309,7 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
     const [activeSectionId, setActiveSectionId] = useState<string | null>(null);
 
     // Left panel filters
-    const [qSearch, setQSearch] = useState('');
-    const [qTypeFilter, setQTypeFilter] = useState<QuestionType | 'ALL'>('ALL');
+    const [expandedModuleId, setExpandedModuleId] = useState<string | null>(null);
 
     useEffect(() => {
         api.get(`/teacher/tasks/tests/${testId}`)
@@ -1779,24 +2433,52 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
     };
 
     const addedIds = new Set(builderQs.map(q => q.questionId));
-    const leftQuestions = approvedQuestions.filter(q =>
-        !addedIds.has(q.id) &&
-        (qTypeFilter === 'ALL' || q.type === qTypeFilter) &&
-        (qSearch === '' || q.question.toLowerCase().includes(qSearch.toLowerCase()))
-    );
     const totalMarks = builderQs.reduce((sum, q) => sum + q.marks, 0);
 
+    const containerStyle = isFullscreen
+        ? { position: 'fixed' as const, top: mainTop, left: 0, right: 0, bottom: 0, zIndex: 60 }
+        : { position: 'absolute' as const, inset: 0, zIndex: 50 };
+
     if (loading) return (
-        <div className="fixed inset-0 z-50 bg-background flex items-center justify-center">
+        <div style={containerStyle} className="bg-background flex items-center justify-center">
             <Loader2 size={24} className="animate-spin text-muted-foreground" />
         </div>
     );
+
+    // Paper color theme
+    const theme = lockedPaperType === 'TEST' ? {
+        outerBg:   '#C8BFB3', scrollbar: '#A89880 #C8BFB3',
+        paperBg:   '#FEFCF8', paperBorder: '#D8C4A0',
+        topBar1:   '#2A1F10', topBar2: '#8B6914',
+        headingColor: '#8B7355', titleColor: '#1A1208',
+        metaColor: '#4A3728', accentColor: '#8B6914',
+        sectionActiveBg: '#EDE4D6', sectionBg: '#F5EFE6', sectionBorder: '#8B6914', sectionBorderInactive: '#D8C4A0',
+        sectionText: '#2A1F10', sectionMeta: '#8B7355',
+        inputBg: '#FAF5EE', inputBorder: '#D8C4A0', inputText: '#2A1F10',
+        rowBorder: '#EDE4D6', marksBadgeBg: '#EDE4D6', marksBadgeText: '#6B5B45', marksBadgeBorder: '#D8C4A0',
+        emptyBorder: '#D8C4A0', emptyText: '#C4A882', emptyActiveText: '#8B7355',
+        footerBg: '#FAF5EE', footerText: '#8B7355',
+        addSectionBorder: '#D8C4A0', addSectionText: '#8B7355', addSectionHoverBorder: '#8B6914', addSectionHoverText: '#8B6914',
+    } : {
+        outerBg:   '#B8C8D8', scrollbar: '#8AAAC8 #B8C8D8',
+        paperBg:   '#F8FBFF', paperBorder: '#A8C0DC',
+        topBar1:   '#1A2F4A', topBar2: '#2563EB',
+        headingColor: '#4A7AAA', titleColor: '#0D1B2A',
+        metaColor: '#1E3A5F', accentColor: '#2563EB',
+        sectionActiveBg: '#DDEAFB', sectionBg: '#EEF4FD', sectionBorder: '#2563EB', sectionBorderInactive: '#A8C0DC',
+        sectionText: '#0D1B2A', sectionMeta: '#4A7AAA',
+        inputBg: '#F0F6FE', inputBorder: '#A8C0DC', inputText: '#0D1B2A',
+        rowBorder: '#DDEAFB', marksBadgeBg: '#DDEAFB', marksBadgeText: '#1E3A5F', marksBadgeBorder: '#A8C0DC',
+        emptyBorder: '#A8C0DC', emptyText: '#7AAAC8', emptyActiveText: '#2563EB',
+        footerBg: '#F0F6FE', footerText: '#4A7AAA',
+        addSectionBorder: '#A8C0DC', addSectionText: '#4A7AAA', addSectionHoverBorder: '#2563EB', addSectionHoverText: '#2563EB',
+    };
 
     // Global question counter across sections
     let qCounter = 0;
 
     return (
-        <div className="fixed inset-0 z-50 bg-background flex flex-col">
+        <div style={containerStyle} className="bg-background flex flex-col">
             {/* Header */}
             <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border">
                 <button onClick={onClose} className="text-sm text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all">
@@ -1804,13 +2486,9 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                 </button>
                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Paper title…"
                     className="flex-1 text-base font-semibold bg-transparent focus:outline-none border-b border-transparent focus:border-border/60 pb-0.5 transition-all" />
-                <div className="flex items-center gap-0.5 border border-border rounded-lg p-0.5">
-                    {(['TEST', 'ASSIGNMENT'] as const).map(t => (
-                        <button key={t} onClick={() => setPaperType(t)}
-                            className={`text-xs font-medium px-3 py-1 rounded-md transition-all ${paperType === t ? 'bg-foreground text-background' : 'text-muted-foreground hover:text-foreground'}`}>
-                            {t === 'TEST' ? 'Test' : 'Assignment'}
-                        </button>
-                    ))}
+                <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-muted text-xs font-medium text-muted-foreground">
+                    {lockedPaperType === 'TEST' ? <ClipboardList size={13} /> : <ClipboardCheck size={13} />}
+                    {lockedPaperType === 'TEST' ? 'Test' : 'Assignment'}
                 </div>
                 <button onClick={() => savePaper(false)} disabled={saving}
                     className="text-sm px-4 py-1.5 rounded-lg border border-border hover:bg-muted transition-all disabled:opacity-50">
@@ -1821,45 +2499,60 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                     style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
                     Save & Activate
                 </button>
+                <button onClick={() => setIsFullscreen(v => !v)}
+                    className="p-1.5 rounded-lg border border-border hover:bg-muted transition-all text-muted-foreground hover:text-foreground"
+                    title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                    {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                </button>
             </div>
 
             {/* Body */}
             <div className="flex-1 flex overflow-hidden">
-                {/* Left panel — Question bank */}
+                {/* Left panel — Modules */}
                 <div className="w-[38%] border-r border-border flex flex-col overflow-hidden">
-                    <div className="shrink-0 px-4 py-3 border-b border-border/50 space-y-2">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Question Bank</p>
-                        <div className="relative">
-                            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                            <input value={qSearch} onChange={e => setQSearch(e.target.value)} placeholder="Search questions…"
-                                className="w-full text-sm pl-7 pr-3 py-1.5 rounded-lg border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                        </div>
-                        <div className="flex items-center gap-1 flex-wrap">
-                            <button onClick={() => setQTypeFilter('ALL')}
-                                className={`px-2 py-0.5 rounded-md text-[11px] font-medium border transition-all ${qTypeFilter === 'ALL' ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:text-foreground'}`}>
-                                All
-                            </button>
-                            {(Object.entries(TYPE_META) as [QuestionType, typeof TYPE_META[QuestionType]][]).map(([type, meta]) => (
-                                <button key={type} onClick={() => setQTypeFilter(qTypeFilter === type ? 'ALL' : type)}
-                                    className={`px-2 py-0.5 rounded-md text-[11px] font-medium border transition-all ${qTypeFilter === type ? `${meta.color} border-current/30` : 'border-border text-muted-foreground hover:text-foreground'}`}>
-                                    {meta.label}
-                                </button>
-                            ))}
-                        </div>
+                    <div className="shrink-0 px-4 py-3 border-b border-border/50">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Modules</p>
                     </div>
                     <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
-                        {leftQuestions.length === 0 ? (
-                            <p className="text-xs text-muted-foreground text-center py-8">
-                                {approvedQuestions.length === 0 ? 'No approved questions yet. Approve questions in the Questions tab first.' : 'All approved questions are in the paper.'}
-                            </p>
-                        ) : leftQuestions.map(q => (
-                            <div key={q.id} onClick={() => addQuestionToBuilder(q)}
-                                className="flex items-start gap-2 px-2.5 py-2 rounded-lg hover:bg-muted/60 cursor-pointer transition-all group">
-                                <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[q.type]?.color}`}>{TYPE_META[q.type]?.label}</span>
-                                <span className="flex-1 text-xs leading-snug line-clamp-2">{q.question}</span>
-                                <Plus size={12} className="text-primary shrink-0 opacity-0 group-hover:opacity-100 mt-0.5 transition-all" />
-                            </div>
-                        ))}
+                        {modules.length === 0 ? (
+                            <p className="text-xs text-muted-foreground text-center py-8">No modules yet. Create modules and assign questions first.</p>
+                        ) : modules.map(mod => {
+                            const isExpanded = expandedModuleId === mod.id;
+                            return (
+                                <div key={mod.id} className="rounded-lg border border-border/60 overflow-hidden">
+                                    <button
+                                        onClick={() => setExpandedModuleId(isExpanded ? null : mod.id)}
+                                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/60 transition-all text-left">
+                                        <BookMarked size={13} className="text-primary/70 shrink-0" />
+                                        <span className="flex-1 text-xs font-semibold truncate">{mod.name}</span>
+                                        <span className="text-[10px] text-muted-foreground shrink-0">{mod.questions.length}q</span>
+                                        {isExpanded ? <ChevronUp size={12} className="text-muted-foreground shrink-0" /> : <ChevronDown size={12} className="text-muted-foreground shrink-0" />}
+                                    </button>
+                                    {isExpanded && (
+                                        <div className="border-t border-border/40 bg-muted/20">
+                                            {mod.questions.length === 0 ? (
+                                                <p className="text-[11px] text-muted-foreground px-4 py-3">No questions in this module.</p>
+                                            ) : mod.questions.map(mq => {
+                                                const q = mq.question;
+                                                const alreadyAdded = addedIds.has(q.id);
+                                                return (
+                                                    <div key={mq.id}
+                                                        onClick={() => {
+                                                            if (alreadyAdded) { toast.info('Already in paper'); return; }
+                                                            addQuestionToBuilder(q as unknown as Question);
+                                                        }}
+                                                        className={`flex items-start gap-2 px-3 py-2 border-b border-border/30 last:border-0 transition-all group ${alreadyAdded ? 'opacity-40 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'}`}>
+                                                        <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[q.type]?.color}`}>{TYPE_META[q.type]?.label}</span>
+                                                        <span className="flex-1 text-xs leading-snug line-clamp-2">{q.question}</span>
+                                                        {!alreadyAdded && <Plus size={11} className="text-primary shrink-0 opacity-0 group-hover:opacity-100 mt-0.5 transition-all" />}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
 
@@ -1897,33 +2590,30 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                         </span>
                     </div>
                 </div>
-                <div className="flex-1 overflow-y-auto py-8 px-6" style={{ background: '#C8BFB3', scrollbarWidth: 'thin', scrollbarColor: '#A89880 #C8BFB3' }}>
+                <div className="flex-1 overflow-y-auto py-8 px-6" style={{ background: theme.outerBg, scrollbarWidth: 'thin', scrollbarColor: theme.scrollbar }}>
 
                     {/* ── The actual paper ── */}
                     <div className="max-w-3xl mx-auto shadow-2xl" style={{
-                        background: '#FEFCF8',
-                        border: '1px solid #D8C4A0',
+                        background: theme.paperBg,
+                        border: `1px solid ${theme.paperBorder}`,
                         boxShadow: '0 8px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
                     }}>
 
                         {/* Paper top decorative border */}
-                        <div style={{ height: 6, background: '#2A1F10' }} />
-                        <div style={{ height: 2, background: '#8B6914', marginTop: 3 }} />
+                        <div style={{ height: 6, background: theme.topBar1 }} />
+                        <div style={{ height: 2, background: theme.topBar2, marginTop: 3 }} />
 
                         {/* Paper header */}
-                        <div className="px-10 pt-6 pb-4" style={{ borderBottom: '1.5px solid #D8C4A0' }}>
+                        <div className="px-10 pt-6 pb-4" style={{ borderBottom: `1.5px solid ${theme.paperBorder}` }}>
                             <div className="text-center mb-4">
-                                <p className="text-[10px] uppercase tracking-[0.3em] font-semibold mb-1" style={{ color: '#8B7355' }}>
-                                    {paperType === 'TEST' ? 'Examination Paper' : 'Assignment'}
-                                </p>
                                 <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Paper Title"
                                     className="text-center text-xl font-bold w-full focus:outline-none bg-transparent"
-                                    style={{ color: '#1A1208', borderBottom: '1px dashed #D8C4A0', paddingBottom: 2 }} />
+                                    style={{ color: theme.titleColor, borderBottom: `1px dashed ${theme.paperBorder}`, paddingBottom: 2 }} />
                                 <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description / instructions for students (optional)"
                                     rows={2} className="w-full text-center text-xs mt-2 resize-none focus:outline-none bg-transparent"
-                                    style={{ color: '#6B5B45', borderBottom: '1px dashed #EDE4D6' }} />
+                                    style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}` }} />
                             </div>
-                            <div className="flex items-center justify-between text-[11px] mt-3" style={{ color: '#4A3728' }}>
+                            <div className="flex items-center justify-between text-[11px] mt-3" style={{ color: theme.metaColor }}>
                                 <div className="flex items-center gap-6">
                                     <span><span className="font-semibold">Time:</span> {durationMinutes} min</span>
                                     <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
@@ -1931,11 +2621,11 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <span><span className="font-semibold">Total Questions:</span> {builderQs.length}</span>
-                                    <span className="font-bold text-sm" style={{ color: '#8B6914' }}>Total Marks: {totalMarks}</span>
+                                    <span className="font-bold text-sm" style={{ color: theme.accentColor }}>Total Marks: {totalMarks}</span>
                                 </div>
                             </div>
                             {isRandomized && (
-                                <div className="mt-2 flex items-center gap-1.5 text-[10px]" style={{ color: '#8B7355' }}>
+                                <div className="mt-2 flex items-center gap-1.5 text-[10px]" style={{ color: theme.headingColor }}>
                                     <Shuffle size={10} /> Questions will be shuffled for each student
                                 </div>
                             )}
@@ -1951,27 +2641,27 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                                         const sectionMarks = sectionQs.reduce((s, q) => s + q.marks, 0);
                                         return (
                                             <div key={section.id}>
-                                                {/* Section header — click to activate */}
+                                                {/* Section header */}
                                                 <div className="flex items-center gap-3 px-3 py-2 cursor-pointer -mx-3 mb-3 group transition-all"
-                                                    style={{ background: isActive ? '#EDE4D6' : '#F5EFE6', borderLeft: `3px solid ${isActive ? '#8B6914' : '#D8C4A0'}`, borderBottom: '1px solid #D8C4A0' }}
+                                                    style={{ background: isActive ? theme.sectionActiveBg : theme.sectionBg, borderLeft: `3px solid ${isActive ? theme.sectionBorder : theme.sectionBorderInactive}`, borderBottom: `1px solid ${theme.paperBorder}` }}
                                                     onClick={() => setActiveSectionId(section.id)}>
                                                     <div className="flex-1 flex items-center gap-3">
                                                         <input value={section.title} onClick={e => e.stopPropagation()}
                                                             onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, title: e.target.value } : s))}
                                                             className="text-sm font-bold uppercase tracking-wider bg-transparent focus:outline-none"
-                                                            style={{ color: '#2A1F10' }} />
+                                                            style={{ color: theme.sectionText }} />
                                                         {sectionQs.length > 0 && (
-                                                            <span className="text-[10px]" style={{ color: '#8B7355' }}>
+                                                            <span className="text-[10px]" style={{ color: theme.sectionMeta }}>
                                                                 ({sectionQs.length} × {section.marksPerQuestion} = {sectionMarks} marks)
                                                             </span>
                                                         )}
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                                                        <span className="text-[10px]" style={{ color: '#8B7355' }}>Marks/Q:</span>
+                                                        <span className="text-[10px]" style={{ color: theme.sectionMeta }}>Marks/Q:</span>
                                                         <input type="number" min={0} max={100} value={section.marksPerQuestion}
                                                             onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, marksPerQuestion: Number(e.target.value) } : s))}
                                                             className="w-10 text-xs text-center rounded focus:outline-none"
-                                                            style={{ background: '#FAF5EE', color: '#2A1F10', border: '1px solid #D8C4A0', padding: '1px 4px' }} />
+                                                            style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
                                                         {sections.length > 1 && (
                                                             <button onClick={() => removeSection(section.id)}
                                                                 className="opacity-0 group-hover:opacity-100 transition-all p-0.5 rounded"
@@ -1981,7 +2671,7 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                                                         )}
                                                         {isActive && (
                                                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                                                                style={{ background: '#8B6914', color: '#FAF5EE' }}>ACTIVE</span>
+                                                                style={{ background: theme.accentColor, color: theme.inputBg }}>ACTIVE</span>
                                                         )}
                                                     </div>
                                                 </div>
@@ -1991,13 +2681,13 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                                                     onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, instruction: e.target.value } : s))}
                                                     placeholder="Section instruction (e.g. Answer any five of the following)"
                                                     className="w-full text-xs italic mb-3 focus:outline-none bg-transparent"
-                                                    style={{ color: '#6B5B45', borderBottom: '1px dashed transparent', paddingBottom: 2 }}
-                                                    onFocus={e => e.currentTarget.style.borderBottomColor = '#D8C4A0'}
+                                                    style={{ color: theme.sectionMeta, borderBottom: '1px dashed transparent', paddingBottom: 2 }}
+                                                    onFocus={e => e.currentTarget.style.borderBottomColor = theme.paperBorder}
                                                     onBlur={e => e.currentTarget.style.borderBottomColor = 'transparent'} />
 
                                                 {/* Questions */}
                                                 {sectionQs.length === 0 ? (
-                                                    <div className="py-4 text-center rounded" style={{ border: `1.5px dashed ${isActive ? '#C4A882' : '#D8C4A0'}`, color: isActive ? '#8B7355' : '#C4A882' }}>
+                                                    <div className="py-4 text-center rounded" style={{ border: `1.5px dashed ${theme.emptyBorder}`, color: isActive ? theme.emptyActiveText : theme.emptyText }}>
                                                         <p className="text-xs">{isActive ? '← Click a question from the bank to add it here' : 'Click section header to activate, then add questions'}</p>
                                                     </div>
                                                 ) : (
@@ -2007,29 +2697,25 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                                                             const num = qCounter;
                                                             return (
                                                                 <div key={bq.questionId} className="flex items-start gap-3 py-2.5 group transition-all"
-                                                                    style={{ borderBottom: `0.5px solid #EDE4D6` }}>
-                                                                    {/* Reorder */}
+                                                                    style={{ borderBottom: `0.5px solid ${theme.rowBorder}` }}>
                                                                     <div className="flex flex-col gap-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
                                                                         <button onClick={() => moveQuestion(bq.questionId, 'up', section.id)} disabled={qi === 0}
-                                                                            className="disabled:opacity-20 p-0.5" style={{ color: '#8B7355' }}><ArrowUp size={9} /></button>
+                                                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowUp size={9} /></button>
                                                                         <button onClick={() => moveQuestion(bq.questionId, 'down', section.id)} disabled={qi === sectionQs.length - 1}
-                                                                            className="disabled:opacity-20 p-0.5" style={{ color: '#8B7355' }}><ArrowDown size={9} /></button>
+                                                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
                                                                     </div>
-                                                                    {/* Q number */}
-                                                                    <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: '#8B6914' }}>Q{num}.</span>
-                                                                    {/* Question text */}
-                                                                    <span className="flex-1 text-[13px] leading-relaxed" style={{ color: '#1A1208' }}>{bq.question.question}</span>
-                                                                    {/* Right side controls */}
+                                                                    <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{num}.</span>
+                                                                    <span className="flex-1 text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
                                                                     <div className="flex items-center gap-2 shrink-0">
                                                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                                                             <input type="number" min={0} value={bq.marks}
                                                                                 onChange={e => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: Number(e.target.value) } : q))}
                                                                                 className="w-9 text-xs text-center rounded focus:outline-none"
-                                                                                style={{ background: '#FAF5EE', color: '#2A1F10', border: '1px solid #D8C4A0', padding: '1px 2px' }} />
+                                                                                style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 2px' }} />
                                                                             <button onClick={() => removeQuestion(bq.questionId)} className="p-0.5 rounded transition-all" style={{ color: '#C05050' }}><X size={12} /></button>
                                                                         </div>
                                                                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
-                                                                            style={{ background: '#EDE4D6', color: '#6B5B45', border: '0.5px solid #D8C4A0' }}>
+                                                                            style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
                                                                             [{bq.marks}m]
                                                                         </span>
                                                                     </div>
@@ -2045,46 +2731,46 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                                     {/* Add section */}
                                     <button onClick={addSection}
                                         className="w-full py-2.5 text-xs font-medium transition-all flex items-center justify-center gap-1.5"
-                                        style={{ border: '1.5px dashed #D8C4A0', color: '#8B7355', borderRadius: 4, background: 'transparent' }}
-                                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#8B6914'; e.currentTarget.style.color = '#8B6914'; }}
-                                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#D8C4A0'; e.currentTarget.style.color = '#8B7355'; }}>
+                                        style={{ border: `1.5px dashed ${theme.addSectionBorder}`, color: theme.addSectionText, borderRadius: 4, background: 'transparent' }}
+                                        onMouseEnter={e => { e.currentTarget.style.borderColor = theme.addSectionHoverBorder; e.currentTarget.style.color = theme.addSectionHoverText; }}
+                                        onMouseLeave={e => { e.currentTarget.style.borderColor = theme.addSectionBorder; e.currentTarget.style.color = theme.addSectionText; }}>
                                         <Plus size={13} /> Add Section
                                     </button>
                                 </div>
                             ) : (
                                 /* Assignment — flat list */
                                 <div>
-                                    <div className="flex items-center justify-between mb-4" style={{ borderBottom: '1px solid #D8C4A0', paddingBottom: 8 }}>
-                                        <span className="text-sm font-bold uppercase tracking-wider" style={{ color: '#2A1F10' }}>Questions</span>
-                                        <span className="text-xs" style={{ color: '#8B7355' }}>{builderQs.length} questions · {totalMarks} marks</span>
+                                    <div className="flex items-center justify-between mb-4" style={{ borderBottom: `1px solid ${theme.paperBorder}`, paddingBottom: 8 }}>
+                                        <span className="text-sm font-bold uppercase tracking-wider" style={{ color: theme.titleColor }}>Questions</span>
+                                        <span className="text-xs" style={{ color: theme.headingColor }}>{builderQs.length} questions · {totalMarks} marks</span>
                                     </div>
                                     {builderQs.length === 0 ? (
-                                        <div className="py-8 text-center rounded" style={{ border: '1.5px dashed #D8C4A0', color: '#C4A882' }}>
-                                            <p className="text-xs">← Click a question from the bank to add it here</p>
+                                        <div className="py-8 text-center rounded" style={{ border: `1.5px dashed ${theme.emptyBorder}`, color: theme.emptyText }}>
+                                            <p className="text-xs">← Click a question from the modules to add it here</p>
                                         </div>
                                     ) : (
                                         <div className="space-y-0">
                                             {builderQs.map((bq, qi) => (
                                                 <div key={bq.questionId} className="flex items-start gap-3 py-2.5 group transition-all"
-                                                    style={{ borderBottom: '0.5px solid #EDE4D6' }}>
+                                                    style={{ borderBottom: `0.5px solid ${theme.rowBorder}` }}>
                                                     <div className="flex flex-col gap-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
                                                         <button onClick={() => moveQuestion(bq.questionId, 'up', null)} disabled={qi === 0}
-                                                            className="disabled:opacity-20 p-0.5" style={{ color: '#8B7355' }}><ArrowUp size={9} /></button>
+                                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowUp size={9} /></button>
                                                         <button onClick={() => moveQuestion(bq.questionId, 'down', null)} disabled={qi === builderQs.length - 1}
-                                                            className="disabled:opacity-20 p-0.5" style={{ color: '#8B7355' }}><ArrowDown size={9} /></button>
+                                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
                                                     </div>
-                                                    <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: '#8B6914' }}>Q{qi + 1}.</span>
-                                                    <span className="flex-1 text-[13px] leading-relaxed" style={{ color: '#1A1208' }}>{bq.question.question}</span>
+                                                    <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{qi + 1}.</span>
+                                                    <span className="flex-1 text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
                                                     <div className="flex items-center gap-2 shrink-0">
                                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                                                             <input type="number" min={0} value={bq.marks}
                                                                 onChange={e => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: Number(e.target.value) } : q))}
                                                                 className="w-9 text-xs text-center rounded focus:outline-none"
-                                                                style={{ background: '#FAF5EE', color: '#2A1F10', border: '1px solid #D8C4A0', padding: '1px 2px' }} />
+                                                                style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 2px' }} />
                                                             <button onClick={() => removeQuestion(bq.questionId)} className="p-0.5" style={{ color: '#C05050' }}><X size={12} /></button>
                                                         </div>
                                                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                                                            style={{ background: '#EDE4D6', color: '#6B5B45', border: '0.5px solid #D8C4A0' }}>
+                                                            style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
                                                             [{bq.marks}m]
                                                         </span>
                                                     </div>
@@ -2097,14 +2783,14 @@ function PaperBuilder({ testId, approvedQuestions, onClose, onSaved }: {
                         </div>
 
                         {/* Paper footer */}
-                        <div className="px-10 py-4 flex items-center justify-between" style={{ borderTop: '1px solid #D8C4A0', background: '#FAF5EE' }}>
-                            <span className="text-[10px] italic" style={{ color: '#8B7355' }}>— End of {paperType === 'TEST' ? 'Exam Paper' : 'Assignment'} —</span>
-                            <span className="text-[10px]" style={{ color: '#8B7355' }}>Total: {totalMarks} marks</span>
+                        <div className="px-10 py-4 flex items-center justify-between" style={{ borderTop: `1px solid ${theme.paperBorder}`, background: theme.footerBg }}>
+                            <span className="text-[10px] italic" style={{ color: theme.footerText }}>— End of {paperType === 'TEST' ? 'Exam Paper' : 'Assignment'} —</span>
+                            <span className="text-[10px]" style={{ color: theme.footerText }}>Total: {totalMarks} marks</span>
                         </div>
 
                         {/* Paper bottom decorative border */}
-                        <div style={{ height: 2, background: '#8B6914' }} />
-                        <div style={{ height: 6, background: '#2A1F10', marginTop: 3 }} />
+                        <div style={{ height: 2, background: theme.topBar2 }} />
+                        <div style={{ height: 6, background: theme.topBar1, marginTop: 3 }} />
                     </div>
 
                 </div>
