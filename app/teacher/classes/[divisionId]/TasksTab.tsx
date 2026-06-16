@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Upload, FileText, X, Plus, Trash2, Download,
     Loader2, BookOpen, Layers, Check, X as XIcon,
     Clock, Link2, Play, Eye, ChevronDown, ChevronUp,
     FlaskConical, Brain, Users, Copy, CheckCircle2, AlertCircle,
-    Shuffle, ArrowUp, ArrowDown, Search, BookMarked,
+    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, BarChart2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -43,6 +43,8 @@ interface Question {
     category: string | null;
     createdAt: string;
     moduleAssignment: { moduleId: string; module: { name: string } } | null;
+    sourceFile?: string | null;
+    uploadBatchId?: string | null;
 }
 
 interface ModuleQuestion {
@@ -104,7 +106,8 @@ interface TestBase {
     paperType: string;
     isRandomized: boolean;
     sections: PaperSection[] | null;
-    _count: { attempts: number };
+    createdAt?: string;
+    _count: { attempts: number; submissions?: number };
 }
 
 interface Test extends TestBase {
@@ -130,9 +133,9 @@ const TYPE_META: Record<QuestionType, { label: string; color: string; section: s
     MCQ:          { label: 'MCQ',        color: 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',   section: 'Section A' },
     CONCEPTUAL:   { label: 'MCQ',        color: 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',   section: 'Section A' },
     FILL_BLANK:   { label: 'Fill Blank', color: 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300',           section: 'Section B' },
-    TRUE_FALSE:   { label: 'True/False', color: 'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300',       section: 'Section B' },
-    SHORT_ANSWER: { label: 'Short Ans',  color: 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300', section: 'Section C' },
-    NUMERICAL:    { label: 'Numerical',  color: 'bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300',   section: 'Section D' },
+    TRUE_FALSE:   { label: 'True/False', color: 'bg-pink-100 dark:bg-pink-950 text-pink-700 dark:text-pink-300',           section: 'Section B' },
+    SHORT_ANSWER: { label: 'Short Ans',  color: 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300', section: 'Section C' },
+    NUMERICAL:    { label: 'Numerical',  color: 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300',   section: 'Section D' },
 };
 
 const STATUS_META: Record<QuestionStatus, { label: string; color: string }> = {
@@ -153,10 +156,93 @@ function getQuizUrl(testLink: string): string {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
-interface TasksTabProps { divisionId: string }
+export type TasksSubTab = 'questions' | 'tests' | 'modules';
 
-export default function TasksTab({ divisionId }: TasksTabProps) {
-    const [subTab, setSubTab] = useState<'questions' | 'tests' | 'modules'>('questions');
+interface TasksTabProps { divisionId: string; subTab: TasksSubTab; onSubTabChange: (tab: TasksSubTab) => void; }
+
+const MOCK_HISTORY_TEST: Test = {
+    id: 'mock-history-1',
+    title: 'Chapter 1 : DFS Mid-Term Test',
+    description: 'Covers depth-first search, BFS, and graph traversal topics',
+    testLink: 'mock-link-1',
+    status: 'COMPLETED',
+    durationMinutes: 60,
+    marksPerQuestion: 2,
+    numberOfQuestions: 20,
+    maxAttempts: 1,
+    validUntil: '2026-05-10T23:59:00.000Z',
+    createdAt: '2026-05-01T10:30:00.000Z',
+    paperType: 'TEST',
+    isRandomized: false,
+    sections: null,
+    questions: Array(18).fill({ id: 'q', isCompulsory: false }),
+    _count: { attempts: 34, submissions: 31 },
+};
+
+export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTabChange }: TasksTabProps) {
+
+    // ── Containers ────────────────────────────────────────────────────────────
+    interface QContainer { id: string; name: string; createdAt: string; }
+    const [containers, setContainers] = useState<QContainer[]>([
+        { id: 'c1', name: 'Chapter 1 : DFS Questions', createdAt: new Date().toISOString() },
+        { id: 'c2', name: 'Chapter 2 : Hadoop Questions', createdAt: new Date(Date.now() - 1*24*60*60*1000).toISOString() },
+        { id: 'c3', name: 'Chapter 3 : Machine Learning Questions', createdAt: new Date(Date.now() - 2*24*60*60*1000).toISOString() },
+        { id: 'c4', name: 'Chapter 4 : Software Development Questions', createdAt: new Date(Date.now() - 3*24*60*60*1000).toISOString() },
+        { id: 'c5', name: 'Chapter 5 : Cybersecurity Questions', createdAt: new Date(Date.now() - 4*24*60*60*1000).toISOString() },
+        { id: 'c6', name: 'Chapter 6 : HTML CSS Questions', createdAt: new Date(Date.now() - 5*24*60*60*1000).toISOString() },
+        { id: 'c7', name: 'Chapter 7 : Data Structure Questions', createdAt: new Date(Date.now() - 6*24*60*60*1000).toISOString() },
+        { id: 'c8', name: 'Numerical Problems', createdAt: new Date(Date.now() - 7*24*60*60*1000).toISOString() },
+        { id: 'c9', name: 'Short Answer Mix', createdAt: new Date(Date.now() - 8*24*60*60*1000).toISOString() },
+        { id: 'c10', name: 'Revision Set A', createdAt: new Date(Date.now() - 9*24*60*60*1000).toISOString() },
+        { id: 'c11', name: 'Chapter 3 Drill', createdAt: new Date(Date.now() - 10*24*60*60*1000).toISOString() },
+        { id: 'c12', name: 'Conceptual Bank', createdAt: new Date(Date.now() - 11*24*60*60*1000).toISOString() },
+        { id: 'c13', name: 'Weekly Quiz', createdAt: new Date(Date.now() - 12*24*60*60*1000).toISOString() },
+    ]);
+    const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
+    const [openingContainerId, setOpeningContainerId] = useState<string | null>(null);
+    const [hoveredContainerId, setHoveredContainerId] = useState<string | null>(null);
+    const [closingContainerId, setClosingContainerId] = useState<string | null>(null);
+    const [backOpenContainerId, setBackOpenContainerId] = useState<string | null>(null);
+    const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+    const [editingContainerId, setEditingContainerId] = useState<string | null>(null);
+    const [editingName, setEditingName] = useState('');
+    const [creatingContainer, setCreatingContainer] = useState(false);
+    const [newContainerName, setNewContainerName] = useState('');
+
+    const selectedContainer = containers.find(c => c.id === selectedContainerId) ?? null;
+
+    const handleGoBack = useCallback((prevId: string) => {
+        setBackOpenContainerId(prevId);
+        setSelectedContainerId(null);
+        setGenerateOpen(false);
+        setHoveredContainerId(null);
+        setOpeningContainerId(null);
+        setTimeout(() => {
+            setBackOpenContainerId(null);
+            setClosingContainerId(prevId);
+            setTimeout(() => setClosingContainerId(null), 500);
+        }, 60);
+    }, []);
+
+    const handleContainerClick = (id: string) => {
+        setOpeningContainerId(id);
+        setTimeout(() => {
+            setOpeningContainerId(null);
+            setSelectedContainerId(id);
+            window.history.pushState({ containerOpen: true }, '');
+        }, 480);
+    };
+
+    useEffect(() => {
+        const onPopState = (e: PopStateEvent) => {
+            if (selectedContainerId) {
+                e.preventDefault?.();
+                handleGoBack(selectedContainerId);
+            }
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [selectedContainerId, handleGoBack]);
 
     // ── Questions ─────────────────────────────────────────────────────────────
     const [questions, setQuestions] = useState<Question[]>([]);
@@ -214,9 +300,9 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
         setTLoading(true);
         try {
             const res = await api.get(`/teacher/tasks/tests?divisionId=${divisionId}`);
-            setTests(res.data.data);
+            setTests([...res.data.data, MOCK_HISTORY_TEST]);
         } catch {
-            setTests([]);
+            setTests([MOCK_HISTORY_TEST]);
         } finally {
             setTLoading(false);
         }
@@ -377,7 +463,7 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
         const url = getQuizUrl(testLink);
         navigator.clipboard.writeText(url);
         setCopiedLink(testLink);
-        toast.success('Quiz link copied');
+        toast.success('Test link copied');
         setTimeout(() => setCopiedLink(null), 2000);
     };
 
@@ -429,7 +515,8 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
 
     // ── Filtered questions ─────────────────────────────────────────────────────
 
-    const statusFiltered = questions.filter(q =>
+    const containerQuestions = selectedContainerId === 'c1' ? questions : [];
+    const statusFiltered = containerQuestions.filter(q =>
         statusFilter === 'ALL' ? true : q.status === statusFilter
     );
 
@@ -443,36 +530,119 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
         return acc;
     }, {});
 
-    const approvedQuestions = questions.filter(q => q.status === 'APPROVED');
+    const approvedQuestions = containerQuestions.filter(q => q.status === 'APPROVED');
+
+    // Group displayed questions by upload batch.
+    // If uploadBatchId is present, use it. Otherwise fall back to date-proximity:
+    // a gap of >2 min between consecutive questions = new batch.
+    const groupedQuestions = useMemo(() => {
+        type Group = { batchId: string | null; sourceFile: string | null; generatedAt: string; items: Question[] };
+        const groups: Group[] = [];
+
+        for (let i = 0; i < displayedQuestions.length; i++) {
+            const q = displayedQuestions[i];
+            const prev = groups[groups.length - 1];
+
+            const prevLastCreatedAt = prev?.items[prev.items.length - 1]?.createdAt;
+            const sameAsPrev = prev && (
+                q.uploadBatchId
+                    ? q.uploadBatchId === prev.batchId
+                    : !q.uploadBatchId && prevLastCreatedAt
+                        && (Math.abs(new Date(q.createdAt).getTime() - new Date(prevLastCreatedAt).getTime()) < 2 * 60 * 1000)
+            );
+
+            if (!sameAsPrev) {
+                groups.push({ batchId: q.uploadBatchId ?? null, sourceFile: q.sourceFile ?? null, generatedAt: q.createdAt, items: [] });
+            }
+            groups[groups.length - 1].items.push(q);
+        }
+        return groups;
+    }, [displayedQuestions]);
+
+    const hasMultipleBatches = groupedQuestions.length > 1;
 
     // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            {/* Sub-tabs */}
-            <div className="shrink-0 px-4 pt-3 pb-0 flex items-center justify-between">
-                <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/50">
-                    {(['questions', 'tests', 'modules'] as const).map(tab => (
-                        <button key={tab} onClick={() => setSubTab(tab)}
-                            className={`relative px-4 py-1.5 text-sm font-medium rounded-lg transition-all capitalize
-                            ${subTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                            {tab}
-                        </button>
-                    ))}
-                </div>
-
-                <div className="flex items-center gap-2">
-                    {subTab === 'questions' && activeUploadId && (
+            {/* Action buttons */}
+            <div className="shrink-0 px-2 pt-3 pb-3 flex items-center justify-between relative">
+                {subTab === 'questions' && selectedContainerId && (
+                    <h2 className="text-xl font-bold flex items-center gap-2 shrink-0">
+                        <PackageOpen size={21} />
+                        {selectedContainer?.name}
+                    </h2>
+                )}
+                {subTab === 'questions' && !selectedContainerId && (
+                    <div>
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="url(#brainGrad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                <defs>
+                                    <linearGradient id="brainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stopColor="#7C3AED">
+                                            <animate attributeName="stop-color" values="#7C3AED;#DA7756;#7C3AED" dur="3s" repeatCount="indefinite" />
+                                        </stop>
+                                        <stop offset="100%" stopColor="#DA7756">
+                                            <animate attributeName="stop-color" values="#DA7756;#7C3AED;#DA7756" dur="3s" repeatCount="indefinite" />
+                                        </stop>
+                                    </linearGradient>
+                                </defs>
+                                <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
+                                <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
+                                <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>
+                                <path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/>
+                                <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/>
+                                <path d="M3.477 10.896a4 4 0 0 1 .585-.396"/>
+                                <path d="M19.938 10.5a4 4 0 0 1 .585.396"/>
+                                <path d="M6 18a4 4 0 0 1-1.967-.516"/>
+                                <path d="M19.967 17.484A4 4 0 0 1 18 18"/>
+                            </svg>
+                            AI Question Generator
+                        </h2>
+                        <p className="text-[13px] text-muted-foreground">Create containers and generate questions from PDFs</p>
+                    </div>
+                )}
+                {subTab === 'tests' && (
+                    <div>
+                        <h2 className="text-xl font-bold flex items-center gap-2">
+                            <ClipboardList size={21} />
+                            Tests
+                        </h2>
+                        <p className="text-[13px] text-muted-foreground">Create and manage tests for your students</p>
+                    </div>
+                )}
+                {subTab === 'questions' && selectedContainerId && (
+                    <div className="absolute left-1/2 -translate-x-1/2 flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
+                        {(['ALL', 'PENDING_REVIEW', 'APPROVED', 'REJECTED'] as const).map(s => (
+                            <button key={s} onClick={() => { setStatusFilter(s); setTypeFilter('ALL'); }}
+                                className={`relative px-3 py-1 rounded-lg text-xs font-medium transition-all ${statusFilter === s ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                {s === 'ALL' ? 'All' : s === 'PENDING_REVIEW' ? 'Pending' : s === 'APPROVED' ? 'Approved' : 'Rejected'}
+                                <span className="ml-1 opacity-60">
+                                    {s === 'ALL' ? containerQuestions.length : containerQuestions.filter(q => q.status === s).length}
+                                </span>
+                            </button>
+                        ))}
+                    </div>
+                )}
+                <div className="flex items-center gap-2 ml-auto">
+                    {subTab === 'questions' && selectedContainerId && activeUploadId && (
                         <div className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800">
                             <Loader2 size={11} className="animate-spin" />
                             Generating questions…
                         </div>
                     )}
-                    {subTab === 'questions' && (
+                    {subTab === 'questions' && selectedContainerId && (
                         <button onClick={() => setGenerateOpen(v => !v)}
                             className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl text-white"
                             style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
                             <Upload size={14} /> Generate from PDF
+                        </button>
+                    )}
+                    {subTab === 'questions' && !selectedContainerId && (
+                        <button onClick={() => setCreatingContainer(true)}
+                            className="flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-xl text-white"
+                            style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                            <Plus size={14} /> New Container
                         </button>
                     )}
                     {subTab === 'tests' && (
@@ -489,7 +659,7 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
                             <Plus size={14} /> New Module
                         </button>
                     )}
-                    {subTab === 'questions' && (
+                    {subTab === 'questions' && selectedContainerId && (
                         <button onClick={() => {
                             const url = `/api/teacher/tasks/questions/export?divisionId=${divisionId}`;
                             window.open(process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') + url || url);
@@ -502,7 +672,7 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
 
             {/* Generate Panel */}
             <AnimatePresence>
-                {generateOpen && subTab === 'questions' && (
+                {generateOpen && subTab === 'questions' && selectedContainerId && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                         className="shrink-0 overflow-hidden">
                         <div className="mx-4 mt-3 p-4 rounded-xl border border-border bg-card/50">
@@ -537,23 +707,181 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
             </AnimatePresence>
 
             {/* Tab content */}
-            <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 space-y-3">
+            <div className="flex-1 min-h-0 overflow-y-auto py-3 pr-2 space-y-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
                 {/* ── QUESTIONS TAB ── */}
-                {subTab === 'questions' && (
+                {subTab === 'questions' && !selectedContainerId && (
                     <>
-                        {/* Status filter row */}
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                            {(['ALL', 'PENDING_REVIEW', 'APPROVED', 'REJECTED'] as const).map(s => (
-                                <button key={s} onClick={() => { setStatusFilter(s); setTypeFilter('ALL'); }}
-                                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-all border ${statusFilter === s ? 'bg-foreground text-background border-foreground' : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'}`}>
-                                    {s === 'ALL' ? 'All' : s === 'PENDING_REVIEW' ? 'Pending Review' : s === 'APPROVED' ? 'Approved' : 'Rejected'}
-                                    <span className="ml-1 opacity-60">
-                                        {s === 'ALL' ? questions.length : questions.filter(q => q.status === s).length}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
+                        {/* New collection inline form */}
+                        <AnimatePresence>
+                            {creatingContainer && (
+                                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                                    className="p-4 rounded-xl border border-border bg-card/50 mb-1">
+                                    <div className="flex items-center gap-2">
+                                        <input autoFocus value={newContainerName} onChange={e => setNewContainerName(e.target.value)}
+                                            onKeyDown={e => {
+                                                if (e.key === 'Enter' && newContainerName.trim()) {
+                                                    setContainers(prev => [...prev, { id: crypto.randomUUID(), name: newContainerName.trim(), createdAt: new Date().toISOString() }]);
+                                                    setNewContainerName(''); setCreatingContainer(false);
+                                                }
+                                                if (e.key === 'Escape') { setCreatingContainer(false); setNewContainerName(''); }
+                                            }}
+                                            placeholder="Collection name (e.g. Chapter 3, Practice Exam…)"
+                                            className="flex-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                        <button onClick={() => {
+                                            if (!newContainerName.trim()) return;
+                                            setContainers(prev => [...prev, { id: crypto.randomUUID(), name: newContainerName.trim(), createdAt: new Date().toISOString() }]);
+                                            setNewContainerName(''); setCreatingContainer(false);
+                                        }} className="px-3 py-2 text-sm font-medium rounded-lg text-white" style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                                            Create
+                                        </button>
+                                        <button onClick={() => { setCreatingContainer(false); setNewContainerName(''); }} className="p-2 text-muted-foreground hover:text-foreground"><X size={15} /></button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
+                        {/* Container grid */}
+                        <div className="flex flex-wrap gap-20" style={{ paddingTop: 48, paddingLeft: 72, paddingRight: 40 }}>
+                            {containers.map(c => {
+                                const isOpening = openingContainerId === c.id || hoveredContainerId === c.id || backOpenContainerId === c.id;
+                                return (
+                                    <div key={c.id} className="group relative flex flex-col items-center gap-2"
+                                        style={{ isolation: 'isolate' }}
+                                        onMouseEnter={() => { setHoveredContainerId(c.id); setClosingContainerId(null); }}
+                                        onMouseLeave={() => {
+                                            setHoveredContainerId(null);
+                                            setClosingContainerId(c.id);
+                                            setTimeout(() => setClosingContainerId(null), 400);
+                                        }}>
+                                        {/* Closing impact lines — left corner */}
+                                        {[0,1].map(i => (
+                                            <motion.div key={`cl${i}`}
+                                                animate={closingContainerId === c.id
+                                                    ? { opacity: [0, 1, 0], x: [-4, -12, -18], scaleX: [0.4, 1, 0.6] }
+                                                    : { opacity: 0, x: 0 }}
+                                                transition={{ duration: 0.35, delay: i * 0.06, ease: 'easeOut' }}
+                                                style={{
+                                                    position: 'absolute',
+                                                    left: 0, top: 6 + i * 9,
+                                                    width: 14 - i * 2, height: 2.5, borderRadius: 1,
+                                                    background: '#6B4C1E', zIndex: 20,
+                                                    originX: 1,
+                                                }}/>
+                                        ))}
+                                        {/* Closing impact lines — right corner */}
+                                        {[0,1].map(i => (
+                                            <motion.div key={`cr${i}`}
+                                                animate={closingContainerId === c.id
+                                                    ? { opacity: [0, 1, 0], x: [4, 12, 18], scaleX: [0.4, 1, 0.6] }
+                                                    : { opacity: 0, x: 0 }}
+                                                transition={{ duration: 0.35, delay: i * 0.06, ease: 'easeOut' }}
+                                                style={{
+                                                    position: 'absolute',
+                                                    right: 0, top: 6 + i * 9,
+                                                    width: 14 - i * 2, height: 2.5, borderRadius: 1,
+                                                    background: '#6B4C1E', zIndex: 20,
+                                                    originX: 0,
+                                                }}/>
+                                        ))}
+                                        {/* Delete */}
+                                        <button onClick={e => { e.stopPropagation(); setDeleteConfirmId(c.id); }}
+                                            className="absolute -top-1 -right-1 z-20 opacity-0 group-hover:opacity-100 p-1 rounded-full bg-red-500 text-white transition-all"
+                                            style={{ width: 20, height: 20, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Trash2 size={10} />
+                                        </button>
+                                        {/* 2D Cartoon Box */}
+                                        <div style={{ width: 155, cursor: 'pointer' }} onClick={() => handleContainerClick(c.id)}>
+                                            {/* Flap arms */}
+                                            <div style={{ position: 'relative', height: 3, overflow: 'visible' }}>
+                                                <motion.div
+                                                    animate={{ rotate: isOpening ? -120 : 0 }}
+                                                    transition={isOpening
+                                                        ? { type: 'tween', duration: 0.4, ease: [0.4, 0, 0.2, 1] }
+                                                        : { type: 'spring', stiffness: 400, damping: 27, mass: 0.8 }
+                                                    }
+                                                    style={{
+                                                        position: 'absolute', left: 0, top: 0,
+                                                        width: 65, height: 3,
+                                                        background: '#7B5230',
+                                                        transformOrigin: 'left center',
+                                                        zIndex: 3,
+                                                    }} />
+                                                <motion.div
+                                                    animate={{ rotate: isOpening ? 120 : 0 }}
+                                                    transition={isOpening
+                                                        ? { type: 'tween', duration: 0.4, ease: [0.4, 0, 0.2, 1] }
+                                                        : { type: 'spring', stiffness: 400, damping: 27, mass: 0.8 }
+                                                    }
+                                                    style={{
+                                                        position: 'absolute', right: 0, top: 0,
+                                                        width: 65, height: 3,
+                                                        background: '#7B5230',
+                                                        transformOrigin: 'right center',
+                                                        zIndex: 3,
+                                                    }} />
+                                            </div>
+                                            {/* Box body */}
+                                            <div style={{
+                                                height: 130,
+                                                background: '#C8A96E',
+                                                border: '3px solid #6B4C1E',
+                                                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4,
+                                                position: 'relative', overflow: 'visible',
+                                            }}>
+                                                {/* Left side shading */}
+                                                <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '46%', background: '#B8945A' }} />
+                                                {/* Center vertical crease */}
+                                                <div style={{ position: 'absolute', left: '50%', top: 0, bottom: 0, width: 2, background: '#6B4C1E', opacity: 0.5, zIndex: 1 }} />
+                                                {/* Label rect (top center) */}
+                                                <div style={{ position: 'absolute', top: 10, left: '50%', transform: 'translateX(-50%)', width: 48, height: 13, background: '#D4B47A', border: '1.5px solid #6B4C1E', borderRadius: 3, zIndex: 2 }} />
+                                                {/* Dashed fold line */}
+                                                <div style={{ position: 'absolute', top: 40, left: -3, right: -3, borderTop: '1.5px dashed #6B4C1E', opacity: 0.5, zIndex: 2 }} />
+                                                {/* Name */}
+                                                {editingContainerId === c.id ? (
+                                                    <input
+                                                        autoFocus
+                                                        value={editingName}
+                                                        onChange={e => setEditingName(e.target.value)}
+                                                        onClick={e => e.stopPropagation()}
+                                                        onKeyDown={e => {
+                                                            e.stopPropagation();
+                                                            if (e.key === 'Enter' && editingName.trim()) {
+                                                                setContainers(prev => prev.map(x => x.id === c.id ? { ...x, name: editingName.trim() } : x));
+                                                                setEditingContainerId(null);
+                                                            }
+                                                            if (e.key === 'Escape') setEditingContainerId(null);
+                                                        }}
+                                                        onBlur={() => {
+                                                            if (editingName.trim()) setContainers(prev => prev.map(x => x.id === c.id ? { ...x, name: editingName.trim() } : x));
+                                                            setEditingContainerId(null);
+                                                        }}
+                                                        style={{ fontSize: 11, fontWeight: 700, color: '#3a2010', textAlign: 'center', zIndex: 3, maxWidth: '84%', lineHeight: 1.4, marginTop: 28, background: 'rgba(255,255,255,0.6)', border: '1px solid #6B4C1E', borderRadius: 4, padding: '1px 4px', width: '84%', outline: 'none' }}
+                                                    />
+                                                ) : (
+                                                    <div style={{ position: 'relative', zIndex: 3, marginTop: 28, maxWidth: '84%' }} className="group/name">
+                                                        <div style={{ fontSize: 12, fontWeight: 700, color: '#3a2010', textAlign: 'center', lineHeight: 1.4 }}>{c.name}</div>
+                                                        <button
+                                                            onClick={e => { e.stopPropagation(); setEditingContainerId(c.id); setEditingName(c.name); }}
+                                                            className="absolute -top-3 -right-3 opacity-0 group-hover/name:opacity-100 transition-opacity"
+                                                            style={{ width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.8)', border: '1px solid #6B4C1E60', borderRadius: 3 }}
+                                                        >
+                                                            <svg xmlns="http://www.w3.org/2000/svg" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="#6B4C1E" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                <div style={{ position: 'absolute', bottom: 6, left: 8, fontSize: 9, color: '#6B4C1E', zIndex: 3 }}>{new Date(c.createdAt).toLocaleDateString()}</div>
+                                                {/* Name */}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+
+                {subTab === 'questions' && selectedContainerId && (
+                    <>
                         {/* Type breakdown row — only when there are questions */}
                         {statusFiltered.length > 0 && (
                             <div className="flex items-center gap-1.5 flex-wrap">
@@ -570,6 +898,10 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
                                         {count}
                                     </button>
                                 ))}
+                                <button onClick={() => fetchQuestions(statusFilter !== 'ALL' ? statusFilter : undefined)}
+                                    className="ml-auto p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title="Refresh">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                                </button>
                             </div>
                         )}
 
@@ -581,20 +913,60 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
                             <div className="text-center py-16 text-muted-foreground">
                                 <FlaskConical size={32} className="mx-auto mb-3 opacity-30" />
                                 <p className="text-sm">No questions yet</p>
-                                <p className="text-xs mt-1 opacity-60">Upload a PDF to generate questions automatically</p>
+                                <p className="text-xs mt-1 opacity-60">Upload a PDF & sit back — let the AI do its magic ✨</p>
                             </div>
                         ) : (
-                            <div className="space-y-2">
-                                {displayedQuestions.map(q => (
-                                    <QuestionCard key={q.id} question={q}
-                                        modules={modules}
-                                        onApprove={() => updateStatus(q.id, 'APPROVED')}
-                                        onReject={() => updateStatus(q.id, 'REJECTED')}
-                                        onDelete={() => deleteQuestion(q.id)}
-                                        onAssignModule={(moduleId) => assignToModule(q.id, moduleId)}
-                                        onUnassignModule={() => unassignFromModule(q.id)}
-                                    />
-                                ))}
+                            <div className="space-y-3 pl-1 pb-1">
+                                {hasMultipleBatches ? (
+                                    // Grouped view with PDF source separators
+                                    (() => {
+                                        let globalIdx = 0;
+                                        return groupedQuestions.map((group, gIdx) => (
+                                            <div key={group.batchId ?? gIdx}>
+                                                {/* PDF source header — before this group's questions */}
+                                                <div className={`flex items-center gap-3 ${gIdx === 0 ? 'mb-3' : 'mt-5 mb-3'}`}>
+                                                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/60 border border-border/60 text-[11px] text-muted-foreground shrink-0">
+                                                        <FileText size={11} className="text-primary/60" />
+                                                        <span className="font-medium text-foreground/70">{group.sourceFile ?? 'Untitled PDF'}</span>
+                                                        <span className="opacity-50">·</span>
+                                                        <span>{new Date(group.generatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                                        <span className="opacity-50">at</span>
+                                                        <span>{new Date(group.generatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                                                    </div>
+                                                    <div className="flex-1 h-px bg-border/60" />
+                                                </div>
+                                                {group.items.map(q => {
+                                                    globalIdx++;
+                                                    const idx = globalIdx;
+                                                    return (
+                                                        <div key={q.id} className="mb-3">
+                                                            <QuestionCard question={q} index={idx}
+                                                                modules={modules}
+                                                                onApprove={() => updateStatus(q.id, 'APPROVED')}
+                                                                onReject={() => updateStatus(q.id, 'REJECTED')}
+                                                                onDelete={() => q.status === 'REJECTED' ? deleteQuestion(q.id) : updateStatus(q.id, 'REJECTED')}
+                                                                onAssignModule={(moduleId) => assignToModule(q.id, moduleId)}
+                                                                onUnassignModule={() => unassignFromModule(q.id)}
+                                                            />
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ));
+                                    })()
+                                ) : (
+                                    // Single batch or no batch info — plain list
+                                    displayedQuestions.map((q, idx) => (
+                                        <QuestionCard key={q.id} question={q} index={idx + 1}
+                                            modules={modules}
+                                            onApprove={() => updateStatus(q.id, 'APPROVED')}
+                                            onReject={() => updateStatus(q.id, 'REJECTED')}
+                                            onDelete={() => q.status === 'REJECTED' ? deleteQuestion(q.id) : updateStatus(q.id, 'REJECTED')}
+                                            onAssignModule={(moduleId) => assignToModule(q.id, moduleId)}
+                                            onUnassignModule={() => unassignFromModule(q.id)}
+                                        />
+                                    ))
+                                )}
                             </div>
                         )}
                     </>
@@ -603,54 +975,6 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
                 {/* ── TESTS TAB ── */}
                 {subTab === 'tests' && (
                     <>
-                        {/* Create test modal */}
-                        <AnimatePresence>
-                            {createTestOpen && (
-                                <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                                    className="p-4 rounded-xl border border-border bg-card/50 mb-2">
-                                    <div className="flex items-center justify-between mb-3">
-                                        <h3 className="font-semibold text-sm">Create New Test</h3>
-                                        <button onClick={() => setCreateTestOpen(false)}><X size={16} /></button>
-                                    </div>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        <div className="col-span-2">
-                                            <label className="text-xs text-muted-foreground">Title *</label>
-                                            <input value={newTest.title} onChange={e => setNewTest(p => ({ ...p, title: e.target.value }))} placeholder="e.g. Chapter 5 Quiz" className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                                        </div>
-                                        <div className="col-span-2">
-                                            <label className="text-xs text-muted-foreground">Description</label>
-                                            <input value={newTest.description} onChange={e => setNewTest(p => ({ ...p, description: e.target.value }))} placeholder="Optional" className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                                        </div>
-                                        {[
-                                            { label: 'Duration (mins)', key: 'durationMinutes', min: 5, max: 300 },
-                                            { label: 'Marks / Question', key: 'marksPerQuestion', min: 1, max: 10 },
-                                            { label: 'No. of Questions', key: 'numberOfQuestions', min: 1, max: 100 },
-                                            { label: 'Max Attempts', key: 'maxAttempts', min: 1, max: 10 },
-                                        ].map(({ label, key, min, max }) => (
-                                            <div key={key}>
-                                                <label className="text-xs text-muted-foreground">{label}</label>
-                                                <input type="number" min={min} max={max} value={(newTest as Record<string, unknown>)[key] as number}
-                                                    onChange={e => setNewTest(p => ({ ...p, [key]: Number(e.target.value) }))}
-                                                    className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                                            </div>
-                                        ))}
-                                        <div>
-                                            <label className="text-xs text-muted-foreground">Valid Until (optional)</label>
-                                            <input type="datetime-local" value={newTest.validUntil} onChange={e => setNewTest(p => ({ ...p, validUntil: e.target.value }))}
-                                                className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                                        </div>
-                                    </div>
-                                    <div className="flex justify-end gap-2 mt-4">
-                                        <button onClick={() => setCreateTestOpen(false)} className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-all">Cancel</button>
-                                        <button onClick={handleCreateTest} disabled={savingTest}
-                                            className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50"
-                                            style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
-                                            {savingTest ? <><Loader2 size={13} className="animate-spin" />Creating…</> : <>Create Test</>}
-                                        </button>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
 
                         {tLoading ? (
                             <div className="flex items-center justify-center py-16 text-muted-foreground gap-2 text-sm">
@@ -662,19 +986,56 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
                                 <p className="text-sm">No tests yet</p>
                                 <p className="text-xs mt-1 opacity-60">Create a test and add approved questions to it</p>
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-1 gap-2">
-                                {tests.map(test => (
-                                    <TestCard key={test.id} test={test}
-                                        onOpen={() => openBuilder(test.id)}
-                                        onCopyLink={() => copyLink(test.testLink)}
-                                        onDelete={() => deleteTest(test.id)}
-                                        onActivate={() => updateTestStatus(test, 'ACTIVE')}
-                                        copiedLink={copiedLink}
-                                    />
-                                ))}
-                            </div>
-                        )}
+                        ) : (() => {
+                            const now = new Date();
+                            const isExpired = (t: Test) => t.status === 'COMPLETED' || (!!t.validUntil && new Date(t.validUntil) < now);
+                            const liveTests = tests.filter(t => !isExpired(t));
+                            const historyTests = tests.filter(t => isExpired(t));
+                            const renderCard = (test: Test) => (
+                                <TestCard key={test.id} test={test}
+                                    onOpen={() => openBuilder(test.id)}
+                                    onCopyLink={() => copyLink(test.testLink)}
+                                    onDelete={() => deleteTest(test.id)}
+                                    onActivate={() => updateTestStatus(test, 'ACTIVE')}
+                                    copiedLink={copiedLink}
+                                />
+                            );
+                            return (
+                                <div className="space-y-6">
+                                    {/* Live Tests */}
+                                    <div>
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground/70 uppercase tracking-wider shrink-0">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                                Live Tests
+                                                <span className="text-muted-foreground font-normal normal-case tracking-normal">{liveTests.length}</span>
+                                            </div>
+                                            <div className="flex-1 h-px bg-border/60" />
+                                        </div>
+                                        {liveTests.length === 0 ? (
+                                            <p className="text-xs text-muted-foreground pl-1">No active or draft tests</p>
+                                        ) : (
+                                            <div className="grid grid-cols-1 gap-2">{liveTests.map(renderCard)}</div>
+                                        )}
+                                    </div>
+
+                                    {/* History */}
+                                    {historyTests.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground/70 uppercase tracking-wider shrink-0">
+                                                    <Clock size={11} className="text-muted-foreground" />
+                                                    History
+                                                    <span className="text-muted-foreground font-normal normal-case tracking-normal">{historyTests.length}</span>
+                                                </div>
+                                                <div className="flex-1 h-px bg-border/60" />
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-2">{historyTests.map(renderCard)}</div>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })()}
                     </>
                 )}
 
@@ -760,15 +1121,145 @@ export default function TasksTab({ divisionId }: TasksTabProps) {
                     onSaved={handlePaperSaved}
                 />
             )}
+
+            {/* Create Test draggable modal */}
+            <AnimatePresence>
+                {createTestOpen && (
+                    <>
+                        <motion.div
+                            key="ct-overlay"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-40"
+                            onClick={() => setCreateTestOpen(false)}
+                        />
+                        <motion.div
+                            key="ct-modal"
+                            drag
+                            dragMomentum={false}
+                            dragElastic={0}
+                            initial={{ opacity: 0, scale: 0.95, y: -20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: -20 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                            className="fixed z-50 bg-card border border-border rounded-2xl shadow-2xl w-[420px]"
+                            style={{ top: '15%', left: '50%', x: '-50%' }}
+                        >
+                            {/* Drag handle */}
+                            <div className="flex items-center justify-between px-5 py-4 border-b border-border/60 cursor-grab active:cursor-grabbing select-none">
+                                <div className="flex items-center gap-2">
+                                    <ClipboardList size={15} className="text-muted-foreground" />
+                                    <h3 className="font-semibold text-sm">Create New Test</h3>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => setCreateTestOpen(false)} className="text-muted-foreground hover:text-foreground">
+                                        <X size={15} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Form */}
+                            <div className="px-5 py-4 grid grid-cols-2 gap-3">
+                                <div className="col-span-2">
+                                    <label className="text-xs text-muted-foreground">Title *</label>
+                                    <input value={newTest.title} onChange={e => setNewTest(p => ({ ...p, title: e.target.value }))}
+                                        placeholder="e.g. Chapter 5 Quiz"
+                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="text-xs text-muted-foreground">Description</label>
+                                    <input value={newTest.description} onChange={e => setNewTest(p => ({ ...p, description: e.target.value }))}
+                                        placeholder="Optional"
+                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
+                                {[
+                                    { label: 'Duration (mins)', key: 'durationMinutes', min: 5, max: 300 },
+                                    { label: 'Marks / Question', key: 'marksPerQuestion', min: 1, max: 10 },
+                                    { label: 'No. of Questions', key: 'numberOfQuestions', min: 1, max: 100 },
+                                    { label: 'Max Attempts', key: 'maxAttempts', min: 1, max: 10 },
+                                ].map(({ label, key, min, max }) => (
+                                    <div key={key}>
+                                        <label className="text-xs text-muted-foreground">{label}</label>
+                                        <input type="number" min={min} max={max}
+                                            value={(newTest as Record<string, unknown>)[key] as number}
+                                            onChange={e => setNewTest(p => ({ ...p, [key]: Number(e.target.value) }))}
+                                            className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                    </div>
+                                ))}
+                                <div>
+                                    <label className="text-xs text-muted-foreground">Valid Until (optional)</label>
+                                    <input type="datetime-local" value={newTest.validUntil}
+                                        onChange={e => setNewTest(p => ({ ...p, validUntil: e.target.value }))}
+                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
+                            </div>
+
+                            {/* Footer */}
+                            <div className="flex justify-end gap-2 px-5 pb-5">
+                                <button onClick={() => setCreateTestOpen(false)}
+                                    className="px-4 py-2 text-sm rounded-lg border border-border hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={handleCreateTest} disabled={savingTest}
+                                    className="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-lg text-white disabled:opacity-50"
+                                    style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                                    {savingTest ? <><Loader2 size={13} className="animate-spin" />Creating…</> : 'Create Test'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Delete container confirm modal */}
+            <AnimatePresence>
+                {deleteConfirmId && (
+                    <>
+                        <motion.div
+                            key="overlay"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                            onClick={() => setDeleteConfirmId(null)}
+                        />
+                        <motion.div
+                            key="modal"
+                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+                        >
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-80 pointer-events-auto flex flex-col gap-4">
+                                <div className="flex flex-col gap-1">
+                                    <p className="text-sm font-semibold text-foreground">Delete this collection?</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        "{containers.find(c => c.id === deleteConfirmId)?.name}" will be permanently deleted. This cannot be undone.
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <button onClick={() => setDeleteConfirmId(null)}
+                                        className="px-4 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                        Cancel
+                                    </button>
+                                    <button onClick={() => { setContainers(prev => prev.filter(x => x.id !== deleteConfirmId)); setDeleteConfirmId(null); }}
+                                        className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                        Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
 
 // ── Question Card ─────────────────────────────────────────────────────────────
 
-function QuestionCard({ question, modules, onApprove, onReject, onDelete, onAssignModule, onUnassignModule }: {
+function QuestionCard({ question, modules, index, onApprove, onReject, onDelete, onAssignModule, onUnassignModule }: {
     question: Question;
     modules: TaskModule[];
+    index: number;
     onApprove: () => void;
     onReject: () => void;
     onDelete: () => void;
@@ -777,6 +1268,10 @@ function QuestionCard({ question, modules, onApprove, onReject, onDelete, onAssi
 }) {
     const [expanded, setExpanded] = useState(false);
     const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false);
+    const [deleteConfirm, setDeleteConfirm] = useState(false);
+    const [editOpen, setEditOpen] = useState(false);
+    const [editQuestion, setEditQuestion] = useState(question.question);
+    const [editAnswer, setEditAnswer] = useState(question.answer);
     const meta = TYPE_META[question.type];
     const statusMeta = STATUS_META[question.status];
     const marks = (question.details as Record<string, unknown> | null)?.marks as number | undefined;
@@ -788,19 +1283,21 @@ function QuestionCard({ question, modules, onApprove, onReject, onDelete, onAssi
     const isOpenEnded = question.type === 'FILL_BLANK' || question.type === 'TRUE_FALSE' || question.type === 'SHORT_ANSWER';
 
     return (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border bg-card">
             <div className="px-4 py-3">
                 <div className="flex items-start gap-3">
-                    <div className="flex flex-wrap gap-1.5 mt-0.5 shrink-0">
-                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${meta?.color ?? 'bg-muted text-muted-foreground'}`}>{meta?.label}</span>
-                        {marks && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">{marks}m</span>}
-                        <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${statusMeta.color}`}>{statusMeta.label}</span>
-                        {question.category && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">{question.category}</span>}
-                    </div>
+                    <span className="text-xs font-bold text-muted-foreground shrink-0 mt-0.5 w-5 text-right">{index}.</span>
                     <p className="flex-1 text-sm leading-snug">{question.question}</p>
-                    <button onClick={() => setExpanded(v => !v)} className="text-muted-foreground hover:text-foreground shrink-0 mt-0.5">
-                        {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
-                    </button>
+                    <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                        <div className="flex flex-wrap gap-1.5 justify-end">
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${meta?.color ?? 'bg-muted text-muted-foreground'}`}>{meta?.label}</span>
+                                <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md ${statusMeta.color}`}>{statusMeta.label}</span>
+                            {question.category && <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">{question.category}</span>}
+                        </div>
+                        <button onClick={() => setExpanded(v => !v)} className="text-muted-foreground hover:text-foreground shrink-0">
+                            {expanded ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+                        </button>
+                    </div>
                 </div>
 
                 {/* Compact answer preview when not expanded */}
@@ -811,10 +1308,10 @@ function QuestionCard({ question, modules, onApprove, onReject, onDelete, onAssi
                     </div>
                 )}
                 {!expanded && isConceptual && conDetails && (
-                    <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400 truncate">✓ {conDetails.correct_answer ?? question.answer}</p>
+                    <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400 truncate flex items-center gap-1"><ArrowRight size={11} className="shrink-0" />{conDetails.correct_answer ?? question.answer}</p>
                 )}
                 {!expanded && isOpenEnded && (
-                    <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400 line-clamp-2">✓ {question.answer}</p>
+                    <p className="mt-1.5 text-xs text-emerald-600 dark:text-emerald-400 line-clamp-2 flex items-center gap-1"><ArrowRight size={11} className="shrink-0" />{question.answer}</p>
                 )}
             </div>
 
@@ -839,14 +1336,14 @@ function QuestionCard({ question, modules, onApprove, onReject, onDelete, onAssi
                                             Distractor formulas: <span className="font-mono">{numDetails.distractor_formulas!.join(', ')}</span>
                                         </div>
                                     )}
-                                    <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400">✓ Answer: {question.answer}</div>
+                                    <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><ArrowRight size={11} className="shrink-0" /> Answer: {question.answer}</div>
                                 </>
                             )}
                             {isConceptual && conDetails && (
                                 <>
                                     {[conDetails.correct_answer, ...(conDetails.distractors ?? [])].filter(Boolean).map((opt, i) => (
                                         <div key={i} className={`text-xs px-2 py-1 rounded-lg ${opt === conDetails.correct_answer ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' : 'bg-muted text-muted-foreground'}`}>
-                                            {'ABCD'[i]}. {opt} {opt === conDetails.correct_answer && '✓'}
+                                            {'ABCD'[i]}. {opt} {opt === conDetails.correct_answer && <CheckCircle2 size={10} className="inline ml-1" />}
                                         </div>
                                     ))}
                                 </>
@@ -854,16 +1351,16 @@ function QuestionCard({ question, modules, onApprove, onReject, onDelete, onAssi
                             {question.type === 'MCQ' && Array.isArray(question.options) && (
                                 question.options.map((opt, i) => (
                                     <div key={i} className={`text-xs px-2 py-1 rounded-lg ${opt === question.answer ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300' : 'bg-muted text-muted-foreground'}`}>
-                                        {'ABCD'[i]}. {opt} {opt === question.answer && '✓'}
+                                        {'ABCD'[i]}. {opt} {opt === question.answer && <CheckCircle2 size={10} className="inline ml-1" />}
                                     </div>
                                 ))
                             )}
                             {question.type === 'FILL_BLANK' && (
-                                <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400">✓ Fill: {question.answer}</div>
+                                <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><ArrowRight size={11} className="shrink-0" /> Fill: {question.answer}</div>
                             )}
                             {question.type === 'TRUE_FALSE' && (
-                                <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                    ✓ {String(question.answer).charAt(0).toUpperCase() + String(question.answer).slice(1)}
+                                <div className="text-xs font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                    <ArrowRight size={11} className="shrink-0" /> {String(question.answer).charAt(0).toUpperCase() + String(question.answer).slice(1)}
                                 </div>
                             )}
                             {question.type === 'SHORT_ANSWER' && (
@@ -872,6 +1369,13 @@ function QuestionCard({ question, modules, onApprove, onReject, onDelete, onAssi
                                     {question.answer}
                                 </div>
                             )}
+                            <div className="flex justify-end pt-1">
+                                <span className="text-[10px] text-muted-foreground">
+                                    {new Date(question.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                    {' · '}
+                                    {new Date(question.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                                </span>
+                            </div>
                         </div>
                     </motion.div>
                 )}
@@ -910,12 +1414,12 @@ function QuestionCard({ question, modules, onApprove, onReject, onDelete, onAssi
                                 <XIcon size={11} />
                             </button>
                         </div>
-                    ) : (
+                    ) : question.status === 'APPROVED' ? (
                         <button onClick={() => setModuleDropdownOpen(v => !v)}
                             className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-md border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-all">
-                            <BookMarked size={10} /> Module
+                            <BookMarked size={10} /> Assign to Module
                         </button>
-                    )}
+                    ) : null}
                     {moduleDropdownOpen && !question.moduleAssignment && (
                         <div className="absolute bottom-full right-0 mb-1 z-20 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[160px]">
                             {modules.length === 0 ? (
@@ -929,10 +1433,77 @@ function QuestionCard({ question, modules, onApprove, onReject, onDelete, onAssi
                         </div>
                     )}
                 </div>
-                <button onClick={onDelete} className="text-muted-foreground hover:text-red-500 p-1 rounded transition-all">
-                    <Trash2 size={13} />
+                <button onClick={() => { setEditQuestion(question.question); setEditAnswer(question.answer); setEditOpen(v => !v); }}
+                    className={`p-1 rounded transition-all ${editOpen ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
                 </button>
+                <div className="relative">
+                    <button onClick={() => setDeleteConfirm(true)} className="text-muted-foreground hover:text-red-500 p-1 rounded transition-all">
+                        <Trash2 size={13} />
+                    </button>
+                    <AnimatePresence>
+                        {deleteConfirm && (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                                transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                className="absolute bottom-8 right-0 z-30 bg-card border border-border rounded-xl shadow-xl p-3 flex flex-col gap-2"
+                                style={{ width: 160 }}>
+                                <p className="text-xs font-semibold text-foreground">{question.status === 'REJECTED' ? 'Delete this question?' : 'Reject this question?'}</p>
+                                <p className="text-[10px] text-muted-foreground leading-tight">{question.status === 'REJECTED' ? 'This cannot be undone.' : 'It will be moved to Rejected.'}</p>
+                                <div className="flex gap-1.5 mt-0.5">
+                                    <button onClick={() => setDeleteConfirm(false)}
+                                        className="flex-1 text-xs py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                        Cancel
+                                    </button>
+                                    <button onClick={() => { setDeleteConfirm(false); onDelete(); }}
+                                        className="flex-1 text-xs py-1 rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                        {question.status === 'REJECTED' ? 'Delete' : 'Reject'}
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                </div>
             </div>
+
+            {/* Edit panel */}
+            <AnimatePresence>
+                {editOpen && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden border-t border-border/50">
+                        <div className="px-4 py-3 flex flex-col gap-2">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Question</label>
+                                <textarea value={editQuestion} onChange={e => setEditQuestion(e.target.value)} rows={3}
+                                    className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                            </div>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Answer</label>
+                                <textarea value={editAnswer} onChange={e => setEditAnswer(e.target.value)} rows={2}
+                                    className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setEditOpen(false)}
+                                    className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => {
+                                        question.question = editQuestion;
+                                        question.answer = editAnswer;
+                                        setEditOpen(false);
+                                    }}
+                                    className="text-xs px-3 py-1.5 rounded-lg text-white font-medium transition-all"
+                                    style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                                    Save
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -947,39 +1518,111 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, copiedLink }
     onActivate: () => void;
     copiedLink: string | null;
 }) {
-    const statusColor = { DRAFT: 'text-muted-foreground bg-muted', ACTIVE: 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950', COMPLETED: 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950' }[test.status];
+    const [deleteConfirm, setDeleteConfirm] = useState(false);
+    const effectiveStatus = (test.validUntil && new Date(test.validUntil) < new Date()) ? 'COMPLETED' : test.status;
+    const statusColor = { DRAFT: 'text-muted-foreground bg-muted', ACTIVE: 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950', COMPLETED: 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950' }[effectiveStatus];
 
     return (
-        <div className="rounded-xl border border-border bg-card px-4 py-3 flex items-center gap-4">
-            <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-medium text-sm truncate">{test.title}</h3>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md ${statusColor}`}>{test.status}</span>
+        <div className="rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]">
+            {/* Top row: content + icons */}
+            <div className="flex gap-4">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 mb-2 flex-wrap">
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md shrink-0 ${statusColor}`}>{effectiveStatus}</span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><BookOpen size={12} />{test.questions.length}/{test.numberOfQuestions} questions</span>
+                        <span className="text-muted-foreground opacity-40">·</span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><Users size={12} />{test._count.attempts} attempts</span>
+                        <span className="text-muted-foreground opacity-40">·</span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 size={12} />{test._count.submissions ?? 0} submitted</span>
+                    </div>
+                    <h3 className="font-semibold text-base truncate mb-1.5">{test.title}</h3>
+                    {test.description && (
+                        <p className="text-sm text-muted-foreground line-clamp-1">{test.description}</p>
+                    )}
                 </div>
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span className="flex items-center gap-1"><Clock size={11} />{test.durationMinutes} min</span>
-                    <span>{test.questions.length}/{test.numberOfQuestions} questions</span>
-                    <span className="flex items-center gap-1"><Users size={11} />{test._count.attempts} attempts</span>
-                    {test.validUntil && <span>Expires {new Date(test.validUntil).toLocaleDateString()}</span>}
+                {/* Top-right icons: copy + delete */}
+                <div className="flex items-start gap-1 shrink-0">
+                    {test.status === 'ACTIVE' && (
+                        <div className="relative">
+                            <button onClick={onCopyLink} className="text-muted-foreground hover:text-foreground p-1 rounded transition-all" title="Copy link">
+                                {copiedLink === test.testLink ? <CheckCircle2 size={15} className="text-emerald-500" /> : <Copy size={15} />}
+                            </button>
+                            <AnimatePresence>
+                                {copiedLink === test.testLink && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: 4, scale: 0.9 }}
+                                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                                        exit={{ opacity: 0, y: 4, scale: 0.9 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                        className="absolute right-0 top-7 z-30 bg-card border border-border rounded-lg shadow-lg px-2.5 py-1.5 whitespace-nowrap">
+                                        <p className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                                            <CheckCircle2 size={11} /> Test link copied
+                                        </p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
+                    <div className="relative">
+                        <button onClick={() => setDeleteConfirm(v => !v)} className="text-muted-foreground hover:text-red-500 p-1 rounded transition-all">
+                            <Trash2 size={15} />
+                        </button>
+                        <AnimatePresence>
+                            {deleteConfirm && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                    exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                    className="absolute right-0 top-7 z-30 bg-card border border-border rounded-xl shadow-xl p-3 w-52 flex flex-col gap-2">
+                                    <p className="text-xs font-semibold text-foreground">Delete this test?</p>
+                                    <p className="text-[11px] text-muted-foreground">"{test.title}" will be permanently deleted.</p>
+                                    <div className="flex gap-1.5 justify-end">
+                                        <button onClick={() => setDeleteConfirm(false)}
+                                            className="px-2.5 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                            Cancel
+                                        </button>
+                                        <button onClick={() => { setDeleteConfirm(false); onDelete(); }}
+                                            className="px-2.5 py-1 text-xs rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                            Delete
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
             </div>
-            <div className="flex items-center gap-1.5 shrink-0">
-                {test.status === 'DRAFT' && test.questions.length > 0 && (
-                    <button onClick={onActivate} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
-                        <Play size={11} /> Activate
+
+            {/* Bottom row */}
+            <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Clock size={12} />{test.durationMinutes} min</span>
+                    <span className="opacity-40">·</span>
+                    <span>{test.marksPerQuestion} marks/q</span>
+                    <span className="opacity-40">|</span>
+                    <span><span className="text-foreground/50">Created at:</span> {test.createdAt ? `${new Date(test.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(test.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
+                    <span className="opacity-40">·</span>
+                    <span><span className="text-foreground/50">{test.status === 'COMPLETED' ? 'Ended at:' : 'Ends at:'}</span> {test.validUntil ? `${new Date(test.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(test.validUntil).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    {test.status === 'DRAFT' && (
+                        <button onClick={onActivate} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
+                            <Play size={12} /> Activate
+                        </button>
+                    )}
+                    {test.status === 'ACTIVE' && (
+                        <button className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
+                            <ArrowRight size={12} /> Resend
+                        </button>
+                    )}
+                    <button onClick={onOpen} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
+                        <Eye size={12} /> Open
                     </button>
-                )}
-                {test.status === 'ACTIVE' && (
-                    <button onClick={onCopyLink} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
-                        {copiedLink === test.testLink ? <><CheckCircle2 size={11} /> Copied</> : <><Copy size={11} /> Copy Link</>}
+                    <button className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
+                        <BarChart2 size={12} /> Results
                     </button>
-                )}
-                <button onClick={onOpen} className="text-xs px-2.5 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1">
-                    <Eye size={11} /> Open
-                </button>
-                <button onClick={onDelete} className="text-muted-foreground hover:text-red-500 p-1.5 rounded transition-all">
-                    <Trash2 size={13} />
-                </button>
+                </div>
             </div>
         </div>
     );

@@ -10,7 +10,7 @@ import ManageTab from './ManageTab';
 import FeesTab from './FeesTab';
 import AttendanceTab, { AttendanceSubTab } from './AttendanceTab';
 import MarksTab, { MarksSubTab, MarksStats } from './MarksTab';
-import TasksTab from './TasksTab';
+import TasksTab, { TasksSubTab } from './TasksTab';
 
 export interface Subject {
     id: string;
@@ -91,6 +91,9 @@ export default function DivisionClassPageClient() {
     // ── Marks sub-tab state ───────────────────────────────────────────────────
     const [marksSubTab, setMarksSubTab] = useState<MarksSubTab>('offline');
     const [marksStats, setMarksStats] = useState<MarksStats>({ avg: null, topGrade: null });
+
+    // ── Tasks sub-tab state ───────────────────────────────────────────────────
+    const [tasksSubTab, setTasksSubTab] = useState<TasksSubTab>('questions');
 
     const fetchedRef = useRef(false);
 
@@ -250,6 +253,28 @@ export default function DivisionClassPageClient() {
                             )}
                         </AnimatePresence>
 
+                        {/* Tasks sub-tab toggle */}
+                        <AnimatePresence>
+                            {activeTab === 'tasks' && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
+                                    {([
+                                        { key: 'questions' as const, label: 'AI Ques. Generator' },
+                                        { key: 'tests' as const, label: 'Tests' },
+                                        { key: 'modules' as const, label: 'Modules' },
+                                    ]).map(({ key, label }) => (
+                                        <button key={key} onClick={() => setTasksSubTab(key)}
+                                            className={`relative px-3 py-1 rounded-lg text-xs font-medium transition-all
+                                            ${tasksSubTab === key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            {label}
+                                        </button>
+                                    ))}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {activeTab === 'attendance' ? (
                             <div className="flex items-center gap-4">
                                 {[
@@ -355,7 +380,7 @@ export default function DivisionClassPageClient() {
                     )}
                     {activeTab === 'tasks' && (
                         <motion.div key="tasks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                            <TasksTab divisionId={divisionId} />
+                            <TasksTab divisionId={divisionId} subTab={tasksSubTab} onSubTabChange={setTasksSubTab} />
                         </motion.div>
                     )}
                 </AnimatePresence>

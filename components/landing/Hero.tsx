@@ -85,9 +85,14 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                 >
                     <SplitWords text="Paperwork out." delay={0.25} />
                     <br />
-                    <span className="bg-gradient-to-r from-[#7C3AED] via-[#A855F7] to-[#DA7756] bg-clip-text text-transparent">
-                        <SplitWords text="Intelligence in." delay={0.55} />
-                    </span>
+                    <motion.span
+                        className="inline-block bg-gradient-to-r from-[#7C3AED] via-[#A855F7] to-[#DA7756] bg-clip-text text-transparent"
+                        initial={{ opacity: 0, y: 40, rotate: 3 }}
+                        animate={{ opacity: 1, y: 0, rotate: 0 }}
+                        transition={{ duration: 1.1, ease: EASE, delay: 0.65 }}
+                    >
+                        Intelligence in.
+                    </motion.span>
                 </h1>
 
                 <motion.p
