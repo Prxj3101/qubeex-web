@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, Search, X, Shield, Mail, CalendarDays, Edit2,
     PowerOff, Power, MailCheck,
@@ -426,6 +426,7 @@ export default function SubadminsPage() {
             </div>
 
             {/* ── Inline Modal ── */}
+            <AnimatePresence>
             {isModalOpen && (
                 <div
                     className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
@@ -558,6 +559,7 @@ export default function SubadminsPage() {
                     </motion.div>
                 </div>
             )}
+            </AnimatePresence>
         </div>
     );
 }

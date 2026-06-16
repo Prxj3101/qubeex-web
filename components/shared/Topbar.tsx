@@ -4,7 +4,8 @@ import api from '@/lib/api';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LucideIcon, User, LogOut, Settings } from 'lucide-react';
+import { LucideIcon, User, LogOut, Settings, Lock } from 'lucide-react';
+import { toast } from 'sonner';
 import { NotificationsBell } from './NotificationsBell';
 import {
     DropdownMenu,
@@ -24,6 +25,7 @@ interface NavItem {
     href: string;
     icon?: LucideIcon;
     activePath?: string;
+    locked?: boolean;
 }
 
 interface TopbarProps {
@@ -207,6 +209,23 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
                         const isActive = pathname === item.href ||
                             pathname.startsWith(item.href + '/') ||
                             (item.activePath ? pathname.startsWith(item.activePath) : false); const Icon = item.icon;
+
+                        if (item.locked) {
+                            return (
+                                <div
+                                    key={item.href}
+                                    className="relative flex-1 min-w-fit opacity-40 cursor-not-allowed"
+                                    onClick={() => toast.error('Access restricted — contact your admin')}
+                                >
+                                    <div className="relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl text-muted-foreground">
+                                        {Icon && <Icon size={15} />}
+                                        {item.label}
+                                        <Lock size={11} className="-ml-0.5" />
+                                    </div>
+                                </div>
+                            );
+                        }
+
                         return (
                             <Link key={item.href} href={item.href} className="relative flex-1 min-w-fit">
                                 {isActive && (

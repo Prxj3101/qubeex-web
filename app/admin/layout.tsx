@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { Topbar } from '@/components/shared/Topbar';
 import { useAuthStore } from '@/store/authStore';
 import {
@@ -14,25 +16,52 @@ import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeCon
 
 const ALL_NAV_ITEMS = [
     { label: 'Overview',   href: '/admin/overview',           icon: LayoutDashboard, permission: null as string | null },
-    { label: 'Staff',      href: '/admin/staff',              icon: Users,           permission: null as string | null },
-    { label: 'Campus',     href: '/admin/campus',             icon: Building2,       permission: 'CAMPUS' as string | null },
-    { label: 'Insights',   href: '/admin/insights/analytics', icon: LineChart,       activePath: '/admin/insights', permission: null as string | null },
+    { label: 'Staff',      href: '/admin/staff',              icon: Users,           permission: null as string | null, subAdminLocked: true },
+    { label: 'Campus',     href: '/admin/campus',             icon: Building2,       permission: 'CAMPUS_OR_FEES' as string | null },
+    { label: 'Insights',   href: '/admin/insights/analytics', icon: LineChart,       activePath: '/admin/insights', permission: null as string | null, subAdminLocked: true },
     { label: 'Support',    href: '/admin/support/tickets',    icon: Headset,         activePath: '/admin/support',  permission: null as string | null },
-    { label: 'Audit Logs', href: '/admin/audit-logs',         icon: ScrollText,      permission: null as string | null },
+    { label: 'Audit Logs', href: '/admin/audit-logs',         icon: ScrollText,      permission: null as string | null, subAdminLocked: true },
 ];
 
-const ADMIN_ONLY_LABELS = new Set(['Staff', 'Insights', 'Audit Logs']);
+// Paths that redirect to overview when a subadmin tries to access them directly
+const SUBADMIN_LOCKED_PREFIXES = ['/admin/staff', '/admin/insights', '/admin/audit-logs'];
+
+function canSubAdminAccessPath(pathname: string, permissions: string[]): boolean {
+    if (SUBADMIN_LOCKED_PREFIXES.some(p => pathname.startsWith(p))) return false;
+    if (pathname.startsWith('/admin/campus') && !permissions.includes('CAMPUS') && !permissions.includes('FEES')) return false;
+    return true;
+}
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const { instType, setInstType } = useMockInstType();
     const { user } = useAuthStore();
+    const pathname = usePathname();
+    const router = useRouter();
 
-    const navItems = ALL_NAV_ITEMS.filter(item => {
-        if (user?.role !== 'SUB_ADMIN') return true;
-        if (ADMIN_ONLY_LABELS.has(item.label)) return false;
-        if (item.permission && !user.permissions?.includes(item.permission)) return false;
-        return true;
-    }).map(({ permission, ...rest }) => rest);
+    const isSubAdmin = user?.role === 'SUB_ADMIN';
+    const permissions = user?.permissions ?? [];
+
+    // Redirect subadmins away from locked URLs
+    useEffect(() => {
+        if (isSubAdmin && !canSubAdminAccessPath(pathname, permissions)) {
+            router.replace('/admin/overview');
+        }
+    }, [isSubAdmin, pathname, permissions, router]);
+
+    const navItems = ALL_NAV_ITEMS.map(item => {
+        const { permission, subAdminLocked, ...rest } = item;
+
+        if (!isSubAdmin) return { ...rest, locked: false };
+
+        if (subAdminLocked) return { ...rest, locked: true };
+
+        if (permission === 'CAMPUS_OR_FEES') {
+            const canAccess = permissions.includes('CAMPUS') || permissions.includes('FEES');
+            return { ...rest, locked: !canAccess };
+        }
+
+        return { ...rest, locked: false };
+    });
 
     return (
         <div className="flex flex-col h-screen bg-background px-0 pt-3 gap-3">
