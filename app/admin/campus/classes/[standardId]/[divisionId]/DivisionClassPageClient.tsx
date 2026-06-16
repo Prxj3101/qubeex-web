@@ -9,6 +9,8 @@ import {
     Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { Lock } from 'lucide-react';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
 import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
@@ -725,7 +727,24 @@ export default function DivisionDetailPage() {
     const [division, setDivision] = useState<Division | null>(null);
     const [teachers, setTeachers] = useState<TeacherOption[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'fees'>('overview');
+    const { user } = useAuthStore();
+    const subAdminPermissions = user?.role === 'SUB_ADMIN' ? (user.permissions ?? []) : null;
+
+    function isTabLocked(tabKey: 'overview' | 'manage' | 'fees'): boolean {
+        if (!subAdminPermissions) return false;
+        const hasCampus = subAdminPermissions.includes('CAMPUS');
+        const hasFees = subAdminPermissions.includes('FEES');
+        if (tabKey === 'fees') return !hasFees && !hasCampus;
+        if (tabKey === 'manage') return !hasCampus;
+        return false;
+    }
+
+    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'fees'>(() => {
+        if (subAdminPermissions && !subAdminPermissions.includes('CAMPUS') && subAdminPermissions.includes('FEES')) {
+            return 'fees';
+        }
+        return 'overview';
+    });
     const [manageTab, setManageTab] = useState<'teachers' | 'subjects'>('teachers');
     const [addingSubject, setAddingSubject] = useState(false);
     const [savingAssign, setSavingAssign] = useState(false);
@@ -998,15 +1017,27 @@ export default function DivisionDetailPage() {
                         <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 ml-4">
                             {TABS.map(tab => {
                                 const isActive = activeTab === tab.key;
+                                const locked = isTabLocked(tab.key);
                                 return (
-                                    <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="relative">
-                                        {isActive && (
+                                    <button
+                                        key={tab.key}
+                                        onClick={() => {
+                                            if (locked) {
+                                                toast.error('Access restricted — contact your admin');
+                                                return;
+                                            }
+                                            setActiveTab(tab.key);
+                                        }}
+                                        className={`relative ${locked ? 'opacity-40 cursor-not-allowed' : ''}`}
+                                    >
+                                        {isActive && !locked && (
                                             <motion.div layoutId="divTab"
                                                 className="absolute inset-0 bg-primary rounded-4xl"
                                                 transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }} />
                                         )}
-                                        <div className={`relative z-10 px-4 py-1.5 text-sm font-medium rounded-4xl transition-colors ${isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'}`}>
+                                        <div className={`relative z-10 flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-4xl transition-colors ${isActive && !locked ? 'text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                                             {tab.label}
+                                            {locked && <Lock size={11} />}
                                         </div>
                                     </button>
                                 );

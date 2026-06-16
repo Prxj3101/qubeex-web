@@ -4,7 +4,8 @@ import api from '@/lib/api';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LucideIcon, User, LogOut, Settings } from 'lucide-react';
+import { LucideIcon, User, LogOut, Settings, Lock } from 'lucide-react';
+import { toast } from 'sonner';
 import { NotificationsBell } from './NotificationsBell';
 import {
     DropdownMenu,
@@ -24,6 +25,7 @@ interface NavItem {
     href: string;
     icon?: LucideIcon;
     activePath?: string;
+    locked?: boolean;
 }
 
 interface TopbarProps {
@@ -31,11 +33,12 @@ interface TopbarProps {
     devToggle?: React.ReactNode; // ← add
 }
 
-type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'TEACHER' | 'STUDENT';
+type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'SUB_ADMIN' | 'TEACHER' | 'STUDENT';
 
 const emojiMap: Record<RoleKey, string> = {
     SUPER_ADMIN: '👑',
     ADMIN: '🏛️',
+    SUB_ADMIN: '🛡️',
     TEACHER: '🧑‍🏫',
     STUDENT: '🎓',
 };
@@ -43,6 +46,7 @@ const emojiMap: Record<RoleKey, string> = {
 const labelMap: Record<RoleKey, string> = {
     SUPER_ADMIN: 'SuperAdmin',
     ADMIN: 'Admin',
+    SUB_ADMIN: 'SubAdmin',
     TEACHER: 'Teacher',
     STUDENT: 'Student',
 };
@@ -50,16 +54,20 @@ const labelMap: Record<RoleKey, string> = {
 const initialMap: Record<RoleKey, string> = {
     SUPER_ADMIN: 'SA',
     ADMIN: 'A',
+    SUB_ADMIN: 'SA',
     TEACHER: 'T',
     STUDENT: 'S',
 };
 
 function getRole(pathname: string, userRole?: string | null): RoleKey {
     if (pathname.startsWith('/superadmin')) return 'SUPER_ADMIN';
-    if (pathname.startsWith('/admin')) return 'ADMIN';
+    if (pathname.startsWith('/admin')) {
+        if (userRole === 'SUB_ADMIN') return 'SUB_ADMIN';
+        return 'ADMIN';
+    }
     if (pathname.startsWith('/teacher')) return 'TEACHER';
     if (pathname.startsWith('/student')) return 'STUDENT';
-    const validRoles: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'TEACHER', 'STUDENT'];
+    const validRoles: RoleKey[] = ['SUPER_ADMIN', 'ADMIN', 'SUB_ADMIN', 'TEACHER', 'STUDENT'];
     if (userRole && validRoles.includes(userRole as RoleKey)) return userRole as RoleKey;
     return 'STUDENT';
 }
@@ -201,6 +209,23 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
                         const isActive = pathname === item.href ||
                             pathname.startsWith(item.href + '/') ||
                             (item.activePath ? pathname.startsWith(item.activePath) : false); const Icon = item.icon;
+
+                        if (item.locked) {
+                            return (
+                                <div
+                                    key={item.href}
+                                    className="relative flex-1 min-w-fit opacity-40 cursor-not-allowed"
+                                    onClick={() => toast.error('Access restricted — contact your admin')}
+                                >
+                                    <div className="relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl text-muted-foreground">
+                                        {Icon && <Icon size={15} />}
+                                        {item.label}
+                                        <Lock size={11} className="-ml-0.5" />
+                                    </div>
+                                </div>
+                            );
+                        }
+
                         return (
                             <Link key={item.href} href={item.href} className="relative flex-1 min-w-fit">
                                 {isActive && (
