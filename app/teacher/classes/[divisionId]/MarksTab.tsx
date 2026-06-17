@@ -350,7 +350,7 @@ export type MarksSubTab = 'offline' | 'online' | 'overall';
 
 // ── Mark Sheet (Right Panel) — ALL subjects in one sheet ─────────────────────
 function MarkSheet({
-    students, subjects, mode, divisionName, isActive, onStatsChange, restrictToSubjectId,
+    students, subjects, mode, divisionName, isActive, onStatsChange, restrictToSubjectId, readOnly,
 }: {
     students: Student[];
     subjects: Subject[];
@@ -359,6 +359,7 @@ function MarkSheet({
     isActive: boolean;
     onStatsChange?: (stats: MarksStats) => void;
     restrictToSubjectId?: string | null;
+    readOnly?: boolean;
 }) {
     const now = new Date();
     const yr = now.getFullYear();
@@ -619,14 +620,16 @@ function MarkSheet({
                     </p>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    <button onClick={saveData}
-                        className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold transition-all border ${saveStatus === 'saved'
-                            ? 'border-green-500 text-green-600 bg-green-500/10'
-                            : 'border-border text-foreground hover:bg-muted'
-                            }`}>
-                        <Save size={12} />
-                        {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Save'}
-                    </button>
+                    {!readOnly && (
+                        <button onClick={saveData}
+                            className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold transition-all border ${saveStatus === 'saved'
+                                ? 'border-green-500 text-green-600 bg-green-500/10'
+                                : 'border-border text-foreground hover:bg-muted'
+                                }`}>
+                            <Save size={12} />
+                            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Save'}
+                        </button>
+                    )}
                     <div className="relative" ref={exportMenuRef}>
                         <button onClick={() => setShowExportMenu(v => !v)}
                             className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
@@ -698,7 +701,7 @@ function MarkSheet({
                                     ) : (
                                         <span className="inline-flex items-center gap-1 cursor-default">
                                             <span style={{ color: msColors.hdrText }}>{gradedSectionTitle}</span>
-                                            {!restrictToSubjectId && (
+                                            {!readOnly && !restrictToSubjectId && (
                                                 <span className="opacity-0 group-hover/gtitle:opacity-100 transition-opacity cursor-pointer"
                                                     onClick={() => { setGradedTitleDraft(gradedSectionTitle); setEditingGradedTitle(true); setTimeout(() => gradedTitleInputRef.current?.select(), 0); }}>
                                                     <Pencil size={8} color={msColors.hdrText} />
@@ -708,7 +711,7 @@ function MarkSheet({
                                     )}
                                 </th>
                             )}
-                            {mode === 'offline' && gradedSubjects.length === 0 && !restrictToSubjectId && (
+                            {mode === 'offline' && gradedSubjects.length === 0 && !readOnly && !restrictToSubjectId && (
                                 <th className="px-1 py-1.5 text-center cursor-pointer group/gadd"
                                     onClick={() => setAddGradedOpen(true)}
                                     style={{ background: 'linear-gradient(#7C3AED10, #7C3AED10), #EDE4D6', border: `0.5px dashed ${msColors.hdrBorder}`, minWidth: 28 }}>
@@ -738,11 +741,11 @@ function MarkSheet({
                                             const subRestricted = isRestricted(sub.id);
                                             return (
                                                 <th key={ex.id}
-                                                    draggable={mode === 'offline' && !subRestricted}
-                                                    onDragStart={() => !subRestricted && setDragExam({ subId: sub.id, examId: ex.id })}
-                                                    onDragOver={e => { if (!subRestricted) { e.preventDefault(); setDragOverExam({ subId: sub.id, examId: ex.id }); } }}
+                                                    draggable={mode === 'offline' && !readOnly && !subRestricted}
+                                                    onDragStart={() => { if (!readOnly && !subRestricted) setDragExam({ subId: sub.id, examId: ex.id }); }}
+                                                    onDragOver={e => { if (!readOnly && !subRestricted) { e.preventDefault(); setDragOverExam({ subId: sub.id, examId: ex.id }); } }}
                                                     onDragLeave={() => setDragOverExam(null)}
-                                                    onDrop={() => !subRestricted && handleExamDrop(sub.id, ex.id)}
+                                                    onDrop={() => { if (!readOnly && !subRestricted) handleExamDrop(sub.id, ex.id); }}
                                                     onDragEnd={() => { setDragExam(null); setDragOverExam(null); }}
                                                     className="px-1 py-1.5 text-center whitespace-nowrap min-w-[62px] group relative"
                                                     style={{
@@ -759,7 +762,7 @@ function MarkSheet({
                                                     )}
                                                     <div style={{ fontWeight: 600, fontSize: 10 }}>{ex.name}</div>
                                                     <div style={{ fontWeight: 600, fontSize: 10, opacity: 0.8 }}>/{ex.maxMarks}</div>
-                                                    {mode === 'offline' && !subRestricted && (
+                                                    {mode === 'offline' && !readOnly && !subRestricted && (
                                                         <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-70 transition-opacity cursor-pointer flex items-center justify-center"
                                                             style={{ width: 20, height: 20 }}
                                                             onMouseDown={e => e.stopPropagation()}
@@ -771,7 +774,7 @@ function MarkSheet({
                                             );
                                         })}
                                         {mode === 'offline' && (
-                                            !isRestricted(sub.id) ? (
+                                            !readOnly && !isRestricted(sub.id) ? (
                                                 <th className="px-1 py-1.5 text-center w-7 cursor-pointer group/add"
                                                     onClick={() => setAddExamSubId(sub.id)}
                                                     style={{ background: msColors.hdrBg, border: `0.5px dashed ${msColors.hdrBorder}`, color: msColors.hdrText }}>
@@ -803,21 +806,21 @@ function MarkSheet({
                                     border: isGOver && !restrictToSubjectId ? `1.5px solid #7C3AED` : `0.5px solid ${msColors.hdrBorder}`,
                                     color: msColors.hdrText, width: 52, minWidth: 52, maxWidth: 52,
                                     opacity: isGDrag ? 0.4 : 1,
-                                    cursor: restrictToSubjectId ? 'default' : 'grab',
+                                    cursor: readOnly || restrictToSubjectId ? 'default' : 'grab',
                                 };
                                 return (
                                     <React.Fragment key={gs.id}>
                                         <th className="px-1 py-1.5 text-center whitespace-nowrap group relative"
-                                            draggable={!restrictToSubjectId}
-                                            onDragStart={() => !restrictToSubjectId && setDragGraded(gs.id)}
-                                            onDragOver={e => { if (!restrictToSubjectId) { e.preventDefault(); setDragOverGraded(gs.id); } }}
+                                            draggable={!readOnly && !restrictToSubjectId}
+                                            onDragStart={() => { if (!readOnly && !restrictToSubjectId) setDragGraded(gs.id); }}
+                                            onDragOver={e => { if (!readOnly && !restrictToSubjectId) { e.preventDefault(); setDragOverGraded(gs.id); } }}
                                             onDragLeave={() => setDragOverGraded(null)}
-                                            onDrop={() => !restrictToSubjectId && handleGradedDrop(gs.id)}
+                                            onDrop={() => { if (!readOnly && !restrictToSubjectId) handleGradedDrop(gs.id); }}
                                             onDragEnd={() => { setDragGraded(null); setDragOverGraded(null); }}
                                             style={gradedThStyle}>
                                             <div style={{ fontWeight: 700, fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 48 }}>{gs.name}</div>
                                             <div style={{ fontWeight: 600, fontSize: 9, opacity: 0.7 }}>Term 1</div>
-                                            {!restrictToSubjectId && (
+                                            {!readOnly && !restrictToSubjectId && (
                                                 <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-70 transition-opacity cursor-pointer flex items-center justify-center"
                                                     style={{ width: 18, height: 18 }}
                                                     onMouseDown={e => e.stopPropagation()}
@@ -827,16 +830,16 @@ function MarkSheet({
                                             )}
                                         </th>
                                         <th className="px-1 py-1.5 text-center whitespace-nowrap group relative"
-                                            draggable={!restrictToSubjectId}
-                                            onDragStart={() => !restrictToSubjectId && setDragGraded(gs.id)}
-                                            onDragOver={e => { if (!restrictToSubjectId) { e.preventDefault(); setDragOverGraded(gs.id); } }}
+                                            draggable={!readOnly && !restrictToSubjectId}
+                                            onDragStart={() => { if (!readOnly && !restrictToSubjectId) setDragGraded(gs.id); }}
+                                            onDragOver={e => { if (!readOnly && !restrictToSubjectId) { e.preventDefault(); setDragOverGraded(gs.id); } }}
                                             onDragLeave={() => setDragOverGraded(null)}
-                                            onDrop={() => !restrictToSubjectId && handleGradedDrop(gs.id)}
+                                            onDrop={() => { if (!readOnly && !restrictToSubjectId) handleGradedDrop(gs.id); }}
                                             onDragEnd={() => { setDragGraded(null); setDragOverGraded(null); }}
                                             style={gradedThStyle}>
                                             <div style={{ fontWeight: 700, fontSize: 9, overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 48 }}>{gs.name}</div>
                                             <div style={{ fontWeight: 600, fontSize: 9, opacity: 0.7 }}>Term 2</div>
-                                            {!restrictToSubjectId && (
+                                            {!readOnly && !restrictToSubjectId && (
                                                 <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-70 transition-opacity cursor-pointer flex items-center justify-center"
                                                     style={{ width: 18, height: 18 }}
                                                     onMouseDown={e => e.stopPropagation()}
@@ -848,7 +851,7 @@ function MarkSheet({
                                     </React.Fragment>
                                 );
                             })}
-                            {mode === 'offline' && gradedSubjects.length > 0 && !restrictToSubjectId && (
+                            {mode === 'offline' && gradedSubjects.length > 0 && !readOnly && !restrictToSubjectId && (
                                 <th className="px-1 py-1.5 text-center cursor-pointer group/gadd"
                                     onClick={() => setAddGradedOpen(true)}
                                     style={{ background: '#EDE4D6', border: `0.5px dashed ${msColors.hdrBorder}`, width: 28, minWidth: 28 }}>
@@ -923,8 +926,8 @@ function MarkSheet({
                                                     };
                                                     return (
                                                         <td key={ex.id}
-                                                            onClick={() => { if (!isEditing && sc === null) startEdit(); }}
-                                                            className={`px-1 text-center relative group ${sc === null ? 'cursor-pointer' : 'cursor-default'}`}
+                                                            onClick={() => { if (!readOnly && !isEditing && sc === null) startEdit(); }}
+                                                            className={`px-1 text-center relative group ${sc === null && !readOnly ? 'cursor-pointer' : 'cursor-default'}`}
                                                             style={{ border: `0.5px solid ${msColors.cellBorder}`, width: '62px', minWidth: '62px', maxWidth: '62px' }}>
                                                             {isEditing ? (
                                                                 <input
@@ -949,10 +952,12 @@ function MarkSheet({
                                                                     ) : (
                                                                         <span style={{ color: msColors.cellBorder }}>—</span>
                                                                     )}
-                                                                    <span className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity cursor-pointer"
-                                                                        onClick={e => { e.stopPropagation(); startEdit(); }}>
-                                                                        <Pencil size={8} color={msColors.hdrText} />
-                                                                    </span>
+                                                                    {!readOnly && (
+                                                                        <span className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity cursor-pointer"
+                                                                            onClick={e => { e.stopPropagation(); startEdit(); }}>
+                                                                            <Pencil size={8} color={msColors.hdrText} />
+                                                                        </span>
+                                                                    )}
                                                                 </div>
                                                             )}
                                                         </td>
@@ -996,8 +1001,8 @@ function MarkSheet({
                                         const isEditT2 = activeGradeCell?.gsId === gs.id && activeGradeCell?.stId === student.id && activeGradeCell?.term === 't2';
                                         return (
                                             <React.Fragment key={gs.id}>
-                                                <td className={`px-1 py-1 text-center group relative ${!t1 ? 'cursor-pointer' : ''}`}
-                                                    onClick={() => { if (!isEditT1 && !t1) startGradeEdit(gs.id, student.id, 't1', t1); }}
+                                                <td className={`px-1 py-1 text-center group relative ${!t1 && !readOnly ? 'cursor-pointer' : ''}`}
+                                                    onClick={() => { if (!readOnly && !isEditT1 && !t1) startGradeEdit(gs.id, student.id, 't1', t1); }}
                                                     style={{ background: msColors.rowBase, border: `0.5px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
                                                     {isEditT1 ? (
                                                         <input
@@ -1018,7 +1023,7 @@ function MarkSheet({
                                                             <span style={{ fontSize: 12, fontWeight: 700, color: t1 ? gradeValColor(t1) : msColors.hdrBorder }}>
                                                                 {t1 ?? '—'}
                                                             </span>
-                                                            {t1 && (
+                                                            {t1 && !readOnly && (
                                                                 <span className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-60 transition-opacity cursor-pointer"
                                                                     onClick={e => { e.stopPropagation(); startGradeEdit(gs.id, student.id, 't1', t1); }}>
                                                                     <Pencil size={7} color={msColors.hdrText} />
@@ -1027,8 +1032,8 @@ function MarkSheet({
                                                         </>
                                                     )}
                                                 </td>
-                                                <td className={`px-1 py-1 text-center group relative ${!t2 ? 'cursor-pointer' : ''}`}
-                                                    onClick={() => { if (!isEditT2 && !t2) startGradeEdit(gs.id, student.id, 't2', t2); }}
+                                                <td className={`px-1 py-1 text-center group relative ${!t2 && !readOnly ? 'cursor-pointer' : ''}`}
+                                                    onClick={() => { if (!readOnly && !isEditT2 && !t2) startGradeEdit(gs.id, student.id, 't2', t2); }}
                                                     style={{ background: msColors.rowBase, border: `0.5px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
                                                     {isEditT2 ? (
                                                         <input
@@ -1049,7 +1054,7 @@ function MarkSheet({
                                                             <span style={{ fontSize: 12, fontWeight: 700, color: t2 ? gradeValColor(t2) : msColors.hdrBorder }}>
                                                                 {t2 ?? '—'}
                                                             </span>
-                                                            {t2 && (
+                                                            {t2 && !readOnly && (
                                                                 <span className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-60 transition-opacity cursor-pointer"
                                                                     onClick={e => { e.stopPropagation(); startGradeEdit(gs.id, student.id, 't2', t2); }}>
                                                                     <Pencil size={7} color={msColors.hdrText} />
@@ -1881,6 +1886,7 @@ export default function MarksTab({
     onSubTabChange,
     onStatsChange,
     restrictToSubjectId,
+    readOnly,
 }: {
     divisionName: string;
     subjects: { id: string; name: string; code: string; color: string }[];
@@ -1888,6 +1894,7 @@ export default function MarksTab({
     onSubTabChange: (tab: MarksSubTab) => void;
     onStatsChange: (stats: MarksStats) => void;
     restrictToSubjectId?: string | null;
+    readOnly?: boolean;
 }) {
     const mappedSubjects: Subject[] = subjects.map(s => ({
         id: s.id, name: s.name, code: s.code, color: s.color,
@@ -1904,6 +1911,7 @@ export default function MarksTab({
                     isActive={subTab === "offline"}
                     onStatsChange={onStatsChange}
                     restrictToSubjectId={restrictToSubjectId}
+                    readOnly={readOnly}
                 />
             </div>
             <div className={subTab === "online" ? "flex-1 min-h-0 flex flex-col pt-3 pb-3 px-1" : "hidden"}>
@@ -1915,6 +1923,7 @@ export default function MarksTab({
                     isActive={subTab === "online"}
                     onStatsChange={onStatsChange}
                     restrictToSubjectId={restrictToSubjectId}
+                    readOnly={readOnly}
                 />
             </div>
             {subTab === "overall" && (

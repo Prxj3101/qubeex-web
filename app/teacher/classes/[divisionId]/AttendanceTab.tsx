@@ -99,7 +99,7 @@ function StatusBtn({ label, active, onClick, disabled }: {
 }
 
 // ── Attendance Sheet (Right Panel) ────────────────────────────────────────────
-function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRemarks, onHolidayChange, onRemarkChange, divisionName, divisionId, refreshKey }: {
+function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRemarks, onHolidayChange, onRemarkChange, divisionName, divisionId, refreshKey, attBase, readOnly }: {
     students: AttendanceStudent[];
     selectedDate: Date;
     attendance: Record<string, { status: AttendanceStatus; remark: string }>;
@@ -108,6 +108,8 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     divisionName: string;
     divisionId: string;
     refreshKey: number;
+    attBase: string;
+    readOnly?: boolean;
     onHolidayChange: (dk: string, name: string | null) => void;
     onRemarkChange: (dk: string, remark: string) => void;
 }) {
@@ -136,7 +138,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     // ── Fetch monthly data when activeMonth or refreshKey changes ─────────────
     useEffect(() => {
         const monthStr = `${year}-${String(activeMonth + 1).padStart(2, '0')}`;
-        api.get(`/teacher/attendance/${divisionId}/monthly?month=${monthStr}`)
+        api.get(`${attBase}/monthly?month=${monthStr}`)
             .then(res => {
                 const recs: Record<string, AttendanceStatus> = {};
                 res.data.data.records.forEach((r: { studentId: string; date: string; status: string }) => {
@@ -232,6 +234,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     }, []);
 
     const handleDateClick = (d: number, e: React.MouseEvent) => {
+        if (readOnly) return;
         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
         setPopupPos({ x: rect.left, y: rect.bottom + 4 });
         setPopupDate(prev => prev === d ? null : d);
@@ -611,12 +614,13 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
 }
 
 // ── Overall Tab ───────────────────────────────────────────────────────────────
-function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onStatsLoad }: {
+function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onStatsLoad, attBase }: {
     divisionName: string;
     divisionId: string;
     holidays: Record<string, string>;
     onSwitchToDaily: () => void;
     onStatsLoad?: (stats: { overall: number | null; thisMonth: number | null }) => void;
+    attBase: string;
 }) {
     const [summaryStudents, setSummaryStudents] = useState<SummaryStudent[]>([]);
     const [classStats, setClassStats] = useState<ClassStats | null>(null);
@@ -631,7 +635,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
-        api.get(`/teacher/attendance/${divisionId}/summary`)
+        api.get(`${attBase}/summary`)
             .then(res => {
                 if (cancelled) return;
                 const { students, classStats: cs } = res.data.data;
@@ -650,7 +654,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
         if (!selectedStudent) return;
         setLoadingStudentRec(true);
         const year = new Date().getFullYear();
-        api.get(`/teacher/attendance/${divisionId}/student-records/${selectedStudent.studentId}?year=${year}`)
+        api.get(`${attBase}/student-records/${selectedStudent.studentId}?year=${year}`)
             .then(res => {
                 const recs: Record<string, AttendanceStatus> = {};
                 res.data.data.records.forEach((r: { date: string; status: string }) => {
@@ -1143,11 +1147,13 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
 }
 
 // ── Daily Attendance Tab ──────────────────────────────────────────────────────
-function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHolidayChange, onStudentsWithPctLoad }: {
+function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHolidayChange, onStudentsWithPctLoad, attBase, readOnly }: {
     divisionName: string;
     divisionId: string;
     students: AttendanceStudent[];
     holidays: Record<string, string>;
+    attBase: string;
+    readOnly?: boolean;
     onHolidayChange: (dk: string, name: string | null) => void;
     onStudentsWithPctLoad: (pcts: Record<string, number | null>) => void;
 }) {
@@ -1177,7 +1183,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     useEffect(() => {
         if (students.length === 0) return;
         setLoadingDate(true);
-        api.get(`/teacher/attendance/${divisionId}/daily?date=${currentDk}`)
+        api.get(`${attBase}/daily?date=${currentDk}`)
             .then(res => {
                 const { records, dateNote } = res.data.data;
                 const newAtt = Object.fromEntries(students.map(s => [s.id, { status: null as AttendanceStatus, remark: '' }]));
@@ -1203,6 +1209,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
 
     const handleHolidayChange = async (dk: string, name: string | null) => {
         onHolidayChange(dk, name);
+        if (readOnly) return;
         try {
             await api.post(`/teacher/attendance/${divisionId}/holidays`, { date: dk, name });
         } catch (err) {
@@ -1216,8 +1223,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
         setDateRemarks(prev => ({ ...prev, [dk]: remark }));
         if (dk === currentDk) {
             setGlobalRemark(remark);
-        } else {
-            // Save date note for non-current dates immediately (empty records = just update note)
+        } else if (!readOnly) {
             api.post(`/teacher/attendance/${divisionId}/daily`, {
                 date: dk,
                 records: [],
@@ -1348,17 +1354,21 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                             </AnimatePresence>
                         </div>
 
-                        <div className="flex-1 flex items-center gap-2 h-8 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 transition-all">
-                            <MessageSquare size={12} className="text-muted-foreground shrink-0" />
-                            <input value={globalRemark} onChange={e => { setGlobalRemark(e.target.value); setDateRemarks(prev => ({ ...prev, [currentDk]: e.target.value })); }}
-                                placeholder="Remark for this day..."
-                                className="flex-1 bg-transparent text-xs placeholder:text-muted-foreground/50 focus:outline-none" />
-                        </div>
+                        {!readOnly && (
+                            <div className="flex-1 flex items-center gap-2 h-8 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 transition-all">
+                                <MessageSquare size={12} className="text-muted-foreground shrink-0" />
+                                <input value={globalRemark} onChange={e => { setGlobalRemark(e.target.value); setDateRemarks(prev => ({ ...prev, [currentDk]: e.target.value })); }}
+                                    placeholder="Remark for this day..."
+                                    className="flex-1 bg-transparent text-xs placeholder:text-muted-foreground/50 focus:outline-none" />
+                            </div>
+                        )}
 
-                        <button onClick={markAllPresent} disabled={isCurrentDayHoliday || isCurrentDaySunday || students.length === 0}
-                            className="flex items-center gap-1 h-8 px-2.5 rounded-xl text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40 hover:opacity-80 transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed">
-                            <CheckCircle2 size={11} /> All P
-                        </button>
+                        {!readOnly && (
+                            <button onClick={markAllPresent} disabled={isCurrentDayHoliday || isCurrentDaySunday || students.length === 0}
+                                className="flex items-center gap-1 h-8 px-2.5 rounded-xl text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40 hover:opacity-80 transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed">
+                                <CheckCircle2 size={11} /> All P
+                            </button>
+                        )}
                     </div>
 
                     {isCurrentDayHoliday && (
@@ -1390,26 +1400,30 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                                         <p className="text-[10px] text-muted-foreground">Roll No. {student.rollNo}</p>
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
-                                        <StatusBtn label="P" active={rec.status === 'P'} onClick={() => setStatus(student.id, 'P')} disabled={isCurrentDayHoliday || isCurrentDaySunday} />
-                                        <StatusBtn label="A" active={rec.status === 'A'} onClick={() => setStatus(student.id, 'A')} disabled={isCurrentDayHoliday || isCurrentDaySunday} />
-                                        <StatusBtn label="L" active={rec.status === 'L'} onClick={() => setStatus(student.id, 'L')} disabled={isCurrentDayHoliday || isCurrentDaySunday} />
+                                        <StatusBtn label="P" active={rec.status === 'P'} onClick={() => setStatus(student.id, 'P')} disabled={readOnly || isCurrentDayHoliday || isCurrentDaySunday} />
+                                        <StatusBtn label="A" active={rec.status === 'A'} onClick={() => setStatus(student.id, 'A')} disabled={readOnly || isCurrentDayHoliday || isCurrentDaySunday} />
+                                        <StatusBtn label="L" active={rec.status === 'L'} onClick={() => setStatus(student.id, 'L')} disabled={readOnly || isCurrentDayHoliday || isCurrentDaySunday} />
                                     </div>
-                                    <button onClick={() => setRemarkOpen(prev => prev === student.id ? null : student.id)}
-                                        className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 ${rec.remark ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:bg-muted border border-border/40'}`}>
-                                        <MessageSquare size={12} />
-                                    </button>
-                                </div>
-                                <AnimatePresence>
-                                    {remarkOpen === student.id && (
-                                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                                            <div className="px-4 pb-2.5">
-                                                <input autoFocus value={rec.remark} onChange={e => setRemark(student.id, e.target.value)}
-                                                    placeholder={`Remark for ${student.name}...`}
-                                                    className="w-full h-7 px-3 rounded-lg border border-border/40 bg-muted/30 text-xs focus:outline-none focus:border-primary/50 transition-all" />
-                                            </div>
-                                        </motion.div>
+                                    {!readOnly && (
+                                        <button onClick={() => setRemarkOpen(prev => prev === student.id ? null : student.id)}
+                                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all shrink-0 ${rec.remark ? 'text-primary bg-primary/10' : 'text-muted-foreground hover:bg-muted border border-border/40'}`}>
+                                            <MessageSquare size={12} />
+                                        </button>
                                     )}
-                                </AnimatePresence>
+                                </div>
+                                {!readOnly && (
+                                    <AnimatePresence>
+                                        {remarkOpen === student.id && (
+                                            <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                                                <div className="px-4 pb-2.5">
+                                                    <input autoFocus value={rec.remark} onChange={e => setRemark(student.id, e.target.value)}
+                                                        placeholder={`Remark for ${student.name}...`}
+                                                        className="w-full h-7 px-3 rounded-lg border border-border/40 bg-muted/30 text-xs focus:outline-none focus:border-primary/50 transition-all" />
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                )}
                             </div>
                         );
                     })}
@@ -1429,24 +1443,28 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                                 <span key={s.label} className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.cls}`}>{s.label}: {s.count}</span>
                             ))}
                         </div>
-                        <button onClick={handleSave} disabled={saving || students.length === 0 || (unmarked > 0 && !isCurrentDayHoliday && !isCurrentDaySunday)}
-                            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
-                            style={{ background: saved ? '#10b981' : 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                            {saving ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                : saved ? <CheckCircle2 size={13} /> : <Save size={13} />}
-                            {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Attendance'}
-                        </button>
+                        {!readOnly && (
+                            <button onClick={handleSave} disabled={saving || students.length === 0 || (unmarked > 0 && !isCurrentDayHoliday && !isCurrentDaySunday)}
+                                className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
+                                style={{ background: saved ? '#10b981' : 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                {saving ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                    : saved ? <CheckCircle2 size={13} /> : <Save size={13} />}
+                                {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Attendance'}
+                            </button>
+                        )}
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                        {isCurrentDayHoliday
-                            ? <span className="text-red-500 font-semibold">🏖️ Holiday — no attendance</span>
-                            : isCurrentDaySunday
-                                ? <span className="text-red-500 font-semibold">🔴 Sunday — no attendance</span>
-                                : unmarked > 0
-                                    ? <span className="text-amber-500 font-semibold">{unmarked} student{unmarked > 1 ? 's' : ''} unmarked</span>
-                                    : <span className="text-emerald-500 font-semibold">All students marked ✓</span>
-                        }
-                    </p>
+                    {!readOnly && (
+                        <p className="text-[11px] text-muted-foreground">
+                            {isCurrentDayHoliday
+                                ? <span className="text-red-500 font-semibold">🏖️ Holiday — no attendance</span>
+                                : isCurrentDaySunday
+                                    ? <span className="text-red-500 font-semibold">🔴 Sunday — no attendance</span>
+                                    : unmarked > 0
+                                        ? <span className="text-amber-500 font-semibold">{unmarked} student{unmarked > 1 ? 's' : ''} unmarked</span>
+                                        : <span className="text-emerald-500 font-semibold">All students marked ✓</span>
+                            }
+                        </p>
+                    )}
                 </div>
             </div>
 
@@ -1462,6 +1480,8 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                 divisionName={divisionName}
                 divisionId={divisionId}
                 refreshKey={refreshKey}
+                attBase={attBase}
+                readOnly={readOnly}
             />
         </div>
     );
@@ -1471,7 +1491,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
 export type AttendanceSubTab = 'overall' | 'daily';
 
 export default function AttendanceTab({
-    divisionId, divisionName, isClassTeacher, attendanceSubTab, onAttendanceSubTabChange, onHeaderStatsLoad,
+    divisionId, divisionName, isClassTeacher, attendanceSubTab, onAttendanceSubTabChange, onHeaderStatsLoad, readOnly,
 }: {
     divisionId: string;
     divisionName: string;
@@ -1479,15 +1499,23 @@ export default function AttendanceTab({
     attendanceSubTab: AttendanceSubTab;
     onAttendanceSubTabChange: (tab: AttendanceSubTab) => void;
     onHeaderStatsLoad?: (stats: { overall: number | null; thisMonth: number | null }) => void;
+    readOnly?: boolean;
 }) {
+    const attBase = readOnly
+        ? `/admin/campus/divisions/${divisionId}/attendance`
+        : `/teacher/attendance/${divisionId}`;
+    const studentsUrl = readOnly
+        ? `/admin/campus/divisions/${divisionId}/students`
+        : `/teacher/classes/${divisionId}/students`;
+
     const [students, setStudents] = useState<AttendanceStudent[]>([]);
     const [holidays, setHolidays] = useState<Record<string, string>>({});
 
     useEffect(() => {
         let cancelled = false;
         Promise.all([
-            api.get(`/teacher/classes/${divisionId}/students`),
-            api.get(`/teacher/attendance/${divisionId}/holidays`),
+            api.get(studentsUrl),
+            api.get(`${attBase}/holidays`),
         ]).then(([studRes, holRes]) => {
             if (cancelled) return;
             const s: AttendanceStudent[] = studRes.data.data.map((st: {
@@ -1530,6 +1558,7 @@ export default function AttendanceTab({
                             holidays={holidays}
                             onSwitchToDaily={() => onAttendanceSubTabChange('daily')}
                             onStatsLoad={onHeaderStatsLoad}
+                            attBase={attBase}
                         />
                     </motion.div>
                 ) : (
@@ -1541,6 +1570,8 @@ export default function AttendanceTab({
                             holidays={holidays}
                             onHolidayChange={handleHolidayChange}
                             onStudentsWithPctLoad={handleStudentsWithPctLoad}
+                            attBase={attBase}
+                            readOnly={readOnly}
                         />
                     </motion.div>
                 )}
