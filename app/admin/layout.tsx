@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Topbar } from '@/components/shared/Topbar';
 import { useAuthStore } from '@/store/authStore';
+import api from '@/lib/api';
 import {
     LayoutDashboard,
     Building2,
@@ -14,53 +15,77 @@ import {
 } from 'lucide-react';
 import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
 
+// Parent nav unlocks if user has ANY of the listed child permission keys
 const ALL_NAV_ITEMS = [
-    { label: 'Overview',   href: '/admin/overview',           icon: LayoutDashboard, permission: null as string | null },
-    { label: 'Staff',      href: '/admin/staff',              icon: Users,           permission: null as string | null, subAdminLocked: true },
-    { label: 'Campus',     href: '/admin/campus',             icon: Building2,       permission: 'CAMPUS_OR_FEES' as string | null },
-    { label: 'Insights',   href: '/admin/insights/analytics', icon: LineChart,       activePath: '/admin/insights', permission: null as string | null, subAdminLocked: true },
-    { label: 'Support',    href: '/admin/support/tickets',    icon: Headset,         activePath: '/admin/support',  permission: null as string | null },
-    { label: 'Audit Logs', href: '/admin/audit-logs',         icon: ScrollText,      permission: null as string | null, subAdminLocked: true },
+    { label: 'Overview',   href: '/admin/overview',           icon: LayoutDashboard, childKeys: [] as string[] },
+    { label: 'Staff',      href: '/admin/staff',              icon: Users,           childKeys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
+    { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES'] },
+    { label: 'Insights',   href: '/admin/insights/analytics', icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS'] },
+    { label: 'Support',    href: '/admin/support/tickets',    icon: Headset,         activePath: '/admin/support',  childKeys: ['SUPPORT'] },
+    { label: 'Audit Logs', href: '/admin/audit-logs',         icon: ScrollText,      childKeys: ['AUDIT_LOGS'] },
 ];
 
-// Paths that redirect to overview when a subadmin tries to access them directly
-const SUBADMIN_LOCKED_PREFIXES = ['/admin/staff', '/admin/insights', '/admin/audit-logs'];
+// Which permission keys gate each path prefix
+const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
+    { prefix: '/admin/staff',      keys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
+    { prefix: '/admin/campus',     keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES'] },
+    { prefix: '/admin/insights',   keys: ['INSIGHTS'] },
+    { prefix: '/admin/support',    keys: ['SUPPORT'] },
+    { prefix: '/admin/audit-logs', keys: ['AUDIT_LOGS'] },
+];
 
-function canSubAdminAccessPath(pathname: string, permissions: string[]): boolean {
-    if (SUBADMIN_LOCKED_PREFIXES.some(p => pathname.startsWith(p))) return false;
-    if (pathname.startsWith('/admin/campus') && !permissions.includes('CAMPUS') && !permissions.includes('FEES')) return false;
+function isPathAccessible(pathname: string, permissions: string[]): boolean {
+    for (const { prefix, keys } of LOCKED_PREFIX_TO_KEYS) {
+        if (pathname.startsWith(prefix)) {
+            return keys.some(k => permissions.includes(k));
+        }
+    }
     return true;
 }
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const { instType, setInstType } = useMockInstType();
-    const { user } = useAuthStore();
+    const { user, setUser } = useAuthStore();
     const pathname = usePathname();
     const router = useRouter();
 
     const isSubAdmin = user?.role === 'SUB_ADMIN';
     const permissions = user?.permissions ?? [];
 
-    // Redirect subadmins away from locked URLs
+    // Keep a ref to user so the async callback always reads the latest value without being a dep
+    const userRef = useRef(user);
+    userRef.current = user;
+    const lastSyncRef = useRef(0);
+
+    // Re-sync permissions from DB on every navigation, throttled to once per 30 s.
+    // This ensures the store stays current when an admin updates permissions mid-session.
     useEffect(() => {
-        if (isSubAdmin && !canSubAdminAccessPath(pathname, permissions)) {
+        if (!isSubAdmin) return;
+        const now = Date.now();
+        if (now - lastSyncRef.current < 30_000) return;
+        lastSyncRef.current = now;
+        api.get('/admin/subadmin/me').then(res => {
+            const fresh: string[] | null = res.data?.data?.permissions;
+            const currentUser = userRef.current;
+            if (!currentUser) return;
+            if (fresh && JSON.stringify(fresh) !== JSON.stringify(currentUser.permissions)) {
+                setUser({ ...currentUser, permissions: fresh });
+            }
+        }).catch(() => { /* non-blocking */ });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSubAdmin, pathname]);
+
+    useEffect(() => {
+        if (isSubAdmin && !isPathAccessible(pathname, permissions)) {
             router.replace('/admin/overview');
         }
     }, [isSubAdmin, pathname, permissions, router]);
 
-    const navItems = ALL_NAV_ITEMS.map(item => {
-        const { permission, subAdminLocked, ...rest } = item;
-
-        if (!isSubAdmin) return { ...rest, locked: false };
-
-        if (subAdminLocked) return { ...rest, locked: true };
-
-        if (permission === 'CAMPUS_OR_FEES') {
-            const canAccess = permissions.includes('CAMPUS') || permissions.includes('FEES');
-            return { ...rest, locked: !canAccess };
-        }
-
-        return { ...rest, locked: false };
+    const navItems = ALL_NAV_ITEMS.map(({ childKeys, ...item }) => {
+        if (!isSubAdmin) return { ...item, locked: false };
+        if (childKeys.length === 0) return { ...item, locked: false };
+        const hasAccess = childKeys.some(k => permissions.includes(k));
+        return { ...item, locked: !hasAccess };
     });
 
     return (

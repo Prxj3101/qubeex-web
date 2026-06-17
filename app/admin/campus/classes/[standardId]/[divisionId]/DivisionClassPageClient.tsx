@@ -16,6 +16,8 @@ import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidatio
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { assignSubjectColor } from '@/lib/subjectColors';
 import { FeesTab } from './fees';
+import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[divisionId]/AttendanceTab';
+import MarksTab, { MarksSubTab } from '@/app/teacher/classes/[divisionId]/MarksTab';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -714,9 +716,11 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const TABS = [
-    { key: 'overview' as const, label: 'View' },
-    { key: 'manage' as const, label: 'Manage' },
-    { key: 'fees' as const, label: 'Fees' },
+    { key: 'overview' as const,    label: 'View' },
+    { key: 'manage' as const,      label: 'Manage' },
+    { key: 'fees' as const,        label: 'Fees' },
+    { key: 'attendance' as const,  label: 'Attendance' },
+    { key: 'marksheet' as const,   label: 'Marksheet' },
 ];
 
 export default function DivisionDetailPage() {
@@ -730,19 +734,26 @@ export default function DivisionDetailPage() {
     const { user } = useAuthStore();
     const subAdminPermissions = user?.role === 'SUB_ADMIN' ? (user.permissions ?? []) : null;
 
-    function isTabLocked(tabKey: 'overview' | 'manage' | 'fees'): boolean {
+    function isTabLocked(tabKey: 'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'): boolean {
         if (!subAdminPermissions) return false;
-        const hasCampus = subAdminPermissions.includes('CAMPUS');
-        const hasFees = subAdminPermissions.includes('FEES');
-        if (tabKey === 'fees') return !hasFees && !hasCampus;
-        if (tabKey === 'manage') return !hasCampus;
+        const hasCampusView = subAdminPermissions.includes('CAMPUS_VIEW');
+        const hasCampusManage = subAdminPermissions.includes('CAMPUS_MANAGE');
+        const hasCampusFees = subAdminPermissions.includes('CAMPUS_FEES');
+        if (tabKey === 'overview')    return !hasCampusView && !hasCampusManage;
+        if (tabKey === 'manage')      return !hasCampusManage;
+        if (tabKey === 'fees')        return !hasCampusFees && !hasCampusManage;
+        if (tabKey === 'attendance')  return !hasCampusView && !hasCampusManage;
+        if (tabKey === 'marksheet')   return !hasCampusView && !hasCampusManage;
         return false;
     }
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'fees'>(() => {
-        if (subAdminPermissions && !subAdminPermissions.includes('CAMPUS') && subAdminPermissions.includes('FEES')) {
-            return 'fees';
-        }
+    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'>(() => {
+        if (!subAdminPermissions) return 'overview';
+        const hasCampusView = subAdminPermissions.includes('CAMPUS_VIEW');
+        const hasCampusManage = subAdminPermissions.includes('CAMPUS_MANAGE');
+        const hasCampusFees = subAdminPermissions.includes('CAMPUS_FEES');
+        if (hasCampusView || hasCampusManage) return 'overview';
+        if (hasCampusFees) return 'fees';
         return 'overview';
     });
     const [manageTab, setManageTab] = useState<'teachers' | 'subjects'>('teachers');
@@ -768,6 +779,9 @@ export default function DivisionDetailPage() {
     const [togglingSubject, setTogglingSubject] = useState<string | null>(null);
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
     const [feesSubTab, setFeesSubTab] = useState<'setup' | 'students'>('students');
+    const [attendanceSubTab, setAttendanceSubTab] = useState<AttendanceSubTab>('daily');
+    const [attendanceHeaderStats, setAttendanceHeaderStats] = useState<{ overall: number | null; thisMonth: number | null }>({ overall: null, thisMonth: null });
+    const [marksheetSubTab, setMarksheetSubTab] = useState<MarksSubTab>('offline');
     const [timetableImage, setTimetableImage] = useState<string | null>(null);
     const [leaderTab, setLeaderTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const timetableInputRef = useRef<HTMLInputElement>(null);
@@ -869,23 +883,27 @@ export default function DivisionDetailPage() {
         }
     };
 
+    const canFetchTeachers = !subAdminPermissions || subAdminPermissions.includes('STAFF_TEACHERS') || subAdminPermissions.includes('CAMPUS_MANAGE');
+    const canFetchPosts = !subAdminPermissions || subAdminPermissions.includes('CAMPUS_VIEW') || subAdminPermissions.includes('CAMPUS_MANAGE');
+
     const fetchAll = useCallback(async () => {
         try {
             const [divRes, teachersRes, postsRes] = await Promise.all([
                 api.get(`/admin/campus/divisions/${divisionId}`),
-                api.get('/admin/teachers'),
-                api.get('/admin/campus/feed/posts', { params: { divisionId, limit: 50 } }),
+                canFetchTeachers ? api.get('/admin/teachers') : Promise.resolve({ data: { data: [] } }),
+                canFetchPosts ? api.get('/admin/campus/feed/posts', { params: { divisionId, limit: 50 } }) : Promise.resolve({ data: { data: [] } }),
             ]);
             setDivision(divRes.data.data);
             setTeachers(teachersRes.data.data ?? []);
             setAnnouncements(postsRes.data.data ?? []);
         } catch (err: unknown) {
-            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-            toast.error(msg ?? 'Failed to load division');
+            const msg = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error
+                ?? (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to load class');
         } finally {
             setLoading(false);
         }
-    }, [divisionId]);
+    }, [divisionId, canFetchTeachers, canFetchPosts]);
 
     useEffect(() => {
         if (fetchedRef.current) return;
@@ -1085,6 +1103,42 @@ export default function DivisionDetailPage() {
                                     <p className="text-lg font-bold leading-tight text-red-500">5</p>
                                     <p className="text-[11px] text-muted-foreground">Pending</p>
                                 </div>
+                            </div>
+                        )}
+
+                        {activeTab === 'attendance' && (
+                            <div className="flex items-center gap-4">
+                                <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
+                                    {([{ key: 'daily', label: 'Daily' }, { key: 'overall', label: 'Overall' }] as const).map(tab => (
+                                        <button key={tab.key} onClick={() => setAttendanceSubTab(tab.key)}
+                                            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${attendanceSubTab === tab.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            {tab.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                {attendanceSubTab === 'overall' && (
+                                    <>
+                                        <div className="text-right">
+                                            <p className="text-lg font-bold leading-tight text-emerald-600">{attendanceHeaderStats.overall !== null ? `${attendanceHeaderStats.overall}%` : '—'}</p>
+                                            <p className="text-[11px] text-muted-foreground">Class Overall</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-lg font-bold leading-tight text-primary">{attendanceHeaderStats.thisMonth !== null ? `${attendanceHeaderStats.thisMonth}%` : '—'}</p>
+                                            <p className="text-[11px] text-muted-foreground">This Month</p>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+
+                        {activeTab === 'marksheet' && (
+                            <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
+                                {([{ key: 'offline', label: 'Offline' }, { key: 'online', label: 'Online' }] as const).map(tab => (
+                                    <button key={tab.key} onClick={() => setMarksheetSubTab(tab.key)}
+                                        className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${marksheetSubTab === tab.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                        {tab.label}
+                                    </button>
+                                ))}
                             </div>
                         )}
                     </div>
@@ -1756,6 +1810,42 @@ export default function DivisionDetailPage() {
                                 divisionId={divisionId}
                                 divisionName={division.name}
                                 feesSubTab={feesSubTab}
+                            />
+                        </motion.div>
+                    )}
+
+                    {/* ── TAB 4: ATTENDANCE ── */}
+                    {activeTab === 'attendance' && (
+                        <motion.div key="attendance" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                            <AttendanceTab
+                                divisionId={divisionId}
+                                divisionName={division.name}
+                                isClassTeacher={false}
+                                attendanceSubTab={attendanceSubTab}
+                                onAttendanceSubTabChange={setAttendanceSubTab}
+                                onHeaderStatsLoad={setAttendanceHeaderStats}
+                                readOnly={true}
+                            />
+                        </motion.div>
+                    )}
+
+                    {/* ── TAB 5: MARKSHEET ── */}
+                    {activeTab === 'marksheet' && (
+                        <motion.div key="marksheet" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                            <MarksTab
+                                subjects={division.standard.subjects
+                                    .filter(s => division.divisionSubjects.some(ds => ds.subjectId === s.id))
+                                    .map(s => ({
+                                        id: s.id,
+                                        name: s.name,
+                                        code: s.code ?? s.name.slice(0, 4).toUpperCase(),
+                                        color: s.color ?? '#7C3AED',
+                                    }))}
+                                divisionName={division.name}
+                                subTab={marksheetSubTab}
+                                onSubTabChange={setMarksheetSubTab}
+                                onStatsChange={() => {}}
+                                readOnly={true}
                             />
                         </motion.div>
                     )}

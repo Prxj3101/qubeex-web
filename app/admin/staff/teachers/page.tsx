@@ -18,7 +18,7 @@ import { useRouter } from 'next/navigation';
 import {
     Plus, Search, X, Users, Mail, Phone,
     CalendarDays, BookOpen, Edit2, PowerOff, Power,
-    GraduationCap, Hash, Layers, Eye, Sparkles, MapPin, Briefcase, MailCheck
+    GraduationCap, Hash, Layers, Eye, Sparkles, MapPin, Briefcase, MailCheck, Trash2
 } from 'lucide-react';
 
 import { useMockInstType } from '@/context/MockInstTypeContext';
@@ -133,13 +133,14 @@ type ModalState =
     | { type: 'add' }
     | { type: 'edit'; teacher: Teacher }
     | { type: 'deactivate'; teacher: Teacher }
-    | { type: 'resendInvite'; teacher: Teacher };
+    | { type: 'resendInvite'; teacher: Teacher }
+    | { type: 'delete'; teacher: Teacher };
 
 
 // ── Teacher Card ──────────────────────────────────────────────────────────────
 function TeacherCard({
     teacher, index, instType,
-    onEdit, onToggleStatus, onResendInvite,
+    onEdit, onToggleStatus, onResendInvite, onDelete,
 }: {
     teacher: Teacher;
     index: number;
@@ -147,6 +148,7 @@ function TeacherCard({
     onEdit: (t: Teacher) => void;
     onToggleStatus: (t: Teacher) => void;
     onResendInvite: (t: Teacher) => void;
+    onDelete: (t: Teacher) => void;
 }) {
     const avatarColor = getAvatarColor(teacher.id);
     const isActive = teacher.status === 'ACTIVE';
@@ -325,6 +327,13 @@ function TeacherCard({
                         {isActive ? 'Deactivate' : 'Activate'}
                     </button>
                 )}
+                <button
+                    onClick={() => onDelete(teacher)}
+                    className="w-9 h-9 flex items-center justify-center rounded-xl border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 dark:border-red-800 dark:hover:bg-red-950/30 transition-all duration-150 shrink-0"
+                    title="Permanently delete teacher"
+                >
+                    <Trash2 size={13} />
+                </button>
             </div>
         </motion.div>
     );
@@ -418,6 +427,20 @@ export default function TeachersPage() {
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
             toast.error(msg ?? 'Failed to resend invite');
+        } finally { setActionLoading(false); }
+    }, [modal]);
+
+    const handleDeleteTeacher = useCallback(async () => {
+        if (modal.type !== 'delete') return;
+        setActionLoading(true);
+        try {
+            await api.delete(`/admin/teachers/${modal.teacher.id}`);
+            setTeachers(prev => prev.filter(t => t.id !== modal.teacher.id));
+            toast.success('Teacher permanently deleted');
+            setModal({ type: 'closed' });
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+            toast.error(msg ?? 'Failed to delete teacher');
         } finally { setActionLoading(false); }
     }, [modal]);
 
@@ -520,6 +543,7 @@ export default function TeachersPage() {
                                 onEdit={t => setModal({ type: 'edit', teacher: t })}
                                 onToggleStatus={t => setModal({ type: 'deactivate', teacher: t })}
                                 onResendInvite={t => setModal({ type: 'resendInvite', teacher: t })}
+                                onDelete={t => setModal({ type: 'delete', teacher: t })}
                             />
                         ))}
                     </div>
@@ -573,6 +597,17 @@ export default function TeachersPage() {
                 onConfirm={handleResendInvite}
                 confirmLabel="Resend Invite"
                 description="A new invite email will be sent. The previous invite link will be invalidated."
+            />
+
+            <DeleteConfirmDialog
+                open={modal.type === 'delete'}
+                onOpenChange={v => !v && setModal({ type: 'closed' })}
+                label="Teacher"
+                name={modal.type === 'delete' ? modal.teacher.name : ''}
+                loading={actionLoading}
+                onConfirm={handleDeleteTeacher}
+                confirmLabel="Delete"
+                description="This will permanently delete the teacher and all their data — assignments, questions, tests, and blackboard content. This cannot be undone."
             />
         </div>
     );
