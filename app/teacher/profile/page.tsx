@@ -6,7 +6,7 @@ import { motion } from 'framer-motion';
 import {
     Hash, Mail, Phone, MapPin, Calendar, User,
     GraduationCap, Briefcase, Edit2, Check, X,
-    BookOpen, Layers, Camera,
+    BookOpen, Layers, Camera, Tag,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -50,13 +50,32 @@ function formatDate(iso?: string) {
     return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
+// ── Verified Badge ────────────────────────────────────────────────────────────
+function VerifiedBadge() {
+    return (
+        <svg width="14" height="14" viewBox="0 0 40 40" fill="none">
+            <path d="M20 2
+                L23.5 6.5 L29 5 L31.5 10.5 L37.5 12
+                L36 18 L40 22 L36 26 L37.5 32
+                L31.5 33.5 L29 39 L23.5 37.5
+                L20 42 L16.5 37.5 L11 39
+                L8.5 33.5 L2.5 32 L4 26
+                L0 22 L4 18 L2.5 12
+                L8.5 10.5 L11 5 L16.5 6.5 Z"
+                fill="#DA7756" />
+            <path d="M13 21l5 5 9-10"
+                stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+}
+
 // ── Section Card ──────────────────────────────────────────────────────────────
 function SectionCard({ title, children, editBtn }: {
     title: React.ReactNode; children: React.ReactNode; editBtn?: React.ReactNode;
 }) {
     return (
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-muted/30">
+            <div className="flex items-center justify-between px-5 py-4 min-h-[60px] border-b border-border/50 bg-muted/30">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
                 {editBtn}
             </div>
@@ -101,6 +120,15 @@ export default function TeacherProfilePage() {
     const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
+    const TITLE_OPTIONS = ['Teacher', 'Professor', 'Asst. Teacher', 'Lecturer', 'HOD', 'Mentor', 'Tutor', 'Educator'];
+    const [titleDraft, setTitleDraft] = useState('Teacher');
+    const [titleSaved, setTitleSaved] = useState('Teacher');
+
+    const PREFIX_OPTIONS = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Er.', 'CA', 'Adv.'];
+    const defaultPrefix = teacher.gender === 'MALE' ? 'Mr.' : teacher.gender === 'FEMALE' ? 'Ms.' : '';
+    const [prefixDraft, setPrefixDraft] = useState(defaultPrefix);
+    const [prefixSaved, setPrefixSaved] = useState(defaultPrefix);
+
     const [personalDraft, setPersonalDraft] = useState({
         name: teacher.name, dob: teacher.dob, gender: teacher.gender,
     });
@@ -119,14 +147,14 @@ export default function TeacherProfilePage() {
     const [profSaved, setProfSaved] = useState({ ...profDraft });
 
     const cancelEdit = (s: string) => {
-        if (s === 'personal') setPersonalDraft({ ...personalSaved });
+        if (s === 'personal') { setPersonalDraft({ ...personalSaved }); setTitleDraft(titleSaved); setPrefixDraft(prefixSaved); }
         if (s === 'contact') setContactDraft({ ...contactSaved });
         if (s === 'prof') setProfDraft({ ...profSaved });
         setEditingSection(null);
     };
 
     const saveEdit = (s: string) => {
-        if (s === 'personal') setPersonalSaved({ ...personalDraft });
+        if (s === 'personal') { setPersonalSaved({ ...personalDraft }); setTitleSaved(titleDraft); setPrefixSaved(prefixDraft); }
         if (s === 'contact') setContactSaved({ ...contactDraft });
         if (s === 'prof') setProfSaved({ ...profDraft });
         setEditingSection(null);
@@ -204,16 +232,23 @@ export default function TeacherProfilePage() {
                         <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
-                                    <h2 className="text-lg font-bold leading-tight">{personalSaved.name}</h2>
+                                    <h2 className="text-lg font-bold leading-tight">
+                                        {prefixSaved && <span className="mr-1" style={{ color: '#DA7756' }}>{prefixSaved}</span>}
+                                        {personalSaved.name}
+                                    </h2>
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                        <p className="text-[11px] text-muted-foreground">{titleSaved}</p>
+                                        <VerifiedBadge />
+                                    </div>
                                     <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                         <span className="font-mono text-[12px] font-semibold tracking-wider" style={{ color: '#DA7756' }}>
                                             {teacher.teacherId}
                                         </span>
-                                        <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                                            Active
-                                        </span>
                                     </div>
                                 </div>
+                                <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 shrink-0">
+                                    Active
+                                </span>
                             </div>
                             <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
                                 {[
@@ -237,9 +272,62 @@ export default function TeacherProfilePage() {
                     <SectionCard title="Personal Info" editBtn={editBtns('personal')}>
                         {editingSection === 'personal' ? (
                             <>
-                                <EditableField label="Full Name" value={personalDraft.name} onChange={v => setPersonalDraft(d => ({ ...d, name: v }))} />
+                                {/* Full Name with prefix */}
+                                <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
+                                    <span className="text-xs text-muted-foreground w-28 shrink-0 mt-2">Full Name</span>
+                                    <div className="flex-1 space-y-2">
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {PREFIX_OPTIONS.map(opt => (
+                                                <button
+                                                    key={opt}
+                                                    onClick={() => setPrefixDraft(p => p === opt ? '' : opt)}
+                                                    className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
+                                                        prefixDraft === opt
+                                                            ? 'border-transparent text-white'
+                                                            : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
+                                                    }`}
+                                                    style={prefixDraft === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}
+                                                >
+                                                    {opt}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            {prefixDraft && (
+                                                <span className="text-xs font-semibold shrink-0" style={{ color: '#DA7756' }}>{prefixDraft}</span>
+                                            )}
+                                            <input
+                                                value={personalDraft.name}
+                                                onChange={e => setPersonalDraft(d => ({ ...d, name: e.target.value }))}
+                                                placeholder="Enter full name"
+                                                className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
                                 <EditableField label="Date of Birth" value={personalDraft.dob} onChange={v => setPersonalDraft(d => ({ ...d, dob: v }))} />
                                 <EditableField label="Gender" value={personalDraft.gender} onChange={v => setPersonalDraft(d => ({ ...d, gender: v }))} />
+                                {/* Title chooser */}
+                                <div className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
+                                    <Tag size={14} className="text-muted-foreground shrink-0 mt-1" />
+                                    <span className="text-xs text-muted-foreground w-28 shrink-0 mt-0.5">Display Title</span>
+                                    <div className="flex flex-wrap gap-1.5">
+                                        {TITLE_OPTIONS.map(opt => (
+                                            <button
+                                                key={opt}
+                                                onClick={() => setTitleDraft(opt)}
+                                                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
+                                                    titleDraft === opt
+                                                        ? 'border-transparent text-white'
+                                                        : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
+                                                }`}
+                                                style={titleDraft === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}
+                                            >
+                                                {opt}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                             </>
                         ) : (
                             <>
@@ -248,7 +336,14 @@ export default function TeacherProfilePage() {
                                         {teacher.teacherId}
                                     </span>
                                 } />
-                                <InfoRow icon={User} label="Full Name" value={personalSaved.name} />
+                                <InfoRow icon={User} label="Full Name" value={
+                                    <span>{prefixSaved && <span className="font-semibold mr-1" style={{ color: '#DA7756' }}>{prefixSaved}</span>}{personalSaved.name}</span>
+                                } />
+                                <InfoRow icon={Tag} label="Display Title" value={
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(218,119,86,0.12)', color: '#DA7756' }}>
+                                        {titleSaved}
+                                    </span>
+                                } />
                                 <InfoRow icon={Calendar} label="Date of Birth" value={formatDate(personalSaved.dob)} />
                                 <InfoRow icon={User} label="Gender" value={
                                     personalSaved.gender === 'MALE' ? 'Male'

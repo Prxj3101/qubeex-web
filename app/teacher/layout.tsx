@@ -17,7 +17,7 @@ const TEACHER_NAV_ITEMS = [
     { label: 'Classes', href: '/teacher/classes', icon: LayoutGrid, activePath: '/teacher/classes' },
     { label: 'Blackboard', href: '/teacher/blackboard', icon: Monitor },
     { label: 'Audit Logs', href: '/teacher/audit-logs', icon: ScrollText },
-    { label: 'Profile', href: '/teacher/profile', icon: User },
+    { label: 'My Profile', href: '/teacher/profile', icon: User },
 ];
 
 function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
