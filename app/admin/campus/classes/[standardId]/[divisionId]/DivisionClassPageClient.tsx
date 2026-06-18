@@ -736,26 +736,34 @@ export default function DivisionDetailPage() {
 
     function isTabLocked(tabKey: 'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'): boolean {
         if (!subAdminPermissions) return false;
-        const hasCampusView = subAdminPermissions.includes('CAMPUS_VIEW');
-        const hasCampusManage = subAdminPermissions.includes('CAMPUS_MANAGE');
-        const hasCampusFees = subAdminPermissions.includes('CAMPUS_FEES');
-        if (tabKey === 'overview')    return !hasCampusView && !hasCampusManage;
-        if (tabKey === 'manage')      return !hasCampusManage;
-        if (tabKey === 'fees')        return !hasCampusFees && !hasCampusManage;
-        if (tabKey === 'attendance')  return !hasCampusView && !hasCampusManage;
-        if (tabKey === 'marksheet')   return !hasCampusView && !hasCampusManage;
+        if (tabKey === 'overview')   return !subAdminPermissions.includes('CAMPUS_VIEW');
+        if (tabKey === 'manage')     return !subAdminPermissions.includes('CAMPUS_MANAGE');
+        if (tabKey === 'fees')       return !subAdminPermissions.includes('CAMPUS_FEES');
+        if (tabKey === 'attendance') return !subAdminPermissions.includes('CAMPUS_ATTENDANCE');
+        if (tabKey === 'marksheet')  return !subAdminPermissions.includes('CAMPUS_MARKSHEET');
         return false;
     }
 
     const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'>(() => {
         if (!subAdminPermissions) return 'overview';
-        const hasCampusView = subAdminPermissions.includes('CAMPUS_VIEW');
-        const hasCampusManage = subAdminPermissions.includes('CAMPUS_MANAGE');
-        const hasCampusFees = subAdminPermissions.includes('CAMPUS_FEES');
-        if (hasCampusView || hasCampusManage) return 'overview';
-        if (hasCampusFees) return 'fees';
+        if (subAdminPermissions.includes('CAMPUS_VIEW'))       return 'overview';
+        if (subAdminPermissions.includes('CAMPUS_MANAGE'))     return 'manage';
+        if (subAdminPermissions.includes('CAMPUS_FEES'))       return 'fees';
+        if (subAdminPermissions.includes('CAMPUS_ATTENDANCE')) return 'attendance';
+        if (subAdminPermissions.includes('CAMPUS_MARKSHEET'))  return 'marksheet';
         return 'overview';
     });
+
+    // When permissions update (30s poll), redirect away from now-locked tab
+    useEffect(() => {
+        if (!subAdminPermissions) return;
+        if (isTabLocked(activeTab)) {
+            const order: typeof activeTab[] = ['overview', 'manage', 'fees', 'attendance', 'marksheet'];
+            const first = order.find(t => !isTabLocked(t));
+            if (first) setActiveTab(first);
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subAdminPermissions]);
     const [manageTab, setManageTab] = useState<'teachers' | 'subjects'>('teachers');
     const [addingSubject, setAddingSubject] = useState(false);
     const [savingAssign, setSavingAssign] = useState(false);
@@ -884,18 +892,22 @@ export default function DivisionDetailPage() {
     };
 
     const canFetchTeachers = !subAdminPermissions || subAdminPermissions.includes('STAFF_TEACHERS') || subAdminPermissions.includes('CAMPUS_MANAGE');
-    const canFetchPosts = !subAdminPermissions || subAdminPermissions.includes('CAMPUS_VIEW') || subAdminPermissions.includes('CAMPUS_MANAGE');
+    const canFetchPosts = !subAdminPermissions || subAdminPermissions.includes('CAMPUS_VIEW');
 
     const fetchAll = useCallback(async () => {
         try {
-            const [divRes, teachersRes, postsRes] = await Promise.all([
+            // Use allSettled so a failed posts/teachers fetch (e.g. 403 during permission sync)
+            // doesn't prevent the division itself from loading.
+            const [divResult, teachersResult, postsResult] = await Promise.allSettled([
                 api.get(`/admin/campus/divisions/${divisionId}`),
                 canFetchTeachers ? api.get('/admin/teachers') : Promise.resolve({ data: { data: [] } }),
                 canFetchPosts ? api.get('/admin/campus/feed/posts', { params: { divisionId, limit: 50 } }) : Promise.resolve({ data: { data: [] } }),
             ]);
-            setDivision(divRes.data.data);
-            setTeachers(teachersRes.data.data ?? []);
-            setAnnouncements(postsRes.data.data ?? []);
+            // Division is critical — re-throw so the catch block handles it
+            if (divResult.status === 'rejected') throw divResult.reason;
+            setDivision(divResult.value.data.data);
+            setTeachers(teachersResult.status === 'fulfilled' ? (teachersResult.value.data.data ?? []) : []);
+            setAnnouncements(postsResult.status === 'fulfilled' ? (postsResult.value.data.data ?? []) : []);
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error
                 ?? (err as { response?: { data?: { message?: string } } })?.response?.data?.message;

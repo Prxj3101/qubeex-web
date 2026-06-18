@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Send, X, Rss, Paperclip } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
@@ -60,7 +61,7 @@ function formatRelative(iso: string) {
 }
 
 // ── Academic Calendar ─────────────────────────────────────────────────────────
-function AcademicCalendar() {
+function AcademicCalendar({ canManage }: { canManage: boolean }) {
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
@@ -162,7 +163,7 @@ function AcademicCalendar() {
                                     onClick={() => {
                                         setSelectedDate(d);
                                         if (evs.length > 0) setShowEventModal(true);
-                                        else { setAddDate(d); setShowAddModal(true); }
+                                        else if (canManage) { setAddDate(d); setShowAddModal(true); }
                                     }}
                                     className={`relative flex flex-col items-center justify-center aspect-square text-[10px] font-medium transition-all border-r border-b border-border/50
                                         ${isSelected ? 'bg-primary/15 text-primary' : ''}
@@ -191,7 +192,7 @@ function AcademicCalendar() {
                             </div>
                         ))}
                     </div>
-                    <p className="text-[10px] text-muted-foreground/60 mt-2 text-center">Click any date to add an event</p>
+                    {canManage && <p className="text-[10px] text-muted-foreground/60 mt-2 text-center">Click any date to add an event</p>}
                 </div>
             </div>
 
@@ -216,17 +217,21 @@ function AcademicCalendar() {
                                             <p className={`text-[11px] font-semibold ${EVENT_CFG[ev.type].text}`}>{EVENT_CFG[ev.type].label}</p>
                                             <p className={`text-xs font-bold ${EVENT_CFG[ev.type].text}`}>{ev.label}</p>
                                         </div>
-                                        <button onClick={() => handleDeleteEvent(ev.id)}
-                                            className="w-6 h-6 rounded-md flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all shrink-0">
-                                            <X size={12} />
-                                        </button>
+                                        {canManage && (
+                                            <button onClick={() => handleDeleteEvent(ev.id)}
+                                                className="w-6 h-6 rounded-md flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all shrink-0">
+                                                <X size={12} />
+                                            </button>
+                                        )}
                                     </div>
                                 ))}
                             </div>
-                            <button onClick={() => { setShowEventModal(false); setAddDate(selectedDate); setShowAddModal(true); }}
-                                className="mt-3 w-full py-2 rounded-xl border border-border/50 text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
-                                + Add another event
-                            </button>
+                            {canManage && (
+                                <button onClick={() => { setShowEventModal(false); setAddDate(selectedDate); setShowAddModal(true); }}
+                                    className="mt-3 w-full py-2 rounded-xl border border-border/50 text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    + Add another event
+                                </button>
+                            )}
                         </motion.div>
                     </div>
                 )}
@@ -291,7 +296,7 @@ function VerifiedBadge() {
 }
 
 // ── Feed Post Card ────────────────────────────────────────────────────────────
-function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) => void }) {
+function FeedCard({ post, onDelete, canManage }: { post: FeedPost; onDelete: (id: string) => void; canManage: boolean }) {
     const [expanded, setExpanded] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const meta = POST_META[post.type];
@@ -308,10 +313,12 @@ function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) =
                 </span>
                 <div className="flex items-center gap-2">
                     <span className="text-[11px] text-muted-foreground">{formatRelative(post.createdAt)}</span>
-                    <button onClick={() => setConfirmDelete(true)}
-                        className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground/40 hover:text-red-500 transition-colors">
-                        <X size={12} />
-                    </button>
+                    {canManage && (
+                        <button onClick={() => setConfirmDelete(true)}
+                            className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground/40 hover:text-red-500 transition-colors">
+                            <X size={12} />
+                        </button>
+                    )}
                 </div>
             </div>
             <div className="flex items-center gap-2.5">
@@ -378,6 +385,9 @@ function FeedCard({ post, onDelete }: { post: FeedPost; onDelete: (id: string) =
 
 export default function AdminCampusPage() {
     const { instType: _instType } = useMockInstType();
+    const { user } = useAuthStore();
+    const isSubAdmin = user?.role === 'SUB_ADMIN';
+    const canManage = !isSubAdmin || (user?.permissions ?? []).includes('CAMPUS_FEED');
     const [activeFilter, setActiveFilter] = useState<PostType | 'all'>('all');
     const [posts, setPosts] = useState<FeedPost[]>([]);
     const [loadingPosts, setLoadingPosts] = useState(true);
@@ -528,11 +538,11 @@ export default function AdminCampusPage() {
                                 <p className="text-xs text-muted-foreground/60 mt-1">Write the first announcement below</p>
                             </div>
                         )}
-                        {filtered.map(post => <FeedCard key={post.id} post={post} onDelete={handleDelete} />)}
+                        {filtered.map(post => <FeedCard key={post.id} post={post} onDelete={handleDelete} canManage={canManage} />)}
                     </div>
 
-                    {/* Composer */}
-                    <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">
+                    {/* Composer — only for admins and subadmins with CAMPUS_MANAGE */}
+                    {canManage && <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">
                         {/* Row 1 — Title + Subject + Filters */}
                         <div className="flex items-center gap-2">
                             <div className="flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
@@ -596,12 +606,12 @@ export default function AdminCampusPage() {
                                 <Send size={13} />
                             </button>
                         </div>
-                    </div>
+                    </div>}
                 </div>
 
                 {/* Calendar panel */}
                 <div className="w-[35%] min-h-0 shadow-md shadow-black/20 rounded-2xl" style={{ height: '420px', alignSelf: 'flex-start' }}>
-                    <AcademicCalendar />
+                    <AcademicCalendar canManage={canManage} />
                 </div>
             </div>
         </div>

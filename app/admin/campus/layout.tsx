@@ -3,9 +3,10 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Rss, LayoutGrid } from 'lucide-react';
+import { Rss, LayoutGrid, Lock } from 'lucide-react';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import { useAuthStore } from '@/store/authStore';
+import { toast } from 'sonner';
 
 export default function CampusLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -18,10 +19,7 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
     const isSubAdmin = user?.role === 'SUB_ADMIN';
     const permissions = user?.permissions ?? [];
 
-    // Whether the subadmin has any campus permission that allows feed access
-    const canSeeFeed = !isSubAdmin ||
-        permissions.includes('CAMPUS_VIEW') ||
-        permissions.includes('CAMPUS_MANAGE');
+    const canSeeFeed = !isSubAdmin || permissions.includes('CAMPUS_FEED');
 
     const onCampusRoot = pathname === '/admin/campus' || pathname === '/admin/campus/';
     const needsRedirect = !!user && isSubAdmin && !canSeeFeed && onCampusRoot;
@@ -31,8 +29,8 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
     }, [needsRedirect, router]);
 
     const TABS = [
-        ...(canSeeFeed ? [{ key: 'feed', label: 'Feed', icon: Rss, href: '/admin/campus' }] : []),
-        { key: 'classes', label: classesLabel, icon: LayoutGrid, href: '/admin/campus/classes' },
+        { key: 'feed', label: 'Feed', icon: Rss, href: '/admin/campus', locked: !canSeeFeed },
+        { key: 'classes', label: classesLabel, icon: LayoutGrid, href: '/admin/campus/classes', locked: false },
     ];
 
     const activeTab = pathname.startsWith('/admin/campus/classes') ? 'classes' : 'feed';
@@ -44,12 +42,29 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            {showTabs && TABS.length > 1 && (
+            {showTabs && (
                 <div className="shrink-0 pt-0 pb-2 px-1">
                     <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                         {TABS.map(tab => {
                             const isActive = activeTab === tab.key;
                             const Icon = tab.icon;
+
+                            if (tab.locked) {
+                                return (
+                                    <div
+                                        key={tab.key}
+                                        className="relative opacity-40 cursor-not-allowed"
+                                        onClick={() => toast.error('Access restricted — contact your admin')}
+                                    >
+                                        <div className="flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl text-muted-foreground">
+                                            <Icon size={14} />
+                                            {tab.label}
+                                            <Lock size={11} />
+                                        </div>
+                                    </div>
+                                );
+                            }
+
                             return (
                                 <button key={tab.key} onClick={() => router.push(tab.href)} className="relative">
                                     {isActive && (

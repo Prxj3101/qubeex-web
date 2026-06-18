@@ -28,7 +28,7 @@ const PERMISSION_TREE: PermNode[] = [
     {
         key: 'STAFF', label: 'Staff', icon: Users,
         children: [
-            { key: 'STAFF_TEACHERS',  label: 'Teachers',  description: 'View teacher profiles and assignments' },
+            { key: 'STAFF_TEACHERS',  label: 'Teachers',  description: 'View teacher profiles & assignments' },
             { key: 'STAFF_STAFFROOM', label: 'Staffroom', description: 'Access staff feed and DMs' },
             { key: 'STAFF_SUBADMINS', label: 'Subadmins', description: 'View list of subadmins' },
         ],
@@ -36,13 +36,16 @@ const PERMISSION_TREE: PermNode[] = [
     {
         key: 'CAMPUS', label: 'Campus', icon: Building2,
         children: [
-            { key: 'CAMPUS_VIEW',   label: 'View',   description: 'Class overview, feed, timetable' },
-            { key: 'CAMPUS_MANAGE', label: 'Manage', description: 'Teachers, subjects, students' },
-            { key: 'CAMPUS_FEES',   label: 'Fees',   description: 'Fee structure & student fees' },
+            { key: 'CAMPUS_FEED',       label: 'Feed',       description: 'Campus feed & academic calendar' },
+            { key: 'CAMPUS_VIEW',       label: 'View',       description: 'Class overview tab' },
+            { key: 'CAMPUS_MANAGE',     label: 'Manage',     description: 'Class manage tab' },
+            { key: 'CAMPUS_FEES',       label: 'Fees',       description: 'Class fees tab' },
+            { key: 'CAMPUS_ATTENDANCE', label: 'Attendance', description: 'Class attendance tab' },
+            { key: 'CAMPUS_MARKSHEET',  label: 'Marksheet',  description: 'Class marksheet tab' },
         ],
     },
-    { key: 'INSIGHTS',   label: 'Insights',   icon: LineChart,  description: 'Analytics and subscription info' },
-    { key: 'SUPPORT',    label: 'Support',    icon: Headset,    description: 'Support tickets and reviews' },
+    { key: 'INSIGHTS',   label: 'Insights',   icon: LineChart,  description: 'Analytics & subscription info' },
+    { key: 'SUPPORT',    label: 'Support',    icon: Headset,    description: 'Support tickets & reviews' },
     { key: 'AUDIT_LOGS', label: 'Audit Logs', icon: ScrollText, description: 'Admin activity audit trail' },
 ];
 
