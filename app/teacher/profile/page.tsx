@@ -306,7 +306,24 @@ export default function TeacherProfilePage() {
                                     </div>
                                 </div>
                                 <EditableField label="Date of Birth" value={personalDraft.dob} onChange={v => setPersonalDraft(d => ({ ...d, dob: v }))} />
-                                <EditableField label="Gender" value={personalDraft.gender} onChange={v => setPersonalDraft(d => ({ ...d, gender: v }))} />
+                                {/* Gender dropdown */}
+                                <div className="flex items-center gap-3 py-2 border-b border-border/40">
+                                    <span className="text-xs text-muted-foreground w-28 shrink-0">Gender</span>
+                                    <div className="flex gap-2">
+                                        {[{ value: 'MALE', label: 'Male' }, { value: 'FEMALE', label: 'Female' }, { value: 'OTHER', label: 'Other' }].map(opt => (
+                                            <button key={opt.value} type="button"
+                                                onClick={() => setPersonalDraft(d => ({ ...d, gender: opt.value }))}
+                                                className={`text-[11px] font-semibold px-3 py-1 rounded-full border transition-all ${
+                                                    personalDraft.gender === opt.value
+                                                        ? 'border-transparent text-white'
+                                                        : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
+                                                }`}
+                                                style={personalDraft.gender === opt.value ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
                                 {/* Title chooser */}
                                 <div className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
                                     <Tag size={14} className="text-muted-foreground shrink-0 mt-1" />

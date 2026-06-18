@@ -9,7 +9,7 @@ import { useMockInstType } from '@/context/MockInstTypeContext';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
 import {
     Users, GraduationCap, BookOpen, AlertCircle, RefreshCw, BarChart2, Gauge,
-    Sparkles, Clock, Layers, Wallet, ChevronRight, ArrowUpRight,
+    Sparkles, Clock, Layers, Wallet, ChevronRight, ArrowUpRight, Database,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -170,11 +170,11 @@ const MOCK_ATTENDANCE_DATA = [
 
 // ── Mock AI data ──────────────────────────────────────────────────────────────
 const MOCK_AI_TEACHERS = [
-    { name: 'Ritu Sharma', used: 2.1, limit: 5 },
-    { name: 'Ankit Verma', used: 3.8, limit: 5 },
-    { name: 'Priya Nair', used: 1.2, limit: 5 },
-    { name: 'Meena Patel', used: 4.6, limit: 5 },
-    { name: 'Suresh Iyer', used: 0.8, limit: 5 },
+    { name: 'Ritu Sharma', used: 2.1 },
+    { name: 'Ankit Verma', used: 3.8 },
+    { name: 'Priya Nair', used: 1.2 },
+    { name: 'Meena Patel', used: 4.6 },
+    { name: 'Suresh Iyer', used: 0.8 },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -529,6 +529,7 @@ export default function AdminAnalyticsPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const { instType } = useMockInstType();
+    const router = useRouter();
     const fetchedRef = useRef(false);
 
     const fetchAll = async () => {
@@ -590,10 +591,8 @@ export default function AdminAnalyticsPage() {
     const instLabel = instType === 'SCHOOL' ? 'School' : instType === 'COLLEGE' ? 'College' : 'Coaching';
 
     const institutionTokensUsed = plan.usage.aiTokens.used;
-    const institutionTokensLimit = plan.usage.aiTokens.limit;
-    const tokenPct = institutionTokensLimit > 0
-        ? Math.min(100, Math.round((institutionTokensUsed / institutionTokensLimit) * 100))
-        : 0;
+    const institutionTokensLimit = 10_000_000;
+    const tokenPct = Math.min(100, Math.round((institutionTokensUsed / institutionTokensLimit) * 100));
 
     return (
         <div className="space-y-3 pb-4">
@@ -651,24 +650,34 @@ export default function AdminAnalyticsPage() {
                             <p className="text-xs text-muted-foreground">Current plan</p>
                             <p className="text-lg font-semibold">{plan.name}</p>
                         </div>
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400">
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${plan.name.toUpperCase() === 'PRO' ? 'bg-[#DA7756]/15 text-[#DA7756]' : 'bg-violet-500/15 text-violet-500'}`}>
                             {plan.name.toUpperCase()}
                         </span>
                     </div>
                     <div className="space-y-3">
                         {[
-                            { label: 'Users', used: plan.usage.users.used, limit: plan.usage.users.limit },
-                            { label: 'Storage (MB)', used: plan.usage.storage.used, limit: plan.usage.storage.limit },
-                            { label: 'Tests', used: plan.usage.tests.used, limit: plan.usage.tests.limit },
+                            { label: 'Users', icon: Users, used: plan.usage.users.used, limit: plan.usage.users.limit },
+                            { label: 'Storage (GB)', icon: Database, used: Math.round(plan.usage.storage.used / 1024 * 10) / 10, limit: plan.name.toUpperCase() === 'PRO' ? 1024 : 500 },
                         ].map((b) => {
                             const pct = Math.min(100, Math.round((b.used / b.limit) * 100));
                             const overLimit = b.used >= b.limit;
                             return (
                                 <div key={b.label}>
                                     <div className="flex items-center justify-between mb-1.5">
-                                        <span className="text-xs text-muted-foreground">{b.label}</span>
+                                        <div className="flex items-center gap-1.5">
+                                            <b.icon size={13} className="text-muted-foreground shrink-0" />
+                                            <span className="text-xs text-muted-foreground">{b.label}</span>
+                                            {b.label === 'Users' && (
+                                                <button
+                                                    onClick={() => router.push('/admin/insights/users?from=analytics')}
+                                                    className="w-5 h-5 rounded-md flex items-center justify-center hover:opacity-80 transition-all shrink-0"
+                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                    <ArrowUpRight size={11} className="text-white" />
+                                                </button>
+                                            )}
+                                        </div>
                                         <span className="text-xs font-medium">
-                                            {b.used.toLocaleString('en-IN')} <span className="text-muted-foreground">/ {b.limit.toLocaleString('en-IN')}</span>
+                                            {b.used.toLocaleString('en-IN')} <span className="text-muted-foreground">/ {b.label === 'Users' ? '∞' : b.limit.toLocaleString('en-IN')}</span>
                                         </span>
                                     </div>
                                     <div className="h-1.5 bg-muted rounded-full overflow-hidden">
@@ -691,8 +700,8 @@ export default function AdminAnalyticsPage() {
                         <div>
                             <p className="text-xs text-muted-foreground">Institution token pool</p>
                             <p className="text-lg font-semibold">
-                                {institutionTokensUsed}
-                                <span className="text-sm font-normal text-muted-foreground"> / {institutionTokensLimit} tokens</span>
+                                {(institutionTokensUsed / 1_000_000).toFixed(1)}M
+                                <span className="text-sm font-normal text-muted-foreground"> / 10M tokens</span>
                             </p>
                         </div>
                         <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center">
@@ -709,15 +718,18 @@ export default function AdminAnalyticsPage() {
                                     background: 'linear-gradient(90deg, #DA7756, #C06040)',
                                 }} />
                         </div>
-                        <p className="text-[10px] text-muted-foreground">{tokenPct}% used</p>
+                        <div className="flex items-center justify-between">
+                            <p className="text-[10px] text-muted-foreground">{tokenPct}% used</p>
+                            <p className="text-[10px] text-muted-foreground">↻ Resets 1st of next month</p>
+                        </div>
                     </div>
 
                     {/* Per teacher */}
                     <div className="space-y-2.5">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Per teacher</p>
                         {MOCK_AI_TEACHERS.map((t) => {
-                            const pct = (t.used / t.limit) * 100;
-                            const isCritical = pct >= 90;
+                            const pct = (t.used / 10) * 100; // share of 10M pool
+                            const isCritical = pct >= 30;
                             return (
                                 <div key={t.name} className="flex items-center gap-2.5">
                                     <div className="w-6 h-6 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
@@ -729,7 +741,7 @@ export default function AdminAnalyticsPage() {
                                         <div className="flex items-center justify-between mb-0.5">
                                             <span className="text-[11px] font-medium text-foreground truncate">{t.name}</span>
                                             <span className={`text-[10px] font-semibold shrink-0 ml-2 ${isCritical ? 'text-[#DA7756]' : 'text-muted-foreground'}`}>
-                                                {t.used}M/{t.limit}M
+                                                {t.used}M
                                             </span>
                                         </div>
                                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">

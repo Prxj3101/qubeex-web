@@ -5,14 +5,14 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     TicketIcon, Plus, X, ChevronDown, ChevronUp,
     Send, Clock, CheckCircle2, AlertCircle, Loader2,
-    Bug, Sparkles, CreditCard, HelpCircle,
+    Bug, Sparkles, CreditCard, HelpCircle, Paperclip, Lightbulb,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
-type TicketCategory = 'BUG' | 'FEATURE' | 'BILLING' | 'OTHER';
+type TicketCategory = 'BUG' | 'FEATURE' | 'BILLING' | 'ADDON' | 'SUGGESTION' | 'OTHER';
 type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
 interface TicketReply {
@@ -44,10 +44,12 @@ const STATUS_CFG: Record<TicketStatus, { label: string; cls: string; icon: React
 };
 
 const CATEGORY_CFG: Record<TicketCategory, { label: string; cls: string; icon: React.ElementType }> = {
-    BUG:     { label: 'Bug',             cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',             icon: Bug },
-    FEATURE: { label: 'Feature Request', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400', icon: Sparkles },
-    BILLING: { label: 'Billing',         cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',     icon: CreditCard },
-    OTHER:   { label: 'Other',           cls: 'bg-muted text-muted-foreground',                                         icon: HelpCircle },
+    BUG:        { label: 'Bug',             cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',             icon: Bug },
+    FEATURE:    { label: 'Feature Request', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400', icon: Sparkles },
+    BILLING:    { label: 'Billing',         cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',     icon: CreditCard },
+    ADDON:      { label: 'Add-On',          cls: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400',             icon: Plus },
+    SUGGESTION: { label: 'Suggestion',      cls: 'bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-400',     icon: Lightbulb },
+    OTHER:      { label: 'Other',           cls: 'bg-muted text-muted-foreground',                                         icon: HelpCircle },
 };
 
 const PRIORITY_CFG: Record<TicketPriority, { label: string; cls: string }> = {
@@ -75,7 +77,9 @@ function CreateTicketModal({ open, onClose, onCreate }: {
     const [category, setCategory] = useState<TicketCategory>('BUG');
     const [priority, setPriority] = useState<TicketPriority>('MEDIUM');
     const [description, setDescription] = useState('');
+    const [attachments, setAttachments] = useState<File[]>([]);
     const [saving, setSaving] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const handleCreate = async () => {
         if (!title.trim() || !description.trim()) return;
@@ -145,9 +149,37 @@ function CreateTicketModal({ open, onClose, onCreate }: {
                     </div>
                     <div>
                         <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Description</label>
-                        <textarea value={description} onChange={e => setDescription(e.target.value)}
-                            placeholder="Describe the issue in detail..." rows={4}
-                            className="w-full px-3 py-2.5 rounded-xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-none transition-all" />
+                        <div className="relative">
+                            <textarea value={description} onChange={e => setDescription(e.target.value)}
+                                placeholder="Describe the issue in detail..." rows={4}
+                                className="w-full px-3 py-2.5 pr-10 rounded-xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-none transition-all" />
+                            <button type="button" onClick={() => fileInputRef.current?.click()}
+                                className="absolute bottom-2.5 right-2.5 w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                                title="Add attachment">
+                                <Paperclip size={13} />
+                            </button>
+                            <input ref={fileInputRef} type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                className="hidden"
+                                onChange={e => {
+                                    const files = Array.from(e.target.files ?? []);
+                                    setAttachments(prev => [...prev, ...files]);
+                                    e.target.value = '';
+                                }} />
+                        </div>
+                        {attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                                {attachments.map((f, i) => (
+                                    <div key={i} className="flex items-center gap-1 text-[11px] bg-muted/50 border border-border/50 rounded-lg px-2 py-0.5">
+                                        <Paperclip size={10} className="text-muted-foreground" />
+                                        <span className="text-foreground max-w-[120px] truncate">{f.name}</span>
+                                        <button type="button" onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
+                                            className="text-muted-foreground hover:text-foreground ml-0.5">
+                                            <X size={10} />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div className="flex items-center justify-between px-5 py-4 border-t border-border/50 bg-muted/20">

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { BarChart2, CreditCard } from 'lucide-react';
 
@@ -12,6 +12,8 @@ const INSIGHTS_TABS = [
 
 export default function InsightsLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const from = searchParams.get('from');
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
@@ -19,7 +21,9 @@ export default function InsightsLayout({ children }: { children: React.ReactNode
             <div className="shrink-0 pt-0 pb-2 px-1">
                 <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                     {INSIGHTS_TABS.map((tab) => {
-                        const isActive = pathname === tab.href || pathname.startsWith(tab.href + '/');
+                        const isActive = pathname === tab.href
+                            || pathname.startsWith(tab.href + '/')
+                            || (pathname === '/admin/insights/users' && from === tab.href.split('/').pop());
                         const Icon = tab.icon;
                         return (
                             <Link key={tab.href} href={tab.href} className="relative">

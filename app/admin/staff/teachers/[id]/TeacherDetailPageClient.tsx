@@ -7,7 +7,7 @@ import {
     ArrowLeft, ChevronRight, Hash, Mail, Phone, MapPin,
     Calendar, User, GraduationCap, Briefcase, Edit2,
     Check, X, PowerOff, Power, BookOpen, Layers,
-    CheckCircle2, Circle,
+    CheckCircle2, Circle, Tag,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Teacher, InstitutionType } from '@/types';
@@ -108,13 +108,32 @@ function formatDate(iso?: string) {
     });
 }
 
+// ── Verified Badge ────────────────────────────────────────────────────────────
+function VerifiedBadge() {
+    return (
+        <svg width="14" height="14" viewBox="0 0 40 40" fill="none">
+            <path d="M20 2
+                L23.5 6.5 L29 5 L31.5 10.5 L37.5 12
+                L36 18 L40 22 L36 26 L37.5 32
+                L31.5 33.5 L29 39 L23.5 37.5
+                L20 42 L16.5 37.5 L11 39
+                L8.5 33.5 L2.5 32 L4 26
+                L0 22 L4 18 L2.5 12
+                L8.5 10.5 L11 5 L16.5 6.5 Z"
+                fill="#DA7756" />
+            <path d="M13 21l5 5 9-10"
+                stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+}
+
 // ── Section Card ──────────────────────────────────────────────────────────────
 function SectionCard({ title, children, editBtn }: {
     title: React.ReactNode; children: React.ReactNode; editBtn?: React.ReactNode;
 }) {
     return (
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-muted/30">
+            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-muted/30 min-h-[56px]">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
                 {editBtn}
             </div>
@@ -169,6 +188,11 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
         name: teacher.name, dob: teacher.dob ?? '', gender: teacher.gender ?? '',
     });
     const [personalSaved, setPersonalSaved] = useState({ ...personalDraft });
+    const prefix = personalSaved.gender === 'MALE' ? 'Mr.' : personalSaved.gender === 'FEMALE' ? 'Ms.' : '';
+
+    const TITLE_OPTIONS = ['Teacher', 'Professor', 'Asst. Teacher', 'Lecturer', 'HOD', 'Mentor', 'Tutor', 'Educator'];
+    const [titleDraft, setTitleDraft] = useState('Teacher');
+    const [titleSaved, setTitleSaved] = useState('Teacher');
 
     const [contactDraft, setContactDraft] = useState({
         email: teacher.email, phone: teacher.phone ?? '',
@@ -183,7 +207,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
     const [profSaved, setProfSaved] = useState({ ...profDraft });
 
     const cancelEdit = (s: string) => {
-        if (s === 'personal') setPersonalDraft({ ...personalSaved });
+        if (s === 'personal') { setPersonalDraft({ ...personalSaved }); setTitleDraft(titleSaved); }
         if (s === 'contact') setContactDraft({ ...contactSaved });
         if (s === 'prof') setProfDraft({ ...profSaved });
         setEditingSection(null);
@@ -196,7 +220,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
         if (s === 'prof') payload = { qualification: profDraft.qualification, experience: profDraft.experience };
         try {
             await api.patch(`/admin/teachers/${teacher.id}`, payload);
-            if (s === 'personal') { setPersonalSaved({ ...personalDraft }); onTeacherUpdate({ name: personalDraft.name, dob: personalDraft.dob, gender: personalDraft.gender }); }
+            if (s === 'personal') { setPersonalSaved({ ...personalDraft }); setTitleSaved(titleDraft); onTeacherUpdate({ name: personalDraft.name, dob: personalDraft.dob, gender: personalDraft.gender }); }
             if (s === 'contact') { setContactSaved({ ...contactDraft }); onTeacherUpdate({ phone: contactDraft.phone, address: contactDraft.address, city: contactDraft.city, state: contactDraft.state, pincode: contactDraft.pincode, country: contactDraft.country }); }
             if (s === 'prof') { setProfSaved({ ...profDraft }); onTeacherUpdate({ qualification: profDraft.qualification, experience: profDraft.experience }); }
             setEditingSection(null);
@@ -249,25 +273,26 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3">
                             <div>
-                                <h2 className="text-lg font-bold leading-tight">{personalSaved.name}</h2>
-                                <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+                                <h2 className="text-lg font-bold leading-tight">
+                                    {prefix && <span className="mr-1" style={{ color: '#DA7756' }}>{prefix}</span>}
+                                    {personalSaved.name}
+                                </h2>
+                                <div className="flex items-center gap-1 mt-0.5">
+                                    <p className="text-[11px] text-muted-foreground">{titleSaved}</p>
+                                    <VerifiedBadge />
+                                </div>
+                                <div className="flex items-center gap-2 mt-1 flex-wrap">
                                     {teacher.teacherId && (
                                         <span className="font-mono text-[12px] font-semibold tracking-wider" style={{ color: '#DA7756' }}>
                                             {teacher.teacherId}
                                         </span>
                                     )}
-                                    <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${isActive
-                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
-                                        : 'bg-muted text-muted-foreground'
-                                        }`}>
-                                        {isActive ? 'Active' : 'Inactive'}
-                                    </span>
                                 </div>
                             </div>
 
                             <button
                                 onClick={onDeactivateClick}
-                                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all ${isActive
+                                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all shrink-0 ${isActive
                                     ? 'bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-950 dark:text-red-400'
                                     : 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200 dark:bg-emerald-950 dark:text-emerald-400'
                                     }`}
@@ -288,6 +313,12 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                     <p className="text-[11px] text-muted-foreground">{label}</p>
                                 </div>
                             ))}
+                            <span className={`ml-auto text-[11px] font-semibold px-2.5 py-0.5 rounded-full ${isActive
+                                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
+                                : 'bg-muted text-muted-foreground'
+                                }`}>
+                                {isActive ? 'Active' : 'Inactive'}
+                            </span>
                         </div>
                     </div>
                 </div>
@@ -301,7 +332,42 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         <>
                             <EditableField label="Full Name" value={personalDraft.name} onChange={v => setPersonalDraft(d => ({ ...d, name: v }))} />
                             <EditableField label="Date of Birth" value={personalDraft.dob} onChange={v => setPersonalDraft(d => ({ ...d, dob: v }))} />
-                            <EditableField label="Gender" value={personalDraft.gender} onChange={v => setPersonalDraft(d => ({ ...d, gender: v }))} />
+                            {/* Gender dropdown */}
+                            <div className="flex items-center gap-3 py-2 border-b border-border/40">
+                                <span className="text-xs text-muted-foreground w-28 shrink-0">Gender</span>
+                                <div className="flex gap-2">
+                                    {[{ value: 'MALE', label: 'Male' }, { value: 'FEMALE', label: 'Female' }, { value: 'OTHER', label: 'Other' }].map(opt => (
+                                        <button key={opt.value} type="button"
+                                            onClick={() => setPersonalDraft(d => ({ ...d, gender: opt.value }))}
+                                            className={`text-[11px] font-semibold px-3 py-1 rounded-full border transition-all ${
+                                                personalDraft.gender === opt.value
+                                                    ? 'border-transparent text-white'
+                                                    : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
+                                            }`}
+                                            style={personalDraft.gender === opt.value ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                            {/* Display Title chooser */}
+                            <div className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
+                                <Tag size={14} className="text-muted-foreground shrink-0 mt-1" />
+                                <span className="text-xs text-muted-foreground w-28 shrink-0 mt-0.5">Display Title</span>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {TITLE_OPTIONS.map(opt => (
+                                        <button key={opt} type="button" onClick={() => setTitleDraft(opt)}
+                                            className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
+                                                titleDraft === opt
+                                                    ? 'border-transparent text-white'
+                                                    : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
+                                            }`}
+                                            style={titleDraft === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
+                                            {opt}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
                         </>
                     ) : (
                         <>
@@ -310,14 +376,20 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                     ? <span className="font-mono text-xs font-semibold tracking-wider" style={{ color: '#DA7756' }}>{teacher.teacherId}</span>
                                     : '—'
                             } />
-                            <InfoRow icon={User} label="Full Name" value={personalSaved.name} />
+                            <InfoRow icon={User} label="Full Name" value={
+                                <span>{prefix && <span className="font-semibold mr-1" style={{ color: '#DA7756' }}>{prefix}</span>}{personalSaved.name}</span>
+                            } />
+                            <InfoRow icon={Tag} label="Display Title" value={
+                                <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(218,119,86,0.12)', color: '#DA7756' }}>
+                                    {titleSaved}
+                                </span>
+                            } />
                             <InfoRow icon={Calendar} label="Date of Birth" value={personalSaved.dob ? formatDate(personalSaved.dob) : '—'} />
                             <InfoRow icon={User} label="Gender" value={
                                 personalSaved.gender === 'MALE' ? 'Male'
                                     : personalSaved.gender === 'FEMALE' ? 'Female'
                                         : personalSaved.gender || '—'
                             } />
-
                             <InfoRow icon={Calendar} label="Joined" value={formatDate(teacher.joinedAt)} />
                         </>
                     )}
@@ -616,25 +688,30 @@ export default function TeacherDetailPage() {
     );
 
     return (
-        <div className="space-y-5 py-4 px-2 pb-6">
-            {/* Back + breadcrumb */}
-            <div className="flex items-center gap-3">
-                <button onClick={() => router.back()}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
-                    <ArrowLeft size={16} />
-                </button>
-                <div>
-                    <h1 className="text-xl font-bold">{teacher.name}</h1>
-                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                        Teachers <ChevronRight /> {teacher.name}
-                    </p>
+        <div className="flex flex-col h-full">
+            {/* Back + breadcrumb — sticky */}
+            <div className="sticky top-0 z-20 bg-background px-2 pt-1 pb-3 shrink-0">
+                <div className="flex items-center gap-3">
+                    <button onClick={() => router.back()}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all shrink-0">
+                        <ArrowLeft size={16} />
+                    </button>
+                    <div>
+                        <h1 className="text-xl font-bold">{teacher.name}</h1>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                            Teachers <ChevronRight /> {teacher.name}
+                        </p>
+                    </div>
                 </div>
             </div>
-            <ProfileTab
-                teacher={teacher}
-                onDeactivateClick={() => setConfirmToggle(true)}
-                onTeacherUpdate={(updated) => setTeacher(prev => prev ? { ...prev, ...updated } : prev)}
-            />
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-1 pb-2">
+                <ProfileTab
+                    teacher={teacher}
+                    onDeactivateClick={() => setConfirmToggle(true)}
+                    onTeacherUpdate={(updated) => setTeacher(prev => prev ? { ...prev, ...updated } : prev)}
+                />
 
             {confirmToggle && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -670,6 +747,7 @@ export default function TeacherDetailPage() {
                     </motion.div>
                 </div>
             )}
+            </div>
         </div>
     );
 }

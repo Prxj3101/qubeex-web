@@ -371,9 +371,17 @@ export default function SubscriptionPage() {
                                                 (min. {config.userMin} | 200–1499 Users: ₹{currentPlan === 'PRO' ? 25 : 20}/user | 1500+ Users: ₹{currentPlan === 'PRO' ? 22 : 17}/user)
                                             </span>
                                         </div>
-                                        <span className="font-semibold text-foreground">
-                                            {usedUsers} <span className="font-normal text-muted-foreground">/ ∞</span>
-                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-semibold text-foreground">
+                                                {usedUsers} <span className="font-normal text-muted-foreground">/ ∞</span>
+                                            </span>
+                                            <button
+                                                onClick={() => router.push('/admin/insights/users?from=subscription')}
+                                                className="w-5 h-5 rounded-md flex items-center justify-center hover:opacity-80 transition-all shrink-0"
+                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                <ArrowUpRight size={11} className="text-white" />
+                                            </button>
+                                        </div>
                                     </div>
                                     <div className="h-2 bg-muted rounded-full overflow-hidden">
                                         <div className="h-full rounded-full transition-all duration-700"
@@ -441,9 +449,11 @@ export default function SubscriptionPage() {
                             </div>
 
                             {featureTab === 'default' && (
-                                <div className="overflow-y-auto max-h-[190px] min-h-[190px] space-y-2">                                    {ALL_FEATURES.filter(f => currentPlan === 'PRO' ? f.inPro && !f.addOnPro : f.inBasic && !f.addOnBasic).map((f) => (
+                                <div className="overflow-y-auto max-h-[190px] min-h-[190px] space-y-2">
+                                    {ALL_FEATURES.filter(f => currentPlan === 'PRO' ? f.inPro && !f.addOnPro : f.inBasic && !f.addOnBasic).map((f, i) => (
                                     <div key={f.key} className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-semibold text-muted-foreground/50 w-4 shrink-0">{i + 1}.</span>
                                             <f.icon className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                             <span className="text-xs text-foreground">{f.label}</span>
                                         </div>
@@ -454,9 +464,11 @@ export default function SubscriptionPage() {
                             )}
 
                             {featureTab === 'addon' && (
-                                <div className="overflow-y-auto max-h-[190px] min-h-[190px] space-y-2">                                    {ALL_FEATURES.filter(f => currentPlan === 'PRO' ? f.addOnPro : f.addOnBasic).map((f) => (
+                                <div className="overflow-y-auto max-h-[190px] min-h-[190px] space-y-2">
+                                    {ALL_FEATURES.filter(f => currentPlan === 'PRO' ? f.addOnPro : f.addOnBasic).map((f, i) => (
                                     <div key={f.key} className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
+                                            <span className="text-[10px] font-semibold text-muted-foreground/50 w-4 shrink-0">{i + 1}.</span>
                                             <f.icon className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                                             <span className="text-xs text-foreground">{f.label}</span>
                                         </div>

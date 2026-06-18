@@ -272,6 +272,17 @@ export function AddTeacherModal({
                                                 </div>
                                             </div>
                                         </div>
+
+                                        {/* Teacher ID — auto generated, readonly */}
+                                        <div>
+                                            <FL>Teacher ID</FL>
+                                            <div className="h-8 px-3 rounded-md border border-dashed border-border/60 bg-muted/20 flex items-center justify-between">
+                                                <span className="text-xs text-muted-foreground/60 italic">
+                                                    Assigned on save (e.g. TCH-2026-0001)
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground/40">Auto generated</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
