@@ -28,7 +28,7 @@ const nameSchema = z.object({
 });
 type NameForm = z.infer<typeof nameSchema>;
 
-// ─── Page ──────────────────────────────────────────────────────────────────
+// ─── Page ─────────────────────────────────────────────────────────────────
 export default function AdminProfilePage() {
     const { user, setAuth, token } = useAuthStore();
     const [institution, setInstitution] = useState<{
