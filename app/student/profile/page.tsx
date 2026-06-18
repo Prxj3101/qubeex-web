@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useStudentStore } from '@/store/studentStore';
 import { motion } from 'framer-motion';
 import {
     Trophy, Star, BarChart2, Calendar, Flag, IndianRupee,
@@ -18,15 +20,15 @@ import {
 const STUDENT = {
     name: 'Prajwal Jagdish Kotian',
     rollNo: '09',
-    batch: 'B.Tech CSE',
+    standard: 'Class 10',
     div: 'Division A',
-    sem: 'Semester 5',
+    academicYear: '2026-27',
     dob: '2001-05-31',
     email: 'prajwal.kotian@gmail.com',
     overallRank: 4,
     totalStudents: 62,
     overallScore: 71,
-    uid: 'STU-CLG-VIT01-0009',
+    uid: 'STU-2026-0009',
 };
 
 const SUBJECTS = [
@@ -94,9 +96,6 @@ function getPct(v: number) {
     return { color, label, cls };
 }
 
-const dobDate = new Date(STUDENT.dob);
-const age = new Date().getFullYear() - dobDate.getFullYear();
-const dobDisplay = dobDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 const totalFees = FEES.reduce((s, f) => s + f.total, 0);
 const totalPaid = FEES.reduce((s, f) => s + f.paid, 0);
 
@@ -132,6 +131,13 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function StudentProfile() {
+    const router = useRouter();
+    const student = useStudentStore();
+
+    const dobDate = new Date(student.dob);
+    const age = new Date().getFullYear() - dobDate.getFullYear();
+    const dobDisplay = dobDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+
     const [activeSubject, setActiveSubject] = useState(0);
     const [expandedFlag, setExpandedFlag] = useState<number | null>(null);
     const [activeCardTab, setActiveCardTab] = useState<'yellow' | 'red'>('yellow');
@@ -157,58 +163,66 @@ export default function StudentProfile() {
             {/* ── ID Card ── */}
             <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg">
                 {/* Purple header strip */}
-                <div className="px-6 py-4 flex items-center justify-between"
+                <div className="px-6 py-4 flex items-center justify-between dark:[background:linear-gradient(135deg,#4C1D95,#2D1F50)]"
                     style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
                     <div>
                         <p className="text-white font-bold text-base" style={{ fontFamily: 'var(--font-poppins)' }}>
-                            Viva Institute of Technology
+                            Sacred Heart High School
                         </p>
                         <p className="text-white/70 text-xs">Student ID Card</p>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                        <span className="text-white/70 text-xs">Active</span>
-                    </div>
+                    <button
+                        onClick={() => router.push('/student/detail')}
+                        className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-all">
+                        View <ChevronRight size={13} />
+                    </button>
                 </div>
 
                 {/* Card body */}
                 <div className="bg-card p-5 flex items-start gap-5">
                     {/* Avatar */}
-                    <div className="relative shrink-0">
-                        <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white"
+                    <div className="shrink-0">
+                        <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white"
                             style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}>
-                            {STUDENT.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                            <div className="absolute bottom-0 right-0 translate-x-1/3 translate-y-1/3 w-4 h-4 rounded-full bg-emerald-400 border-2 border-card" />
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-400 border-2 border-card" />
                         <div className="mt-2 text-center">
                             <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-semibold">
-                                {STUDENT.batch.split(' ')[0]}
+                                {STUDENT.standard}
                             </span>
                         </div>
                     </div>
 
                     {/* Info */}
                     <div className="flex-1 min-w-0">
-                        <p className="text-lg font-bold leading-tight">{STUDENT.name}</p>
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-lg font-bold leading-tight">{student.name}</p>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                <span className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Active</span>
+                            </div>
+                        </div>
                         <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold mt-0.5">
-                            {STUDENT.sem} · {STUDENT.div}
+                            {STUDENT.standard} · {STUDENT.div}
                         </p>
                         <div className="h-px bg-border/50 my-3" />
                         <div className="grid grid-cols-2 gap-x-6 gap-y-1">
                             <InfoRow label="Roll No" value={STUDENT.rollNo} />
-                            <InfoRow label="Batch" value={STUDENT.batch} />
+                            <InfoRow label="Class" value="10-A" />
+                            <InfoRow label="Admission Year" value={student.admissionYear} />
                             <InfoRow label="Date of Birth" value={`${dobDisplay} (${age} yrs)`} />
-                            <InfoRow label="Email" value={STUDENT.email} />
+                            <InfoRow label="Email" value={student.email} />
                         </div>
                     </div>
                 </div>
 
                 {/* UID strip */}
-                <div className="flex items-center gap-3 px-5 py-2.5 bg-violet-50 dark:bg-violet-950/30 border-t border-violet-200/50 dark:border-violet-900/50">
-                    <Mail size={12} className="text-violet-500 shrink-0" />
-                    <span className="text-xs text-violet-600 dark:text-violet-400 flex-1">{STUDENT.uid}</span>
+                <div className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-50 dark:bg-violet-950/30 border-t border-violet-200/50 dark:border-violet-900/50">
+                    <Hash size={14} className="text-muted-foreground shrink-0" />
+                    <span className="font-mono text-sm font-semibold tracking-wider flex-1" style={{ color: '#DA7756' }}>{STUDENT.uid}</span>
                     <button onClick={handleCopy}
-                        className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg bg-violet-100 dark:bg-violet-900 text-violet-700 dark:text-violet-300 hover:bg-violet-200 transition-all">
+                        className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground transition-all">
                         <Copy size={11} />
                         {copied ? 'Copied!' : 'Copy'}
                     </button>

@@ -245,6 +245,13 @@ export default function TeacherOverviewPage() {
     const { user } = useAuthStore();
     const [announcementVisible, setAnnouncementVisible] = useState(true);
     const thought = getTodaysThought();
+    const [currentTime, setCurrentTime] = useState('');
+    useEffect(() => {
+        const fmt = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        setCurrentTime(fmt());
+        const id = setInterval(() => setCurrentTime(fmt()), 1000);
+        return () => clearInterval(id);
+    }, []);
 
     const teacherName = user?.name ?? user?.email?.split('@')[0] ?? MOCK_TEACHER.name;
 
@@ -277,7 +284,7 @@ export default function TeacherOverviewPage() {
                         {teacherName}
                     </p>
                     <p className="text-white/60 text-sm">{getCasualMessage()}</p>
-                    <p className="text-white/50 text-xs mt-2">{dateStr}</p>
+                    <p className="text-white/50 text-xs mt-2">{dateStr}{currentTime && <span className="ml-2">·&nbsp; {currentTime}</span>}</p>
                 </div>
 
                 {/* Animated character */}

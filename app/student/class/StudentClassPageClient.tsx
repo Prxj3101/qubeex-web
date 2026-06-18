@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import PencilLoader from '@/components/student/PencilLoader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Users, FileText, Trophy, Calendar, X, Download } from 'lucide-react';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
 const DIVISION = {
@@ -684,7 +685,7 @@ function SubjectsTab() {
                             <div className="flex-1 min-h-0 flex gap-0 overflow-hidden">
                                 {/* Left — performance chart */}
                                 <div className="w-[70%] shrink-0 min-h-0 p-4 flex flex-col border-r border-border/30 overflow-hidden">
-                                    <p className="text-xs font-bold shrink-0 mb-2">Performance Trend</p>
+                                    <p className="text-xs font-bold shrink-0 pt-3 mb-0">Performance Trend</p>
                                     {chartData.length === 0
                                         ? <p className="text-xs text-muted-foreground text-center py-8">No data yet</p>
                                         : <div className="flex-1 min-h-0">
@@ -696,7 +697,10 @@ function SubjectsTab() {
                                                             <stop offset="95%" stopColor={subject.color} stopOpacity={0} />
                                                         </linearGradient>
                                                     </defs>
-                                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
+                                                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
+                                                    {chartData.map(d => (
+                                                        <ReferenceLine key={d.name} x={d.name} stroke="rgba(148,163,184,0.15)" strokeDasharray="3 3" />
+                                                    ))}
                                                     <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94A3B8' }} />
                                                     <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#94A3B8' }} unit="%" />
                                                     <Tooltip
@@ -734,7 +738,9 @@ function SubjectsTab() {
                                     }
                                 </div>
                                 {/* Right — results list */}
-                                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2" style={{ maxHeight: '340px' }}>
+                                <div className="flex-1 flex flex-col overflow-hidden" style={{ maxHeight: '380px' }}>
+                                <p className="text-xs font-bold shrink-0 px-4 pt-7 mb-6">My Results</p>
+                                <div className="flex-1 px-4 pb-3 space-y-2" style={{ overflowY: 'scroll', scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
                                     {results.length === 0
                                         ? <p className="text-xs text-muted-foreground py-8 text-center">No results yet</p>
                                         : results.map((r, i) => {
@@ -755,6 +761,7 @@ function SubjectsTab() {
                                             );
                                         })
                                     }
+                                </div>
                                 </div>
                             </div>
                         )}
@@ -795,6 +802,13 @@ const TABS = [
 
 export default function StudentClassPageClient() {
     const [activeTab, setActiveTab] = useState<'view' | 'subjects'>('view');
+    const [tabLoading, setTabLoading] = useState(false);
+
+    function switchTab(tab: 'view' | 'subjects') {
+        if (tab === activeTab) return;
+        setTabLoading(true);
+        setTimeout(() => { setActiveTab(tab); setTabLoading(false); }, 1300);
+    }
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
@@ -814,7 +828,7 @@ export default function StudentClassPageClient() {
                             {TABS.map(tab => {
                                 const isActive = activeTab === tab.key;
                                 return (
-                                    <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="relative">
+                                    <button key={tab.key} onClick={() => switchTab(tab.key)} className="relative">
                                         {isActive && (
                                             <motion.div layoutId="studentClassTab"
                                                 className="absolute inset-0 bg-primary rounded-full"
@@ -846,18 +860,24 @@ export default function StudentClassPageClient() {
 
             {/* Tab content */}
             <div className="flex-1 min-h-0 overflow-hidden">
-                <AnimatePresence mode="wait">
-                    {activeTab === 'view' && (
-                        <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                            <ViewTab />
-                        </motion.div>
-                    )}
-                    {activeTab === 'subjects' && (
-                        <motion.div key="subjects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                            <SubjectsTab />
-                        </motion.div>
-                    )}
-                </AnimatePresence>
+                {tabLoading ? (
+                    <div className="flex items-center justify-center h-full">
+                        <PencilLoader size={72} />
+                    </div>
+                ) : (
+                    <AnimatePresence mode="wait">
+                        {activeTab === 'view' && (
+                            <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                                <ViewTab />
+                            </motion.div>
+                        )}
+                        {activeTab === 'subjects' && (
+                            <motion.div key="subjects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                                <SubjectsTab />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                )}
             </div>
         </div>
     );
