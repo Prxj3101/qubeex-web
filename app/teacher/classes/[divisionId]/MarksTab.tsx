@@ -683,7 +683,7 @@ function MarkSheet({
                                 <th rowSpan={2} style={{ minWidth: 12, width: 12, background: 'transparent', border: 'none' }} /></>}
                             {/* Graded section header */}
                             {mode === 'offline' && gradedSubjects.length > 0 && (
-                                <th colSpan={gradedSubjects.length * 2 + (restrictToSubjectId ? 0 : 1)} className="px-2 py-1.5 text-center group/gtitle"
+                                <th colSpan={gradedSubjects.length * 2 + (!readOnly && !restrictToSubjectId ? 1 : 0)} className="px-2 py-1.5 text-center group/gtitle"
                                     style={{ background: 'linear-gradient(#7C3AED18, #7C3AED18), #EDE4D6', border: `0.5px solid ${msColors.hdrBorder}`, fontWeight: 700, fontSize: 11 }}>
                                     {editingGradedTitle ? (
                                         <input
@@ -1067,7 +1067,7 @@ function MarkSheet({
                                         );
                                     })}
                                     {/* "+" button col placeholder — offline only */}
-                                    {mode === 'offline' && gradedSubjects.length > 0 && !restrictToSubjectId && <td style={{ background: msColors.rowBase, border: `0.5px dashed ${msColors.cellBorder}`, width: 28 }} />}
+                                    {mode === 'offline' && gradedSubjects.length > 0 && !readOnly && !restrictToSubjectId && <td style={{ background: msColors.rowBase, border: `0.5px dashed ${msColors.cellBorder}`, width: 28 }} />}
                                     {/* Spacer 2 — offline only */}
                                     {mode === 'offline' && <><td style={{ background: 'transparent', border: 'none', width: 12 }} />
                                         <td style={{ background: 'transparent', border: 'none', width: 12 }} /></>}

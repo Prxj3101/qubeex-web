@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, ChevronRight, Users, BookOpen, User, Shield, MapPin,
     Plus, X, Check, ChevronDown, User as UserIcon,
-    Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink
+    Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink,
+    CalendarCheck, BarChart2, NotebookPen, Smartphone
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Lock } from 'lucide-react';
@@ -17,7 +18,7 @@ import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { assignSubjectColor } from '@/lib/subjectColors';
 import { FeesTab } from './fees';
 import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[divisionId]/AttendanceTab';
-import MarksTab, { MarksSubTab } from '@/app/teacher/classes/[divisionId]/MarksTab';
+import MarksTab, { MarksSubTab, MarksStats } from '@/app/teacher/classes/[divisionId]/MarksTab';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -790,6 +791,7 @@ export default function DivisionDetailPage() {
     const [attendanceSubTab, setAttendanceSubTab] = useState<AttendanceSubTab>('daily');
     const [attendanceHeaderStats, setAttendanceHeaderStats] = useState<{ overall: number | null; thisMonth: number | null }>({ overall: null, thisMonth: null });
     const [marksheetSubTab, setMarksheetSubTab] = useState<MarksSubTab>('offline');
+    const [marksStats, setMarksStats] = useState<MarksStats>({ avg: null, topGrade: null });
     const [timetableImage, setTimetableImage] = useState<string | null>(null);
     const [leaderTab, setLeaderTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const timetableInputRef = useRef<HTMLInputElement>(null);
@@ -1120,37 +1122,76 @@ export default function DivisionDetailPage() {
 
                         {activeTab === 'attendance' && (
                             <div className="flex items-center gap-4">
-                                <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
-                                    {([{ key: 'daily', label: 'Daily' }, { key: 'overall', label: 'Overall' }] as const).map(tab => (
-                                        <button key={tab.key} onClick={() => setAttendanceSubTab(tab.key)}
-                                            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${attendanceSubTab === tab.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                                            {tab.label}
-                                        </button>
+                                <div className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
+                                    {([
+                                        { key: 'daily' as AttendanceSubTab, label: 'Daily Attendance', Icon: CalendarCheck },
+                                        { key: 'overall' as AttendanceSubTab, label: 'Overall', Icon: BarChart2 },
+                                    ]).map(({ key, label, Icon }) => {
+                                        const isActive = attendanceSubTab === key;
+                                        return (
+                                            <button key={key} onClick={() => setAttendanceSubTab(key)}
+                                                className={`relative flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all
+                                                    ${isActive ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                <Icon size={14} />
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                                <div className="flex items-center gap-4">
+                                    {[
+                                        { label: 'Class Overall', value: attendanceHeaderStats.overall !== null ? `${attendanceHeaderStats.overall}%` : '—' },
+                                        { label: 'This Month', value: attendanceHeaderStats.thisMonth !== null ? `${attendanceHeaderStats.thisMonth}%` : '—' },
+                                    ].map(({ label, value }) => (
+                                        <div key={label} className="text-right">
+                                            <p className="text-lg font-bold leading-tight">{value}</p>
+                                            <p className="text-[11px] text-muted-foreground">{label}</p>
+                                        </div>
                                     ))}
                                 </div>
-                                {attendanceSubTab === 'overall' && (
-                                    <>
-                                        <div className="text-right">
-                                            <p className="text-lg font-bold leading-tight text-emerald-600">{attendanceHeaderStats.overall !== null ? `${attendanceHeaderStats.overall}%` : '—'}</p>
-                                            <p className="text-[11px] text-muted-foreground">Class Overall</p>
-                                        </div>
-                                        <div className="text-right">
-                                            <p className="text-lg font-bold leading-tight text-primary">{attendanceHeaderStats.thisMonth !== null ? `${attendanceHeaderStats.thisMonth}%` : '—'}</p>
-                                            <p className="text-[11px] text-muted-foreground">This Month</p>
-                                        </div>
-                                    </>
-                                )}
                             </div>
                         )}
 
+                        <AnimatePresence>
+                            {activeTab === 'marksheet' && (
+                                <motion.div
+                                    initial={{ opacity: 0, x: 8 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 8 }}
+                                    transition={{ duration: 0.15 }}
+                                    className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
+                                    {([
+                                        { key: 'offline' as MarksSubTab, label: 'Offline', Icon: NotebookPen },
+                                        { key: 'online' as MarksSubTab, label: 'Online', Icon: Smartphone },
+                                        { key: 'overall' as MarksSubTab, label: 'Overall', Icon: BarChart2 },
+                                    ]).map(({ key, label, Icon }) => {
+                                        const isActive = marksheetSubTab === key;
+                                        return (
+                                            <button key={key} onClick={() => setMarksheetSubTab(key)}
+                                                className={`relative flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all
+                                                    ${isActive ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                <Icon size={14} />
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
                         {activeTab === 'marksheet' && (
-                            <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
-                                {([{ key: 'offline', label: 'Offline' }, { key: 'online', label: 'Online' }] as const).map(tab => (
-                                    <button key={tab.key} onClick={() => setMarksheetSubTab(tab.key)}
-                                        className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${marksheetSubTab === tab.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                                        {tab.label}
-                                    </button>
-                                ))}
+                            <div className="flex items-center gap-4">
+                                <div className="text-right">
+                                    <p className="text-lg font-bold leading-tight">
+                                        {marksStats.avg !== null ? `${marksStats.avg}%` : '—'}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">{marksStats.pill1Label ?? 'Class Avg'}</p>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-lg font-bold leading-tight"
+                                        style={{ color: marksStats.pill2Color ?? undefined }}>
+                                        {marksStats.pill2Value ?? marksStats.topGrade ?? '—'}
+                                    </p>
+                                    <p className="text-[11px] text-muted-foreground">{marksStats.pill2Label ?? 'Top Grade'}</p>
+                                </div>
                             </div>
                         )}
                     </div>
@@ -1856,7 +1897,7 @@ export default function DivisionDetailPage() {
                                 divisionName={division.name}
                                 subTab={marksheetSubTab}
                                 onSubTabChange={setMarksheetSubTab}
-                                onStatsChange={() => {}}
+                                onStatsChange={setMarksStats}
                                 readOnly={true}
                             />
                         </motion.div>

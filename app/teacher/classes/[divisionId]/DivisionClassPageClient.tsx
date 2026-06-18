@@ -323,14 +323,18 @@ export default function DivisionClassPageClient() {
                                     <p className="text-lg font-bold leading-tight">
                                         {marksStats.avg !== null ? `${marksStats.avg}%` : '—'}
                                     </p>
-                                    <p className="text-[11px] text-muted-foreground">{marksStats.pill1Label ?? 'Class Avg'}</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {marksStats.pill1Label ?? (marksSubTab === 'online' ? 'Online High' : 'Offline High')}
+                                    </p>
                                 </div>
                                 <div className="text-right">
                                     <p className="text-lg font-bold leading-tight"
-                                        style={{ color: marksStats.pill2Color ?? (marksStats.topGrade === 'A' ? '#059669' : marksStats.topGrade === 'B' ? '#F59E0B' : marksStats.topGrade === 'C' ? '#d97706' : marksStats.topGrade === 'D' ? '#DC2626' : undefined) }}>
+                                        style={{ color: marksStats.pill2Color ?? undefined }}>
                                         {marksStats.pill2Value ?? marksStats.topGrade ?? '—'}
                                     </p>
-                                    <p className="text-[11px] text-muted-foreground">{marksStats.pill2Label ?? 'Top Grade'}</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        {marksStats.pill2Label ?? (marksSubTab === 'online' ? 'Online Low' : 'Offline Low')}
+                                    </p>
                                 </div>
                             </div>
                         ) : activeTab === 'tasks' ? (

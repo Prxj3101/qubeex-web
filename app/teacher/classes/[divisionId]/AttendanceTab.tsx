@@ -438,8 +438,8 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                                 return (
                                                     <td key={d} rowSpan={students.length}
                                                         className="border-[0.1px] border-red-200 text-center align-middle relative"
-                                                        style={{ background: '#FEF2F2', minWidth: '30px' }}>
-                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                        style={{ background: '#FEF2F2', minWidth: '30px', fontFamily: 'Arial, "Segoe UI", sans-serif' }}>
+                                                        <div className="absolute inset-0 flex items-center justify-center" style={{ fontFamily: 'Arial, "Segoe UI", sans-serif' }}>
                                                             <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
                                                                 <line x1="50%" y1="0" x2="50%" y2="100%" stroke="#FCA5A5" strokeWidth="1" />
                                                             </svg>
@@ -447,7 +447,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                                                 color: '#ef4444', fontSize: '10px', fontWeight: '700',
                                                                 whiteSpace: 'nowrap', writingMode: 'vertical-rl', transform: 'rotate(180deg)',
                                                                 background: '#FEF2F2', padding: '2px 0', position: 'relative', zIndex: 1,
-                                                                fontFamily: "'Inter', 'Segoe UI', Arial, sans-serif", letterSpacing: '0.5px',
+                                                                fontFamily: 'Arial, "Segoe UI", sans-serif', letterSpacing: '0.5px', fontSize: '11px',
                                                             }}>
                                                                 {holidays[dk] ? `Holiday — ${holidays[dk]}` : 'Holiday'}
                                                             </span>
@@ -1168,8 +1168,8 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     const [remarkOpen, setRemarkOpen] = useState<string | null>(null);
     const [globalRemark, setGlobalRemark] = useState('');
     const [dateRemarks, setDateRemarks] = useState<Record<string, string>>({});
-    const [saving, setSaving] = useState(false);
-    const [saved, setSaved] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [loadingDate, setLoadingDate] = useState(false);
 
     // Initialize attendance state when students load
@@ -1240,7 +1240,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     };
 
     const handleSave = async () => {
-        setSaving(true);
+        setSaveStatus('saving');
         try {
             const records = students
                 .filter(s => attendance[s.id]?.status !== null)
@@ -1254,13 +1254,12 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                 records,
                 dateNote: globalRemark || undefined,
             });
-            setSaved(true);
+            setSaveStatus('saved');
             setRefreshKey(k => k + 1);
-            setTimeout(() => setSaved(false), 2000);
+            setTimeout(() => setSaveStatus('idle'), 2000);
         } catch (err) {
             console.error('Failed to save attendance', err);
-        } finally {
-            setSaving(false);
+            setSaveStatus('idle');
         }
     };
 
@@ -1273,6 +1272,16 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     const absent = Object.values(attendance).filter(a => a.status === 'A').length;
     const late = Object.values(attendance).filter(a => a.status === 'L').length;
     const unmarked = students.filter(s => !attendance[s.id]?.status).length;
+
+    // Auto-save: 2s debounce after attendance changes, triggers as soon as at least one student is marked
+    useEffect(() => {
+        if (readOnly || students.length === 0) return;
+        if (!Object.values(attendance).some(a => a.status)) return;
+        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
+        autoSaveTimer.current = setTimeout(() => { handleSave(); }, 2000);
+        return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [attendance, globalRemark]);
 
     // Calendar cells
     const startOffset = (new Date(calYear, calMonth, 1).getDay() + 6) % 7;
@@ -1444,12 +1453,15 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                             ))}
                         </div>
                         {!readOnly && (
-                            <button onClick={handleSave} disabled={saving || students.length === 0 || (unmarked > 0 && !isCurrentDayHoliday && !isCurrentDaySunday)}
+                            <button onClick={handleSave} disabled={saveStatus === 'saving' || students.length === 0 || !Object.values(attendance).some(a => a.status)}
                                 className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
-                                style={{ background: saved ? '#10b981' : 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                {saving ? <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                    : saved ? <CheckCircle2 size={13} /> : <Save size={13} />}
-                                {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Attendance'}
+                                style={{ background: saveStatus === 'saved' ? '#10b981' : 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                {saveStatus === 'saving'
+                                    ? <span className="w-3 h-3 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                                    : saveStatus === 'saved'
+                                        ? <CheckCircle2 size={12} />
+                                        : <Save size={12} />}
+                                {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Save Attendance'}
                             </button>
                         )}
                     </div>
@@ -1516,7 +1528,8 @@ export default function AttendanceTab({
         Promise.all([
             api.get(studentsUrl),
             api.get(`${attBase}/holidays`),
-        ]).then(([studRes, holRes]) => {
+            api.get(`${attBase}/summary`),
+        ]).then(([studRes, holRes, summaryRes]) => {
             if (cancelled) return;
             const s: AttendanceStudent[] = studRes.data.data.map((st: {
                 id: string; user: { name: string }; rollNo: string | null;
@@ -1530,6 +1543,8 @@ export default function AttendanceTab({
             const h: Record<string, string> = {};
             holRes.data.data.forEach((hol: { date: string; name: string }) => { h[hol.date] = hol.name; });
             setHolidays(h);
+            const cs = summaryRes.data.data.classStats;
+            onHeaderStatsLoad?.({ overall: cs?.overallPct ?? null, thisMonth: cs?.currentMonthPct ?? null });
         }).catch(err => { if (!cancelled) console.error('Failed to load attendance base data', err); });
         return () => { cancelled = true; };
     }, [divisionId]);
