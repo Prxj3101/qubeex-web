@@ -527,6 +527,16 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                             </div>
                         )}
 
+                        {/* Save button */}
+                        <div className="flex justify-end">
+                            <button onClick={handleSave} disabled={saving}
+                                className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-all"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                <Save size={13} />
+                                {saving ? 'Saving…' : 'Save Changes'}
+                            </button>
+                        </div>
+
                         {/* ROW 1: Fee Structures + Payment Methods */}
                         <div className="flex gap-3">
 
@@ -977,6 +987,16 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                 </div>
 
                             </motion.div>
+                        </div>
+
+                        {/* Bottom Save button */}
+                        <div className="flex justify-end pb-1">
+                            <button onClick={handleSave} disabled={saving}
+                                className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-all"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                <Save size={13} />
+                                {saving ? 'Saving…' : 'Save Changes'}
+                            </button>
                         </div>
 
                     </motion.div>

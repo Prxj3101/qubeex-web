@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
+import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -98,6 +99,8 @@ function InlineAddInput({ placeholder, onAdd, onCancel, loading }: {
 export default function ClassesPage() {
     const router = useRouter();
     const { instType } = useMockInstType();
+    const { user } = useAuthStore();
+    const isAdmin = user?.role === 'ADMIN';
     const [standards, setStandards] = useState<Standard[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -227,12 +230,14 @@ export default function ClassesPage() {
                             {standards.length} {standardLabel.toLowerCase()}s · {totalDivisions} {divisionLabel.toLowerCase()}s · {totalSubjects} subjects
                         </p>
                     </div>
-                    <button
-                        onClick={() => setAddingStandard(true)}
-                        className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
-                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                        <Plus size={15} /> Add {standardLabel}
-                    </button>
+                    {isAdmin && (
+                        <button
+                            onClick={() => setAddingStandard(true)}
+                            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
+                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                            <Plus size={15} /> Add {standardLabel}
+                        </button>
+                    )}
                 </div>
                 <div className="h-px bg-border/60 mt-2" />
             </div>
@@ -256,7 +261,7 @@ export default function ClassesPage() {
                     </div>
                 )}
 
-                {addingStandard && (
+                {isAdmin && addingStandard && (
                     <div className="bg-card border border-primary/30 rounded-2xl px-5 py-4">
                         <p className="text-xs font-semibold text-muted-foreground mb-3">New {standardLabel}</p>
                         <InlineAddInput
@@ -327,17 +332,19 @@ export default function ClassesPage() {
                                                                 }}>
                                                                 <BookOpen size={11} />
                                                                 {sub.name}
-                                                                <button
-                                                                    onClick={() => setConfirmDeleteSubject({ id: sub.id, name: sub.name, standardId: std.id })}
-                                                                    className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all">
-                                                                    <X size={9} />
-                                                                </button>
+                                                                {isAdmin && (
+                                                                    <button
+                                                                        onClick={() => setConfirmDeleteSubject({ id: sub.id, name: sub.name, standardId: std.id })}
+                                                                        className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all">
+                                                                        <X size={9} />
+                                                                    </button>
+                                                                )}
                                                             </span>
                                                         ))}
                                                         {(std.subjects ?? []).length === 0 && (
                                                             <span className="text-xs text-muted-foreground/60 italic">No subjects yet</span>
                                                         )}
-                                                        {addingSubject === std.id ? (
+                                                        {isAdmin && (addingSubject === std.id ? (
                                                             <InlineAddInput
                                                                 placeholder="Subject name"
                                                                 onAdd={name => addSubject(std.id, name)}
@@ -349,7 +356,7 @@ export default function ClassesPage() {
                                                                 className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
                                                                 <Plus size={11} /> Add subject
                                                             </button>
-                                                        )}
+                                                        ))}
                                                     </div>
                                                 </div>
 
@@ -447,8 +454,8 @@ export default function ClassesPage() {
                                                     </p>
                                                 )}
 
-                                                {/* Add division */}
-                                                {addingDivision === std.id ? (
+                                                {/* Add division — ADMIN only */}
+                                                {isAdmin && (addingDivision === std.id ? (
                                                     <InlineAddInput
                                                         placeholder={`e.g. ${std.name.replace('Class ', '')}-A`}
                                                         onAdd={name => addDivision(std.id, name)}
@@ -461,7 +468,7 @@ export default function ClassesPage() {
                                                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
                                                         <Plus size={11} /> Add {divisionLabel}
                                                     </button>
-                                                )}
+                                                ))}
                                             </div>
                                         </div>
                                     </motion.div>

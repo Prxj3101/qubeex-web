@@ -36,7 +36,7 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
             router.replace(first ? first.href : '/admin/overview');
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [pathname, isSubAdmin]);
+    }, [pathname, isSubAdmin, permissions]);
 
     return (
         <div className="flex flex-col h-full overflow-hidden">

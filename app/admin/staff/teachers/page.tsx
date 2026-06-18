@@ -22,6 +22,7 @@ import {
 } from 'lucide-react';
 
 import { useMockInstType } from '@/context/MockInstTypeContext';
+import { useAuthStore } from '@/store/authStore';
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
 const MOCK_TEACHERS: Teacher[] = [
@@ -139,12 +140,13 @@ type ModalState =
 
 // ── Teacher Card ──────────────────────────────────────────────────────────────
 function TeacherCard({
-    teacher, index, instType,
+    teacher, index, instType, isSubAdmin,
     onEdit, onToggleStatus, onResendInvite, onDelete,
 }: {
     teacher: Teacher;
     index: number;
     instType: InstitutionType;
+    isSubAdmin: boolean;
     onEdit: (t: Teacher) => void;
     onToggleStatus: (t: Teacher) => void;
     onResendInvite: (t: Teacher) => void;
@@ -307,7 +309,7 @@ function TeacherCard({
                     <Eye size={12} />
                     View Details
                 </button>
-                {teacher.invitePending ? (
+                {!isSubAdmin && (teacher.invitePending ? (
                     <button
                         onClick={() => onResendInvite(teacher)}
                         className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-950/30 text-xs font-medium transition-all duration-150"
@@ -326,14 +328,16 @@ function TeacherCard({
                         {isActive ? <PowerOff size={12} /> : <Power size={12} />}
                         {isActive ? 'Deactivate' : 'Activate'}
                     </button>
+                ))}
+                {!isSubAdmin && (
+                    <button
+                        onClick={() => onDelete(teacher)}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 dark:border-red-800 dark:hover:bg-red-950/30 transition-all duration-150 shrink-0"
+                        title="Permanently delete teacher"
+                    >
+                        <Trash2 size={13} />
+                    </button>
                 )}
-                <button
-                    onClick={() => onDelete(teacher)}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 dark:border-red-800 dark:hover:bg-red-950/30 transition-all duration-150 shrink-0"
-                    title="Permanently delete teacher"
-                >
-                    <Trash2 size={13} />
-                </button>
             </div>
         </motion.div>
     );
@@ -347,6 +351,8 @@ export default function TeachersPage() {
     const [modal, setModal] = useState<ModalState>({ type: 'closed' });
     const [actionLoading, setActionLoading] = useState(false);
     const [search, setSearch] = useState('');
+    const { user: authUser } = useAuthStore();
+    const isSubAdmin = authUser?.role === 'SUB_ADMIN';
 
     useEffect(() => {
         let cancelled = false;
@@ -508,14 +514,16 @@ export default function TeachersPage() {
                                 </button>
                             )}
                         </div>
-                        <button
-                            onClick={() => setModal({ type: 'add' })}
-                            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-95"
-                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                        >
-                            <Plus size={15} />
-                            Add New Teacher
-                        </button>
+                        {!isSubAdmin && (
+                            <button
+                                onClick={() => setModal({ type: 'add' })}
+                                className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                            >
+                                <Plus size={15} />
+                                Add New Teacher
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -540,6 +548,7 @@ export default function TeachersPage() {
                                 teacher={teacher}
                                 index={i}
                                 instType={instType}
+                                isSubAdmin={isSubAdmin}
                                 onEdit={t => setModal({ type: 'edit', teacher: t })}
                                 onToggleStatus={t => setModal({ type: 'deactivate', teacher: t })}
                                 onResendInvite={t => setModal({ type: 'resendInvite', teacher: t })}

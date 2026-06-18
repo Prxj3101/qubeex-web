@@ -19,7 +19,7 @@ import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeCon
 const ALL_NAV_ITEMS = [
     { label: 'Overview',   href: '/admin/overview',           icon: LayoutDashboard, childKeys: [] as string[] },
     { label: 'Staff',      href: '/admin/staff',              icon: Users,           childKeys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
-    { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES'] },
+    { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { label: 'Insights',   href: '/admin/insights/analytics', icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS'] },
     { label: 'Support',    href: '/admin/support/tickets',    icon: Headset,         activePath: '/admin/support',  childKeys: ['SUPPORT'] },
     { label: 'Audit Logs', href: '/admin/audit-logs',         icon: ScrollText,      childKeys: ['AUDIT_LOGS'] },
@@ -28,7 +28,7 @@ const ALL_NAV_ITEMS = [
 // Which permission keys gate each path prefix
 const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/staff',      keys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
-    { prefix: '/admin/campus',     keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES'] },
+    { prefix: '/admin/campus',     keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { prefix: '/admin/insights',   keys: ['INSIGHTS'] },
     { prefix: '/admin/support',    keys: ['SUPPORT'] },
     { prefix: '/admin/audit-logs', keys: ['AUDIT_LOGS'] },
@@ -74,6 +74,24 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         }).catch(() => { /* non-blocking */ });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isSubAdmin, pathname]);
+
+    // Background poll every 30 s so permission changes surface even without navigation.
+    useEffect(() => {
+        if (!isSubAdmin) return;
+        const poll = setInterval(() => {
+            api.get('/admin/subadmin/me').then(res => {
+                const fresh: string[] | null = res.data?.data?.permissions;
+                const currentUser = userRef.current;
+                if (!currentUser) return;
+                if (fresh && JSON.stringify(fresh) !== JSON.stringify(currentUser.permissions)) {
+                    lastSyncRef.current = Date.now();
+                    setUser({ ...currentUser, permissions: fresh });
+                }
+            }).catch(() => { /* non-blocking */ });
+        }, 30_000);
+        return () => clearInterval(poll);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isSubAdmin]);
 
     useEffect(() => {
         if (isSubAdmin && !isPathAccessible(pathname, permissions)) {
