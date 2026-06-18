@@ -444,7 +444,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                                                 <line x1="50%" y1="0" x2="50%" y2="100%" stroke="#FCA5A5" strokeWidth="1" />
                                                             </svg>
                                                             <span style={{
-                                                                color: '#ef4444', fontSize: '10px', fontWeight: '700',
+                                                                color: '#ef4444', fontWeight: '700',
                                                                 whiteSpace: 'nowrap', writingMode: 'vertical-rl', transform: 'rotate(180deg)',
                                                                 background: '#FEF2F2', padding: '2px 0', position: 'relative', zIndex: 1,
                                                                 fontFamily: 'Arial, "Segoe UI", sans-serif', letterSpacing: '0.5px', fontSize: '11px',
