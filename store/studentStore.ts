@@ -1,8 +1,12 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface Guardian { name: string; number: string; relation: string; }
 
 interface StudentState {
+    // Photo
+    photo: string | null;
+
     // Student Info
     name: string;
     dob: string;
@@ -34,7 +38,9 @@ interface StudentState {
     updateInfo: (data: Partial<StudentState>) => void;
 }
 
-export const useStudentStore = create<StudentState>((set) => ({
+export const useStudentStore = create<StudentState>()(persist((set) => ({
+    photo: null,
+
     name: 'Prajwal Jagdish Kotian',
     dob: '2001-05-31',
     email: 'prajwal.kotian@gmail.com',
@@ -62,4 +68,4 @@ export const useStudentStore = create<StudentState>((set) => ({
     ],
 
     updateInfo: (data) => set((state) => ({ ...state, ...data })),
-}));
+}), { name: 'student-store' }));

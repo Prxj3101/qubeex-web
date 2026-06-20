@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AddStudentModal, StudentFormData } from './AddStudentModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Users, BookOpen, ExternalLink, ChevronDown, Power, Flag, Plus,
-    PowerOff, User, Shield, MapPin, Eye, EyeOff, Download, FileText, Table2,
+    Users, BookOpen, ExternalLink, ChevronDown, Power, Flag, Plus, Trash2,
+    PowerOff, User, Shield, MapPin, Eye, EyeOff, Download, FileText, Table2, Camera, Heart, Pencil,
 } from 'lucide-react';
 import { Division, getInitials, getAvatarColor } from './DivisionClassPageClient';
+import { useStudentPhotosStore } from '@/store/studentPhotosStore';
 import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -35,6 +37,8 @@ interface Student {
     emergencyContact: string | null;
     religion: string | null;
     category: string | null;
+    nationality: string | null;
+    admissionYear: string | null;
     guardians: Guardian[] | null;
     tempPassword: string | null;
     status: 'ACTIVE' | 'INACTIVE';
@@ -48,11 +52,109 @@ const GENDERS = [
     { value: 'OTHER', label: 'Other' },
 ];
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
+
+function formatAadhar(val: string): string {
+    const digits = val.replace(/\D/g, '').slice(0, 12);
+    return (digits.match(/.{1,4}/g) ?? []).join(' ');
+}
+
+function formatDob(val: string): string {
+    const digits = val.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
+const COUNTRY_CODES = [
+    { code: '+91',  label: '🇮🇳 +91',  max: 10 },
+    { code: '+1',   label: '🇺🇸 +1',   max: 10 },
+    { code: '+44',  label: '🇬🇧 +44',  max: 10 },
+    { code: '+61',  label: '🇦🇺 +61',  max: 9  },
+    { code: '+971', label: '🇦🇪 +971', max: 9  },
+    { code: '+65',  label: '🇸🇬 +65',  max: 8  },
+];
+
+function parsePhone(val: string) {
+    const match = (val ?? '').match(/^(\+\d+)\s*(.*)$/);
+    return match ? { code: match[1], number: match[2] } : { code: '+91', number: val ?? '' };
+}
+
+function PhoneField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+    const { code, number } = parsePhone(value);
+    const [open, setOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const dropRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState({ top: 0, left: 0 });
+
+    useEffect(() => {
+        if (!open) return;
+        const close = (e: MouseEvent) => {
+            if (
+                btnRef.current && !btnRef.current.contains(e.target as Node) &&
+                dropRef.current && !dropRef.current.contains(e.target as Node)
+            ) setOpen(false);
+        };
+        const onScroll = (e: Event) => {
+            if (dropRef.current && dropRef.current.contains(e.target as Node)) return;
+            setOpen(false);
+        };
+        document.addEventListener('mousedown', close);
+        window.addEventListener('scroll', onScroll, true);
+        return () => {
+            document.removeEventListener('mousedown', close);
+            window.removeEventListener('scroll', onScroll, true);
+        };
+    }, [open]);
+
+    const handleToggle = () => {
+        if (!open && btnRef.current) {
+            const r = btnRef.current.getBoundingClientRect();
+            setPos({ top: r.bottom + 4, left: r.left });
+        }
+        setOpen(v => !v);
+    };
+
+    return (
+        <div>
+            <p className="text-[11px] text-muted-foreground mb-1 font-medium">{label}</p>
+            <div className="flex gap-1.5">
+                <div className="shrink-0">
+                    <button ref={btnRef} type="button" onClick={handleToggle}
+                        className="h-8 px-2.5 rounded-md border border-border/50 bg-muted text-xs flex items-center gap-1 whitespace-nowrap hover:bg-muted/80 transition-all">
+                        {code} <ChevronDown size={10} className="text-muted-foreground" />
+                    </button>
+                    {open && typeof document !== 'undefined' && createPortal(
+                        <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                            className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
+                            {COUNTRY_CODES.map(c => (
+                                <button key={c.code} type="button"
+                                    onClick={() => { onChange(`${c.code} ${number}`); setOpen(false); }}
+                                    className={`w-full px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors ${code === c.code ? 'text-primary font-semibold' : 'text-foreground'}`}>
+                                    {c.label}
+                                </button>
+                            ))}
+                        </div>,
+                        document.body
+                    )}
+                </div>
+                <input value={number}
+                    onChange={e => {
+                        const raw = e.target.value;
+                        const maxDigits = COUNTRY_CODES.find(c => c.code === code)?.max ?? 10;
+                        if (raw.replace(/\D/g, '').length <= maxDigits) onChange(`${code} ${raw}`);
+                    }}
+                    placeholder="98765 43210"
+                    className="flex-1 h-8 px-3 rounded-md border border-border/50 bg-muted text-xs focus:outline-none focus:border-primary/50 transition-all" />
+            </div>
+        </div>
+    );
+}
 const CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Other'];
 
-function SectionHeader({ icon: Icon, label, editing, saving, onEdit, onSave, onCancel }: {
+function SectionHeader({ icon: Icon, label, editing, saving, onEdit, onSave, onCancel, afterLabel }: {
     icon: React.ElementType; label: string; editing: boolean; saving?: boolean;
     onEdit: () => void; onSave: () => void; onCancel: () => void;
+    afterLabel?: React.ReactNode;
 }) {
     return (
         <div className="flex items-center gap-2 mb-3">
@@ -60,6 +162,7 @@ function SectionHeader({ icon: Icon, label, editing, saving, onEdit, onSave, onC
                 <Icon size={11} className="text-primary" />
             </div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground">{label}</p>
+            {afterLabel}
             <div className="flex-1 h-px bg-border/60" />
             {editing ? (
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -75,20 +178,20 @@ function SectionHeader({ icon: Icon, label, editing, saving, onEdit, onSave, onC
                 </div>
             ) : (
                 <button onClick={onEdit}
-                    className="h-6 px-2.5 rounded-lg border border-border/50 text-[11px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all shrink-0">
-                    Edit
+                    className="h-6 px-2.5 rounded-lg border border-border/50 text-[11px] font-semibold text-muted-foreground hover:text-primary hover:border-primary/40 transition-all shrink-0 flex items-center gap-1">
+                    <Pencil size={11} /> Edit
                 </button>
             )}
         </div>
     );
 }
 
-function ReadField({ label, value }: { label: string; value: string }) {
+function ReadField({ label, value, multiline }: { label: string; value: string; multiline?: boolean }) {
     return (
         <div>
             <p className="text-[11px] text-muted-foreground mb-1 font-medium">{label}</p>
-            <div className="h-8 px-3 rounded-md border border-border/50 bg-muted flex items-center">
-                <span className="text-xs text-foreground">{value || '—'}</span>
+            <div className={`px-3 rounded-md border border-border/50 bg-muted flex ${multiline ? 'min-h-8 py-2 items-start' : 'h-8 items-center'}`}>
+                <span className="text-xs text-foreground leading-relaxed">{value || '—'}</span>
             </div>
         </div>
     );
@@ -172,6 +275,18 @@ export default function ManageTab({ division, isClassTeacher }: {
     const [showExportMenu, setShowExportMenu] = useState(false);
     const fetchedRef = useRef(false);
 
+    const { photos, setPhoto } = useStudentPhotosStore();
+    const photoInputRef = useRef<HTMLInputElement>(null);
+    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!selectedStudent) return;
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => setPhoto(selectedStudent.id, ev.target?.result as string);
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
+
     const fetchStudents = useCallback(async () => {
         setLoadingStudents(true);
         try {
@@ -246,9 +361,11 @@ export default function ManageTab({ division, isClassTeacher }: {
                 if (editDraft.gender !== undefined) payload.gender = editDraft.gender;
                 if (editDraft.religion !== undefined) payload.religion = editDraft.religion;
                 if (editDraft.category !== undefined) payload.category = editDraft.category;
+                if (editDraft.nationality !== undefined) payload.nationality = editDraft.nationality;
+                if (editDraft.admissionYear !== undefined) payload.admissionYear = editDraft.admissionYear;
                 if (editDraft.phone !== undefined) payload.phone = editDraft.phone;
             } else if (section === 'academic') {
-                if (editDraft.rollNo !== undefined) payload.rollNo = editDraft.rollNo;
+                if (editDraft.rollNo !== undefined) payload.rollNo = String(editDraft.rollNo).trim().padStart(2, '0');
                 if (editDraft.houseColor !== undefined) payload.houseColor = editDraft.houseColor;
             } else if (section === 'medical') {
                 if (editDraft.bloodGroup !== undefined) payload.bloodGroup = editDraft.bloodGroup;
@@ -390,9 +507,12 @@ export default function ManageTab({ division, isClassTeacher }: {
                                 <button key={student.id}
                                     onClick={() => { setSelectedStudent(student); setManageRightTab('student'); }}
                                     className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-colors ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden"
                                         style={{ background: getAvatarColor(student.user.name ?? student.studentId) }}>
-                                        {getInitials(student.user.name ?? student.studentId)}
+                                        {photos[student.id]
+                                            ? <img src={photos[student.id]} alt="profile" className="w-full h-full object-cover" />
+                                            : getInitials(student.user.name ?? student.studentId)
+                                        }
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-semibold truncate">{student.user.name ?? '—'}</p>
@@ -540,9 +660,22 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     onCancel={() => { setEditingSections(p => ({ ...p, studentInfo: false })); setEditDraft({}); }}
                                                 />
                                                 <div className="flex items-center gap-3 mb-2">
-                                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                                                        style={{ background: getAvatarColor(selectedStudent.user.name ?? selectedStudent.studentId) }}>
-                                                        {getInitials(selectedStudent.user.name ?? selectedStudent.studentId)}
+                                                    <div className="relative shrink-0">
+                                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white overflow-hidden"
+                                                            style={{ background: getAvatarColor(selectedStudent.user.name ?? selectedStudent.studentId) }}>
+                                                            {photos[selectedStudent.id]
+                                                                ? <img src={photos[selectedStudent.id]} alt="profile" className="w-full h-full object-cover" />
+                                                                : getInitials(selectedStudent.user.name ?? selectedStudent.studentId)
+                                                            }
+                                                        </div>
+                                                        <button
+                                                            onClick={() => photoInputRef.current?.click()}
+                                                            className="absolute bottom-0 right-0 translate-x-1/4 translate-y-1/4 w-5 h-5 rounded-full flex items-center justify-center hover:opacity-90 transition-all shadow-sm"
+                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                                            title="Upload photo">
+                                                            <Camera size={10} className="text-white" />
+                                                        </button>
+                                                        <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                                                     </div>
                                                     <div>
                                                         {editingSections.studentInfo ? (
@@ -556,7 +689,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                 <div className="grid grid-cols-2 gap-2">
                                                     {editingSections.studentInfo ? (
                                                         <>
-                                                            <EditField label="Date of Birth" value={d('dob')} onChange={set('dob')} placeholder="YYYY-MM-DD" />
+                                                            <EditField label="Date of Birth" value={d('dob')} onChange={v => set('dob')(formatDob(v))} placeholder="YYYY-MM-DD" />
                                                             <EditDropdown label="Gender" value={d('gender')} options={GENDERS} onChange={set('gender')} />
                                                         </>
                                                     ) : (
@@ -579,10 +712,23 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                         </>
                                                     )}
                                                 </div>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    {editingSections.studentInfo ? (
+                                                        <>
+                                                            <EditField label="Nationality" value={d('nationality')} onChange={set('nationality')} placeholder="e.g. Indian" />
+                                                            <EditField label="Admission Year" value={d('admissionYear')} onChange={v => { if (v.replace(/\D/g, '').length <= 4) set('admissionYear')(v.replace(/\D/g, '')); }} placeholder="e.g. 2022" />
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <ReadField label="Nationality" value={d('nationality')} />
+                                                            <ReadField label="Admission Year" value={d('admissionYear')} />
+                                                        </>
+                                                    )}
+                                                </div>
                                                 {editingSections.studentInfo ? (
                                                     <>
                                                         <EditField label="Email" value={selectedStudent.user.email} onChange={() => {}} placeholder="" />
-                                                        <EditField label="Contact No" value={d('phone')} onChange={set('phone')} placeholder="+91 98765 43210" />
+                                                        <PhoneField label="Contact No" value={d('phone')} onChange={set('phone')} />
                                                     </>
                                                 ) : (
                                                     <>
@@ -602,8 +748,8 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     onCancel={() => { setEditingSections(p => ({ ...p, academic: false })); setEditDraft({}); }}
                                                 />
                                                 <div className="grid grid-cols-2 gap-2">
-                                                    <ReadField label="Class" value={division.standard.name} />
-                                                    <ReadField label="Division" value={division.name} />
+                                                    <ReadField label="Class" value={division.standard.name.replace(/^Class\s*/i, '')} />
+                                                    <ReadField label="Division" value={division.name.split('-').pop() ?? division.name} />
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-2">
                                                     {editingSections.academic ? (
@@ -664,13 +810,19 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                 {editingSections.medical ? (
                                                     <>
                                                         <EditDropdown label="Blood Group" value={d('bloodGroup')} options={BLOOD_GROUPS} onChange={set('bloodGroup')} />
-                                                        <EditField label="Aadhar No" value={d('aadharNo')} onChange={set('aadharNo')} placeholder="XXXX XXXX XXXX" />
-                                                        <EditField label="PAN No" value={d('panNo')} onChange={set('panNo')} placeholder="ABCDE1234F" />
-                                                        <EditField label="Emergency Contact" value={d('emergencyContact')} onChange={set('emergencyContact')} placeholder="98765 43210" />
+                                                        <EditField label="Aadhar No" value={d('aadharNo')} onChange={v => set('aadharNo')(formatAadhar(v))} placeholder="XXXX XXXX XXXX" />
+                                                        <EditField label="PAN No" value={d('panNo')} onChange={v => { if (v.replace(/\s/g, '').length <= 10) set('panNo')(v.toUpperCase()); }} placeholder="ABCDE1234F" />
+                                                        <PhoneField label="Emergency Contact" value={d('emergencyContact')} onChange={set('emergencyContact')} />
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <ReadField label="Blood Group" value={d('bloodGroup')} />
+                                                        <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200/50 dark:border-red-900/50">
+                                                            <Heart size={18} className="text-red-500 shrink-0" />
+                                                            <div>
+                                                                <p className="text-[10px] text-red-400 font-medium">Blood Group</p>
+                                                                <p className="text-xl font-black text-red-500">{d('bloodGroup') || '—'}</p>
+                                                            </div>
+                                                        </div>
                                                         <ReadField label="Aadhar No" value={d('aadharNo')} />
                                                         <ReadField label="PAN No" value={d('panNo')} />
                                                         <ReadField label="Emergency Contact" value={d('emergencyContact')} />
@@ -698,7 +850,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <ReadField label="Address" value={d('address')} />
+                                                        <ReadField label="Address" value={d('address')} multiline />
                                                         <div className="grid grid-cols-2 gap-2">
                                                             <ReadField label="City" value={d('city')} />
                                                             <ReadField label="State" value={d('state')} />
@@ -716,52 +868,72 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                 editing={editingSections.guardians}
                                                 saving={savingSections.guardians}
                                                 onEdit={() => {
-                                                    setEditDraft(p => ({
-                                                        ...p,
-                                                        guardians: selectedStudent.guardians?.length
-                                                            ? [...selectedStudent.guardians]
-                                                            : [{ name: '', number: '', relation: '' }],
-                                                    }));
+                                                    const base = selectedStudent.guardians ?? [];
+                                                    const padded = [...base, { name: '', number: '', relation: '' }, { name: '', number: '', relation: '' }].slice(0, 2);
+                                                    setEditDraft(p => ({ ...p, guardians: padded }));
                                                     setEditingSections(p => ({ ...p, guardians: true }));
                                                 }}
                                                 onSave={() => handleSaveSection('guardians')}
                                                 onCancel={() => { setEditingSections(p => ({ ...p, guardians: false })); setEditDraft(p => ({ ...p, guardians: undefined })); }}
+                                                afterLabel={editingSections.guardians && (
+                                                    <button type="button"
+                                                        onClick={() => setEditDraft(p => ({
+                                                            ...p,
+                                                            guardians: [...(p.guardians ?? []), { name: '', number: '', relation: '' }],
+                                                        }))}
+                                                        className="flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline">
+                                                        <Plus size={11} /> Add another
+                                                    </button>
+                                                )}
                                             />
                                             {(() => {
-                                                const guardianList = editingSections.guardians
-                                                    ? (editDraft.guardians ?? [{ name: '', number: '', relation: '' }])
+                                                const base = editingSections.guardians
+                                                    ? (editDraft.guardians ?? [])
                                                     : (selectedStudent.guardians ?? []);
-                                                if (!editingSections.guardians && guardianList.length === 0) {
-                                                    return <p className="text-xs text-muted-foreground/60 italic">No guardian info</p>;
-                                                }
+                                                const guardianList = editingSections.guardians
+                                                    ? base
+                                                    : [...base, { name: '', number: '', relation: '' }, { name: '', number: '', relation: '' }].slice(0, 2);
                                                 return guardianList.map((g, i) => (
                                                     <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
                                                         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Guardian {i + 1}</p>
-                                                        <div className="grid grid-cols-3 gap-2">
-                                                            {editingSections.guardians ? (
-                                                                <>
-                                                                    <EditField label="Name" value={g.name} onChange={v => {
-                                                                        const updated = [...(editDraft.guardians ?? [])];
-                                                                        updated[i] = { ...updated[i], name: v };
-                                                                        setEditDraft(p => ({ ...p, guardians: updated }));
-                                                                    }} placeholder="e.g. Rajesh Mehta" />
-                                                                    <EditField label="Number" value={g.number} onChange={v => {
-                                                                        const updated = [...(editDraft.guardians ?? [])];
-                                                                        updated[i] = { ...updated[i], number: v };
-                                                                        setEditDraft(p => ({ ...p, guardians: updated }));
-                                                                    }} placeholder="98765 43210" />
-                                                                    <EditField label="Relation" value={g.relation} onChange={v => {
-                                                                        const updated = [...(editDraft.guardians ?? [])];
-                                                                        updated[i] = { ...updated[i], relation: v };
-                                                                        setEditDraft(p => ({ ...p, guardians: updated }));
-                                                                    }} placeholder="e.g. Father" />
-                                                                </>
-                                                            ) : (
-                                                                <>
-                                                                    <ReadField label="Name" value={g.name} />
-                                                                    <ReadField label="Number" value={g.number} />
-                                                                    <ReadField label="Relation" value={g.relation} />
-                                                                </>
+                                                        <div className="flex items-end gap-2">
+                                                            <div className="grid grid-cols-3 gap-2 flex-1">
+                                                                {editingSections.guardians ? (
+                                                                    <>
+                                                                        <EditField label="Name" value={g.name} onChange={v => {
+                                                                            const updated = [...(editDraft.guardians ?? guardianList)];
+                                                                            updated[i] = { ...updated[i], name: v };
+                                                                            setEditDraft(p => ({ ...p, guardians: updated }));
+                                                                        }} placeholder="e.g. Rajesh Mehta" />
+                                                                        <PhoneField label="Number" value={g.number} onChange={v => {
+                                                                            const updated = [...(editDraft.guardians ?? guardianList)];
+                                                                            updated[i] = { ...updated[i], number: v };
+                                                                            setEditDraft(p => ({ ...p, guardians: updated }));
+                                                                        }} />
+                                                                        <EditField label="Relation" value={g.relation} onChange={v => {
+                                                                            const updated = [...(editDraft.guardians ?? guardianList)];
+                                                                            updated[i] = { ...updated[i], relation: v };
+                                                                            setEditDraft(p => ({ ...p, guardians: updated }));
+                                                                        }} placeholder="e.g. Father" />
+                                                                    </>
+                                                                ) : (
+                                                                    <>
+                                                                        <ReadField label="Name" value={g.name} />
+                                                                        <ReadField label="Number" value={g.number} />
+                                                                        <ReadField label="Relation" value={g.relation} />
+                                                                    </>
+                                                                )}
+                                                            </div>
+                                                            {editingSections.guardians && (
+                                                                <button type="button"
+                                                                    onClick={() => setEditDraft(p => {
+                                                                        const current = p.guardians ?? [];
+                                                                        if (current.length <= 2) return p;
+                                                                        return { ...p, guardians: current.filter((_, gi) => gi !== i) };
+                                                                    })}
+                                                                    className="w-8 h-8 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 border border-border/50 transition-all shrink-0">
+                                                                    <Trash2 size={13} />
+                                                                </button>
                                                             )}
                                                         </div>
                                                     </div>

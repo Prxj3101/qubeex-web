@@ -1,8 +1,9 @@
 'use client';
 
-import { ArrowLeft, User, BookOpen, Shield, MapPin, Users, Hash, Copy, Heart, Phone, CheckCircle, Pencil, X, Check, ChevronDown, Eye, EyeOff, Info } from 'lucide-react';
+import { ArrowLeft, User, BookOpen, Shield, MapPin, Users, Hash, Copy, Heart, Phone, CheckCircle, Pencil, X, Check, ChevronDown, Eye, EyeOff, Info, Camera } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useStudentStore } from '@/store/studentStore';
 
 // ─── Mock Data ─────────────────────────────────────────────────────────────────
@@ -42,17 +43,25 @@ const dobDate = new Date(STUDENT.dob);
 const age = new Date().getFullYear() - dobDate.getFullYear();
 const dobDisplay = dobDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
+// Auto-format DOB input as YYYY-MM-DD, digits only, capped at 8 digits
+function formatDob(text: string): string {
+    const digits = text.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
 function getInitials(name: string) {
     return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 }
 
 // ─── Read-only field (same style as ManageTab) ─────────────────────────────────
-function ReadField({ label, value }: { label: string; value?: string | null }) {
+function ReadField({ label, value, multiline }: { label: string; value?: string | null; multiline?: boolean }) {
     return (
         <div>
             <p className="text-[11px] text-muted-foreground mb-1 font-medium">{label}</p>
-            <div className="h-8 px-3 rounded-md border border-border/50 bg-muted flex items-center">
-                <span className="text-xs text-foreground">{value || '—'}</span>
+            <div className={`px-3 rounded-md border border-border/50 bg-muted flex ${multiline ? 'min-h-8 py-2 items-start' : 'h-8 items-center'}`}>
+                <span className="text-xs text-foreground leading-relaxed">{value || '—'}</span>
             </div>
         </div>
     );
@@ -66,6 +75,96 @@ const GENDERS = [
 ];
 const CATEGORIES = ['General', 'OBC', 'SC', 'ST', 'EWS', 'Other'].map(c => ({ value: c, label: c }));
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(b => ({ value: b, label: b }));
+
+function formatAadhar(val: string): string {
+    const digits = val.replace(/\D/g, '').slice(0, 12);
+    return (digits.match(/.{1,4}/g) ?? []).join(' ');
+}
+
+const COUNTRY_CODES = [
+    { code: '+91',  label: '🇮🇳 +91',  max: 10 },
+    { code: '+1',   label: '🇺🇸 +1',   max: 10 },
+    { code: '+44',  label: '🇬🇧 +44',  max: 10 },
+    { code: '+61',  label: '🇦🇺 +61',  max: 9  },
+    { code: '+971', label: '🇦🇪 +971', max: 9  },
+    { code: '+65',  label: '🇸🇬 +65',  max: 8  },
+];
+
+function parsePhone(val: string) {
+    const match = (val ?? '').match(/^(\+\d+)\s*(.*)$/);
+    return match ? { code: match[1], number: match[2] } : { code: '+91', number: val ?? '' };
+}
+
+function PhoneField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+    const { code, number } = parsePhone(value);
+    const [open, setOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const dropRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState({ top: 0, left: 0 });
+
+    useEffect(() => {
+        if (!open) return;
+        const close = (e: MouseEvent) => {
+            if (
+                btnRef.current && !btnRef.current.contains(e.target as Node) &&
+                dropRef.current && !dropRef.current.contains(e.target as Node)
+            ) setOpen(false);
+        };
+        const onScroll = (e: Event) => {
+            if (dropRef.current && dropRef.current.contains(e.target as Node)) return;
+            setOpen(false);
+        };
+        document.addEventListener('mousedown', close);
+        window.addEventListener('scroll', onScroll, true);
+        return () => {
+            document.removeEventListener('mousedown', close);
+            window.removeEventListener('scroll', onScroll, true);
+        };
+    }, [open]);
+
+    const handleToggle = () => {
+        if (!open && btnRef.current) {
+            const r = btnRef.current.getBoundingClientRect();
+            setPos({ top: r.bottom + 4, left: r.left });
+        }
+        setOpen(v => !v);
+    };
+
+    return (
+        <div>
+            <p className="text-[11px] text-muted-foreground mb-1 font-medium">{label}</p>
+            <div className="flex gap-1.5">
+                <div className="shrink-0">
+                    <button ref={btnRef} type="button" onClick={handleToggle}
+                        className="h-8 px-2.5 rounded-md border border-primary/50 bg-primary/5 text-xs flex items-center gap-1 whitespace-nowrap hover:bg-primary/10 transition-all">
+                        {code} <ChevronDown size={10} className="text-muted-foreground" />
+                    </button>
+                    {open && typeof document !== 'undefined' && createPortal(
+                        <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                            className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
+                            {COUNTRY_CODES.map(c => (
+                                <button key={c.code} type="button"
+                                    onClick={() => { onChange(`${c.code} ${number}`); setOpen(false); }}
+                                    className={`w-full px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors ${code === c.code ? 'text-primary font-semibold' : 'text-foreground'}`}>
+                                    {c.label}
+                                </button>
+                            ))}
+                        </div>,
+                        document.body
+                    )}
+                </div>
+                <input value={number}
+                    onChange={e => {
+                        const raw = e.target.value;
+                        const maxDigits = COUNTRY_CODES.find(c => c.code === code)?.max ?? 10;
+                        if (raw.replace(/\D/g, '').length <= maxDigits) onChange(`${code} ${raw}`);
+                    }}
+                    placeholder="98765 43210"
+                    className="flex-1 h-8 px-3 rounded-md border border-primary/50 bg-primary/5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40" />
+            </div>
+        </div>
+    );
+}
 
 // ─── Dropdown field ───────────────────────────────────────────────────────────
 function EditDropdown({ label, value, options, onChange }: {
@@ -120,10 +219,11 @@ function EditField({ label, value, onChange, placeholder }: {
 }
 
 // ─── Section header ────────────────────────────────────────────────────────────
-function SectionHeader({ icon: Icon, label, editing, saving, onEdit, onSave, onCancel }: {
+function SectionHeader({ icon: Icon, label, editing, saving, onEdit, onSave, onCancel, afterLabel }: {
     icon: React.ElementType; label: string;
     editing?: boolean; saving?: boolean;
     onEdit?: () => void; onSave?: () => void; onCancel?: () => void;
+    afterLabel?: React.ReactNode;
 }) {
     return (
         <div className="flex items-center gap-2 mb-3 min-h-[24px]">
@@ -131,6 +231,7 @@ function SectionHeader({ icon: Icon, label, editing, saving, onEdit, onSave, onC
                 <Icon size={11} className="text-primary" />
             </div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-foreground">{label}</p>
+            {afterLabel}
             <div className="flex-1 h-px bg-border/60" />
             {onEdit && !editing && (
                 <button onClick={onEdit}
@@ -208,6 +309,18 @@ export default function StudentDetailPage() {
         return d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) + ` (${a} yrs)`;
     })();
 
+    const photoInputRef = useRef<HTMLInputElement>(null);
+    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            updateInfo({ photo: ev.target?.result as string });
+        };
+        reader.readAsDataURL(file);
+        e.target.value = '';
+    };
+
     const handleCopy = () => {
         navigator.clipboard.writeText(STUDENT.uid);
         setCopied(true);
@@ -218,7 +331,7 @@ export default function StudentDetailPage() {
         <div className="flex flex-col h-full">
 
             {/* ── Header ── */}
-            <div className="flex items-center gap-3 pt-0 pb-2 shrink-0">
+            <div className="flex items-center gap-3 pt-0 pb-3 shrink-0">
                 <button
                     onClick={() => router.back()}
                     className="w-8 h-8 rounded-xl flex items-center justify-center border border-border/50 bg-card hover:bg-muted transition-all shrink-0"
@@ -246,12 +359,23 @@ export default function StudentDetailPage() {
                             {/* Avatar */}
                             <div className="relative">
                                 <div
-                                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white"
+                                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden"
                                     style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}
                                 >
-                                    {getInitials(data.name)}
+                                    {store.photo
+                                        ? <img src={store.photo} alt="profile" className="w-full h-full object-cover" />
+                                        : getInitials(data.name)
+                                    }
                                 </div>
-                                <div className="absolute bottom-0 right-0 translate-x-1/3 translate-y-1/3 w-4 h-4 rounded-full bg-emerald-400 border-2 border-card" />
+                                {/* Camera upload button — bottom right */}
+                                <button
+                                    onClick={() => photoInputRef.current?.click()}
+                                    className="absolute bottom-0 right-0 translate-x-1/4 translate-y-1/4 w-6 h-6 rounded-full flex items-center justify-center hover:opacity-90 transition-all shadow-sm"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                    title="Upload photo">
+                                    <Camera size={15} className="text-white" />
+                                </button>
+                                <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                             </div>
 
                             {/* Name */}
@@ -337,9 +461,12 @@ export default function StudentDetailPage() {
                         <SectionHeader icon={User} label="Student Info"
                             editing={editingInfo} onEdit={startEdit} onSave={saveEdit} onCancel={cancelEdit} />
                         <div className="flex items-center gap-3 mb-2">
-                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0"
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden"
                                 style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}>
-                                {getInitials(editingInfo ? draft.name : data.name)}
+                                {store.photo
+                                    ? <img src={store.photo} alt="profile" className="w-full h-full object-cover" />
+                                    : getInitials(editingInfo ? draft.name : data.name)
+                                }
                             </div>
                             {editingInfo
                                 ? <EditField label="Full Name" value={draft.name} onChange={v => setDraft(p => ({ ...p, name: v }))} placeholder="Full Name" />
@@ -348,7 +475,7 @@ export default function StudentDetailPage() {
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             {editingInfo
-                                ? <EditField label="Date of Birth" value={draft.dob} onChange={v => setDraft(p => ({ ...p, dob: v }))} placeholder="YYYY-MM-DD" />
+                                ? <EditField label="Date of Birth" value={draft.dob} onChange={v => setDraft(p => ({ ...p, dob: formatDob(v) }))} placeholder="YYYY-MM-DD" />
                                 : <ReadField label="Date of Birth" value={displayDob} />
                             }
                             {editingInfo
@@ -372,7 +499,7 @@ export default function StudentDetailPage() {
                                 : <ReadField label="Nationality" value={data.nationality} />
                             }
                             {editingInfo
-                                ? <EditField label="Admission Year" value={draft.admissionYear} onChange={v => setDraft(p => ({ ...p, admissionYear: v }))} placeholder="e.g. 2022" />
+                                ? <EditField label="Admission Year" value={draft.admissionYear} onChange={v => { if (v.replace(/\D/g, '').length <= 4) setDraft(p => ({ ...p, admissionYear: v.replace(/\D/g, '') })); }} placeholder="e.g. 2022" />
                                 : <ReadField label="Admission Year" value={data.admissionYear} />
                             }
                         </div>
@@ -381,7 +508,7 @@ export default function StudentDetailPage() {
                             : <ReadField label="Email" value={data.email} />
                         }
                         {editingInfo
-                            ? <EditField label="Contact No" value={draft.phone} onChange={v => setDraft(p => ({ ...p, phone: v }))} placeholder="+91 98765 43210" />
+                            ? <PhoneField label="Contact No" value={draft.phone} onChange={v => setDraft(p => ({ ...p, phone: v }))} />
                             : <ReadField label="Contact No" value={data.phone} />
                         }
                     </div>
@@ -390,8 +517,8 @@ export default function StudentDetailPage() {
                     <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                         <SectionHeader icon={BookOpen} label="Academic Details" />
                         <div className="grid grid-cols-2 gap-2">
-                            <ReadField label="Class" value={STUDENT.standard} />
-                            <ReadField label="Division" value={STUDENT.div} />
+                            <ReadField label="Class" value={STUDENT.standard.replace(/^Class\s*/i, '')} />
+                            <ReadField label="Division" value={STUDENT.div.replace(/^Division\s*/i, '')} />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <ReadField label="Roll No" value={STUDENT.rollNo} />
@@ -458,15 +585,15 @@ export default function StudentDetailPage() {
                             </div>
                         )}
                         {editingMed
-                            ? <EditField label="Aadhar No" value={medDraft.aadharNo} onChange={v => setMedDraft(p => ({ ...p, aadharNo: v }))} placeholder="XXXX XXXX XXXX" />
+                            ? <EditField label="Aadhar No" value={medDraft.aadharNo} onChange={v => setMedDraft(p => ({ ...p, aadharNo: formatAadhar(v) }))} placeholder="XXXX XXXX XXXX" />
                             : <ReadField label="Aadhar No" value={medData.aadharNo} />
                         }
                         {editingMed
-                            ? <EditField label="PAN No" value={medDraft.panNo} onChange={v => setMedDraft(p => ({ ...p, panNo: v }))} placeholder="ABCDE1234F" />
+                            ? <EditField label="PAN No" value={medDraft.panNo} onChange={v => { if (v.replace(/\s/g, '').length <= 10) setMedDraft(p => ({ ...p, panNo: v.toUpperCase() })); }} placeholder="ABCDE1234F" />
                             : <ReadField label="PAN No" value={medData.panNo} />
                         }
                         {editingMed
-                            ? <EditField label="Emergency Contact" value={medDraft.emergencyContact} onChange={v => setMedDraft(p => ({ ...p, emergencyContact: v }))} placeholder="+91 98765 43210" />
+                            ? <PhoneField label="Emergency Contact" value={medDraft.emergencyContact} onChange={v => setMedDraft(p => ({ ...p, emergencyContact: v }))} />
                             : <ReadField label="Emergency Contact" value={medData.emergencyContact} />
                         }
                     </div>
@@ -477,7 +604,7 @@ export default function StudentDetailPage() {
                             editing={editingAddr} onEdit={startAddrEdit} onSave={saveAddrEdit} onCancel={cancelAddrEdit} />
                         {editingAddr
                             ? <EditField label="Address" value={addrDraft.address} onChange={v => setAddrDraft(p => ({ ...p, address: v }))} placeholder="Street / Area" />
-                            : <ReadField label="Address" value={addrData.address} />
+                            : <ReadField label="Address" value={addrData.address} multiline />
                         }
                         <div className="grid grid-cols-2 gap-2">
                             {editingAddr
@@ -503,45 +630,42 @@ export default function StudentDetailPage() {
                 {/* ROW 3 — Guardians */}
                 <div className="border border-border/50 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
                     <SectionHeader icon={Users} label="Parents / Guardian"
-                        editing={editingGuardians} onEdit={startGuardiansEdit} onSave={saveGuardiansEdit} onCancel={cancelGuardiansEdit} />
-                    {(editingGuardians ? guardianDraft : store.guardians).length === 0 ? (
-                        <p className="text-xs text-muted-foreground/60 italic">No guardian info</p>
-                    ) : (
-                        (editingGuardians ? guardianDraft : store.guardians).map((g, i) => (
-                            <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
-                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                                    Guardian {i + 1}
-                                </p>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {editingGuardians ? (
-                                        <>
-                                            <EditField label="Name" value={g.name} onChange={v => {
-                                                const updated = [...guardianDraft];
-                                                updated[i] = { ...updated[i], name: v };
-                                                setGuardianDraft(updated);
-                                            }} placeholder="Full Name" />
-                                            <EditField label="Number" value={g.number} onChange={v => {
-                                                const updated = [...guardianDraft];
-                                                updated[i] = { ...updated[i], number: v };
-                                                setGuardianDraft(updated);
-                                            }} placeholder="+91 98765 43210" />
-                                            <EditField label="Relation" value={g.relation} onChange={v => {
-                                                const updated = [...guardianDraft];
-                                                updated[i] = { ...updated[i], relation: v };
-                                                setGuardianDraft(updated);
-                                            }} placeholder="e.g. Father" />
-                                        </>
-                                    ) : (
-                                        <>
-                                            <ReadField label="Name" value={g.name} />
-                                            <ReadField label="Number" value={g.number} />
-                                            <ReadField label="Relation" value={g.relation} />
-                                        </>
-                                    )}
-                                </div>
+                        editing={editingGuardians} onEdit={startGuardiansEdit} onSave={saveGuardiansEdit} onCancel={cancelGuardiansEdit}
+                    />
+                    {(editingGuardians ? guardianDraft : store.guardians).map((g, i) => (
+                        <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
+                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                Guardian {i + 1}
+                            </p>
+                            <div className="grid grid-cols-3 gap-2">
+                                {editingGuardians ? (
+                                    <>
+                                        <EditField label="Name" value={g.name} onChange={v => {
+                                            const updated = [...guardianDraft];
+                                            updated[i] = { ...updated[i], name: v };
+                                            setGuardianDraft(updated);
+                                        }} placeholder="Full Name" />
+                                        <PhoneField label="Number" value={g.number} onChange={v => {
+                                            const updated = [...guardianDraft];
+                                            updated[i] = { ...updated[i], number: v };
+                                            setGuardianDraft(updated);
+                                        }} />
+                                        <EditField label="Relation" value={g.relation} onChange={v => {
+                                            const updated = [...guardianDraft];
+                                            updated[i] = { ...updated[i], relation: v };
+                                            setGuardianDraft(updated);
+                                        }} placeholder="e.g. Father" />
+                                    </>
+                                ) : (
+                                    <>
+                                        <ReadField label="Name" value={g.name} />
+                                        <ReadField label="Number" value={g.number} />
+                                        <ReadField label="Relation" value={g.relation} />
+                                    </>
+                                )}
                             </div>
-                        ))
-                    )}
+                        </div>
+                    ))}
                 </div>
 
             </div>

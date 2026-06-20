@@ -160,6 +160,7 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
     const [selectedHouseColor, setSelectedHouseColor] = useState('');
     const [guardians, setGuardians] = useState<Guardian[]>([
         { name: '', number: '', relation: '' },
+        { name: '', number: '', relation: '' },
     ]);
     const fileRef = useRef<HTMLInputElement>(null);
     const selectedCC = COUNTRY_CODES.find(c => c.code === countryCode) ?? COUNTRY_CODES[0];
@@ -193,7 +194,7 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
             setSelectedCategory('');
             setSelectedBloodGroup('');
             setSelectedHouseColor('');
-            setGuardians([{ name: '', number: '', relation: '' }]);
+            setGuardians([{ name: '', number: '', relation: '' }, { name: '', number: '', relation: '' }]);
             setShowCCDropdown(false);
         }
     }, [open, reset]);
@@ -206,7 +207,7 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
             setSelectedCategory('');
             setSelectedBloodGroup('');
             setSelectedHouseColor('');
-            setGuardians([{ name: '', number: '', relation: '' }]);
+            setGuardians([{ name: '', number: '', relation: '' }, { name: '', number: '', relation: '' }]);
         }
         onOpenChange(v);
     };
@@ -224,13 +225,12 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
     };
 
     const addGuardian = () => {
-        if (guardians.length < 2) setGuardians(prev => [...prev, { name: '', number: '', relation: '' }]);
+        setGuardians(prev => [...prev, { name: '', number: '', relation: '' }]);
     };
 
     const removeGuardian = (index: number) => {
-        if (guardians.length > 1) setGuardians(prev => prev.filter((_, i) => i !== index));
+        if (guardians.length > 2) setGuardians(prev => prev.filter((_, i) => i !== index));
     };
-
 
 
     const handleFormSubmit = (data: FormValues) => {
@@ -511,12 +511,10 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                         <div className="px-6 py-5">
                             <div className="flex items-center justify-between mb-3">
                                 <SectionLabel icon={Users} label="Parents / Guardian" />
-                                {guardians.length < 2 && (
-                                    <button type="button" onClick={addGuardian}
-                                        className="flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline -mt-3">
-                                        <Plus size={11} /> Add another
-                                    </button>
-                                )}
+                                <button type="button" onClick={addGuardian}
+                                    className="flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline -mt-3">
+                                    <Plus size={11} /> Add another
+                                </button>
                             </div>
                             <div className="space-y-3">
                                 {guardians.map((g, i) => (
@@ -536,12 +534,10 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                                             <Input value={g.relation} onChange={e => updateGuardian(i, 'relation', e.target.value)}
                                                 placeholder="e.g. Father" className="h-8 text-sm" />
                                         </div>
-                                        {guardians.length > 1 && (
-                                            <button type="button" onClick={() => removeGuardian(i)}
-                                                className="w-8 h-8 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 border border-border/50 transition-all shrink-0">
-                                                <Trash2 size={13} />
-                                            </button>
-                                        )}
+                                        <button type="button" onClick={() => removeGuardian(i)}
+                                            className="w-8 h-8 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 border border-border/50 transition-all shrink-0">
+                                            <Trash2 size={13} />
+                                        </button>
                                     </div>
                                 ))}
                             </div>

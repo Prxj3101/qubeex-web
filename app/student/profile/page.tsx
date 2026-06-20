@@ -12,7 +12,8 @@ import {
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-    ResponsiveContainer, LineChart, Line,
+    ResponsiveContainer, LineChart, Line, Cell, LabelList,
+    AreaChart, Area, ReferenceLine,
 } from 'recharts';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
@@ -25,37 +26,61 @@ const STUDENT = {
     academicYear: '2026-27',
     dob: '2001-05-31',
     email: 'prajwal.kotian@gmail.com',
-    overallRank: 4,
     totalStudents: 62,
-    overallScore: 71,
     uid: 'STU-2026-0009',
 };
 
-const SUBJECTS = [
-    { name: 'Data Structures', short: 'DS', color: '#F59E0B', rank: 3, scores: [65, 72, 68, 80, 75] },
-    { name: 'Operating Systems', short: 'OS', color: '#2563EB', rank: 7, scores: [70, 65, 78, 72, 80] },
-    { name: 'DBMS', short: 'DB', color: '#10B981', rank: 2, scores: [80, 85, 78, 90, 88] },
-    { name: 'Computer Networks', short: 'CN', color: '#EF4444', rank: 5, scores: [60, 55, 68, 72, 65] },
-];
+type MarksMode = 'offline' | 'online' | 'combined';
 
-const ATTENDANCE_DATA = [
-    { label: 'Data Structures', theory: 92, practical: 83 },
-    { label: 'Operating Systems', theory: 78, practical: 66 },
-    { label: 'DBMS', theory: 88, practical: 91 },
-    { label: 'Computer Networks', theory: 65, practical: 58 },
+const OVERALL_RANK: Record<MarksMode, number> = { offline: 6, online: 3, combined: 4 };
+
+const SUBJECT_PERFORMANCE = [
+    { name: 'English', code: 'ENG', color: '#DA7756', offline: 78, online: 82 },
+    { name: 'Hindi', code: 'HIN', color: '#EC4899', offline: 70, online: 75 },
+    { name: 'Marathi', code: 'MAR', color: '#0891B2', offline: 65, online: 70 },
+    { name: 'Algebra', code: 'ALG', color: '#7C3AED', offline: 80, online: 85 },
+    { name: 'Geometry', code: 'GEO', color: '#059669', offline: 72, online: 78 },
+    { name: 'Science 1', code: 'SC1', color: '#0EA5E9', offline: 68, online: 74 },
+    { name: 'Science 2', code: 'SC2', color: '#6366F1', offline: 75, online: 80 },
+    { name: 'History', code: 'HIS', color: '#D97706', offline: 60, online: 66 },
+    { name: 'Geography', code: 'GEOG', color: '#16A34A', offline: 73, online: 77 },
 ];
 
 const ATTENDANCE_TREND = [
-    { month: 'Jun', value: 75 },
-    { month: 'Jul', value: 78 },
-    { month: 'Aug', value: 95 },
-    { month: 'Sep', value: 88 },
+    { month: 'Jun', value: 62 },
+    { month: 'Jul', value: 70 },
+    { month: 'Aug', value: 88 },
+    { month: 'Sep', value: 95 },
     { month: 'Oct', value: 82 },
     { month: 'Nov', value: 80 },
     { month: 'Dec', value: 65 },
     { month: 'Jan', value: 72 },
     { month: 'Feb', value: 82 },
+    { month: 'Mar', value: 90 },
+    { month: 'Apr', value: 76 },
+    { month: 'May', value: 84 },
 ];
+
+// School attendance tracking starts in June (0-indexed month 5). The card
+// shows a rolling 4-month window: it stays pinned at [Jun, Jul, Aug, Sep]
+// until the school year is more than 3 months in, then slides forward one
+// month at a time (current month + previous 3) — e.g. Oct -> [Jul..Oct],
+// Nov -> [Aug..Nov].
+const SCHOOL_START_MONTH = 5;
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function getAttendanceWindowMonths(date: Date) {
+    const currentMonthIdx = date.getMonth();
+    let monthsSinceStart = currentMonthIdx - SCHOOL_START_MONTH;
+    if (monthsSinceStart < 0) monthsSinceStart += 12;
+    const windowStartOffset = monthsSinceStart <= 3 ? 0 : monthsSinceStart - 3;
+    return Array.from({ length: 4 }, (_, i) => MONTH_NAMES[(SCHOOL_START_MONTH + windowStartOffset + i) % 12]);
+}
+
+const ATTENDANCE_WINDOW = getAttendanceWindowMonths(new Date()).map((month) => {
+    const found = ATTENDANCE_TREND.find((t) => t.month === month);
+    return { month, value: found ? found.value : 0 };
+});
 
 const FLAGS = [
     { type: 'yellow', title: 'Late Submission', category: 'Late Submission', date: '12 Mar 2026', subject: 'DC', detail: 'Assignment submitted 2 days after deadline.', actionTaken: 'Warning issued. Next offense will result in red card.' },
@@ -138,14 +163,19 @@ export default function StudentProfile() {
     const age = new Date().getFullYear() - dobDate.getFullYear();
     const dobDisplay = dobDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
-    const [activeSubject, setActiveSubject] = useState(0);
+    const [marksMode, setMarksMode] = useState<MarksMode>('combined');
     const [expandedFlag, setExpandedFlag] = useState<number | null>(null);
     const [activeCardTab, setActiveCardTab] = useState<'yellow' | 'red'>('yellow');
     const [copied, setCopied] = useState(false);
 
-    const subject = SUBJECTS[activeSubject];
-    const chartData = subject.scores.map((s, i) => ({ name: `T${i + 1}`, score: s }));
-    const avg = Math.round(subject.scores.reduce((a, b) => a + b, 0) / subject.scores.length);
+    const chartData = SUBJECT_PERFORMANCE.map(s => ({
+        name: s.code,
+        fullName: s.name,
+        color: s.color,
+        pct: marksMode === 'offline' ? s.offline : marksMode === 'online' ? s.online : Math.round((s.offline + s.online) / 2),
+    }));
+    const avg = Math.round(chartData.reduce((a, b) => a + b.pct, 0) / chartData.length);
+    const overallRank = OVERALL_RANK[marksMode];
 
     const yellowFlags = FLAGS.filter(f => f.type === 'yellow');
     const redFlags = FLAGS.filter(f => f.type === 'red');
@@ -158,7 +188,18 @@ export default function StudentProfile() {
     };
 
     return (
-        <div className="space-y-5 pb-8">
+        <div className="flex flex-col h-full overflow-hidden">
+            {/* Page Header */}
+            <div className="shrink-0 px-1 pb-3">
+                <h1 className="text-xl font-bold flex items-center gap-2">
+                    <User size={21} /> Profile
+                </h1>
+                <p className="text-[13px] text-muted-foreground">Your personal &amp; academic details</p>
+                <div className="h-px bg-border/60 mt-2" />
+            </div>
+
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto space-y-5 pb-8 px-1">
 
             {/* ── ID Card ── */}
             <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg">
@@ -182,9 +223,14 @@ export default function StudentProfile() {
                 <div className="bg-card p-5 flex items-start gap-5">
                     {/* Avatar */}
                     <div className="shrink-0">
-                        <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white"
-                            style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}>
-                            {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                        <div className="relative w-20 h-20">
+                            <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden"
+                                style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}>
+                                {student.photo
+                                    ? <img src={student.photo} alt="profile" className="w-full h-full object-cover" />
+                                    : student.name.split(' ').map(n => n[0]).join('').slice(0, 2)
+                                }
+                            </div>
                             <div className="absolute bottom-0 right-0 translate-x-1/3 translate-y-1/3 w-4 h-4 rounded-full bg-emerald-400 border-2 border-card" />
                         </div>
                         <div className="mt-2 text-center">
@@ -240,12 +286,12 @@ export default function StudentProfile() {
                         </div>
                         <p className="text-4xl font-black" style={{
                             color:
-                                STUDENT.overallRank === 1 ? '#F59E0B' :
-                                    STUDENT.overallRank <= 3 ? '#7C3AED' :
-                                        STUDENT.overallRank <= 10 ? '#2563EB' :
-                                            'hsl(var(--muted-foreground))'
+                                overallRank === 1 ? '#F59E0B' :
+                                    overallRank <= 3 ? '#7C3AED' :
+                                        overallRank <= 10 ? 'var(--blue)' :
+                                            'var(--muted-foreground)'
                         }}>
-                            #{STUDENT.overallRank}
+                            #{overallRank}
                         </p>
                         <p className="text-xs text-muted-foreground mt-1">out of {STUDENT.totalStudents} students</p>
                     </div>
@@ -254,48 +300,64 @@ export default function StudentProfile() {
                             <Star size={14} className="text-amber-500 fill-amber-500" />
                             <p className="text-xs font-semibold text-muted-foreground">Overall Score</p>
                         </div>
-                        <p className="text-4xl font-black text-violet-600 dark:text-violet-400">{STUDENT.overallScore}%</p>
+                        <p className="text-4xl font-black text-violet-600 dark:text-violet-400">{avg}%</p>
                         <p className="text-xs text-muted-foreground mt-1">across all subjects</p>
                     </div>
                 </div>
 
                 {/* ── Subject Performance ── */}
                 <div className="col-span-2 h-full">
-                    <SectionCard title="Subject Performance" icon={BarChart2} iconColor="#7C3AED">
-                        {/* Subject pills */}
-                        <div className="flex gap-2 mb-4 flex-wrap">
-                            {SUBJECTS.map((s, i) => (
-                                <button key={s.name} onClick={() => setActiveSubject(i)}
-                                    className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all border"
-                                    style={activeSubject === i
-                                        ? { backgroundColor: s.color, color: 'white', borderColor: s.color }
-                                        : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }
-                                    }>
-                                    {s.short}
-                                </button>
-                            ))}
-                        </div>
-
-                        <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs font-semibold">{subject.name}</p>
-                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 font-semibold">
-                                🏅 Rank #{subject.rank} in subject
-                            </span>
-                        </div>
-
-                        <ResponsiveContainer width="100%" height={160}>
+                    <SectionCard title="Subject Performance" icon={BarChart2} iconColor="#7C3AED"
+                        action={
+                            <div className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
+                                {([
+                                    { key: 'offline' as MarksMode, label: 'Offline' },
+                                    { key: 'online' as MarksMode, label: 'Online' },
+                                    { key: 'combined' as MarksMode, label: 'Combined' },
+                                ]).map(({ key, label }) => {
+                                    const isActive = marksMode === key;
+                                    return (
+                                        <button key={key} onClick={() => setMarksMode(key)}
+                                            className={`relative px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all
+                                                ${isActive ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                            {label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        }>
+                        <ResponsiveContainer width="100%" height={200}>
                             <BarChart data={chartData}>
-                                <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                                <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                                <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                                <Bar dataKey="score" fill={subject.color} radius={[4, 4, 0, 0]} maxBarSize={36} />
+                                <defs>
+                                    {chartData.map((d, i) => (
+                                        <linearGradient key={i} id={`subjBarGrad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="0%" stopColor={d.color} stopOpacity={1} />
+                                            <stop offset="100%" stopColor={d.color} stopOpacity={0.45} />
+                                        </linearGradient>
+                                    ))}
+                                </defs>
+                                <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
+                                <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
+                                <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} domain={[0, 100]} />
+                                <Tooltip
+                                    cursor={false}
+                                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                                    labelStyle={{ color: 'var(--card-foreground)', fontWeight: 600 }}
+                                    itemStyle={{ color: 'var(--card-foreground)' }}
+                                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName ?? label}
+                                    formatter={(value: number) => [`${value}%`, 'Score']}
+                                />
+                                <Bar dataKey="pct" radius={[4, 4, 0, 0]} maxBarSize={32}>
+                                    <LabelList dataKey="pct" position="top" formatter={(v: number) => `${v}%`}
+                                        style={{ fontSize: 10, fontWeight: 600, fill: 'var(--foreground)' }} />
+                                    {chartData.map((d, i) => <Cell key={i} fill={`url(#subjBarGrad-${i})`} />)}
+                                </Bar>
                             </BarChart>
                         </ResponsiveContainer>
 
                         <div className="flex items-center gap-2 mt-2">
-                            <div className="flex-1 border-t-2 border-dashed" style={{ borderColor: subject.color + '80' }} />
-                            <span className="text-[11px] font-semibold" style={{ color: subject.color }}>Avg {avg}%</span>
+                            <div className="flex-1 border-t-2 border-dashed border-violet-500/50" />
+                            <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-400">Avg {avg}%</span>
                         </div>
                     </SectionCard>
                 </div>
@@ -305,41 +367,23 @@ export default function StudentProfile() {
                 {/* ── Attendance ── */}
                 <SectionCard title="Attendance" icon={Calendar} iconColor="#10B981"
                     action={
-                        <a href="#" className="text-xs text-primary hover:underline flex items-center gap-1">
+                        <a href="#" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-400 transition-all">
                             View Details <ChevronRight size={12} />
                         </a>
                     }>
 
-                    <div className="space-y-4 mb-4">
-                        {ATTENDANCE_DATA.map(({ label, theory, practical }) => {
-                            const tp = getPct(theory);
-                            const pp = getPct(practical);
+                    <div className="space-y-3 mb-4">
+                        {ATTENDANCE_WINDOW.map(({ month, value }) => {
+                            const p = getPct(value);
                             return (
-                                <div key={label}>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <p className="text-xs font-medium">{label}</p>
-                                        <div className="flex gap-1.5">
-                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${tp.cls}`}>T: {theory}%</span>
-                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${pp.cls}`}>P: {practical}%</span>
-                                        </div>
+                                <div key={month} className="space-y-1">
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-xs text-muted-foreground">{month}</span>
+                                        <span className="text-xs font-semibold" style={{ color: p.color }}>{value}%</span>
                                     </div>
-                                    <div className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-muted-foreground w-12">Theory</span>
-                                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden relative">
-                                                <div className="absolute left-[75%] top-0 bottom-0 w-px bg-muted-foreground/30 z-10" />
-                                                <div className="h-full rounded-full" style={{ width: `${theory}%`, backgroundColor: tp.color }} />
-                                            </div>
-                                            <span className="text-[10px] font-semibold" style={{ color: tp.color }}>{theory}%</span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-muted-foreground w-12">Practical</span>
-                                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden relative">
-                                                <div className="absolute left-[75%] top-0 bottom-0 w-px bg-muted-foreground/30 z-10" />
-                                                <div className="h-full rounded-full" style={{ width: `${practical}%`, backgroundColor: pp.color }} />
-                                            </div>
-                                            <span className="text-[10px] font-semibold" style={{ color: pp.color }}>{practical}%</span>
-                                        </div>
+                                    <div className="h-1.5 bg-muted rounded-full overflow-hidden relative">
+                                        <div className="absolute left-[75%] top-0 bottom-0 w-px bg-muted-foreground/30 z-10" />
+                                        <div className="h-full rounded-full" style={{ width: `${value}%`, backgroundColor: p.color }} />
                                     </div>
                                 </div>
                             );
@@ -354,20 +398,60 @@ export default function StudentProfile() {
 
                     {/* Trend chart */}
                     <p className="text-xs font-semibold mb-2">Overall Attendance Trend</p>
-                    <ResponsiveContainer width="100%" height={140}>
-                        <LineChart data={ATTENDANCE_TREND}>
-                            <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                            <XAxis dataKey="month" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} domain={[50, 100]} />
-                            <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 12 }} />
-                            <Line type="monotone" dataKey="value" stroke="#10B981" strokeWidth={2.5} dot={{ r: 4, fill: '#10B981', stroke: 'hsl(var(--card))', strokeWidth: 2 }} />
-                        </LineChart>
+                    <ResponsiveContainer width="100%" height={240}>
+                        <AreaChart data={ATTENDANCE_TREND} margin={{ top: 28, right: 8, left: -20, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="attendTrendGrad" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
+                            {ATTENDANCE_TREND.map((d) => (
+                                <ReferenceLine key={d.month} x={d.month} stroke="rgba(148,163,184,0.15)" strokeDasharray="3 3" />
+                            ))}
+                            <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#94A3B8' }} />
+                            <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#94A3B8' }} unit="%" />
+                            <Tooltip
+                                contentStyle={{ background: '#1A1030', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, fontSize: 11 }}
+                                labelStyle={{ color: '#F1F5F9' }}
+                                formatter={(val: any) => [`${val}%`, 'Attendance']}
+                                itemStyle={{ color: '#10B981' }}
+                            />
+                            <Area
+                                type="monotone"
+                                dataKey="value"
+                                stroke="#10B981"
+                                strokeWidth={2}
+                                fill="url(#attendTrendGrad)"
+                                dot={(dotProps: any) => {
+                                    const { cx, cy, payload } = dotProps;
+                                    const value = payload.value;
+                                    const vals = ATTENDANCE_TREND.map((d) => d.value);
+                                    const isMax = value === Math.max(...vals);
+                                    const isMin = value === Math.min(...vals);
+                                    const labelColor = isMin ? '#EF4444' : '#10B981';
+                                    return (
+                                        <g style={{ overflow: 'visible' }}>
+                                            <circle cx={cx} cy={cy} r={4} fill="#10B981" />
+                                            {(isMax || isMin) && (
+                                                <>
+                                                    <rect x={cx - 14} y={isMin ? cy + 7 : cy - 21} width={28} height={14} rx={3} fill={labelColor} />
+                                                    <text x={cx} y={isMin ? cy + 17 : cy - 10} textAnchor="middle" fill="white" fontSize={9} fontWeight="600">{value}%</text>
+                                                </>
+                                            )}
+                                        </g>
+                                    );
+                                }}
+                                activeDot={{ r: 6 }}
+                            />
+                        </AreaChart>
                     </ResponsiveContainer>
 
                     {/* Legend */}
                     <div className="flex gap-4 mt-2">
                         {[
-                            { label: 'Safe ≥75%', color: '#10B981' },
+                            { label: 'Good ≥75%', color: '#10B981' },
                             { label: 'Condonation 65–74%', color: '#F59E0B' },
                             { label: 'Defaulter <65%', color: '#EF4444' },
                         ].map(l => (
@@ -572,6 +656,7 @@ export default function StudentProfile() {
                 <p className="text-xs text-muted-foreground/50">© 2026 All rights reserved.</p>
             </div>
 
-        </div >
+            </div>
+        </div>
     );
 }

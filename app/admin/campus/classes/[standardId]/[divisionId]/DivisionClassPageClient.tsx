@@ -668,7 +668,7 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
                 <div>
                     <p className="text-xs font-semibold">{authorName}</p>
                     <div className="flex items-center gap-1">
-                        <p className="text-[10px] text-muted-foreground">{ann.author.role}</p>
+                        <p className="text-[10px] text-muted-foreground">{ann.author.role.split('_').map((w: string) => w[0] + w.slice(1).toLowerCase()).join(' ')}</p>
                         <VerifiedBadge />
                     </div>
                 </div>
