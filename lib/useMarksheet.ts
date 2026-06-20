@@ -1,6 +1,8 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { AxiosError } from 'axios';
+import { toast } from 'sonner';
 import {
   MarksheetMeta, ExamColumn, ScoreEntry, GradedSubjectItem, GradedScoreEntry, MarksheetStudent,
   getMarksheet, initMarksheet, addColumn, editColumn, deleteColumn, reorderColumns,
@@ -8,6 +10,12 @@ import {
   reorderGradedSubjects, updateGradedSectionTitle, saveGradedScores, publishMarksheet,
   getClassStudents,
 } from './marksheetApi';
+
+/** Extracts the backend's `{ error }` message from an axios error, with a fallback. */
+function apiErrorMessage(err: unknown, fallback = 'Something went wrong'): string {
+  const ax = err as AxiosError<{ error?: string }>;
+  return ax?.response?.data?.error ?? fallback;
+}
 
 export interface UseMarksheetResult {
   loading: boolean;
@@ -185,22 +193,30 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
   useEffect(() => { flushGradedScoresRef.current = flushGradedScores; }, [flushGradedScores]);
 
   const handleAddColumn = useCallback(async (subjectId: string, name: string, maxMarks: number, examDate?: string | null) => {
-    const mid = await ensureMarksheetId();
-    const col = await addColumn(mid, { subjectId, name, maxMarks, examDate: examDate ?? null });
-    setExamColumns(prev => ({
-      ...prev,
-      [subjectId]: [...(prev[subjectId] ?? []), col],
-    }));
+    try {
+      const mid = await ensureMarksheetId();
+      const col = await addColumn(mid, { subjectId, name, maxMarks, examDate: examDate ?? null });
+      setExamColumns(prev => ({
+        ...prev,
+        [subjectId]: [...(prev[subjectId] ?? []), col],
+      }));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not add exam column'));
+    }
   }, [ensureMarksheetId]);
 
   const handleEditColumn = useCallback(async (colId: string, subjectId: string, payload: { name?: string; maxMarks?: number; examDate?: string | null }) => {
     const mid = marksheetIdRef.current;
     if (!mid) return;
-    const updated = await editColumn(mid, colId, payload);
-    setExamColumns(prev => ({
-      ...prev,
-      [subjectId]: (prev[subjectId] ?? []).map(c => c.id === colId ? updated : c),
-    }));
+    try {
+      const updated = await editColumn(mid, colId, payload);
+      setExamColumns(prev => ({
+        ...prev,
+        [subjectId]: (prev[subjectId] ?? []).map(c => c.id === colId ? updated : c),
+      }));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not update exam column'));
+    }
   }, []);
 
   const handleDeleteColumn = useCallback(async (colId: string, subjectId: string) => {
@@ -215,7 +231,11 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
       delete next[colId];
       return next;
     });
-    await deleteColumn(mid, colId);
+    try {
+      await deleteColumn(mid, colId);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not delete exam column'));
+    }
   }, []);
 
   const handleReorderColumns = useCallback(async (subjectId: string, orderedIds: string[]) => {
@@ -226,7 +246,11 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
       const sorted = orderedIds.map(id => cols.find(c => c.id === id)!).filter(Boolean);
       return { ...prev, [subjectId]: sorted };
     });
-    await reorderColumns(mid, subjectId, orderedIds);
+    try {
+      await reorderColumns(mid, subjectId, orderedIds);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not reorder columns'));
+    }
   }, []);
 
   const handleScoreChange = useCallback((examColumnId: string, studentId: string, subjectId: string, value: ScoreEntry) => {
@@ -240,16 +264,24 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
   }, [flushScores]);
 
   const handleAddGradedSubject = useCallback(async (name: string) => {
-    const mid = await ensureMarksheetId();
-    const gs = await addGradedSubject(mid, name);
-    setGradedSubjects(prev => [...prev, gs]);
+    try {
+      const mid = await ensureMarksheetId();
+      const gs = await addGradedSubject(mid, name);
+      setGradedSubjects(prev => [...prev, gs]);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not add graded subject'));
+    }
   }, [ensureMarksheetId]);
 
   const handleEditGradedSubject = useCallback(async (gsId: string, name: string) => {
     const mid = marksheetIdRef.current;
     if (!mid) return;
-    const updated = await editGradedSubject(mid, gsId, name);
-    setGradedSubjects(prev => prev.map(g => g.id === gsId ? updated : g));
+    try {
+      const updated = await editGradedSubject(mid, gsId, name);
+      setGradedSubjects(prev => prev.map(g => g.id === gsId ? updated : g));
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not update graded subject'));
+    }
   }, []);
 
   const handleDeleteGradedSubject = useCallback(async (gsId: string) => {
@@ -261,14 +293,22 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
       delete next[gsId];
       return next;
     });
-    await deleteGradedSubject(mid, gsId);
+    try {
+      await deleteGradedSubject(mid, gsId);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not delete graded subject'));
+    }
   }, []);
 
   const handleReorderGradedSubjects = useCallback(async (orderedIds: string[]) => {
     const mid = marksheetIdRef.current;
     if (!mid) return;
     setGradedSubjects(prev => orderedIds.map(id => prev.find(g => g.id === id)!).filter(Boolean));
-    await reorderGradedSubjects(mid, orderedIds);
+    try {
+      await reorderGradedSubjects(mid, orderedIds);
+    } catch (err) {
+      toast.error(apiErrorMessage(err, 'Could not reorder graded subjects'));
+    }
   }, []);
 
   const handleGradedSectionTitleChange = useCallback((title: string) => {
