@@ -8,6 +8,7 @@ import {
 import * as XLSX from 'xlsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useMarksheet, UseMarksheetResult } from '@/lib/useMarksheet';
+import type { MarksheetMeta } from '@/lib/marksheetApi';
 
 interface Student { id: string; name: string; rollNo: string; }
 
@@ -1851,6 +1852,72 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
     );
 }
 
+// ── Publish Bar ───────────────────────────────────────────────────────────────
+function PublishBar({
+    marksheet,
+    onPublish,
+}: {
+    marksheet: MarksheetMeta | null;
+    onPublish: () => Promise<{ pdfUrl: string; shareToken: string }>;
+}) {
+    const [publishing, setPublishing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+    const [publishResult, setPublishResult] = useState<{ pdfUrl: string; shareToken: string } | null>(null);
+
+    const shareUrl = publishResult?.pdfUrl ?? (marksheet?.shareToken
+        ? `${typeof window !== 'undefined' ? window.location.origin : ''}/share/marksheet/${marksheet.shareToken}`
+        : null);
+
+    if (!marksheet) return null;
+
+    if (marksheet.status === 'PUBLISHED' || publishResult) {
+        return (
+            <div className="shrink-0 px-3 pt-2">
+                <div className="flex items-center gap-3 px-4 py-2 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
+                    <span className="text-[11px] font-semibold text-green-700 dark:text-green-400">Published</span>
+                    {shareUrl && (
+                        <a href={shareUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-[11px] text-green-600 hover:underline">
+                            <ExternalLink size={11} /> View PDF
+                        </a>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="shrink-0 px-3 pt-2">
+            <div className="flex items-center gap-3 px-4 py-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                <Flag size={13} className="text-amber-600 shrink-0" />
+                <span className="text-[11px] text-amber-700 dark:text-amber-400 flex-1">
+                    Marksheet is a draft — publish to generate a shareable PDF.
+                </span>
+                {error && <span className="text-[11px] text-red-500">{error}</span>}
+                <button
+                    onClick={async () => {
+                        setPublishing(true);
+                        setError(null);
+                        try {
+                            const result = await onPublish();
+                            setPublishResult(result);
+                        } catch {
+                            setError('Publish failed. Try again.');
+                        } finally {
+                            setPublishing(false);
+                        }
+                    }}
+                    disabled={publishing}
+                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold text-white disabled:opacity-50 transition-all"
+                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                    <Trophy size={12} />
+                    {publishing ? 'Publishing…' : 'Publish'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // ── Main MarksTab ─────────────────────────────────────────────────────────────────────────────
 
 export default function MarksTab({
@@ -1881,6 +1948,9 @@ export default function MarksTab({
 
     return (
         <div className="flex flex-col h-full min-h-0">
+            {subTab === 'offline' && isClassTeacher && !marksheetHook.loading && (
+                <PublishBar marksheet={marksheetHook.marksheet} onPublish={marksheetHook.handlePublish} />
+            )}
             <div className={subTab === "offline" ? "flex-1 min-h-0 flex flex-col pt-3 pb-3 px-1" : "hidden"}>
                 {marksheetHook.loading ? (
                     <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
