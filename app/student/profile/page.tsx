@@ -345,10 +345,10 @@ export default function StudentProfile() {
                                     labelStyle={{ color: 'var(--card-foreground)', fontWeight: 600 }}
                                     itemStyle={{ color: 'var(--card-foreground)' }}
                                     labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName ?? label}
-                                    formatter={(value: number) => [`${value}%`, 'Score']}
+                                    formatter={(value: any) => [`${value}%`, 'Score']}
                                 />
                                 <Bar dataKey="pct" radius={[4, 4, 0, 0]} maxBarSize={32}>
-                                    <LabelList dataKey="pct" position="top" formatter={(v: number) => `${v}%`}
+                                    <LabelList dataKey="pct" position="top" formatter={(v: any) => `${v}%`}
                                         style={{ fontSize: 10, fontWeight: 600, fill: 'var(--foreground)' }} />
                                     {chartData.map((d, i) => <Cell key={i} fill={`url(#subjBarGrad-${i})`} />)}
                                 </Bar>
