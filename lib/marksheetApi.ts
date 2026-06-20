@@ -124,3 +124,9 @@ export async function publishMarksheet(marksheetId: string): Promise<{ pdfUrl: s
   const res = await api.post(`/teacher/marksheet/${marksheetId}/publish`);
   return res.data.data as { pdfUrl: string; shareToken: string };
 }
+
+export async function getClassStudents(divisionId: string): Promise<MarksheetStudent[]> {
+  const res = await api.get(`/teacher/classes/${divisionId}/students`);
+  const raw = res.data.data as Array<{ id: string; rollNo: number | string; user: { name: string } }>;
+  return raw.map(s => ({ id: s.id, name: s.user.name, rollNo: String(s.rollNo) }));
+}

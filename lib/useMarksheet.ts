@@ -6,6 +6,7 @@ import {
   getMarksheet, initMarksheet, addColumn, editColumn, deleteColumn, reorderColumns,
   saveScores, addGradedSubject, editGradedSubject, deleteGradedSubject,
   reorderGradedSubjects, updateGradedSectionTitle, saveGradedScores, publishMarksheet,
+  getClassStudents,
 } from './marksheetApi';
 import { AxiosError } from 'axios';
 
@@ -87,11 +88,17 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
         setGradedScores(data.gradedScores);
         setGradedSectionTitle(data.marksheet.gradedSectionTitle);
       })
-      .catch((err: AxiosError) => {
+      .catch(async (err: AxiosError) => {
         if (cancelled) return;
         if (err.response?.status === 404) {
-          // Not initialized yet — show empty state
+          // Marksheet not initialized yet — load students from class so the empty sheet shows real names
           setMarksheet(null);
+          try {
+            const fallback = await getClassStudents(divisionId);
+            if (!cancelled) setStudents(fallback);
+          } catch {
+            // students unavailable — empty sheet is fine
+          }
         }
       })
       .finally(() => { if (!cancelled) setLoading(false); });
