@@ -49,7 +49,7 @@ export interface MarksheetData {
 }
 
 export async function getMarksheet(divisionId: string, academicYear: string): Promise<MarksheetData | null> {
-  const res = await api.get(`/teacher/marksheet/${divisionId}`, {
+  const res = await api.get(`/teacher/marksheet/division/${divisionId}`, {
     params: { academicYear },
     validateStatus: (s) => s === 200 || s === 404,
   });
@@ -58,7 +58,7 @@ export async function getMarksheet(divisionId: string, academicYear: string): Pr
 }
 
 export async function initMarksheet(divisionId: string, academicYear: string): Promise<{ marksheetId: string; shareToken: string }> {
-  const res = await api.post('/teacher/marksheet/init', { divisionId, academicYear });
+  const res = await api.post(`/teacher/marksheet/division/${divisionId}/init`, { academicYear });
   return res.data.data as { marksheetId: string; shareToken: string };
 }
 
@@ -84,7 +84,7 @@ export async function deleteColumn(marksheetId: string, colId: string): Promise<
 }
 
 export async function reorderColumns(marksheetId: string, subjectId: string, orderedIds: string[]): Promise<void> {
-  await api.patch(`/teacher/marksheet/${marksheetId}/columns/reorder`, { subjectId, orderedIds });
+  await api.put(`/teacher/marksheet/${marksheetId}/columns/${subjectId}/reorder`, { orderedIds });
 }
 
 export async function saveScores(
@@ -92,7 +92,7 @@ export async function saveScores(
   subjectId: string,
   scores: { studentId: string; examColumnId: string; score: number | null; isAbsent: boolean }[]
 ): Promise<void> {
-  await api.post(`/teacher/marksheet/${marksheetId}/scores`, { subjectId, scores });
+  await api.put(`/teacher/marksheet/${marksheetId}/scores/subject/${subjectId}`, { scores });
 }
 
 export async function addGradedSubject(marksheetId: string, name: string): Promise<GradedSubjectItem> {
@@ -110,7 +110,7 @@ export async function deleteGradedSubject(marksheetId: string, gsId: string): Pr
 }
 
 export async function reorderGradedSubjects(marksheetId: string, orderedIds: string[]): Promise<void> {
-  await api.patch(`/teacher/marksheet/${marksheetId}/graded-subjects/reorder`, { orderedIds });
+  await api.put(`/teacher/marksheet/${marksheetId}/graded-subjects/reorder`, { orderedIds });
 }
 
 export async function updateGradedSectionTitle(marksheetId: string, title: string): Promise<void> {
@@ -121,7 +121,7 @@ export async function saveGradedScores(
   marksheetId: string,
   scores: { gradedSubjectId: string; studentId: string; term1Grade?: string | null; term2Grade?: string | null }[]
 ): Promise<void> {
-  await api.post(`/teacher/marksheet/${marksheetId}/graded-scores`, { scores });
+  await api.put(`/teacher/marksheet/${marksheetId}/graded-scores`, { scores });
 }
 
 export async function publishMarksheet(marksheetId: string): Promise<{ pdfUrl: string; shareToken: string }> {
