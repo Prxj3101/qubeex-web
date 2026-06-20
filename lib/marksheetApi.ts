@@ -129,6 +129,18 @@ export async function publishMarksheet(marksheetId: string): Promise<{ pdfUrl: s
   return res.data.data as { pdfUrl: string; shareToken: string };
 }
 
+export async function downloadMarksheetPdf(
+  marksheetId: string,
+  scope: 'full' | 'subject' | 'exam',
+  subjectId?: string
+): Promise<Blob> {
+  const res = await api.get(`/teacher/marksheet/${marksheetId}/download`, {
+    params: { scope, ...(subjectId ? { subjectId } : {}) },
+    responseType: 'blob',
+  });
+  return res.data as Blob;
+}
+
 export async function getClassStudents(divisionId: string): Promise<MarksheetStudent[]> {
   const res = await api.get(`/teacher/classes/${divisionId}/students`);
   const raw = res.data.data as Array<{ id: string; rollNo: number | string; user: { name: string } }>;

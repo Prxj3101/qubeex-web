@@ -7,8 +7,9 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { toast } from 'sonner';
 import { useMarksheet, UseMarksheetResult } from '@/lib/useMarksheet';
-import type { MarksheetMeta } from '@/lib/marksheetApi';
+import { downloadMarksheetPdf, type MarksheetMeta } from '@/lib/marksheetApi';
 
 interface Student { id: string; name: string; rollNo: string; }
 
@@ -588,6 +589,23 @@ function MarkSheet({
         setShowExportMenu(false);
     };
 
+    const handleDownloadPdf = async (scope: 'full' | 'subject' | 'exam') => {
+        setShowExportMenu(false);
+        const mid = marksheetHook?.marksheet?.id;
+        if (!mid) { toast.error('Marksheet not created yet — add an exam column first.'); return; }
+        try {
+            const blob = await downloadMarksheetPdf(mid, scope, scope === 'subject' ? (restrictToSubjectId ?? undefined) : undefined);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `MarksSheet_${divisionName}_${scope}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            toast.error('PDF download failed');
+        }
+    };
+
     const GRADE_W = 52;
     const PCT_W = 56;
     const TOTAL_W = 80;
@@ -628,11 +646,29 @@ function MarkSheet({
                         <AnimatePresence>
                             {showExportMenu && (
                                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                                    className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[170px]">
+                                    className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[210px]">
                                     <button onClick={handleExport}
                                         className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
-                                        <span>📊</span><span>Full Sheet (All Subjects)</span>
+                                        <span>📊</span><span>Full Sheet (Excel)</span>
                                     </button>
+                                    {mode === 'offline' && !restrictToSubjectId && (
+                                        <>
+                                            <button onClick={() => handleDownloadPdf('full')}
+                                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
+                                                <span>📄</span><span>Full Sheet (PDF)</span>
+                                            </button>
+                                            <button onClick={() => handleDownloadPdf('exam')}
+                                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
+                                                <span>🗂️</span><span>Exam-wise (PDF)</span>
+                                            </button>
+                                        </>
+                                    )}
+                                    {mode === 'offline' && restrictToSubjectId && (
+                                        <button onClick={() => handleDownloadPdf('subject')}
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
+                                            <span>📄</span><span>My Subject (PDF)</span>
+                                        </button>
+                                    )}
                                 </motion.div>
                             )}
                         </AnimatePresence>
