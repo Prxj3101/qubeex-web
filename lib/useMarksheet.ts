@@ -76,8 +76,10 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     if (!divisionId) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
-    getMarksheet(divisionId, academicYear)
-      .then((data) => {
+
+    const load = async () => {
+      try {
+        const data = await getMarksheet(divisionId, academicYear);
         if (cancelled) return;
         marksheetIdRef.current = data.marksheet.id;
         setMarksheet(data.marksheet);
@@ -87,21 +89,25 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
         setGradedSubjects(data.gradedSubjects);
         setGradedScores(data.gradedScores);
         setGradedSectionTitle(data.marksheet.gradedSectionTitle);
-      })
-      .catch(async (err: AxiosError) => {
+      } catch (rawErr) {
         if (cancelled) return;
+        const err = rawErr as AxiosError;
         if (err.response?.status === 404) {
-          // Marksheet not initialized yet — load students from class so the empty sheet shows real names
+          // Marksheet not initialised yet — show empty sheet with real student names
           setMarksheet(null);
           try {
             const fallback = await getClassStudents(divisionId);
             if (!cancelled) setStudents(fallback);
           } catch {
-            // students unavailable — empty sheet is fine
+            // class students unavailable — empty sheet is fine
           }
         }
-      })
-      .finally(() => { if (!cancelled) setLoading(false); });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+
+    load();
     return () => { cancelled = true; };
   }, [divisionId, academicYear]);
 
