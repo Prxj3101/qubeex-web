@@ -48,8 +48,12 @@ export interface MarksheetData {
   students: MarksheetStudent[];
 }
 
-export async function getMarksheet(divisionId: string, academicYear: string): Promise<MarksheetData> {
-  const res = await api.get(`/teacher/marksheet/${divisionId}`, { params: { academicYear } });
+export async function getMarksheet(divisionId: string, academicYear: string): Promise<MarksheetData | null> {
+  const res = await api.get(`/teacher/marksheet/${divisionId}`, {
+    params: { academicYear },
+    validateStatus: (s) => s === 200 || s === 404,
+  });
+  if (res.status === 404) return null;
   return res.data.data as MarksheetData;
 }
 

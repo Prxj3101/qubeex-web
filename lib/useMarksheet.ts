@@ -8,7 +8,6 @@ import {
   reorderGradedSubjects, updateGradedSectionTitle, saveGradedScores, publishMarksheet,
   getClassStudents,
 } from './marksheetApi';
-import { AxiosError } from 'axios';
 
 export interface UseMarksheetResult {
   loading: boolean;
@@ -81,18 +80,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
       try {
         const data = await getMarksheet(divisionId, academicYear);
         if (cancelled) return;
-        marksheetIdRef.current = data.marksheet.id;
-        setMarksheet(data.marksheet);
-        setStudents(data.students);
-        setExamColumns(data.examColumns);
-        setScores(data.scores);
-        setGradedSubjects(data.gradedSubjects);
-        setGradedScores(data.gradedScores);
-        setGradedSectionTitle(data.marksheet.gradedSectionTitle);
-      } catch (rawErr) {
-        if (cancelled) return;
-        const err = rawErr as AxiosError;
-        if (err.response?.status === 404) {
+        if (data === null) {
           // Marksheet not initialised yet — show empty sheet with real student names
           setMarksheet(null);
           try {
@@ -101,7 +89,18 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
           } catch {
             // class students unavailable — empty sheet is fine
           }
+        } else {
+          marksheetIdRef.current = data.marksheet.id;
+          setMarksheet(data.marksheet);
+          setStudents(data.students);
+          setExamColumns(data.examColumns);
+          setScores(data.scores);
+          setGradedSubjects(data.gradedSubjects);
+          setGradedScores(data.gradedScores);
+          setGradedSectionTitle(data.marksheet.gradedSectionTitle);
         }
+      } catch {
+        // unexpected errors (5xx, network) — leave UI empty
       } finally {
         if (!cancelled) setLoading(false);
       }
