@@ -59,8 +59,20 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
   const gradedDirtyRef = useRef(false);
   const gradedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const titleDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const flushScoresRef = useRef<() => Promise<void>>(async () => {});
+  const flushGradedScoresRef = useRef<() => Promise<void>>(async () => {});
+
+  // Fix 2: cleanup debounce timers on unmount to prevent stale API calls
+  useEffect(() => {
+    return () => {
+      if (scoreDebounceRef.current) clearTimeout(scoreDebounceRef.current);
+      if (gradedDebounceRef.current) clearTimeout(gradedDebounceRef.current);
+      if (titleDebounceRef.current) clearTimeout(titleDebounceRef.current);
+    };
+  }, []);
 
   useEffect(() => {
+    if (!divisionId) { setLoading(false); return; }
     let cancelled = false;
     setLoading(true);
     getMarksheet(divisionId, academicYear)
@@ -156,6 +168,10 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     }
   }, [gradedScores, gradedSubjects, students]);
 
+  // Fix 1: keep refs pointing to the latest closure so debounced timeouts always call fresh versions
+  useEffect(() => { flushScoresRef.current = flushScores; }, [flushScores]);
+  useEffect(() => { flushGradedScoresRef.current = flushGradedScores; }, [flushGradedScores]);
+
   const handleAddColumn = useCallback(async (subjectId: string, name: string, maxMarks: number, examDate?: string | null) => {
     const mid = await ensureMarksheetId();
     const col = await addColumn(mid, { subjectId, name, maxMarks, examDate: examDate ?? null });
@@ -208,7 +224,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     }));
     dirtySubjectsRef.current.add(subjectId);
     if (scoreDebounceRef.current) clearTimeout(scoreDebounceRef.current);
-    scoreDebounceRef.current = setTimeout(() => { flushScores(); }, 1500);
+    scoreDebounceRef.current = setTimeout(() => { flushScoresRef.current(); }, 1500);
   }, [flushScores]);
 
   const handleAddGradedSubject = useCallback(async (name: string) => {
@@ -260,7 +276,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     }));
     gradedDirtyRef.current = true;
     if (gradedDebounceRef.current) clearTimeout(gradedDebounceRef.current);
-    gradedDebounceRef.current = setTimeout(() => { flushGradedScores(); }, 1500);
+    gradedDebounceRef.current = setTimeout(() => { flushGradedScoresRef.current(); }, 1500);
   }, [flushGradedScores]);
 
   const handlePublish = useCallback(async (): Promise<{ pdfUrl: string; shareToken: string }> => {

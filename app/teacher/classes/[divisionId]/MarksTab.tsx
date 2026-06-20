@@ -1921,7 +1921,7 @@ function PublishBar({
 // ── Main MarksTab ─────────────────────────────────────────────────────────────────────────────
 
 export default function MarksTab({
-    divisionId,
+    divisionId = '',
     divisionName,
     subjects,
     subTab,
@@ -1931,7 +1931,7 @@ export default function MarksTab({
     readOnly,
     isClassTeacher,
 }: {
-    divisionId: string;
+    divisionId?: string;
     divisionName: string;
     subjects: { id: string; name: string; code: string; color: string }[];
     subTab: MarksSubTab;
