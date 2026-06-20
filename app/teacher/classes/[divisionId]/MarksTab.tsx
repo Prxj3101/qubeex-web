@@ -441,6 +441,11 @@ function MarkSheet({
     const effectiveGradedScores = (mode === 'offline' && marksheetHook) ? marksheetHook.gradedScores : {};
     const effectiveGradedSectionTitle = (mode === 'offline' && marksheetHook) ? marksheetHook.gradedSectionTitle : 'Graded Subjects';
 
+    // Exam marks are filled by subject teachers only. The class teacher owns the
+    // structure (and the graded section) but does not enter exam marks, so their
+    // exam-score cells are read-only.
+    const examMarksReadOnly = readOnly || !restrictToSubjectId;
+
     // Keep local editing state for title
     const [editingGradedTitle, setEditingGradedTitle] = useState(false);
     const [gradedTitleDraft, setGradedTitleDraft] = useState('');
@@ -911,8 +916,8 @@ function MarkSheet({
                                                     };
                                                     return (
                                                         <td key={ex.id}
-                                                            onClick={() => { if (!readOnly && !isEditing && sc === null) startEdit(); }}
-                                                            className={`px-1 text-center relative group ${sc === null && !readOnly ? 'cursor-pointer' : 'cursor-default'}`}
+                                                            onClick={() => { if (!examMarksReadOnly && !isEditing && sc === null) startEdit(); }}
+                                                            className={`px-1 text-center relative group ${sc === null && !examMarksReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
                                                             style={{ border: `0.5px solid ${msColors.cellBorder}`, width: '62px', minWidth: '62px', maxWidth: '62px' }}>
                                                             {isEditing ? (
                                                                 <input
@@ -937,7 +942,7 @@ function MarkSheet({
                                                                     ) : (
                                                                         <span style={{ color: msColors.cellBorder }}>—</span>
                                                                     )}
-                                                                    {!readOnly && (
+                                                                    {!examMarksReadOnly && (
                                                                         <span className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity cursor-pointer"
                                                                             onClick={e => { e.stopPropagation(); startEdit(); }}>
                                                                             <Pencil size={8} color={msColors.hdrText} />
