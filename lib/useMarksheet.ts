@@ -222,6 +222,9 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
   const handleDeleteColumn = useCallback(async (colId: string, subjectId: string) => {
     const mid = marksheetIdRef.current;
     if (!mid) return;
+    // Snapshot for rollback if the server rejects the delete.
+    const prevCols = examColumns[subjectId] ?? [];
+    const prevColScores = scores[colId];
     setExamColumns(prev => ({
       ...prev,
       [subjectId]: (prev[subjectId] ?? []).filter(c => c.id !== colId),
@@ -234,13 +237,16 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     try {
       await deleteColumn(mid, colId);
     } catch (err) {
+      setExamColumns(prev => ({ ...prev, [subjectId]: prevCols }));
+      if (prevColScores !== undefined) setScores(prev => ({ ...prev, [colId]: prevColScores }));
       toast.error(apiErrorMessage(err, 'Could not delete exam column'));
     }
-  }, []);
+  }, [examColumns, scores]);
 
   const handleReorderColumns = useCallback(async (subjectId: string, orderedIds: string[]) => {
     const mid = marksheetIdRef.current;
     if (!mid) return;
+    const prevCols = examColumns[subjectId] ?? [];
     setExamColumns(prev => {
       const cols = prev[subjectId] ?? [];
       const sorted = orderedIds.map(id => cols.find(c => c.id === id)!).filter(Boolean);
@@ -249,9 +255,10 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     try {
       await reorderColumns(mid, subjectId, orderedIds);
     } catch (err) {
+      setExamColumns(prev => ({ ...prev, [subjectId]: prevCols }));
       toast.error(apiErrorMessage(err, 'Could not reorder columns'));
     }
-  }, []);
+  }, [examColumns]);
 
   const handleScoreChange = useCallback((examColumnId: string, studentId: string, subjectId: string, value: ScoreEntry) => {
     setScores(prev => ({
@@ -287,6 +294,8 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
   const handleDeleteGradedSubject = useCallback(async (gsId: string) => {
     const mid = marksheetIdRef.current;
     if (!mid) return;
+    const prevSubjects = gradedSubjects;
+    const prevGsScores = gradedScores[gsId];
     setGradedSubjects(prev => prev.filter(g => g.id !== gsId));
     setGradedScores(prev => {
       const next = { ...prev };
@@ -296,20 +305,24 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     try {
       await deleteGradedSubject(mid, gsId);
     } catch (err) {
+      setGradedSubjects(prevSubjects);
+      if (prevGsScores !== undefined) setGradedScores(prev => ({ ...prev, [gsId]: prevGsScores }));
       toast.error(apiErrorMessage(err, 'Could not delete graded subject'));
     }
-  }, []);
+  }, [gradedSubjects, gradedScores]);
 
   const handleReorderGradedSubjects = useCallback(async (orderedIds: string[]) => {
     const mid = marksheetIdRef.current;
     if (!mid) return;
+    const prevSubjects = gradedSubjects;
     setGradedSubjects(prev => orderedIds.map(id => prev.find(g => g.id === id)!).filter(Boolean));
     try {
       await reorderGradedSubjects(mid, orderedIds);
     } catch (err) {
+      setGradedSubjects(prevSubjects);
       toast.error(apiErrorMessage(err, 'Could not reorder graded subjects'));
     }
-  }, []);
+  }, [gradedSubjects]);
 
   const handleGradedSectionTitleChange = useCallback((title: string) => {
     setGradedSectionTitle(title);

@@ -722,14 +722,15 @@ function MarkSheet({
                                         {exams.map(ex => {
                                             const isDraggingOver = dragOverExam?.subId === sub.id && dragOverExam?.examId === ex.id;
                                             const isDragging = dragExam?.subId === sub.id && dragExam?.examId === ex.id;
-                                            const subRestricted = isRestricted(sub.id);
+                                            // Exam-column structure (reorder/edit) is class-teacher-only.
+                                            const canEditStructure = !readOnly && !restrictToSubjectId;
                                             return (
                                                 <th key={ex.id}
-                                                    draggable={mode === 'offline' && !readOnly && !subRestricted}
-                                                    onDragStart={() => { if (!readOnly && !subRestricted) setDragExam({ subId: sub.id, examId: ex.id }); }}
-                                                    onDragOver={e => { if (!readOnly && !subRestricted) { e.preventDefault(); setDragOverExam({ subId: sub.id, examId: ex.id }); } }}
+                                                    draggable={mode === 'offline' && canEditStructure}
+                                                    onDragStart={() => { if (canEditStructure) setDragExam({ subId: sub.id, examId: ex.id }); }}
+                                                    onDragOver={e => { if (canEditStructure) { e.preventDefault(); setDragOverExam({ subId: sub.id, examId: ex.id }); } }}
                                                     onDragLeave={() => setDragOverExam(null)}
-                                                    onDrop={() => { if (!readOnly && !subRestricted) handleExamDrop(sub.id, ex.id); }}
+                                                    onDrop={() => { if (canEditStructure) handleExamDrop(sub.id, ex.id); }}
                                                     onDragEnd={() => { setDragExam(null); setDragOverExam(null); }}
                                                     className="px-1 py-1.5 text-center whitespace-nowrap min-w-[62px] group relative"
                                                     style={{
@@ -737,7 +738,7 @@ function MarkSheet({
                                                         border: isDraggingOver ? `1.5px solid ${sub.color}` : `0.5px solid ${msColors.hdrBorder}`,
                                                         color: msColors.hdrText,
                                                         opacity: isDragging ? 0.4 : 1,
-                                                        cursor: mode === 'offline' && !subRestricted ? 'grab' : 'default',
+                                                        cursor: mode === 'offline' && canEditStructure ? 'grab' : 'default',
                                                     }}>
                                                     {mode === 'online' && ('date' in ex) && (ex as Exam).date && (
                                                         <div style={{ margin: '-6px -4px 4px', padding: '2px 4px', borderBottom: `0.5px solid ${msColors.hdrBorder}`, fontSize: 9, fontWeight: 500, opacity: 0.65, background: msColors.hdrBg }}>
@@ -746,7 +747,7 @@ function MarkSheet({
                                                     )}
                                                     <div style={{ fontWeight: 600, fontSize: 10 }}>{ex.name}</div>
                                                     <div style={{ fontWeight: 600, fontSize: 10, opacity: 0.8 }}>/{ex.maxMarks}</div>
-                                                    {mode === 'offline' && !readOnly && !subRestricted && (
+                                                    {mode === 'offline' && canEditStructure && (
                                                         <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-70 transition-opacity cursor-pointer flex items-center justify-center"
                                                             style={{ width: 20, height: 20 }}
                                                             onMouseDown={e => e.stopPropagation()}
@@ -758,7 +759,7 @@ function MarkSheet({
                                             );
                                         })}
                                         {mode === 'offline' && (
-                                            !readOnly && !isRestricted(sub.id) ? (
+                                            !readOnly && !restrictToSubjectId ? (
                                                 <th className="px-1 py-1.5 text-center w-7 cursor-pointer group/add"
                                                     onClick={() => setAddExamSubId(sub.id)}
                                                     style={{ background: msColors.hdrBg, border: `0.5px dashed ${msColors.hdrBorder}`, color: msColors.hdrText }}>
