@@ -997,6 +997,14 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
 
                         {/* Container grid */}
                         <div className="flex flex-wrap gap-20" style={{ paddingTop: 48, paddingLeft: 72, paddingRight: 40 }}>
+                            {containersLoading && containers.length === 0 && (
+                                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                    <Loader2 size={16} className="animate-spin" /> Loading collections…
+                                </div>
+                            )}
+                            {!containersLoading && containers.length === 0 && !creatingContainer && (
+                                <p className="text-sm text-muted-foreground">No collections yet — create one to generate questions into it.</p>
+                            )}
                             {containers.map(c => {
                                 const isOpening = openingContainerId === c.id || hoveredContainerId === c.id || backOpenContainerId === c.id;
                                 return (
