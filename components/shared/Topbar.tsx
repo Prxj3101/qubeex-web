@@ -24,7 +24,7 @@ interface NavItem {
     label: string;
     href: string;
     icon?: LucideIcon;
-    activePath?: string;
+    activePath?: string | string[];
     locked?: boolean;
 }
 
@@ -206,9 +206,13 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
             {navItems && (
                 <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/30 w-fit items-center">
                     {navItems.map((item) => {
+                        const activePaths = item.activePath
+                            ? (Array.isArray(item.activePath) ? item.activePath : [item.activePath])
+                            : [];
                         const isActive = pathname === item.href ||
                             pathname.startsWith(item.href + '/') ||
-                            (item.activePath ? pathname.startsWith(item.activePath) : false); const Icon = item.icon;
+                            activePaths.some((p) => pathname.startsWith(p));
+                        const Icon = item.icon;
 
                         if (item.locked) {
                             return (

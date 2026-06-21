@@ -12,7 +12,10 @@ const NAV_ITEMS = [
     { label: 'Tasks', href: '/student/tasks', icon: ClipboardList },
     { label: 'Class', href: '/student/class', icon: BookOpen },
     { label: 'Results', href: '/student/marksheet', icon: GraduationCap },
-    { label: 'Profile', href: '/student/profile', icon: User },
+    {
+        label: 'Profile', href: '/student/profile', icon: User,
+        activePath: ['/student/detail', '/student/attendance', '/student/reportcard'],
+    },
 ];
 
 export default function StudentLayout({ children }: { children: React.ReactNode }) {

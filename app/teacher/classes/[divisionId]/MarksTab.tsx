@@ -1809,13 +1809,13 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
 
                                 {/* Report Card */}
                                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between relative">
-                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Report Card</p>
-                                        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-2">
+                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 grid grid-cols-3 items-center">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider justify-self-start">Report Card</p>
+                                        <div className="flex items-baseline gap-2 justify-self-center">
                                             <span className="text-[12px] font-semibold text-foreground">{sel.student.name}</span>
                                             <span className="text-[11px] text-muted-foreground">Roll No. {sel.student.rollNo}</span>
                                         </div>
-                                        <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40">
+                                        <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40 justify-self-end">
                                             {(['offline', 'online'] as const).map(t => (
                                                 <button key={t} onClick={() => setReportCardTab(t)}
                                                     className={`px-2.5 py-0.5 rounded-md text-[10px] font-semibold capitalize transition-all ${reportCardTab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>

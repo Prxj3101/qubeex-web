@@ -119,9 +119,9 @@ const totalPaid = FEES.reduce((s, f) => s + f.paid, 0);
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SectionCard({ title, icon: Icon, iconColor, children, action }: {
+function SectionCard({ title, icon: Icon, iconColor, children, action, titleExtra }: {
     title: string; icon: React.ElementType; iconColor: string;
-    children: React.ReactNode; action?: React.ReactNode;
+    children: React.ReactNode; action?: React.ReactNode; titleExtra?: React.ReactNode;
 }) {
     return (
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden h-full">
@@ -129,6 +129,7 @@ function SectionCard({ title, icon: Icon, iconColor, children, action }: {
                 <div className="flex items-center gap-2">
                     <Icon size={15} style={{ color: iconColor }} />
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+                    {titleExtra}
                 </div>
                 {action}
             </div>
@@ -204,8 +205,9 @@ export default function StudentProfile() {
                     </div>
                     <button
                         onClick={() => router.push('/student/detail')}
-                        className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-all">
-                        View <ChevronRight size={13} />
+                        className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-white transition-all">
+                        <span className="leading-none" style={{ position: 'relative', top: '-1px' }}>View</span>
+                        <ChevronRight size={13} style={{ position: 'relative', top: '0px' }} />
                     </button>
                 </div>
 
@@ -298,8 +300,8 @@ export default function StudentProfile() {
                 {/* ── Subject Performance ── */}
                 <div className="col-span-2 h-full">
                     <SectionCard title="Subject Performance" icon={BarChart2} iconColor="#7C3AED"
-                        action={
-                            <div className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
+                        titleExtra={
+                            <div className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50 ml-1">
                                 {([
                                     { key: 'offline' as MarksMode, label: 'Offline' },
                                     { key: 'online' as MarksMode, label: 'Online' },
@@ -315,6 +317,12 @@ export default function StudentProfile() {
                                     );
                                 })}
                             </div>
+                        }
+                        action={
+                            <button onClick={() => router.push('/student/reportcard')} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
+                                <span className="leading-none">View Report Card</span>
+                                <ChevronRight size={12} />
+                            </button>
                         }>
                         <ResponsiveContainer width="100%" height={200}>
                             <BarChart data={chartData}>
@@ -357,8 +365,9 @@ export default function StudentProfile() {
                 {/* ── Attendance ── */}
                 <SectionCard title="Attendance" icon={Calendar} iconColor="#10B981"
                     action={
-                        <button onClick={() => router.push('/student/attendance')} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
-                            View Details <ChevronRight size={12} />
+                        <button onClick={() => router.push('/student/attendance')} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
+                            <span className="leading-none">View Details</span>
+                            <ChevronRight size={12} />
                         </button>
                     }>
 
@@ -456,8 +465,9 @@ export default function StudentProfile() {
                 {/* ── Flags ── */}
                 <SectionCard title="Remarks: Flags & Warnings" icon={Flag} iconColor="#EF4444"
                     action={
-                        <a href="#" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
-                            View All <ChevronRight size={12} />
+                        <a href="#" className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
+                            <span className="leading-none">View All</span>
+                            <ChevronRight size={12} />
                         </a>
                     }>
 
