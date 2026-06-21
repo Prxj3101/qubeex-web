@@ -5,10 +5,11 @@ import { AxiosError } from 'axios';
 import { toast } from 'sonner';
 import {
   MarksheetMeta, ExamColumn, ScoreEntry, GradedSubjectItem, GradedScoreEntry, MarksheetStudent,
-  getMarksheet, initMarksheet, addColumn, editColumn, deleteColumn, reorderColumns,
+  GradeScaleEntry,
+  getMarksheet, getAdminMarksheet, initMarksheet, addColumn, editColumn, deleteColumn, reorderColumns,
   saveScores, addGradedSubject, editGradedSubject, deleteGradedSubject,
   reorderGradedSubjects, updateGradedSectionTitle, saveGradedScores, publishMarksheet,
-  getClassStudents,
+  getClassStudents, updateMarksheetGradeScale,
 } from './marksheetApi';
 
 /** Extracts the backend's `{ error }` message from an axios error, with a fallback. */
@@ -20,6 +21,8 @@ function apiErrorMessage(err: unknown, fallback = 'Something went wrong'): strin
 export interface UseMarksheetResult {
   loading: boolean;
   marksheet: MarksheetMeta | null;
+  gradeScale: GradeScaleEntry[];
+  hasUnpublishedChanges: boolean;
   students: MarksheetStudent[];
   examColumns: Record<string, ExamColumn[]>;
   scores: Record<string, Record<string, ScoreEntry>>;
@@ -38,7 +41,8 @@ export interface UseMarksheetResult {
   handleReorderGradedSubjects: (orderedIds: string[]) => Promise<void>;
   handleGradedSectionTitleChange: (title: string) => void;
   handleGradedScoreChange: (gradedSubjectId: string, studentId: string, value: GradedScoreEntry) => void;
-  handlePublish: () => Promise<{ pdfUrl: string; shareToken: string }>;
+  handleUpdateGradeScale: (scale: GradeScaleEntry[]) => Promise<void>;
+  handlePublish: () => Promise<void>;
 }
 
 function getAcademicYear(): string {
@@ -49,7 +53,7 @@ function getAcademicYear(): string {
     : `${yr - 1}-${String(yr).slice(2)}`;
 }
 
-export function useMarksheet(divisionId: string): UseMarksheetResult {
+export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarksheetResult {
   const academicYear = getAcademicYear();
   const [loading, setLoading] = useState(true);
   const [marksheet, setMarksheet] = useState<MarksheetMeta | null>(null);
@@ -60,6 +64,8 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
   const [gradedScores, setGradedScores] = useState<Record<string, Record<string, GradedScoreEntry>>>({});
   const [gradedSectionTitle, setGradedSectionTitle] = useState('Graded Subjects');
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
+  const [gradeScale, setGradeScale] = useState<GradeScaleEntry[]>([]);
 
   const marksheetIdRef = useRef<string | null>(null);
   const dirtySubjectsRef = useRef<Set<string>>(new Set());
@@ -86,7 +92,9 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
 
     const load = async () => {
       try {
-        const data = await getMarksheet(divisionId, academicYear);
+        const data = isAdmin
+          ? await getAdminMarksheet(divisionId, academicYear)
+          : await getMarksheet(divisionId, academicYear);
         if (cancelled) return;
         if (data === null) {
           // Marksheet not initialised yet — show empty sheet with real student names
@@ -106,6 +114,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
           setGradedSubjects(data.gradedSubjects);
           setGradedScores(data.gradedScores);
           setGradedSectionTitle(data.marksheet.gradedSectionTitle);
+          setGradeScale(data.gradeScale ?? []);
         }
       } catch {
         // unexpected errors (5xx, network) — leave UI empty
@@ -116,7 +125,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
 
     load();
     return () => { cancelled = true; };
-  }, [divisionId, academicYear]);
+  }, [divisionId, academicYear, isAdmin]);
 
   const ensureMarksheetId = useCallback(async (): Promise<string> => {
     if (marksheetIdRef.current) return marksheetIdRef.current;
@@ -200,6 +209,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
         ...prev,
         [subjectId]: [...(prev[subjectId] ?? []), col],
       }));
+      setHasUnpublishedChanges(true);
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Could not add exam column'));
     }
@@ -214,6 +224,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
         ...prev,
         [subjectId]: (prev[subjectId] ?? []).map(c => c.id === colId ? updated : c),
       }));
+      setHasUnpublishedChanges(true);
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Could not update exam column'));
     }
@@ -236,6 +247,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     });
     try {
       await deleteColumn(mid, colId);
+      setHasUnpublishedChanges(true);
     } catch (err) {
       setExamColumns(prev => ({ ...prev, [subjectId]: prevCols }));
       if (prevColScores !== undefined) setScores(prev => ({ ...prev, [colId]: prevColScores }));
@@ -254,6 +266,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     });
     try {
       await reorderColumns(mid, subjectId, orderedIds);
+      setHasUnpublishedChanges(true);
     } catch (err) {
       setExamColumns(prev => ({ ...prev, [subjectId]: prevCols }));
       toast.error(apiErrorMessage(err, 'Could not reorder columns'));
@@ -275,6 +288,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
       const mid = await ensureMarksheetId();
       const gs = await addGradedSubject(mid, name);
       setGradedSubjects(prev => [...prev, gs]);
+      setHasUnpublishedChanges(true);
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Could not add graded subject'));
     }
@@ -286,6 +300,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     try {
       const updated = await editGradedSubject(mid, gsId, name);
       setGradedSubjects(prev => prev.map(g => g.id === gsId ? updated : g));
+      setHasUnpublishedChanges(true);
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Could not update graded subject'));
     }
@@ -304,6 +319,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     });
     try {
       await deleteGradedSubject(mid, gsId);
+      setHasUnpublishedChanges(true);
     } catch (err) {
       setGradedSubjects(prevSubjects);
       if (prevGsScores !== undefined) setGradedScores(prev => ({ ...prev, [gsId]: prevGsScores }));
@@ -318,6 +334,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     setGradedSubjects(prev => orderedIds.map(id => prev.find(g => g.id === id)!).filter(Boolean));
     try {
       await reorderGradedSubjects(mid, orderedIds);
+      setHasUnpublishedChanges(true);
     } catch (err) {
       setGradedSubjects(prevSubjects);
       toast.error(apiErrorMessage(err, 'Could not reorder graded subjects'));
@@ -326,6 +343,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
 
   const handleGradedSectionTitleChange = useCallback((title: string) => {
     setGradedSectionTitle(title);
+    setHasUnpublishedChanges(true);
     if (titleDebounceRef.current) clearTimeout(titleDebounceRef.current);
     titleDebounceRef.current = setTimeout(async () => {
       const mid = marksheetIdRef.current;
@@ -344,17 +362,27 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     gradedDebounceRef.current = setTimeout(() => { flushGradedScoresRef.current(); }, 1500);
   }, [flushGradedScores]);
 
-  const handlePublish = useCallback(async (): Promise<{ pdfUrl: string; shareToken: string }> => {
+  const handleUpdateGradeScale = useCallback(async (scale: GradeScaleEntry[]) => {
     const mid = marksheetIdRef.current;
     if (!mid) throw new Error('Marksheet not initialized');
-    const result = await publishMarksheet(mid);
-    setMarksheet(prev => prev ? { ...prev, status: 'PUBLISHED', shareToken: result.shareToken } : prev);
-    return result;
+    const saved = await updateMarksheetGradeScale(mid, scale);
+    setGradeScale(saved);
+    setHasUnpublishedChanges(true);
+  }, []);
+
+  const handlePublish = useCallback(async (): Promise<void> => {
+    const mid = marksheetIdRef.current;
+    if (!mid) throw new Error('Marksheet not initialized');
+    await publishMarksheet(mid);
+    setMarksheet(prev => prev ? { ...prev, status: 'PUBLISHED' } : prev);
+    setHasUnpublishedChanges(false);
   }, []);
 
   return {
     loading,
     marksheet,
+    gradeScale,
+    hasUnpublishedChanges,
     students,
     examColumns,
     scores,
@@ -373,6 +401,7 @@ export function useMarksheet(divisionId: string): UseMarksheetResult {
     handleReorderGradedSubjects,
     handleGradedSectionTitleChange,
     handleGradedScoreChange,
+    handleUpdateGradeScale,
     handlePublish,
   };
 }

@@ -39,8 +39,14 @@ export interface MarksheetStudent {
   rollNo: string;
 }
 
+export interface GradeScaleEntry {
+  grade: string;
+  minPct: number;
+}
+
 export interface MarksheetData {
   marksheet: MarksheetMeta;
+  gradeScale: GradeScaleEntry[];
   examColumns: Record<string, ExamColumn[]>;
   scores: Record<string, Record<string, ScoreEntry>>;
   gradedSubjects: GradedSubjectItem[];
@@ -48,8 +54,37 @@ export interface MarksheetData {
   students: MarksheetStudent[];
 }
 
+export function resolveGrade(pct: number, scale: GradeScaleEntry[]): string {
+  if (scale.length === 0) {
+    if (pct >= 75) return 'A';
+    if (pct >= 60) return 'B';
+    if (pct >= 45) return 'C';
+    if (pct >= 35) return 'D';
+    return 'F';
+  }
+  const sorted = [...scale].sort((a, b) => b.minPct - a.minPct);
+  for (const entry of sorted) {
+    if (pct >= entry.minPct) return entry.grade;
+  }
+  return sorted[sorted.length - 1]?.grade ?? 'F';
+}
+
+export async function updateMarksheetGradeScale(marksheetId: string, gradeScale: GradeScaleEntry[]): Promise<GradeScaleEntry[]> {
+  const res = await api.patch(`/teacher/marksheet/${marksheetId}/grade-scale`, { gradeScale });
+  return res.data.data.gradeScale as GradeScaleEntry[];
+}
+
 export async function getMarksheet(divisionId: string, academicYear: string): Promise<MarksheetData | null> {
   const res = await api.get(`/teacher/marksheet/division/${divisionId}`, {
+    params: { academicYear },
+    validateStatus: (s) => s === 200 || s === 404,
+  });
+  if (res.status === 404) return null;
+  return res.data.data as MarksheetData;
+}
+
+export async function getAdminMarksheet(divisionId: string, academicYear: string): Promise<MarksheetData | null> {
+  const res = await api.get(`/admin/marksheet/division/${divisionId}`, {
     params: { academicYear },
     validateStatus: (s) => s === 200 || s === 404,
   });
@@ -124,9 +159,8 @@ export async function saveGradedScores(
   await api.put(`/teacher/marksheet/${marksheetId}/graded-scores`, { scores });
 }
 
-export async function publishMarksheet(marksheetId: string): Promise<{ pdfUrl: string; shareToken: string }> {
-  const res = await api.post(`/teacher/marksheet/${marksheetId}/publish`);
-  return res.data.data as { pdfUrl: string; shareToken: string };
+export async function publishMarksheet(marksheetId: string): Promise<void> {
+  await api.post(`/teacher/marksheet/${marksheetId}/publish`);
 }
 
 export async function downloadMarksheetPdf(

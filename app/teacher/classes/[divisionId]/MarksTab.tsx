@@ -9,7 +9,7 @@ import * as XLSX from 'xlsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { useMarksheet, UseMarksheetResult } from '@/lib/useMarksheet';
-import { downloadMarksheetPdf, type MarksheetMeta } from '@/lib/marksheetApi';
+import { downloadMarksheetPdf, resolveGrade, type MarksheetMeta, type GradeScaleEntry } from '@/lib/marksheetApi';
 
 interface Student { id: string; name: string; rollNo: string; }
 
@@ -150,11 +150,8 @@ function scoreColor(pct: number) {
     return '#DC2626';                 // <35% — red
 }
 
-function grade(pct: number) {
-    if (pct >= 75) return 'A';
-    if (pct >= 61) return 'B';
-    if (pct >= 35) return 'C';
-    return 'D';
+function grade(pct: number, scale: GradeScaleEntry[] = []) {
+    return resolveGrade(pct, scale);
 }
 
 // ── Exam Edit Modal (offline only) ───────────────────────────────────────────
@@ -351,6 +348,139 @@ export type MarksStats = {
 
 export type MarksSubTab = 'offline' | 'online' | 'overall';
 
+// ── Grade Scale Editor ────────────────────────────────────────────────────────
+const DEFAULT_GRADE_SCALE: GradeScaleEntry[] = [
+    { grade: 'A', minPct: 75 },
+    { grade: 'B', minPct: 60 },
+    { grade: 'C', minPct: 45 },
+    { grade: 'D', minPct: 35 },
+    { grade: 'F', minPct: 0 },
+];
+
+function GradeScaleEditor({
+    scale,
+    onSave,
+}: {
+    scale: GradeScaleEntry[];
+    onSave: (scale: GradeScaleEntry[]) => Promise<void>;
+}) {
+    const effective = scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE;
+    const [open, setOpen] = useState(false);
+    const [entries, setEntries] = useState<GradeScaleEntry[]>(effective);
+    const [saving, setSaving] = useState(false);
+
+    // Sync if parent scale changes (e.g. after reload)
+    useEffect(() => {
+        if (!open) {
+            setEntries(scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE);
+        }
+    }, [scale, open]);
+
+    const update = (idx: number, field: keyof GradeScaleEntry, val: string) => {
+        setEntries(prev => prev.map((e, i) => {
+            if (i !== idx) return e;
+            if (field === 'minPct') {
+                const n = parseInt(val, 10);
+                return { ...e, minPct: isNaN(n) ? 0 : Math.min(100, Math.max(0, n)) };
+            }
+            return { ...e, grade: val.toUpperCase().slice(0, 10) };
+        }));
+    };
+
+    const handleSave = async () => {
+        if (entries.some(e => !e.grade.trim())) { toast.error('Each row needs a grade label.'); return; }
+        const pcts = entries.map(e => e.minPct);
+        if (new Set(pcts).size !== pcts.length) { toast.error('Each grade needs a unique minimum %.'); return; }
+        setSaving(true);
+        try {
+            await onSave(entries);
+            toast.success('Grade scale saved.');
+            setOpen(false);
+        } catch {
+            toast.error('Failed to save.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const displayScale = scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE;
+
+    return (
+        <div className="mx-3 mb-3 rounded-xl border border-border/60 bg-card overflow-hidden">
+            <button
+                onClick={() => { setOpen(o => !o); }}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium hover:bg-muted/30 transition-colors"
+            >
+                <span className="flex items-center gap-2">
+                    <Trophy size={12} className="text-muted-foreground" />
+                    <span>Grade Scale</span>
+                    <span className="flex items-center gap-1 ml-1">
+                        {displayScale.map(e => (
+                            <span key={e.grade} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-muted/60">
+                                {e.grade}≥{e.minPct}%
+                            </span>
+                        ))}
+                    </span>
+                </span>
+                <ChevronDown size={13} className={`text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {open && (
+                <div className="border-t border-border/40 px-4 py-3 space-y-3">
+                    <div className="grid grid-cols-[80px_1fr_28px] gap-2 text-[10px] font-medium text-muted-foreground px-1">
+                        <span>Grade Label</span>
+                        <span>Min % (≥)</span>
+                        <span />
+                    </div>
+                    {entries.map((entry, idx) => (
+                        <div key={idx} className="grid grid-cols-[80px_1fr_28px] gap-2 items-center">
+                            <input
+                                value={entry.grade}
+                                onChange={e => update(idx, 'grade', e.target.value)}
+                                placeholder="e.g. A+"
+                                className="h-8 rounded-lg border border-border bg-background px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                            <div className="relative">
+                                <input
+                                    type="number" min={0} max={100}
+                                    value={entry.minPct}
+                                    onChange={e => update(idx, 'minPct', e.target.value)}
+                                    className="h-8 w-full rounded-lg border border-border bg-background px-2 pr-6 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">%</span>
+                            </div>
+                            <button
+                                onClick={() => setEntries(prev => prev.filter((_, i) => i !== idx))}
+                                disabled={entries.length <= 1}
+                                className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 transition-colors"
+                            >
+                                <X size={12} />
+                            </button>
+                        </div>
+                    ))}
+                    <button
+                        onClick={() => setEntries(prev => [...prev, { grade: '', minPct: 0 }])}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <Plus size={12} /> Add grade
+                    </button>
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                        <button onClick={() => setOpen(false)} className="h-7 px-3 rounded-lg text-xs text-muted-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="h-7 px-4 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all"
+                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                        >
+                            {saving ? 'Saving…' : 'Save'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Mark Sheet (Right Panel) — ALL subjects in one sheet ─────────────────────
 function MarkSheet({
     students, subjects, mode, divisionName, isActive, onStatsChange, restrictToSubjectId, readOnly,
@@ -370,6 +500,9 @@ function MarkSheet({
     const yr = now.getFullYear();
     const mo = now.getMonth();
     const academicYear = mo >= 5 ? `${yr}–${String(yr + 1).slice(2)}` : `${yr - 1}–${String(yr).slice(2)}`;
+
+    const gs = marksheetHook?.gradeScale ?? [];
+    const gradeLabel = (pct: number) => grade(pct, gs);
 
     const isRestricted = (subId: string) => !!restrictToSubjectId && subId !== restrictToSubjectId;
 
@@ -580,7 +713,7 @@ function MarkSheet({
             return [st.rollNo, st.name, ...scoreCells, ...subTotals,
             `${grand.scored}/${grand.total}`,
             grand.pct !== null ? `${grand.pct}%` : '—',
-            grand.pct !== null ? grade(grand.pct) : '—'];
+            grand.pct !== null ? gradeLabel(grand.pct) : '—'];
         });
         const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
         const wb = XLSX.utils.book_new();
@@ -1108,7 +1241,7 @@ function MarkSheet({
                                     </td>
                                     <td className="sticky right-0 z-10 px-2 py-2 text-center"
                                         style={{ minWidth: GRADE_W, background: rowBg, border: `0.5px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
-                                        {restrictToSubjectId ? '—' : (grand.pct !== null ? grade(grand.pct) : '—')}
+                                        {restrictToSubjectId ? '—' : (grand.pct !== null ? gradeLabel(grand.pct) : '—')}
                                     </td>
                                 </tr>
                             );
@@ -1133,6 +1266,14 @@ function MarkSheet({
                     {mode === 'online' ? 'Auto-populated \xb7 Click any cell to override' : 'Click any cell to enter / edit marks'}
                 </span>
             </div>
+
+            {/* Grade Scale Editor — class teacher only, offline mode */}
+            {mode === 'offline' && !readOnly && !restrictToSubjectId && marksheetHook && (
+                <GradeScaleEditor
+                    scale={marksheetHook.gradeScale}
+                    onSave={marksheetHook.handleUpdateGradeScale}
+                />
+            )}
 
             {/* Modals */}
             <AnimatePresence>
@@ -1250,6 +1391,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
     const [rankTab, setRankTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const [subjectTopperTab, setSubjectTopperTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const [reportCardTab, setReportCardTab] = useState<'offline' | 'online'>('offline');
+    const gradeLabel = (pct: number) => grade(pct, []);
     const [trendSubjectId, setTrendSubjectId] = useState<string>(MOCK_SUBJECTS[0]?.id ?? '');
     const [trendMode, setTrendMode] = useState<'offline' | 'online' | 'combined'>('combined');
 
@@ -1749,7 +1891,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                                             {totalPct !== null ? <span style={{ color: scoreColor(totalPct), fontWeight: 700 }}>{totalPct}%</span> : '—'}
                                                                         </td>
                                                                         <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold">
-                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{grade(totalPct)}</span> : '—'}
+                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{gradeLabel(totalPct)}</span> : '—'}
                                                                         </td>
                                                                     </tr>
                                                                 ))}
@@ -1766,7 +1908,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                                         {grandPct !== null ? <span style={{ color: scoreColor(grandPct), fontWeight: 700 }}>{grandPct}%</span> : '—'}
                                                                     </td>
                                                                     <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
-                                                                        {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{grade(grandPct)}</span> : '—'}
+                                                                        {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{gradeLabel(grandPct)}</span> : '—'}
                                                                     </td>
                                                                 </tr>
                                                                 {/* Conduct & Remarks row - offline only */}
@@ -1849,7 +1991,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                                             {totalPct !== null ? <span style={{ color: scoreColor(totalPct), fontWeight: 700 }}>{totalPct}%</span> : '—'}
                                                                         </td>
                                                                         <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap font-semibold">
-                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{grade(totalPct)}</span> : '—'}
+                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{gradeLabel(totalPct)}</span> : '—'}
                                                                         </td>
                                                                     </tr>
                                                                 </React.Fragment>
@@ -1862,7 +2004,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                                     {grandPct !== null ? <span style={{ color: scoreColor(grandPct), fontWeight: 700 }}>{grandPct}%</span> : '—'}
                                                                 </td>
                                                                 <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
-                                                                    {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{grade(grandPct)}</span> : '—'}
+                                                                    {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{gradeLabel(grandPct)}</span> : '—'}
                                                                 </td>
                                                             </tr>
                                                         </tbody>
@@ -1897,32 +2039,37 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
 // ── Publish Bar ───────────────────────────────────────────────────────────────
 function PublishBar({
     marksheet,
+    hasUnpublishedChanges,
     onPublish,
 }: {
     marksheet: MarksheetMeta | null;
-    onPublish: () => Promise<{ pdfUrl: string; shareToken: string }>;
+    hasUnpublishedChanges: boolean;
+    onPublish: () => Promise<void>;
 }) {
     const [publishing, setPublishing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [publishResult, setPublishResult] = useState<{ pdfUrl: string; shareToken: string } | null>(null);
 
-    const shareUrl = publishResult?.pdfUrl ?? (marksheet?.shareToken
-        ? `${typeof window !== 'undefined' ? window.location.origin : ''}/share/marksheet/${marksheet.shareToken}`
-        : null);
+    const doPublish = async () => {
+        setPublishing(true);
+        setError(null);
+        try {
+            await onPublish();
+        } catch {
+            setError('Publish failed. Try again.');
+        } finally {
+            setPublishing(false);
+        }
+    };
 
     if (!marksheet) return null;
 
-    if (marksheet.status === 'PUBLISHED' || publishResult) {
+    const isPublished = marksheet.status === 'PUBLISHED';
+
+    if (isPublished && !hasUnpublishedChanges) {
         return (
             <div className="shrink-0 px-3 pt-2">
-                <div className="flex items-center gap-3 px-4 py-2 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
                     <span className="text-[11px] font-semibold text-green-700 dark:text-green-400">Published</span>
-                    {shareUrl && (
-                        <a href={shareUrl} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-[11px] text-green-600 hover:underline">
-                            <ExternalLink size={11} /> View PDF
-                        </a>
-                    )}
                 </div>
             </div>
         );
@@ -1933,27 +2080,18 @@ function PublishBar({
             <div className="flex items-center gap-3 px-4 py-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
                 <Flag size={13} className="text-amber-600 shrink-0" />
                 <span className="text-[11px] text-amber-700 dark:text-amber-400 flex-1">
-                    Marksheet is a draft — publish to generate a shareable PDF.
+                    {isPublished
+                        ? 'Structure changed — re-publish to update student results.'
+                        : 'Marksheet is a draft — publish to share results with students.'}
                 </span>
                 {error && <span className="text-[11px] text-red-500">{error}</span>}
                 <button
-                    onClick={async () => {
-                        setPublishing(true);
-                        setError(null);
-                        try {
-                            const result = await onPublish();
-                            setPublishResult(result);
-                        } catch {
-                            setError('Publish failed. Try again.');
-                        } finally {
-                            setPublishing(false);
-                        }
-                    }}
+                    onClick={doPublish}
                     disabled={publishing}
                     className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold text-white disabled:opacity-50 transition-all"
                     style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                     <Trophy size={12} />
-                    {publishing ? 'Publishing…' : 'Publish'}
+                    {publishing ? 'Publishing…' : isPublished ? 'Re-publish' : 'Publish'}
                 </button>
             </div>
         </div>
@@ -1972,6 +2110,7 @@ export default function MarksTab({
     restrictToSubjectId,
     readOnly,
     isClassTeacher,
+    isAdmin,
 }: {
     divisionId?: string;
     divisionName: string;
@@ -1982,16 +2121,17 @@ export default function MarksTab({
     restrictToSubjectId?: string | null;
     readOnly?: boolean;
     isClassTeacher?: boolean;
+    isAdmin?: boolean;
 }) {
-    const marksheetHook = useMarksheet(divisionId);
+    const marksheetHook = useMarksheet(divisionId, isAdmin);
     const mappedSubjects: Subject[] = subjects.map(s => ({
         id: s.id, name: s.name, code: s.code, color: s.color,
     }));
 
     return (
         <div className="flex flex-col h-full min-h-0">
-            {subTab === 'offline' && isClassTeacher && !marksheetHook.loading && (
-                <PublishBar marksheet={marksheetHook.marksheet} onPublish={marksheetHook.handlePublish} />
+            {isClassTeacher && !marksheetHook.loading && (
+                <PublishBar marksheet={marksheetHook.marksheet} hasUnpublishedChanges={marksheetHook.hasUnpublishedChanges} onPublish={marksheetHook.handlePublish} />
             )}
             <div className={subTab === "offline" ? "flex-1 min-h-0 flex flex-col pt-3 pb-3 px-1" : "hidden"}>
                 {marksheetHook.loading ? (
