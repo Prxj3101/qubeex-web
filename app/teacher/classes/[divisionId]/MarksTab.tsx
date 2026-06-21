@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Users, BookOpen, ChevronDown, Plus, X, Pencil, Save, Trophy, Flag, ExternalLink,
+    Users, BookOpen, ChevronDown, Plus, X, Pencil, Save, Trophy, ExternalLink, Check, Megaphone,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -484,7 +484,7 @@ function GradeScaleEditor({
 // ── Mark Sheet (Right Panel) — ALL subjects in one sheet ─────────────────────
 function MarkSheet({
     students, subjects, mode, divisionName, isActive, onStatsChange, restrictToSubjectId, readOnly,
-    marksheetHook,
+    marksheetHook, showPublishControl,
 }: {
     students: Student[];
     subjects: Subject[];
@@ -495,6 +495,7 @@ function MarkSheet({
     restrictToSubjectId?: string | null;
     readOnly?: boolean;
     marksheetHook?: UseMarksheetResult;
+    showPublishControl?: boolean;
 }) {
     const now = new Date();
     const yr = now.getFullYear();
@@ -758,6 +759,13 @@ function MarkSheet({
                     </p>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
+                    {mode === 'offline' && showPublishControl && marksheetHook && (
+                        <CompactPublishButton
+                            marksheet={marksheetHook.marksheet}
+                            hasUnpublishedChanges={marksheetHook.hasUnpublishedChanges}
+                            onPublish={marksheetHook.handlePublish}
+                        />
+                    )}
                     {mode === 'offline' && (
                         <div className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold border ${
                             saveStatus === 'saved'
@@ -828,7 +836,7 @@ function MarkSheet({
                                 const colSpan = exams.length + (mode === 'offline' ? 3 : 2);
                                 return (
                                     <th key={sub.id} colSpan={colSpan} className="px-2 py-1.5 text-center whitespace-nowrap"
-                                        style={{ background: `linear-gradient(${sub.color}22, ${sub.color}22), ${msColors.hdrBg}`, borderBottom: `2px solid ${sub.color}60`, border: `0.5px solid ${msColors.cellBorder}` }}>
+                                        style={{ background: `linear-gradient(${sub.color}22, ${sub.color}22), ${msColors.hdrBg}`, borderBottom: `2px solid ${sub.color}60`, border: `1px solid ${msColors.cellBorder}` }}>
                                         <div className="flex items-center justify-center gap-1.5">
                                             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: sub.color }} />
                                             <span style={{ color: sub.color, fontWeight: 700, fontSize: 11 }}>{sub.name}</span>
@@ -883,7 +891,7 @@ function MarkSheet({
                                 <th rowSpan={2} style={{ minWidth: 12, width: 12, background: 'transparent', border: 'none' }} /></>}
                             {/* Overall sticky header */}
                             <th colSpan={3} rowSpan={1} className="sticky right-0 z-[65] px-2 py-1.5 text-center"
-                                style={{ minWidth: TOTAL_W + PCT_W + GRADE_W, background: msColors.summaryBg, border: `0.5px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700, fontSize: 11 }}>
+                                style={{ minWidth: TOTAL_W + PCT_W + GRADE_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700, fontSize: 11 }}>
                                 Overall
                             </th>
                         </tr>
@@ -946,11 +954,11 @@ function MarkSheet({
                                             )
                                         )}
                                         <th className="px-1 py-1.5 text-center whitespace-nowrap"
-                                            style={{ background: msColors.summaryBg, border: `0.5px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700, fontSize: 11, width: '72px', minWidth: '72px', maxWidth: '72px' }}>
+                                            style={{ background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700, fontSize: 11, width: '72px', minWidth: '72px', maxWidth: '72px' }}>
                                             Total
                                         </th>
                                         <th className="px-1 py-1.5 text-center whitespace-nowrap"
-                                            style={{ background: msColors.summaryBg, border: `0.5px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700, fontSize: 11, width: '48px', minWidth: '48px', maxWidth: '48px' }}>
+                                            style={{ background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700, fontSize: 11, width: '48px', minWidth: '48px', maxWidth: '48px' }}>
                                             %
                                         </th>
                                     </React.Fragment>
@@ -1021,15 +1029,15 @@ function MarkSheet({
                             )}
                             {/* Grand sticky cols */}
                             <th className="sticky z-20 px-2 py-1.5 text-center whitespace-nowrap"
-                                style={{ right: PCT_W + GRADE_W, minWidth: TOTAL_W, background: msColors.summaryBg, border: `0.5px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
+                                style={{ right: PCT_W + GRADE_W, minWidth: TOTAL_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
                                 Grand
                             </th>
                             <th className="sticky z-20 px-2 py-1.5 text-center whitespace-nowrap"
-                                style={{ right: GRADE_W, minWidth: PCT_W, background: msColors.summaryBg, border: `0.5px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
+                                style={{ right: GRADE_W, minWidth: PCT_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
                                 %
                             </th>
                             <th className="sticky right-0 z-20 px-2 py-1.5 text-center whitespace-nowrap"
-                                style={{ minWidth: GRADE_W, background: msColors.summaryBg, border: `0.5px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
+                                style={{ minWidth: GRADE_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
                                 Grade
                             </th>
                         </tr>
@@ -1041,11 +1049,11 @@ function MarkSheet({
                             return (
                                 <tr key={student.id} style={{ background: rowBg }} className="hover:opacity-90 transition-opacity">
                                     <td className="sticky left-0 z-10 px-2 py-2 text-center font-semibold whitespace-nowrap w-[60px] min-w-[60px] max-w-[60px]"
-                                        style={{ background: rowBg, border: `0.5px solid ${msColors.cellBorder}`, color: '#2A1F10' }}>
+                                        style={{ background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10' }}>
                                         {student.rollNo}
                                     </td>
                                     <td className="sticky left-[60px] z-10 px-3 py-1.5 whitespace-nowrap"
-                                        style={{ background: rowBg, border: `0.5px solid ${msColors.cellBorder}`, color: '#2A1F10' }}>
+                                        style={{ background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10' }}>
                                         <div className="flex items-center gap-1.5">
                                             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
                                                 style={{ background: getAvatarColor(student.name) }}>
@@ -1065,7 +1073,7 @@ function MarkSheet({
                                                     if (subRestricted) {
                                                         return (
                                                             <td key={ex.id} className="px-1 py-2 text-center"
-                                                                style={{ border: `0.5px solid ${msColors.cellBorder}`, width: '62px', minWidth: '62px', maxWidth: '62px' }}>
+                                                                style={{ border: `1px solid ${msColors.cellBorder}`, width: '62px', minWidth: '62px', maxWidth: '62px' }}>
                                                                 <span style={{ color: msColors.cellBorder }}>—</span>
                                                             </td>
                                                         );
@@ -1087,7 +1095,7 @@ function MarkSheet({
                                                         <td key={ex.id}
                                                             onClick={() => { if (!examMarksReadOnly && !isEditing && sc === null) startEdit(); }}
                                                             className={`px-1 text-center relative group ${sc === null && !examMarksReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
-                                                            style={{ border: `0.5px solid ${msColors.cellBorder}`, width: '62px', minWidth: '62px', maxWidth: '62px' }}>
+                                                            style={{ border: `1px solid ${msColors.cellBorder}`, width: '62px', minWidth: '62px', maxWidth: '62px' }}>
                                                             {isEditing ? (
                                                                 <input
                                                                     ref={inputRef}
@@ -1123,14 +1131,14 @@ function MarkSheet({
                                                     );
                                                 })}
                                                 {mode === 'offline' && (
-                                                    <td style={{ background: rowBg, borderLeft: `0.5px dashed ${msColors.cellBorder}`, borderRight: `0.5px dashed ${msColors.cellBorder}`, borderTop: `0.5px solid ${msColors.cellBorder}`, borderBottom: `0.5px solid ${msColors.cellBorder}`, width: '28px' }} />
+                                                    <td style={{ background: rowBg, borderLeft: `0.5px dashed ${msColors.cellBorder}`, borderRight: `0.5px dashed ${msColors.cellBorder}`, borderTop: `1px solid ${msColors.cellBorder}`, borderBottom: `1px solid ${msColors.cellBorder}`, width: '28px' }} />
                                                 )}
                                                 <td className="px-1 py-2 text-center"
-                                                    style={{ background: msColors.rowAlt, border: `0.5px solid ${msColors.cellBorder}`, color: subRestricted ? msColors.cellBorder : '#2A1F10', fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                                    style={{ background: msColors.rowAlt, border: `1px solid ${msColors.cellBorder}`, color: subRestricted ? msColors.cellBorder : '#2A1F10', fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                                     {subRestricted ? '—' : `${scored}/${total}`}
                                                 </td>
                                                 <td className="px-1 py-2 text-center"
-                                                    style={{ background: msColors.rowAlt, border: `0.5px solid ${msColors.cellBorder}`, color: subRestricted ? msColors.cellBorder : (subPct !== null ? scoreColor(subPct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                                    style={{ background: msColors.rowAlt, border: `1px solid ${msColors.cellBorder}`, color: subRestricted ? msColors.cellBorder : (subPct !== null ? scoreColor(subPct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                                     {subRestricted ? '—' : (subPct !== null ? `${subPct}%` : '—')}
                                                 </td>
                                             </React.Fragment>
@@ -1144,11 +1152,11 @@ function MarkSheet({
                                             return (
                                                 <React.Fragment key={gs.id}>
                                                     <td className="px-1 py-1 text-center"
-                                                        style={{ background: msColors.rowBase, border: `0.5px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
+                                                        style={{ background: msColors.rowBase, border: `1px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
                                                         <span style={{ fontSize: 12, fontWeight: 700, color: msColors.hdrBorder }}>—</span>
                                                     </td>
                                                     <td className="px-1 py-1 text-center"
-                                                        style={{ background: msColors.rowBase, border: `0.5px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
+                                                        style={{ background: msColors.rowBase, border: `1px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
                                                         <span style={{ fontSize: 12, fontWeight: 700, color: msColors.hdrBorder }}>—</span>
                                                     </td>
                                                 </React.Fragment>
@@ -1162,7 +1170,7 @@ function MarkSheet({
                                             <React.Fragment key={gs.id}>
                                                 <td className={`px-1 py-1 text-center group relative ${!t1 && !readOnly ? 'cursor-pointer' : ''}`}
                                                     onClick={() => { if (!readOnly && !isEditT1 && !t1) startGradeEdit(gs.id, student.id, 't1', t1); }}
-                                                    style={{ background: msColors.rowBase, border: `0.5px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
+                                                    style={{ background: msColors.rowBase, border: `1px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
                                                     {isEditT1 ? (
                                                         <input
                                                             ref={gradeInputRef}
@@ -1193,7 +1201,7 @@ function MarkSheet({
                                                 </td>
                                                 <td className={`px-1 py-1 text-center group relative ${!t2 && !readOnly ? 'cursor-pointer' : ''}`}
                                                     onClick={() => { if (!readOnly && !isEditT2 && !t2) startGradeEdit(gs.id, student.id, 't2', t2); }}
-                                                    style={{ background: msColors.rowBase, border: `0.5px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
+                                                    style={{ background: msColors.rowBase, border: `1px solid ${msColors.cellBorder}`, width: 52, minWidth: 52, maxWidth: 52 }}>
                                                     {isEditT2 ? (
                                                         <input
                                                             ref={gradeInputRef}
@@ -1232,15 +1240,15 @@ function MarkSheet({
                                         <td style={{ background: 'transparent', border: 'none', width: 12 }} /></>}
                                     {/* Grand sticky summary */}
                                     <td className="sticky z-10 px-2 py-2 text-center"
-                                        style={{ right: PCT_W + GRADE_W, minWidth: TOTAL_W, background: rowBg, border: `0.5px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : msColors.hdrText, fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                        style={{ right: PCT_W + GRADE_W, minWidth: TOTAL_W, background: rowBg, border: `1px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : msColors.hdrText, fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                         {restrictToSubjectId ? '—' : `${grand.scored}/${grand.total}`}
                                     </td>
                                     <td className="sticky z-10 px-2 py-2 text-center"
-                                        style={{ right: GRADE_W, minWidth: PCT_W, background: rowBg, border: `0.5px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                        style={{ right: GRADE_W, minWidth: PCT_W, background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                         {restrictToSubjectId ? '—' : (grand.pct !== null ? `${grand.pct}%` : '—')}
                                     </td>
                                     <td className="sticky right-0 z-10 px-2 py-2 text-center"
-                                        style={{ minWidth: GRADE_W, background: rowBg, border: `0.5px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                        style={{ minWidth: GRADE_W, background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                         {restrictToSubjectId ? '—' : (grand.pct !== null ? gradeLabel(grand.pct) : '—')}
                                     </td>
                                 </tr>
@@ -2036,8 +2044,8 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
     );
 }
 
-// ── Publish Bar ───────────────────────────────────────────────────────────────
-function PublishBar({
+// ── Compact Publish Button (sits in the marksheet header, left of Auto-save) ──
+function CompactPublishButton({
     marksheet,
     hasUnpublishedChanges,
     onPublish,
@@ -2048,6 +2056,7 @@ function PublishBar({
 }) {
     const [publishing, setPublishing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showPublishedBadge, setShowPublishedBadge] = useState(true);
 
     const doPublish = async () => {
         setPublishing(true);
@@ -2055,45 +2064,51 @@ function PublishBar({
         try {
             await onPublish();
         } catch {
-            setError('Publish failed. Try again.');
+            setError('Failed');
         } finally {
             setPublishing(false);
         }
     };
 
+    const isPublished = !!marksheet && marksheet.status === 'PUBLISHED';
+    const isCalmPublished = isPublished && !hasUnpublishedChanges;
+
+    // The plain "Published" confirmation is just a momentary heads-up, not an
+    // action item — show it for a few seconds then collapse away entirely.
+    // Resets (shows again) whenever we re-enter this calm-published state,
+    // e.g. right after hitting Publish.
+    useEffect(() => {
+        if (!isCalmPublished) {
+            setShowPublishedBadge(true);
+            return;
+        }
+        const timer = setTimeout(() => setShowPublishedBadge(false), 3500);
+        return () => clearTimeout(timer);
+    }, [isCalmPublished]);
+
     if (!marksheet) return null;
 
-    const isPublished = marksheet.status === 'PUBLISHED';
-
-    if (isPublished && !hasUnpublishedChanges) {
+    if (isCalmPublished) {
+        if (!showPublishedBadge) return null;
         return (
-            <div className="shrink-0 px-3 pt-2">
-                <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
-                    <span className="text-[11px] font-semibold text-green-700 dark:text-green-400">Published</span>
-                </div>
+            <div className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold border border-green-500 text-green-600 bg-green-500/10 shrink-0">
+                <Check size={11} /> Published
             </div>
         );
     }
 
     return (
-        <div className="shrink-0 px-3 pt-2">
-            <div className="flex items-center gap-3 px-4 py-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
-                <Flag size={13} className="text-amber-600 shrink-0" />
-                <span className="text-[11px] text-amber-700 dark:text-amber-400 flex-1">
-                    {isPublished
-                        ? 'Structure changed — re-publish to update student results.'
-                        : 'Marksheet is a draft — publish to share results with students.'}
-                </span>
-                {error && <span className="text-[11px] text-red-500">{error}</span>}
-                <button
-                    onClick={doPublish}
-                    disabled={publishing}
-                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold text-white disabled:opacity-50 transition-all"
-                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                    <Trophy size={12} />
-                    {publishing ? 'Publishing…' : isPublished ? 'Re-publish' : 'Publish'}
-                </button>
-            </div>
+        <div className="flex items-center gap-1.5 shrink-0">
+            {error && <span className="text-[10px] text-red-500">{error}</span>}
+            <button
+                onClick={doPublish}
+                disabled={publishing}
+                title={isPublished ? 'Structure changed — re-publish to update student results.' : 'Marksheet is a draft — publish to share results with students.'}
+                className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold text-white disabled:opacity-50 transition-all"
+                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                <Megaphone size={12} />
+                {publishing ? '…' : isPublished ? 'Re-publish' : 'Publish'}
+            </button>
         </div>
     );
 }
@@ -2130,9 +2145,6 @@ export default function MarksTab({
 
     return (
         <div className="flex flex-col h-full min-h-0">
-            {isClassTeacher && !marksheetHook.loading && (
-                <PublishBar marksheet={marksheetHook.marksheet} hasUnpublishedChanges={marksheetHook.hasUnpublishedChanges} onPublish={marksheetHook.handlePublish} />
-            )}
             <div className={subTab === "offline" ? "flex-1 min-h-0 flex flex-col pt-3 pb-3 px-1" : "hidden"}>
                 {marksheetHook.loading ? (
                     <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
@@ -2149,6 +2161,7 @@ export default function MarksTab({
                         restrictToSubjectId={restrictToSubjectId}
                         readOnly={readOnly}
                         marksheetHook={marksheetHook}
+                        showPublishControl={isClassTeacher}
                     />
                 )}
             </div>

@@ -245,7 +245,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         : `${year - 1}–${String(year).slice(2)}`;
 
     return (
-        <div className="w-[60%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5">
+        <div className="w-[65%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5">
 
             {/* Header — Month navigator */}
             <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3">
@@ -363,12 +363,12 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
 
             {/* Sheet table */}
             <div style={{ flex: 1, minHeight: 0, overflowX: 'scroll', overflowY: 'auto', background: '#F5F8EE', scrollbarWidth: 'thin', scrollbarColor: '#BACE85 #F5F8EE' }}>
-                <table className="text-[10px] border-separate border-spacing-0 min-w-max">
+                <table className="text-[10px] border-separate border-spacing-0" style={{ tableLayout: 'fixed' }}>
                     <thead className="sticky top-0 z-30">
-                        <tr>
-                            <th className="sticky left-[0px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-left font-semibold text-[#2A3A10] whitespace-nowrap min-w-[55px]">Roll No.</th>
-                            <th className="sticky left-[55px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-left font-semibold text-[#2A3A10] whitespace-nowrap min-w-[120px]">Name</th>
-                            <th className="bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-left font-semibold text-[#2A3A10] whitespace-nowrap min-w-[95px]">Student ID</th>
+                        <tr className="text-[11.5px]">
+                            <th className="sticky left-[0px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-2 py-1 text-left text-[11px] font-semibold text-[#2A3A10] whitespace-nowrap w-[68px] min-w-[68px]">Roll No.</th>
+                            <th className="sticky left-[68px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-2 py-1 text-left text-[11px] font-semibold text-[#2A3A10] whitespace-nowrap w-[140px] min-w-[140px]">Name</th>
+                            <th className="bg-[#ECF3D0] border border-[#BACE85]/50 px-2 py-1 text-left text-[11px] font-semibold text-[#2A3A10] whitespace-nowrap w-[95px] min-w-[95px]">Student ID</th>
                             {visibleDates.map(d => {
                                 const dk = makeDateKey(year, activeMonth, d);
                                 const isSelected = isSelectedDateCell(d);
@@ -377,7 +377,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                 const hasRemark = !!dateRemarks[dk];
                                 return (
                                     <th key={d} onClick={(e) => handleDateClick(d, e)}
-                                        className={`border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center font-semibold whitespace-nowrap min-w-[30px] cursor-pointer relative select-none
+                                        className={`border border-[#BACE85]/50 px-1 py-2 text-center font-semibold whitespace-nowrap w-[30px] min-w-[30px] cursor-pointer relative select-none
                                             ${isHoliday ? 'bg-[#FFF0F0] text-red-500'
                                                 : isSelected ? 'bg-[#EEF4FF] text-[#4A6FA5]'
                                                     : weekend ? 'bg-[#FFF0F0] text-red-500'
@@ -389,12 +389,12 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                     </th>
                                 );
                             })}
-                            <th title="Total Present" className="sticky right-[222px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap w-[40px] min-w-[40px]">P</th>
-                            <th title="Total Absent" className="sticky right-[182px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap w-[40px] min-w-[40px]">A</th>
-                            <th title="Total Late" className="sticky right-[142px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap w-[40px] min-w-[40px]">L</th>
-                            <th title="Total Working Days" className="sticky right-[97px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[45px]">T</th>
-                            <th title="Current Month %" className="sticky right-[52px] z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[45px]">%</th>
-                            <th title="Overall %" className="sticky right-0 z-20 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[52px]">&#x2211;%</th>
+                            <th title="Total Present" className="sticky right-[239px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap w-[40px] min-w-[40px]">P</th>
+                            <th title="Total Absent" className="sticky right-[199px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap w-[40px] min-w-[40px]">A</th>
+                            <th title="Total Late" className="sticky right-[159px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap w-[40px] min-w-[40px]">L</th>
+                            <th title="Total Working Days" className="sticky right-[114px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap w-[45px] min-w-[45px]">T</th>
+                            <th title="Current Month %" className="sticky right-[58px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap w-[56px] min-w-[56px]">%</th>
+                            <th title="Overall %" className="sticky right-0 z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap w-[58px] min-w-[58px]">&#x2211;%</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -413,17 +413,17 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
 
                             return (
                                 <tr key={student.id} className="bg-[#F5F8EE] hover:bg-[#E0E8C8] transition-colors">
-                                    <td className="sticky left-0 z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-2 font-semibold text-center text-[#2A3A10] bg-[#F5F8EE] w-[55px]">{student.rollNo}</td>
-                                    <td className="sticky left-[55px] z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-1.5 font-medium whitespace-nowrap text-[#2A3A10] bg-[#F5F8EE]">
+                                    <td className="sticky left-0 z-10 border border-[#BACE85]/50 px-2 py-2 text-[11px] font-semibold text-center text-[#2A3A10] bg-[#F5F8EE] w-[68px]">{student.rollNo}</td>
+                                    <td className="sticky left-[68px] z-10 border border-[#BACE85]/50 px-2 py-1.5 text-[11px] font-medium whitespace-nowrap text-[#2A3A10] bg-[#F5F8EE] w-[140px] overflow-hidden">
                                         <div className="flex items-center gap-1.5">
                                             <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
                                                 style={{ background: getAvatarColor(student.name) }}>
                                                 {getInitials(student.name)}
                                             </div>
-                                            {student.name}
+                                            <span className="truncate">{student.name}</span>
                                         </div>
                                     </td>
-                                    <td className="border-[0.1px] border-[#BACE85]/50 px-2 py-2 font-mono text-[11px] whitespace-nowrap bg-[#F5F8EE]" style={{ color: '#DA7756' }}>
+                                    <td className="border border-[#BACE85]/50 px-2 py-2 font-mono text-[12px] whitespace-nowrap bg-[#F5F8EE]" style={{ color: '#DA7756' }}>
                                         {getStudentId(student.rollNo, year)}
                                     </td>
                                     {visibleDates.map(d => {
@@ -437,7 +437,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                             if (si === 0) {
                                                 return (
                                                     <td key={d} rowSpan={students.length}
-                                                        className="border-[0.1px] border-red-200 text-center align-middle relative"
+                                                        className="border border-red-200 text-center align-middle relative"
                                                         style={{ background: '#FEF2F2', minWidth: '30px', fontFamily: 'Arial, "Segoe UI", sans-serif' }}>
                                                         <div className="absolute inset-0 flex items-center justify-center" style={{ fontFamily: 'Arial, "Segoe UI", sans-serif' }}>
                                                             <svg className="absolute inset-0 w-full h-full" preserveAspectRatio="none">
@@ -460,7 +460,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                         return (
                                             <td key={d}
                                                 onClick={() => { if (remark) { setRemarkInput(remark); setRemarkModalDk(`${student.id}::${dk}`); } }}
-                                                className={`border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center relative
+                                                className={`border border-[#BACE85]/50 px-1 py-2 text-center relative
                                                     ${remark ? 'cursor-pointer' : 'cursor-default'}
                                                     ${isSelected ? 'bg-[#EEF4FF]' : weekend ? 'bg-[#FFF5F5]' : ''}`}>
                                                 {status ? (
@@ -476,14 +476,14 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                             </td>
                                         );
                                     })}
-                                    <td className="sticky right-[222px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-emerald-700 font-bold bg-[#F5F8EE] w-[40px]">{p || '—'}</td>
-                                    <td className="sticky right-[182px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-red-500 font-bold bg-[#F5F8EE] w-[40px]">{a || '—'}</td>
-                                    <td className="sticky right-[142px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center text-amber-600 font-bold bg-[#F5F8EE] w-[40px]">{l || '—'}</td>
-                                    <td className="sticky right-[97px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-2 text-center font-bold text-[#2A3A10] bg-[#F5F8EE] min-w-[45px]">{total || '—'}</td>
-                                    <td className={`sticky right-[52px] z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-2 text-center font-black bg-[#F5F8EE] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
+                                    <td className="sticky right-[239px] z-10 border border-[#BACE85]/50 px-1 py-2 text-center text-[11.5px] text-emerald-700 font-bold bg-[#F5F8EE] w-[40px]">{p || '—'}</td>
+                                    <td className="sticky right-[199px] z-10 border border-[#BACE85]/50 px-1 py-2 text-center text-[11.5px] text-red-500 font-bold bg-[#F5F8EE] w-[40px]">{a || '—'}</td>
+                                    <td className="sticky right-[159px] z-10 border border-[#BACE85]/50 px-1 py-2 text-center text-[11.5px] text-amber-600 font-bold bg-[#F5F8EE] w-[40px]">{l || '—'}</td>
+                                    <td className="sticky right-[114px] z-10 border border-[#BACE85]/50 px-1 py-2 text-center text-[11.5px] font-bold text-[#2A3A10] bg-[#F5F8EE] w-[45px]">{total || '—'}</td>
+                                    <td className={`sticky right-[58px] z-10 border border-[#BACE85]/50 px-2 py-2 text-center text-[11.5px] font-black bg-[#F5F8EE] w-[56px] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
                                         {pct !== null ? `${pct}%` : '—'}
                                     </td>
-                                    <td className={`sticky right-0 z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-2 text-center font-black bg-[#F5F8EE] ${pctColor(student.overallPct)}`}>
+                                    <td className={`sticky right-0 z-10 border border-[#BACE85]/50 px-2 py-2 text-center text-[11.5px] font-black bg-[#F5F8EE] w-[58px] ${pctColor(student.overallPct)}`}>
                                         {student.overallPct !== null ? `${student.overallPct}%` : '—'}
                                     </td>
                                 </tr>
@@ -1006,19 +1006,19 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                                 <thead className="sticky top-0 z-30">
                                                     <tr>
                                                         {/* Sticky left — Month */}
-                                                        <th className="sticky left-0 z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[40px]">Month</th>
+                                                        <th className="sticky left-0 z-40 bg-[#ECF3D0] border border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[40px]">Month</th>
                                                         {/* Date columns 1-31 */}
                                                         {Array.from({ length: 31 }, (_, i) => i + 1).map(d => (
-                                                            <th key={d} className="bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[26px]">
+                                                            <th key={d} className="bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[26px]">
                                                                 {d}
                                                             </th>
                                                         ))}
                                                         {/* Sticky right summary */}
-                                                        <th title="Total Present" className="sticky right-[161px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap min-w-[32px]">P</th>
-                                                        <th title="Total Absent" className="sticky right-[129px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap min-w-[32px]">A</th>
-                                                        <th title="Total Late" className="sticky right-[97px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap min-w-[32px]">L</th>
-                                                        <th title="Total Working Days" className="sticky right-[52px] z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[45px]">T</th>
-                                                        <th title="Attendance %" className="sticky right-0 z-40 bg-[#ECF3D0] border-[0.1px] border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[52px]">%</th>
+                                                        <th title="Total Present" className="sticky right-[161px] z-40 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-emerald-700 whitespace-nowrap min-w-[32px]">P</th>
+                                                        <th title="Total Absent" className="sticky right-[129px] z-40 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-red-500 whitespace-nowrap min-w-[32px]">A</th>
+                                                        <th title="Total Late" className="sticky right-[97px] z-40 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap min-w-[32px]">L</th>
+                                                        <th title="Total Working Days" className="sticky right-[52px] z-40 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[45px]">T</th>
+                                                        <th title="Attendance %" className="sticky right-0 z-40 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap min-w-[52px]">%</th>
                                                     </tr>
                                                 </thead>
                                                 <tbody>
@@ -1057,7 +1057,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                                         return (
                                                             <tr key={m.month} className="bg-[#F5F8EE] hover:bg-[#E0E8C8] transition-colors">
                                                                 {/* Month name — sticky left */}
-                                                                <td className="sticky left-0 z-10 border-[0.1px] border-[#BACE85]/50 px-2 py-1.5 font-semibold text-center text-[#2A3A10] bg-[#ECF3D0] whitespace-nowrap">
+                                                                <td className="sticky left-0 z-10 border border-[#BACE85]/50 px-2 py-1.5 font-semibold text-center text-[#2A3A10] bg-[#ECF3D0] whitespace-nowrap">
                                                                     {m.month}
                                                                 </td>
 
@@ -1075,7 +1075,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                                                     return (
                                                                         <td key={d}
                                                                             title={holName ?? undefined}
-                                                                            className={`border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center relative
+                                                                            className={`border border-[#BACE85]/50 px-1 py-1.5 text-center relative
                                                                                 ${isOutOfMonth ? 'bg-[#ECF3D0]/40' : isSunday ? 'bg-[#FFF0F0]' : isHol ? 'bg-[#FEF2F2]' : ''}`}>
                                                                             {isOutOfMonth ? (
                                                                                 <span className="text-[#BACE85]/30">·</span>
@@ -1098,11 +1098,11 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                                                 })}
 
                                                                 {/* Sticky right — P A L T % */}
-                                                                <td className="sticky right-[161px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-emerald-700 font-bold bg-[#F5F8EE]">{p || '—'}</td>
-                                                                <td className="sticky right-[129px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-red-500 font-bold bg-[#F5F8EE]">{a || '—'}</td>
-                                                                <td className="sticky right-[97px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center text-amber-600 font-bold bg-[#F5F8EE]">{l || '—'}</td>
-                                                                <td className="sticky right-[52px] z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center font-bold text-[#2A3A10] bg-[#F5F8EE]">{total || '—'}</td>
-                                                                <td className={`sticky right-0 z-10 border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center font-black bg-[#F5F8EE] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
+                                                                <td className="sticky right-[161px] z-10 border border-[#BACE85]/50 px-1 py-1.5 text-center text-emerald-700 font-bold bg-[#F5F8EE]">{p || '—'}</td>
+                                                                <td className="sticky right-[129px] z-10 border border-[#BACE85]/50 px-1 py-1.5 text-center text-red-500 font-bold bg-[#F5F8EE]">{a || '—'}</td>
+                                                                <td className="sticky right-[97px] z-10 border border-[#BACE85]/50 px-1 py-1.5 text-center text-amber-600 font-bold bg-[#F5F8EE]">{l || '—'}</td>
+                                                                <td className="sticky right-[52px] z-10 border border-[#BACE85]/50 px-1 py-1.5 text-center font-bold text-[#2A3A10] bg-[#F5F8EE]">{total || '—'}</td>
+                                                                <td className={`sticky right-0 z-10 border border-[#BACE85]/50 px-1 py-1.5 text-center font-black bg-[#F5F8EE] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
                                                                     {pct !== null ? `${pct}%` : '—'}
                                                                 </td>
                                                             </tr>
@@ -1297,8 +1297,8 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     return (
         <div className="flex gap-3 h-full min-h-0">
 
-            {/* ── LEFT (40%) — Date picker + Students list ── */}
-            <div className="w-[40%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            {/* ── LEFT (35%) — Date picker + Students list ── */}
+            <div className="w-[35%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
 
                 {/* Header — Date + Remark + All P */}
                 <div className="px-3 py-2 border-b border-border/40 shrink-0 space-y-1.5">
