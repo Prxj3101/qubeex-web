@@ -2,7 +2,7 @@
 
 import { Topbar } from '@/components/shared/Topbar';
 import PencilLoader from '@/components/student/PencilLoader';
-import { LayoutDashboard, Rss, ClipboardList, BookOpen, User } from 'lucide-react';
+import { LayoutDashboard, Rss, ClipboardList, BookOpen, User, GraduationCap } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
     { label: 'Feed', href: '/student/feed', icon: Rss },
     { label: 'Tasks', href: '/student/tasks', icon: ClipboardList },
     { label: 'Class', href: '/student/class', icon: BookOpen },
+    { label: 'Results', href: '/student/marksheet', icon: GraduationCap },
     { label: 'Profile', href: '/student/profile', icon: User },
 ];
 

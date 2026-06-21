@@ -1886,6 +1886,7 @@ export default function DivisionDetailPage() {
                     {activeTab === 'marksheet' && (
                         <motion.div key="marksheet" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                             <MarksTab
+                                divisionId={divisionId}
                                 subjects={division.standard.subjects
                                     .filter(s => division.divisionSubjects.some(ds => ds.subjectId === s.id))
                                     .map(s => ({
@@ -1899,6 +1900,7 @@ export default function DivisionDetailPage() {
                                 onSubTabChange={setMarksheetSubTab}
                                 onStatsChange={setMarksStats}
                                 readOnly={true}
+                                isAdmin={true}
                             />
                         </motion.div>
                     )}

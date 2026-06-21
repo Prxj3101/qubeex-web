@@ -395,6 +395,7 @@ export default function DivisionClassPageClient() {
                     {activeTab === 'marks' && (
                         <motion.div key="marks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                             <MarksTab
+                                divisionId={divisionId}
                                 divisionName={division.name}
                                 subjects={division.subjects.map(s => ({
                                     id: s.id, name: s.name,
@@ -405,6 +406,7 @@ export default function DivisionClassPageClient() {
                                 onSubTabChange={setMarksSubTab}
                                 onStatsChange={setMarksStats}
                                 restrictToSubjectId={isClassTeacher ? null : subjectId}
+                                isClassTeacher={isClassTeacher}
                             />
                         </motion.div>
                     )}

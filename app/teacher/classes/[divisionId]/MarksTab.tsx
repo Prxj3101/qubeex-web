@@ -7,6 +7,9 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { toast } from 'sonner';
+import { useMarksheet, UseMarksheetResult } from '@/lib/useMarksheet';
+import { downloadMarksheetPdf, resolveGrade, type MarksheetMeta, type GradeScaleEntry } from '@/lib/marksheetApi';
 
 interface Student { id: string; name: string; rollNo: string; }
 
@@ -147,11 +150,8 @@ function scoreColor(pct: number) {
     return '#DC2626';                 // <35% — red
 }
 
-function grade(pct: number) {
-    if (pct >= 75) return 'A';
-    if (pct >= 61) return 'B';
-    if (pct >= 35) return 'C';
-    return 'D';
+function grade(pct: number, scale: GradeScaleEntry[] = []) {
+    return resolveGrade(pct, scale);
 }
 
 // ── Exam Edit Modal (offline only) ───────────────────────────────────────────
@@ -348,9 +348,143 @@ export type MarksStats = {
 
 export type MarksSubTab = 'offline' | 'online' | 'overall';
 
+// ── Grade Scale Editor ────────────────────────────────────────────────────────
+const DEFAULT_GRADE_SCALE: GradeScaleEntry[] = [
+    { grade: 'A', minPct: 75 },
+    { grade: 'B', minPct: 60 },
+    { grade: 'C', minPct: 45 },
+    { grade: 'D', minPct: 35 },
+    { grade: 'F', minPct: 0 },
+];
+
+function GradeScaleEditor({
+    scale,
+    onSave,
+}: {
+    scale: GradeScaleEntry[];
+    onSave: (scale: GradeScaleEntry[]) => Promise<void>;
+}) {
+    const effective = scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE;
+    const [open, setOpen] = useState(false);
+    const [entries, setEntries] = useState<GradeScaleEntry[]>(effective);
+    const [saving, setSaving] = useState(false);
+
+    // Sync if parent scale changes (e.g. after reload)
+    useEffect(() => {
+        if (!open) {
+            setEntries(scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE);
+        }
+    }, [scale, open]);
+
+    const update = (idx: number, field: keyof GradeScaleEntry, val: string) => {
+        setEntries(prev => prev.map((e, i) => {
+            if (i !== idx) return e;
+            if (field === 'minPct') {
+                const n = parseInt(val, 10);
+                return { ...e, minPct: isNaN(n) ? 0 : Math.min(100, Math.max(0, n)) };
+            }
+            return { ...e, grade: val.toUpperCase().slice(0, 10) };
+        }));
+    };
+
+    const handleSave = async () => {
+        if (entries.some(e => !e.grade.trim())) { toast.error('Each row needs a grade label.'); return; }
+        const pcts = entries.map(e => e.minPct);
+        if (new Set(pcts).size !== pcts.length) { toast.error('Each grade needs a unique minimum %.'); return; }
+        setSaving(true);
+        try {
+            await onSave(entries);
+            toast.success('Grade scale saved.');
+            setOpen(false);
+        } catch {
+            toast.error('Failed to save.');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const displayScale = scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE;
+
+    return (
+        <div className="mx-3 mb-3 rounded-xl border border-border/60 bg-card overflow-hidden">
+            <button
+                onClick={() => { setOpen(o => !o); }}
+                className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium hover:bg-muted/30 transition-colors"
+            >
+                <span className="flex items-center gap-2">
+                    <Trophy size={12} className="text-muted-foreground" />
+                    <span>Grade Scale</span>
+                    <span className="flex items-center gap-1 ml-1">
+                        {displayScale.map(e => (
+                            <span key={e.grade} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-muted/60">
+                                {e.grade}≥{e.minPct}%
+                            </span>
+                        ))}
+                    </span>
+                </span>
+                <ChevronDown size={13} className={`text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+            </button>
+
+            {open && (
+                <div className="border-t border-border/40 px-4 py-3 space-y-3">
+                    <div className="grid grid-cols-[80px_1fr_28px] gap-2 text-[10px] font-medium text-muted-foreground px-1">
+                        <span>Grade Label</span>
+                        <span>Min % (≥)</span>
+                        <span />
+                    </div>
+                    {entries.map((entry, idx) => (
+                        <div key={idx} className="grid grid-cols-[80px_1fr_28px] gap-2 items-center">
+                            <input
+                                value={entry.grade}
+                                onChange={e => update(idx, 'grade', e.target.value)}
+                                placeholder="e.g. A+"
+                                className="h-8 rounded-lg border border-border bg-background px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+                            />
+                            <div className="relative">
+                                <input
+                                    type="number" min={0} max={100}
+                                    value={entry.minPct}
+                                    onChange={e => update(idx, 'minPct', e.target.value)}
+                                    className="h-8 w-full rounded-lg border border-border bg-background px-2 pr-6 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                                />
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">%</span>
+                            </div>
+                            <button
+                                onClick={() => setEntries(prev => prev.filter((_, i) => i !== idx))}
+                                disabled={entries.length <= 1}
+                                className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 transition-colors"
+                            >
+                                <X size={12} />
+                            </button>
+                        </div>
+                    ))}
+                    <button
+                        onClick={() => setEntries(prev => [...prev, { grade: '', minPct: 0 }])}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <Plus size={12} /> Add grade
+                    </button>
+                    <div className="flex items-center justify-end gap-2 pt-1">
+                        <button onClick={() => setOpen(false)} className="h-7 px-3 rounded-lg text-xs text-muted-foreground hover:bg-muted/50 transition-colors">Cancel</button>
+                        <button
+                            onClick={handleSave}
+                            disabled={saving}
+                            className="h-7 px-4 rounded-lg text-xs font-semibold text-white disabled:opacity-50 transition-all"
+                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                        >
+                            {saving ? 'Saving…' : 'Save'}
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── Mark Sheet (Right Panel) — ALL subjects in one sheet ─────────────────────
 function MarkSheet({
     students, subjects, mode, divisionName, isActive, onStatsChange, restrictToSubjectId, readOnly,
+    marksheetHook,
 }: {
     students: Student[];
     subjects: Subject[];
@@ -360,11 +494,15 @@ function MarkSheet({
     onStatsChange?: (stats: MarksStats) => void;
     restrictToSubjectId?: string | null;
     readOnly?: boolean;
+    marksheetHook?: UseMarksheetResult;
 }) {
     const now = new Date();
     const yr = now.getFullYear();
     const mo = now.getMonth();
     const academicYear = mo >= 5 ? `${yr}–${String(yr + 1).slice(2)}` : `${yr - 1}–${String(yr).slice(2)}`;
+
+    const gs = marksheetHook?.gradeScale ?? [];
+    const gradeLabel = (pct: number) => grade(pct, gs);
 
     const isRestricted = (subId: string) => !!restrictToSubjectId && subId !== restrictToSubjectId;
 
@@ -382,21 +520,8 @@ function MarkSheet({
         subHdrText: (color: string) => color,
     };
 
-    const SAVE_KEY = `marksheet_${divisionName}_${mode}`;
-
-    const loadSaved = () => {
-        try {
-            const raw = localStorage.getItem(SAVE_KEY);
-            return raw ? JSON.parse(raw) : null;
-        } catch { return null; }
-    };
-
-    const saved = loadSaved();
-
-    const [offlineScores, setOfflineScores] = useState<Record<string, Record<string, Record<string, number | null>>>>(saved?.offlineScores ?? INITIAL_OFFLINE);
-    const [onlineScores, setOnlineScores] = useState<Record<string, Record<string, Record<string, number | null>>>>(saved?.onlineScores ?? INITIAL_ONLINE);
-    const [subjectExams, setSubjectExams] = useState<Record<string, Exam[]>>(saved?.subjectExams ?? initSubjectExams(subjects));
-    const [editExamCtx, setEditExamCtx] = useState<{ exam: Exam; subId: string } | null>(null);
+    const [onlineScores, setOnlineScores] = useState<Record<string, Record<string, Record<string, number | null>>>>(INITIAL_ONLINE);
+    const [editExamCtx, setEditExamCtx] = useState<{ exam: { id: string; name: string; maxMarks: number }; subId: string } | null>(null);
     const [addExamSubId, setAddExamSubId] = useState<string | null>(null);
     const [dragExam, setDragExam] = useState<{ subId: string; examId: string } | null>(null);
     const [dragOverExam, setDragOverExam] = useState<{ subId: string; examId: string } | null>(null);
@@ -406,30 +531,27 @@ function MarkSheet({
     const [draftVal, setDraftVal] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
 
-    const [gradedSubjects, setGradedSubjects] = useState<GradedSubject[]>(saved?.gradedSubjects ?? [
-        { id: 'gs1', name: 'PT' },
-        { id: 'gs2', name: 'SG' },
-        { id: 'gs3', name: 'ICT' },
-    ]);
-    const [gradedScores, setGradedScores] = useState<Record<string, Record<string, { t1: GradeValue; t2: GradeValue }>>>(saved?.gradedScores ?? {});
     const [activeGradeCell, setActiveGradeCell] = useState<{ gsId: string; stId: string; term: 't1' | 't2' } | null>(null);
     const [gradeDraft, setGradeDraft] = useState('');
     const gradeInputRef = useRef<HTMLInputElement>(null);
     const [addGradedOpen, setAddGradedOpen] = useState(false);
     const [editGradedSub, setEditGradedSub] = useState<GradedSubject | null>(null);
-    const [gradedSectionTitle, setGradedSectionTitle] = useState(saved?.gradedSectionTitle ?? 'Graded Subjects');
-    const [editingGradedTitle, setEditingGradedTitle] = useState(false);
-    const [gradedTitleDraft, setGradedTitleDraft] = useState('');
-    const gradedTitleInputRef = useRef<HTMLInputElement>(null);
 
-    const getGrade = (gsId: string, stId: string, term: 't1' | 't2'): GradeValue =>
-        gradedScores[gsId]?.[stId]?.[term] ?? null;
-    const setGradeVal = (gsId: string, stId: string, term: 't1' | 't2', val: GradeValue) => {
-        setGradedScores(prev => ({
-            ...prev,
-            [gsId]: { ...prev[gsId], [stId]: { ...prev[gsId]?.[stId], [term]: val } },
-        }));
+    const getGrade = (gsId: string, stId: string, term: 't1' | 't2'): 'A+' | 'A' | 'B' | 'C' | 'D' | null => {
+        const entry = effectiveGradedScores[gsId]?.[stId];
+        return term === 't1' ? (entry?.term1Grade ?? null) : (entry?.term2Grade ?? null);
     };
+
+    const setGradeVal = (gsId: string, stId: string, term: 't1' | 't2', val: 'A+' | 'A' | 'B' | 'C' | 'D' | null) => {
+        if (mode === 'offline' && marksheetHook) {
+            const existing = effectiveGradedScores[gsId]?.[stId] ?? { term1Grade: null, term2Grade: null };
+            marksheetHook.handleGradedScoreChange(gsId, stId, {
+                term1Grade: term === 't1' ? val : existing.term1Grade,
+                term2Grade: term === 't2' ? val : existing.term2Grade,
+            });
+        }
+    };
+
     const startGradeEdit = (gsId: string, stId: string, term: 't1' | 't2', current: GradeValue) => {
         setActiveGradeCell({ gsId, stId, term });
         setGradeDraft(current ?? '');
@@ -444,34 +566,29 @@ function MarkSheet({
 
     const [showExportMenu, setShowExportMenu] = useState(false);
     const exportMenuRef = useRef<HTMLDivElement>(null);
-    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
-    const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-    const saveData = () => {
-        setSaveStatus('saving');
-        try {
-            localStorage.setItem(SAVE_KEY, JSON.stringify({
-                offlineScores, onlineScores, subjectExams,
-                gradedSubjects, gradedScores, gradedSectionTitle,
-            }));
-            setSaveStatus('saved');
-            setTimeout(() => setSaveStatus('idle'), 2000);
-        } catch { setSaveStatus('idle'); }
-    };
+    // Offline data comes from hook; online data uses local mock state
+    const displayStudents = (mode === 'offline' && marksheetHook) ? marksheetHook.students : students;
+    const saveStatus = (mode === 'offline' && marksheetHook) ? marksheetHook.saveStatus : 'idle';
 
-    // Auto-save: 2s debounce after any data change (only when this mode is active)
-    useEffect(() => {
-        if (!isActive) return;
-        if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current);
-        autoSaveTimer.current = setTimeout(() => { saveData(); }, 2000);
-        return () => { if (autoSaveTimer.current) clearTimeout(autoSaveTimer.current); };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [offlineScores, onlineScores, subjectExams, gradedSubjects, gradedScores, gradedSectionTitle, isActive]);
+    const effectiveGradedSubjects = (mode === 'offline' && marksheetHook) ? marksheetHook.gradedSubjects : [];
+    const effectiveGradedScores = (mode === 'offline' && marksheetHook) ? marksheetHook.gradedScores : {};
+    const effectiveGradedSectionTitle = (mode === 'offline' && marksheetHook) ? marksheetHook.gradedSectionTitle : 'Graded Subjects';
+
+    // Exam marks are filled by subject teachers only. The class teacher owns the
+    // structure (and the graded section) but does not enter exam marks, so their
+    // exam-score cells are read-only.
+    const examMarksReadOnly = readOnly || !restrictToSubjectId;
+
+    // Keep local editing state for title
+    const [editingGradedTitle, setEditingGradedTitle] = useState(false);
+    const [gradedTitleDraft, setGradedTitleDraft] = useState('');
+    const gradedTitleInputRef = useRef<HTMLInputElement>(null);
 
     // Report high/low to parent when active
     useEffect(() => {
         if (!isActive || !onStatsChange) return;
-        const pcts = students.map(st => getGrandTotal(st.id).pct).filter((p): p is number => p !== null);
+        const pcts = displayStudents.map(st => getGrandTotal(st.id).pct).filter((p): p is number => p !== null);
         if (pcts.length === 0) { onStatsChange({ avg: null, topGrade: null }); return; }
         const high = Math.max(...pcts);
         const low = Math.min(...pcts);
@@ -485,7 +602,7 @@ function MarkSheet({
             pill2Color: scoreColor(low),
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [offlineScores, onlineScores, isActive]);
+    }, [onlineScores, isActive, marksheetHook?.scores]);
 
     useEffect(() => {
         const h = (e: MouseEvent) => {
@@ -496,56 +613,60 @@ function MarkSheet({
         return () => document.removeEventListener('mousedown', h);
     }, []);
 
-    const getSubjectExams = (subId: string): Exam[] =>
-        mode === 'offline'
-            ? (subjectExams[subId] ?? [])
-            : (ONLINE_EXAMS[subId] ?? ONLINE_EXAM_TEMPLATE.map(ex => ({ ...ex, id: `${ex.id}-${subId}` })));
+    const getSubjectExams = (subId: string): Array<{ id: string; name: string; maxMarks: number }> => {
+        if (mode === 'offline' && marksheetHook) {
+            return marksheetHook.examColumns[subId] ?? [];
+        }
+        return ONLINE_EXAMS[subId] ?? ONLINE_EXAM_TEMPLATE.map(ex => ({ ...ex, id: `${ex.id}-${subId}` }));
+    };
 
     const getScore = (subId: string, stId: string, examId: string): number | null => {
-        const store = mode === 'offline' ? offlineScores : onlineScores;
-        return store[subId]?.[stId]?.[examId] ?? null;
+        if (mode === 'offline' && marksheetHook) {
+            return marksheetHook.scores[examId]?.[stId]?.score ?? null;
+        }
+        return onlineScores[subId]?.[stId]?.[examId] ?? null;
     };
 
     const setScore = (subId: string, stId: string, examId: string, val: number | null) => {
-        if (mode === 'offline') {
-            setOfflineScores(prev => ({
-                ...prev,
-                [subId]: { ...prev[subId], [stId]: { ...prev[subId]?.[stId], [examId]: val } },
-            }));
-        } else {
-            setOnlineScores(prev => ({
-                ...prev,
-                [subId]: { ...prev[subId], [stId]: { ...prev[subId]?.[stId], [examId]: val } },
-            }));
+        if (mode === 'offline' && marksheetHook) {
+            marksheetHook.handleScoreChange(examId, stId, subId, { score: val, isAbsent: false });
+            return;
         }
+        setOnlineScores(prev => ({
+            ...prev,
+            [subId]: { ...prev[subId], [stId]: { ...prev[subId]?.[stId], [examId]: val } },
+        }));
     };
 
     const handleExamDrop = (targetSubId: string, targetExamId: string) => {
         if (!dragExam || dragExam.subId !== targetSubId || dragExam.examId === targetExamId) return;
-        setSubjectExams(prev => {
-            const exams = [...(prev[targetSubId] ?? [])];
-            const fromIdx = exams.findIndex(e => e.id === dragExam.examId);
-            const toIdx = exams.findIndex(e => e.id === targetExamId);
-            if (fromIdx === -1 || toIdx === -1) return prev;
-            const [moved] = exams.splice(fromIdx, 1);
-            exams.splice(toIdx, 0, moved);
-            return { ...prev, [targetSubId]: exams };
-        });
+        if (mode === 'offline' && marksheetHook) {
+            const cols = marksheetHook.examColumns[targetSubId] ?? [];
+            const fromIdx = cols.findIndex(e => e.id === dragExam.examId);
+            const toIdx = cols.findIndex(e => e.id === targetExamId);
+            if (fromIdx === -1 || toIdx === -1) { setDragExam(null); setDragOverExam(null); return; }
+            const reordered = [...cols];
+            const [moved] = reordered.splice(fromIdx, 1);
+            reordered.splice(toIdx, 0, moved);
+            marksheetHook.handleReorderColumns(targetSubId, reordered.map(e => e.id));
+        }
         setDragExam(null);
         setDragOverExam(null);
     };
 
     const handleGradedDrop = (targetGsId: string) => {
         if (!dragGraded || dragGraded === targetGsId) return;
-        setGradedSubjects(prev => {
-            const arr = [...prev];
+        if (mode === 'offline' && marksheetHook) {
+            const arr = marksheetHook.gradedSubjects;
             const fromIdx = arr.findIndex(g => g.id === dragGraded);
             const toIdx = arr.findIndex(g => g.id === targetGsId);
-            if (fromIdx === -1 || toIdx === -1) return prev;
-            const [moved] = arr.splice(fromIdx, 1);
-            arr.splice(toIdx, 0, moved);
-            return arr;
-        });
+            if (fromIdx !== -1 && toIdx !== -1) {
+                const reordered = [...arr];
+                const [moved] = reordered.splice(fromIdx, 1);
+                reordered.splice(toIdx, 0, moved);
+                marksheetHook.handleReorderGradedSubjects(reordered.map(g => g.id));
+            }
+        }
         setDragGraded(null);
         setDragOverGraded(null);
     };
@@ -592,13 +713,30 @@ function MarkSheet({
             return [st.rollNo, st.name, ...scoreCells, ...subTotals,
             `${grand.scored}/${grand.total}`,
             grand.pct !== null ? `${grand.pct}%` : '—',
-            grand.pct !== null ? grade(grand.pct) : '—'];
+            grand.pct !== null ? gradeLabel(grand.pct) : '—'];
         });
         const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, `${mode === 'offline' ? 'Offline' : 'Online'}_All`);
         XLSX.writeFile(wb, `MarksSheet_${divisionName}_${mode}.xlsx`);
         setShowExportMenu(false);
+    };
+
+    const handleDownloadPdf = async (scope: 'full' | 'subject' | 'exam') => {
+        setShowExportMenu(false);
+        const mid = marksheetHook?.marksheet?.id;
+        if (!mid) { toast.error('Marksheet not created yet — add an exam column first.'); return; }
+        try {
+            const blob = await downloadMarksheetPdf(mid, scope, scope === 'subject' ? (restrictToSubjectId ?? undefined) : undefined);
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `MarksSheet_${divisionName}_${scope}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            toast.error('PDF download failed');
+        }
     };
 
     const GRADE_W = 52;
@@ -620,15 +758,17 @@ function MarkSheet({
                     </p>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    {!readOnly && (
-                        <button onClick={saveData}
-                            className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold transition-all border ${saveStatus === 'saved'
+                    {mode === 'offline' && (
+                        <div className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold border ${
+                            saveStatus === 'saved'
                                 ? 'border-green-500 text-green-600 bg-green-500/10'
-                                : 'border-border text-foreground hover:bg-muted'
-                                }`}>
+                                : saveStatus === 'saving'
+                                ? 'border-amber-400 text-amber-600 bg-amber-50'
+                                : 'border-border text-muted-foreground'
+                        }`}>
                             <Save size={12} />
-                            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Save'}
-                        </button>
+                            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Auto-save on'}
+                        </div>
                     )}
                     <div className="relative" ref={exportMenuRef}>
                         <button onClick={() => setShowExportMenu(v => !v)}
@@ -639,11 +779,29 @@ function MarkSheet({
                         <AnimatePresence>
                             {showExportMenu && (
                                 <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                                    className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[170px]">
+                                    className="absolute right-0 top-9 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[210px]">
                                     <button onClick={handleExport}
                                         className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
-                                        <span>📊</span><span>Full Sheet (All Subjects)</span>
+                                        <span>📊</span><span>Full Sheet (Excel)</span>
                                     </button>
+                                    {mode === 'offline' && !restrictToSubjectId && (
+                                        <>
+                                            <button onClick={() => handleDownloadPdf('full')}
+                                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
+                                                <span>📄</span><span>Full Sheet (PDF)</span>
+                                            </button>
+                                            <button onClick={() => handleDownloadPdf('exam')}
+                                                className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
+                                                <span>🗂️</span><span>Exam-wise (PDF)</span>
+                                            </button>
+                                        </>
+                                    )}
+                                    {mode === 'offline' && restrictToSubjectId && (
+                                        <button onClick={() => handleDownloadPdf('subject')}
+                                            className="w-full text-left px-3 py-2 text-xs hover:bg-muted flex items-center gap-2">
+                                            <span>📄</span><span>My Subject (PDF)</span>
+                                        </button>
+                                    )}
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -682,8 +840,8 @@ function MarkSheet({
                             {mode === 'offline' && <><th rowSpan={2} style={{ minWidth: 12, width: 12, background: 'transparent', border: 'none' }} />
                                 <th rowSpan={2} style={{ minWidth: 12, width: 12, background: 'transparent', border: 'none' }} /></>}
                             {/* Graded section header */}
-                            {mode === 'offline' && gradedSubjects.length > 0 && (
-                                <th colSpan={gradedSubjects.length * 2 + (!readOnly && !restrictToSubjectId ? 1 : 0)} className="px-2 py-1.5 text-center group/gtitle"
+                            {mode === 'offline' && effectiveGradedSubjects.length > 0 && (
+                                <th colSpan={effectiveGradedSubjects.length * 2 + (!readOnly && !restrictToSubjectId ? 1 : 0)} className="px-2 py-1.5 text-center group/gtitle"
                                     style={{ background: 'linear-gradient(#7C3AED18, #7C3AED18), #EDE4D6', border: `0.5px solid ${msColors.hdrBorder}`, fontWeight: 700, fontSize: 11 }}>
                                     {editingGradedTitle ? (
                                         <input
@@ -691,19 +849,19 @@ function MarkSheet({
                                             value={gradedTitleDraft}
                                             onChange={e => setGradedTitleDraft(e.target.value)}
                                             onKeyDown={e => {
-                                                if (e.key === 'Enter') { e.preventDefault(); setGradedSectionTitle(gradedTitleDraft.trim() || gradedSectionTitle); setEditingGradedTitle(false); }
+                                                if (e.key === 'Enter') { e.preventDefault(); const draft = gradedTitleDraft.trim() || effectiveGradedSectionTitle; marksheetHook?.handleGradedSectionTitleChange(draft); setEditingGradedTitle(false); }
                                                 if (e.key === 'Escape') setEditingGradedTitle(false);
                                             }}
-                                            onBlur={() => { setGradedSectionTitle(gradedTitleDraft.trim() || gradedSectionTitle); setEditingGradedTitle(false); }}
+                                            onBlur={() => { const draft = gradedTitleDraft.trim() || effectiveGradedSectionTitle; marksheetHook?.handleGradedSectionTitleChange(draft); setEditingGradedTitle(false); }}
                                             className="bg-transparent outline-none text-center w-full"
                                             style={{ fontFamily: 'inherit', fontSize: 11, fontWeight: 700, color: msColors.hdrText, caretColor: msColors.hdrText }}
                                         />
                                     ) : (
                                         <span className="inline-flex items-center gap-1 cursor-default">
-                                            <span style={{ color: msColors.hdrText }}>{gradedSectionTitle}</span>
+                                            <span style={{ color: msColors.hdrText }}>{effectiveGradedSectionTitle}</span>
                                             {!readOnly && !restrictToSubjectId && (
                                                 <span className="opacity-0 group-hover/gtitle:opacity-100 transition-opacity cursor-pointer"
-                                                    onClick={() => { setGradedTitleDraft(gradedSectionTitle); setEditingGradedTitle(true); setTimeout(() => gradedTitleInputRef.current?.select(), 0); }}>
+                                                    onClick={() => { setGradedTitleDraft(effectiveGradedSectionTitle); setEditingGradedTitle(true); setTimeout(() => gradedTitleInputRef.current?.select(), 0); }}>
                                                     <Pencil size={8} color={msColors.hdrText} />
                                                 </span>
                                             )}
@@ -711,7 +869,7 @@ function MarkSheet({
                                     )}
                                 </th>
                             )}
-                            {mode === 'offline' && gradedSubjects.length === 0 && !readOnly && !restrictToSubjectId && (
+                            {mode === 'offline' && effectiveGradedSubjects.length === 0 && !readOnly && !restrictToSubjectId && (
                                 <th className="px-1 py-1.5 text-center cursor-pointer group/gadd"
                                     onClick={() => setAddGradedOpen(true)}
                                     style={{ background: 'linear-gradient(#7C3AED10, #7C3AED10), #EDE4D6', border: `0.5px dashed ${msColors.hdrBorder}`, minWidth: 28 }}>
@@ -738,14 +896,15 @@ function MarkSheet({
                                         {exams.map(ex => {
                                             const isDraggingOver = dragOverExam?.subId === sub.id && dragOverExam?.examId === ex.id;
                                             const isDragging = dragExam?.subId === sub.id && dragExam?.examId === ex.id;
-                                            const subRestricted = isRestricted(sub.id);
+                                            // Exam-column structure (reorder/edit) is class-teacher-only.
+                                            const canEditStructure = !readOnly && !restrictToSubjectId;
                                             return (
                                                 <th key={ex.id}
-                                                    draggable={mode === 'offline' && !readOnly && !subRestricted}
-                                                    onDragStart={() => { if (!readOnly && !subRestricted) setDragExam({ subId: sub.id, examId: ex.id }); }}
-                                                    onDragOver={e => { if (!readOnly && !subRestricted) { e.preventDefault(); setDragOverExam({ subId: sub.id, examId: ex.id }); } }}
+                                                    draggable={mode === 'offline' && canEditStructure}
+                                                    onDragStart={() => { if (canEditStructure) setDragExam({ subId: sub.id, examId: ex.id }); }}
+                                                    onDragOver={e => { if (canEditStructure) { e.preventDefault(); setDragOverExam({ subId: sub.id, examId: ex.id }); } }}
                                                     onDragLeave={() => setDragOverExam(null)}
-                                                    onDrop={() => { if (!readOnly && !subRestricted) handleExamDrop(sub.id, ex.id); }}
+                                                    onDrop={() => { if (canEditStructure) handleExamDrop(sub.id, ex.id); }}
                                                     onDragEnd={() => { setDragExam(null); setDragOverExam(null); }}
                                                     className="px-1 py-1.5 text-center whitespace-nowrap min-w-[62px] group relative"
                                                     style={{
@@ -753,16 +912,16 @@ function MarkSheet({
                                                         border: isDraggingOver ? `1.5px solid ${sub.color}` : `0.5px solid ${msColors.hdrBorder}`,
                                                         color: msColors.hdrText,
                                                         opacity: isDragging ? 0.4 : 1,
-                                                        cursor: mode === 'offline' && !subRestricted ? 'grab' : 'default',
+                                                        cursor: mode === 'offline' && canEditStructure ? 'grab' : 'default',
                                                     }}>
-                                                    {mode === 'online' && ex.date && (
+                                                    {mode === 'online' && ('date' in ex) && (ex as Exam).date && (
                                                         <div style={{ margin: '-6px -4px 4px', padding: '2px 4px', borderBottom: `0.5px solid ${msColors.hdrBorder}`, fontSize: 9, fontWeight: 500, opacity: 0.65, background: msColors.hdrBg }}>
-                                                            {ex.date}
+                                                            {(ex as Exam).date}
                                                         </div>
                                                     )}
                                                     <div style={{ fontWeight: 600, fontSize: 10 }}>{ex.name}</div>
                                                     <div style={{ fontWeight: 600, fontSize: 10, opacity: 0.8 }}>/{ex.maxMarks}</div>
-                                                    {mode === 'offline' && !readOnly && !subRestricted && (
+                                                    {mode === 'offline' && canEditStructure && (
                                                         <span className="absolute top-0 right-0 opacity-0 group-hover:opacity-70 transition-opacity cursor-pointer flex items-center justify-center"
                                                             style={{ width: 20, height: 20 }}
                                                             onMouseDown={e => e.stopPropagation()}
@@ -774,7 +933,7 @@ function MarkSheet({
                                             );
                                         })}
                                         {mode === 'offline' && (
-                                            !readOnly && !isRestricted(sub.id) ? (
+                                            !readOnly && !restrictToSubjectId ? (
                                                 <th className="px-1 py-1.5 text-center w-7 cursor-pointer group/add"
                                                     onClick={() => setAddExamSubId(sub.id)}
                                                     style={{ background: msColors.hdrBg, border: `0.5px dashed ${msColors.hdrBorder}`, color: msColors.hdrText }}>
@@ -798,7 +957,7 @@ function MarkSheet({
                                 );
                             })}
                             {/* Graded subject col headers — offline only */}
-                            {mode === 'offline' && gradedSubjects.map(gs => {
+                            {mode === 'offline' && effectiveGradedSubjects.map(gs => {
                                 const isGOver = dragOverGraded === gs.id;
                                 const isGDrag = dragGraded === gs.id;
                                 const gradedThStyle = {
@@ -851,7 +1010,7 @@ function MarkSheet({
                                     </React.Fragment>
                                 );
                             })}
-                            {mode === 'offline' && gradedSubjects.length > 0 && !readOnly && !restrictToSubjectId && (
+                            {mode === 'offline' && effectiveGradedSubjects.length > 0 && !readOnly && !restrictToSubjectId && (
                                 <th className="px-1 py-1.5 text-center cursor-pointer group/gadd"
                                     onClick={() => setAddGradedOpen(true)}
                                     style={{ background: '#EDE4D6', border: `0.5px dashed ${msColors.hdrBorder}`, width: 28, minWidth: 28 }}>
@@ -876,7 +1035,7 @@ function MarkSheet({
                         </tr>
                     </thead>
                     <tbody>
-                        {students.map((student, si) => {
+                        {displayStudents.map((student, si) => {
                             const rowBg = si % 2 === 0 ? msColors.rowBase : msColors.rowAlt;
                             const grand = getGrandTotal(student.id);
                             return (
@@ -926,8 +1085,8 @@ function MarkSheet({
                                                     };
                                                     return (
                                                         <td key={ex.id}
-                                                            onClick={() => { if (!readOnly && !isEditing && sc === null) startEdit(); }}
-                                                            className={`px-1 text-center relative group ${sc === null && !readOnly ? 'cursor-pointer' : 'cursor-default'}`}
+                                                            onClick={() => { if (!examMarksReadOnly && !isEditing && sc === null) startEdit(); }}
+                                                            className={`px-1 text-center relative group ${sc === null && !examMarksReadOnly ? 'cursor-pointer' : 'cursor-default'}`}
                                                             style={{ border: `0.5px solid ${msColors.cellBorder}`, width: '62px', minWidth: '62px', maxWidth: '62px' }}>
                                                             {isEditing ? (
                                                                 <input
@@ -952,7 +1111,7 @@ function MarkSheet({
                                                                     ) : (
                                                                         <span style={{ color: msColors.cellBorder }}>—</span>
                                                                     )}
-                                                                    {!readOnly && (
+                                                                    {!examMarksReadOnly && (
                                                                         <span className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-70 transition-opacity cursor-pointer"
                                                                             onClick={e => { e.stopPropagation(); startEdit(); }}>
                                                                             <Pencil size={8} color={msColors.hdrText} />
@@ -980,7 +1139,7 @@ function MarkSheet({
                                     {/* Spacer 1 + Graded cells — offline only */}
                                     {mode === 'offline' && <><td style={{ background: 'transparent', border: 'none', width: 12 }} />
                                         <td style={{ background: 'transparent', border: 'none', width: 12 }} /></>}
-                                    {mode === 'offline' && gradedSubjects.map(gs => {
+                                    {mode === 'offline' && effectiveGradedSubjects.map(gs => {
                                         if (restrictToSubjectId) {
                                             return (
                                                 <React.Fragment key={gs.id}>
@@ -1067,7 +1226,7 @@ function MarkSheet({
                                         );
                                     })}
                                     {/* "+" button col placeholder — offline only */}
-                                    {mode === 'offline' && gradedSubjects.length > 0 && !readOnly && !restrictToSubjectId && <td style={{ background: msColors.rowBase, border: `0.5px dashed ${msColors.cellBorder}`, width: 28 }} />}
+                                    {mode === 'offline' && effectiveGradedSubjects.length > 0 && !readOnly && !restrictToSubjectId && <td style={{ background: msColors.rowBase, border: `0.5px dashed ${msColors.cellBorder}`, width: 28 }} />}
                                     {/* Spacer 2 — offline only */}
                                     {mode === 'offline' && <><td style={{ background: 'transparent', border: 'none', width: 12 }} />
                                         <td style={{ background: 'transparent', border: 'none', width: 12 }} /></>}
@@ -1082,7 +1241,7 @@ function MarkSheet({
                                     </td>
                                     <td className="sticky right-0 z-10 px-2 py-2 text-center"
                                         style={{ minWidth: GRADE_W, background: rowBg, border: `0.5px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
-                                        {restrictToSubjectId ? '—' : (grand.pct !== null ? grade(grand.pct) : '—')}
+                                        {restrictToSubjectId ? '—' : (grand.pct !== null ? gradeLabel(grand.pct) : '—')}
                                     </td>
                                 </tr>
                             );
@@ -1108,24 +1267,24 @@ function MarkSheet({
                 </span>
             </div>
 
+            {/* Grade Scale Editor — class teacher only, offline mode */}
+            {mode === 'offline' && !readOnly && !restrictToSubjectId && marksheetHook && (
+                <GradeScaleEditor
+                    scale={marksheetHook.gradeScale}
+                    onSave={marksheetHook.handleUpdateGradeScale}
+                />
+            )}
+
             {/* Modals */}
             <AnimatePresence>
                 {editExamCtx && (
                     <ExamEditModal
-                        exam={editExamCtx.exam}
+                        exam={editExamCtx.exam as Exam}
                         onSave={(name, max) => {
-                            setSubjectExams(prev => ({
-                                ...prev,
-                                [editExamCtx.subId]: prev[editExamCtx.subId].map(e =>
-                                    e.id === editExamCtx.exam.id ? { ...e, name, maxMarks: max } : e
-                                ),
-                            }));
+                            marksheetHook?.handleEditColumn(editExamCtx.exam.id, editExamCtx.subId, { name, maxMarks: max });
                         }}
                         onDelete={() => {
-                            setSubjectExams(prev => ({
-                                ...prev,
-                                [editExamCtx.subId]: prev[editExamCtx.subId].filter(e => e.id !== editExamCtx.exam.id),
-                            }));
+                            marksheetHook?.handleDeleteColumn(editExamCtx.exam.id, editExamCtx.subId);
                         }}
                         onClose={() => setEditExamCtx(null)}
                     />
@@ -1134,11 +1293,10 @@ function MarkSheet({
             <AnimatePresence>
                 {addExamSubId && (
                     <AddExamModal
-                        existingNames={(subjectExams[addExamSubId] ?? []).map(e => e.name)}
-                        onSave={(name, max) => setSubjectExams(prev => ({
-                            ...prev,
-                            [addExamSubId]: [...(prev[addExamSubId] ?? []), { id: `oe${Date.now()}`, name, maxMarks: max, type: 'offline' }],
-                        }))}
+                        existingNames={(marksheetHook?.examColumns[addExamSubId] ?? []).map(e => e.name)}
+                        onSave={(name, max) => {
+                            marksheetHook?.handleAddColumn(addExamSubId, name, max);
+                        }}
                         onClose={() => setAddExamSubId(null)}
                     />
                 )}
@@ -1146,7 +1304,7 @@ function MarkSheet({
             <AnimatePresence>
                 {addGradedOpen && (
                     <GradedSubjectModal
-                        onSave={name => setGradedSubjects(prev => [...prev, { id: `gs${Date.now()}`, name }])}
+                        onSave={name => { marksheetHook?.handleAddGradedSubject(name); }}
                         onClose={() => setAddGradedOpen(false)}
                     />
                 )}
@@ -1155,8 +1313,8 @@ function MarkSheet({
                 {editGradedSub && (
                     <GradedSubjectModal
                         existing={editGradedSub}
-                        onSave={name => setGradedSubjects(prev => prev.map(gs => gs.id === editGradedSub.id ? { ...gs, name } : gs))}
-                        onDelete={() => setGradedSubjects(prev => prev.filter(gs => gs.id !== editGradedSub.id))}
+                        onSave={name => { marksheetHook?.handleEditGradedSubject(editGradedSub.id, name); }}
+                        onDelete={() => { marksheetHook?.handleDeleteGradedSubject(editGradedSub.id); }}
                         onClose={() => setEditGradedSub(null)}
                     />
                 )}
@@ -1233,6 +1391,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
     const [rankTab, setRankTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const [subjectTopperTab, setSubjectTopperTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const [reportCardTab, setReportCardTab] = useState<'offline' | 'online'>('offline');
+    const gradeLabel = (pct: number) => grade(pct, []);
     const [trendSubjectId, setTrendSubjectId] = useState<string>(MOCK_SUBJECTS[0]?.id ?? '');
     const [trendMode, setTrendMode] = useState<'offline' | 'online' | 'combined'>('combined');
 
@@ -1732,7 +1891,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                                             {totalPct !== null ? <span style={{ color: scoreColor(totalPct), fontWeight: 700 }}>{totalPct}%</span> : '—'}
                                                                         </td>
                                                                         <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold">
-                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{grade(totalPct)}</span> : '—'}
+                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{gradeLabel(totalPct)}</span> : '—'}
                                                                         </td>
                                                                     </tr>
                                                                 ))}
@@ -1749,7 +1908,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                                         {grandPct !== null ? <span style={{ color: scoreColor(grandPct), fontWeight: 700 }}>{grandPct}%</span> : '—'}
                                                                     </td>
                                                                     <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
-                                                                        {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{grade(grandPct)}</span> : '—'}
+                                                                        {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{gradeLabel(grandPct)}</span> : '—'}
                                                                     </td>
                                                                 </tr>
                                                                 {/* Conduct & Remarks row - offline only */}
@@ -1832,7 +1991,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                                             {totalPct !== null ? <span style={{ color: scoreColor(totalPct), fontWeight: 700 }}>{totalPct}%</span> : '—'}
                                                                         </td>
                                                                         <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap font-semibold">
-                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{grade(totalPct)}</span> : '—'}
+                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{gradeLabel(totalPct)}</span> : '—'}
                                                                         </td>
                                                                     </tr>
                                                                 </React.Fragment>
@@ -1845,7 +2004,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                                     {grandPct !== null ? <span style={{ color: scoreColor(grandPct), fontWeight: 700 }}>{grandPct}%</span> : '—'}
                                                                 </td>
                                                                 <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
-                                                                    {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{grade(grandPct)}</span> : '—'}
+                                                                    {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{gradeLabel(grandPct)}</span> : '—'}
                                                                 </td>
                                                             </tr>
                                                         </tbody>
@@ -1877,9 +2036,72 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
     );
 }
 
+// ── Publish Bar ───────────────────────────────────────────────────────────────
+function PublishBar({
+    marksheet,
+    hasUnpublishedChanges,
+    onPublish,
+}: {
+    marksheet: MarksheetMeta | null;
+    hasUnpublishedChanges: boolean;
+    onPublish: () => Promise<void>;
+}) {
+    const [publishing, setPublishing] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const doPublish = async () => {
+        setPublishing(true);
+        setError(null);
+        try {
+            await onPublish();
+        } catch {
+            setError('Publish failed. Try again.');
+        } finally {
+            setPublishing(false);
+        }
+    };
+
+    if (!marksheet) return null;
+
+    const isPublished = marksheet.status === 'PUBLISHED';
+
+    if (isPublished && !hasUnpublishedChanges) {
+        return (
+            <div className="shrink-0 px-3 pt-2">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-xl border border-green-200 bg-green-50 dark:bg-green-950/20 dark:border-green-800">
+                    <span className="text-[11px] font-semibold text-green-700 dark:text-green-400">Published</span>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div className="shrink-0 px-3 pt-2">
+            <div className="flex items-center gap-3 px-4 py-2 rounded-xl border border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+                <Flag size={13} className="text-amber-600 shrink-0" />
+                <span className="text-[11px] text-amber-700 dark:text-amber-400 flex-1">
+                    {isPublished
+                        ? 'Structure changed — re-publish to update student results.'
+                        : 'Marksheet is a draft — publish to share results with students.'}
+                </span>
+                {error && <span className="text-[11px] text-red-500">{error}</span>}
+                <button
+                    onClick={doPublish}
+                    disabled={publishing}
+                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold text-white disabled:opacity-50 transition-all"
+                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                    <Trophy size={12} />
+                    {publishing ? 'Publishing…' : isPublished ? 'Re-publish' : 'Publish'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
 // ── Main MarksTab ─────────────────────────────────────────────────────────────────────────────
 
 export default function MarksTab({
+    divisionId = '',
     divisionName,
     subjects,
     subTab,
@@ -1887,7 +2109,10 @@ export default function MarksTab({
     onStatsChange,
     restrictToSubjectId,
     readOnly,
+    isClassTeacher,
+    isAdmin,
 }: {
+    divisionId?: string;
     divisionName: string;
     subjects: { id: string; name: string; code: string; color: string }[];
     subTab: MarksSubTab;
@@ -1895,24 +2120,37 @@ export default function MarksTab({
     onStatsChange: (stats: MarksStats) => void;
     restrictToSubjectId?: string | null;
     readOnly?: boolean;
+    isClassTeacher?: boolean;
+    isAdmin?: boolean;
 }) {
+    const marksheetHook = useMarksheet(divisionId, isAdmin);
     const mappedSubjects: Subject[] = subjects.map(s => ({
         id: s.id, name: s.name, code: s.code, color: s.color,
     }));
 
     return (
         <div className="flex flex-col h-full min-h-0">
+            {isClassTeacher && !marksheetHook.loading && (
+                <PublishBar marksheet={marksheetHook.marksheet} hasUnpublishedChanges={marksheetHook.hasUnpublishedChanges} onPublish={marksheetHook.handlePublish} />
+            )}
             <div className={subTab === "offline" ? "flex-1 min-h-0 flex flex-col pt-3 pb-3 px-1" : "hidden"}>
-                <MarkSheet
-                    students={MOCK_STUDENTS}
-                    subjects={mappedSubjects}
-                    mode="offline"
-                    divisionName={divisionName}
-                    isActive={subTab === "offline"}
-                    onStatsChange={onStatsChange}
-                    restrictToSubjectId={restrictToSubjectId}
-                    readOnly={readOnly}
-                />
+                {marksheetHook.loading ? (
+                    <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                        Loading marksheet…
+                    </div>
+                ) : (
+                    <MarkSheet
+                        students={marksheetHook.students}
+                        subjects={mappedSubjects}
+                        mode="offline"
+                        divisionName={divisionName}
+                        isActive={subTab === "offline"}
+                        onStatsChange={onStatsChange}
+                        restrictToSubjectId={restrictToSubjectId}
+                        readOnly={readOnly}
+                        marksheetHook={marksheetHook}
+                    />
+                )}
             </div>
             <div className={subTab === "online" ? "flex-1 min-h-0 flex flex-col pt-3 pb-3 px-1" : "hidden"}>
                 <MarkSheet
