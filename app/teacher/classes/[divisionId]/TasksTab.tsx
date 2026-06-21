@@ -365,10 +365,10 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
 
-    const fetchQuestions = useCallback(async (status?: string) => {
+    const fetchQuestions = useCallback(async (containerId: string, status?: string) => {
         setQLoading(true);
         try {
-            const params = new URLSearchParams({ divisionId });
+            const params = new URLSearchParams({ containerId });
             if (status && status !== 'ALL') params.set('status', status);
             const res = await api.get(`/teacher/tasks/questions?${params}`);
             setQuestions(res.data.data);
@@ -377,7 +377,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         } finally {
             setQLoading(false);
         }
-    }, [divisionId]);
+    }, []);
 
     const fetchTests = useCallback(async () => {
         setTLoading(true);
@@ -428,8 +428,9 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     }, [divisionId]);
 
     useEffect(() => {
-        fetchQuestions();
-    }, [fetchQuestions]);
+        if (selectedContainerId) fetchQuestions(selectedContainerId, statusFilter !== 'ALL' ? statusFilter : undefined);
+        else setQuestions([]);
+    }, [selectedContainerId, statusFilter, fetchQuestions]);
 
     useEffect(() => {
         fetchTests();
@@ -458,7 +459,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                     clearInterval(pollTimerRef.current!);
                     setActiveUploadId(null);
                     // Fetch new questions then show breakdown
-                    const qRes = await api.get(`/teacher/tasks/questions?divisionId=${divisionId}&status=PENDING_REVIEW`).catch(() => null);
+                    const qRes = selectedContainerId ? await api.get(`/teacher/tasks/questions?containerId=${selectedContainerId}&status=PENDING_REVIEW`).catch(() => null) : null;
                     const newQs: Question[] = qRes?.data?.data ?? [];
                     setQuestions(newQs);
                     setStatusFilter('PENDING_REVIEW');
@@ -487,7 +488,8 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         setUploading(true);
         try {
             const form = new FormData();
-            form.append('divisionId', divisionId);
+            if (!selectedContainerId) return toast.error('Open a container first');
+            form.append('containerId', selectedContainerId);
             if (prompt.trim()) form.append('prompt', prompt.trim());
             if (generateMore) form.append('more', 'true');
             form.append('file', pdfFile);
@@ -747,7 +749,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
 
     // ── Filtered questions ─────────────────────────────────────────────────────
 
-    const containerQuestions = selectedContainerId === 'c1' ? questions : [];
+    const containerQuestions = selectedContainerId ? questions : [];
     const statusFiltered = containerQuestions.filter(q =>
         statusFilter === 'ALL' ? true : q.status === statusFilter
     );
@@ -1159,7 +1161,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                         {count}
                                     </button>
                                 ))}
-                                <button onClick={() => fetchQuestions(statusFilter !== 'ALL' ? statusFilter : undefined)}
+                                <button onClick={() => selectedContainerId && fetchQuestions(selectedContainerId, statusFilter !== 'ALL' ? statusFilter : undefined)}
                                     className="ml-auto p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title="Refresh">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                                 </button>
