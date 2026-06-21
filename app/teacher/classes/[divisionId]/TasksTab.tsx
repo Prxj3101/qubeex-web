@@ -220,22 +220,9 @@ const MOCK_ASSIGNMENTS: Assignment[] = [
 export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTabChange, onStatsChange }: TasksTabProps) {
 
     // ── Containers ────────────────────────────────────────────────────────────
-    interface QContainer { id: string; name: string; createdAt: string; }
-    const [containers, setContainers] = useState<QContainer[]>([
-        { id: 'c1', name: 'Chapter 1 : DFS Questions', createdAt: new Date().toISOString() },
-        { id: 'c2', name: 'Chapter 2 : Hadoop Questions', createdAt: new Date(Date.now() - 1*24*60*60*1000).toISOString() },
-        { id: 'c3', name: 'Chapter 3 : Machine Learning Questions', createdAt: new Date(Date.now() - 2*24*60*60*1000).toISOString() },
-        { id: 'c4', name: 'Chapter 4 : Software Development Questions', createdAt: new Date(Date.now() - 3*24*60*60*1000).toISOString() },
-        { id: 'c5', name: 'Chapter 5 : Cybersecurity Questions', createdAt: new Date(Date.now() - 4*24*60*60*1000).toISOString() },
-        { id: 'c6', name: 'Chapter 6 : HTML CSS Questions', createdAt: new Date(Date.now() - 5*24*60*60*1000).toISOString() },
-        { id: 'c7', name: 'Chapter 7 : Data Structure Questions', createdAt: new Date(Date.now() - 6*24*60*60*1000).toISOString() },
-        { id: 'c8', name: 'Numerical Problems', createdAt: new Date(Date.now() - 7*24*60*60*1000).toISOString() },
-        { id: 'c9', name: 'Short Answer Mix', createdAt: new Date(Date.now() - 8*24*60*60*1000).toISOString() },
-        { id: 'c10', name: 'Revision Set A', createdAt: new Date(Date.now() - 9*24*60*60*1000).toISOString() },
-        { id: 'c11', name: 'Chapter 3 Drill', createdAt: new Date(Date.now() - 10*24*60*60*1000).toISOString() },
-        { id: 'c12', name: 'Conceptual Bank', createdAt: new Date(Date.now() - 11*24*60*60*1000).toISOString() },
-        { id: 'c13', name: 'Weekly Quiz', createdAt: new Date(Date.now() - 12*24*60*60*1000).toISOString() },
-    ]);
+    interface QContainer { id: string; name: string; createdAt: string; questionCount: number; }
+    const [containers, setContainers] = useState<QContainer[]>([]);
+    const [containersLoading, setContainersLoading] = useState(true);
     const [selectedContainerId, setSelectedContainerId] = useState<string | null>(null);
     const [openingContainerId, setOpeningContainerId] = useState<string | null>(null);
     const [hoveredContainerId, setHoveredContainerId] = useState<string | null>(null);
@@ -269,6 +256,36 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
             setSelectedContainerId(id);
             window.history.pushState({ containerOpen: true }, '');
         }, 480);
+    };
+
+    const handleCreateContainer = async (name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) return;
+        try {
+            const res = await api.post('/teacher/tasks/containers', { divisionId, name: trimmed });
+            setContainers(prev => [res.data.data, ...prev]);
+            toast.success('Container created');
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setCreatingContainer(false); setNewContainerName(''); }
+    };
+
+    const handleRenameContainer = async (id: string, name: string) => {
+        const trimmed = name.trim();
+        if (!trimmed) { setEditingContainerId(null); return; }
+        try {
+            const res = await api.patch(`/teacher/tasks/containers/${id}`, { name: trimmed });
+            setContainers(prev => prev.map(c => c.id === id ? { ...c, name: res.data.data.name } : c));
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setEditingContainerId(null); }
+    };
+
+    const handleDeleteContainer = async (id: string) => {
+        try {
+            await api.delete(`/teacher/tasks/containers/${id}`);
+            setContainers(prev => prev.filter(c => c.id !== id));
+            toast.success('Container deleted');
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setDeleteConfirmId(null); }
     };
 
     useEffect(() => {
@@ -398,6 +415,18 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         }
     }, [divisionId]);
 
+    const fetchContainers = useCallback(async () => {
+        setContainersLoading(true);
+        try {
+            const res = await api.get(`/teacher/tasks/containers?divisionId=${divisionId}`);
+            setContainers(res.data.data);
+        } catch {
+            setContainers([]);
+        } finally {
+            setContainersLoading(false);
+        }
+    }, [divisionId]);
+
     useEffect(() => {
         fetchQuestions();
     }, [fetchQuestions]);
@@ -413,6 +442,10 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     useEffect(() => {
         fetchModules();
     }, [fetchModules]);
+
+    useEffect(() => {
+        fetchContainers();
+    }, [fetchContainers]);
 
     // Poll active upload
     useEffect(() => {
@@ -944,8 +977,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                         <input autoFocus value={newContainerName} onChange={e => setNewContainerName(e.target.value)}
                                             onKeyDown={e => {
                                                 if (e.key === 'Enter' && newContainerName.trim()) {
-                                                    setContainers(prev => [...prev, { id: crypto.randomUUID(), name: newContainerName.trim(), createdAt: new Date().toISOString() }]);
-                                                    setNewContainerName(''); setCreatingContainer(false);
+                                                    handleCreateContainer(newContainerName);
                                                 }
                                                 if (e.key === 'Escape') { setCreatingContainer(false); setNewContainerName(''); }
                                             }}
@@ -953,8 +985,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                             className="flex-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
                                         <button onClick={() => {
                                             if (!newContainerName.trim()) return;
-                                            setContainers(prev => [...prev, { id: crypto.randomUUID(), name: newContainerName.trim(), createdAt: new Date().toISOString() }]);
-                                            setNewContainerName(''); setCreatingContainer(false);
+                                            handleCreateContainer(newContainerName);
                                         }} className="px-3 py-2 text-sm font-medium rounded-lg text-white" style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
                                             Create
                                         </button>
@@ -1070,14 +1101,12 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                                         onKeyDown={e => {
                                                             e.stopPropagation();
                                                             if (e.key === 'Enter' && editingName.trim()) {
-                                                                setContainers(prev => prev.map(x => x.id === c.id ? { ...x, name: editingName.trim() } : x));
-                                                                setEditingContainerId(null);
+                                                                handleRenameContainer(c.id, editingName);
                                                             }
                                                             if (e.key === 'Escape') setEditingContainerId(null);
                                                         }}
                                                         onBlur={() => {
-                                                            if (editingName.trim()) setContainers(prev => prev.map(x => x.id === c.id ? { ...x, name: editingName.trim() } : x));
-                                                            setEditingContainerId(null);
+                                                            handleRenameContainer(c.id, editingName);
                                                         }}
                                                         style={{ fontSize: 11, fontWeight: 700, color: '#3a2010', textAlign: 'center', zIndex: 3, maxWidth: '84%', lineHeight: 1.4, marginTop: 28, background: 'rgba(255,255,255,0.6)', border: '1px solid #6B4C1E', borderRadius: 4, padding: '1px 4px', width: '84%', outline: 'none' }}
                                                     />
@@ -1747,7 +1776,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                 <div className="flex flex-col gap-1">
                                     <p className="text-sm font-semibold text-foreground">Delete this collection?</p>
                                     <p className="text-xs text-muted-foreground">
-                                        "{containers.find(c => c.id === deleteConfirmId)?.name}" will be permanently deleted. This cannot be undone.
+                                        &quot;{containers.find(c => c.id === deleteConfirmId)?.name}&quot; and its {containers.find(c => c.id === deleteConfirmId)?.questionCount ?? 0} question(s) will be permanently deleted. This cannot be undone.
                                     </p>
                                 </div>
                                 <div className="flex gap-2 justify-end">
@@ -1755,7 +1784,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                         className="px-4 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
                                         Cancel
                                     </button>
-                                    <button onClick={() => { setContainers(prev => prev.filter(x => x.id !== deleteConfirmId)); setDeleteConfirmId(null); }}
+                                    <button onClick={() => handleDeleteContainer(deleteConfirmId)}
                                         className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
                                         Delete
                                     </button>
