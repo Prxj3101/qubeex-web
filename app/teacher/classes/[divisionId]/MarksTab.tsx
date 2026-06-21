@@ -3,7 +3,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Users, BookOpen, ChevronDown, Plus, X, Pencil, Save, Trophy, ExternalLink, Check, Megaphone,
+    Users, BookOpen, ChevronDown, Plus, X, Pencil, Save, Trophy, Flag, ExternalLink, Check, Megaphone,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
