@@ -485,10 +485,10 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
 
     const handleGenerate = async () => {
         if (!pdfFile) return toast.error('Please select a PDF file');
+        if (!selectedContainerId) return toast.error('Open a container first');
         setUploading(true);
         try {
             const form = new FormData();
-            if (!selectedContainerId) return toast.error('Open a container first');
             form.append('containerId', selectedContainerId);
             if (prompt.trim()) form.append('prompt', prompt.trim());
             if (generateMore) form.append('more', 'true');
