@@ -101,13 +101,6 @@ const ACHIEVEMENTS = [
     { icon: '📜', title: 'Hackathon Winner', desc: 'Smart India Hackathon 2024', date: 'Dec 2024' },
 ];
 
-const CATEGORY_ICONS: Record<string, string> = {
-    'Late Submission': '⏰',
-    'Classroom Misconduct': '🗣️',
-    'Tab Switch Violation': '🖥️',
-    'Attendance Shortfall': '📉',
-};
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getPct(v: number) {
@@ -164,8 +157,6 @@ export default function StudentProfile() {
     const dobDisplay = dobDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
     const [marksMode, setMarksMode] = useState<MarksMode>('combined');
-    const [expandedFlag, setExpandedFlag] = useState<number | null>(null);
-    const [activeCardTab, setActiveCardTab] = useState<'yellow' | 'red'>('yellow');
     const [copied, setCopied] = useState(false);
 
     const chartData = SUBJECT_PERFORMANCE.map(s => ({
@@ -179,7 +170,6 @@ export default function StudentProfile() {
 
     const yellowFlags = FLAGS.filter(f => f.type === 'yellow');
     const redFlags = FLAGS.filter(f => f.type === 'red');
-    const activeFlags = activeCardTab === 'yellow' ? yellowFlags : redFlags;
 
     const handleCopy = () => {
         navigator.clipboard.writeText(STUDENT.uid);
@@ -367,9 +357,9 @@ export default function StudentProfile() {
                 {/* ── Attendance ── */}
                 <SectionCard title="Attendance" icon={Calendar} iconColor="#10B981"
                     action={
-                        <a href="#" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-700 dark:text-emerald-400 transition-all">
+                        <button onClick={() => router.push('/student/attendance')} className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
                             View Details <ChevronRight size={12} />
-                        </a>
+                        </button>
                     }>
 
                     <div className="space-y-3 mb-4">
@@ -466,82 +456,50 @@ export default function StudentProfile() {
                 {/* ── Flags ── */}
                 <SectionCard title="Remarks: Flags & Warnings" icon={Flag} iconColor="#EF4444"
                     action={
-                        <div className="flex gap-2 text-xs text-muted-foreground">
-                            <span className="text-amber-500 font-semibold">{yellowFlags.length} yellow</span>
-                            <span>·</span>
-                            <span className="text-red-500 font-semibold">{redFlags.length} red</span>
-                        </div>
+                        <a href="#" className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
+                            View All <ChevronRight size={12} />
+                        </a>
                     }>
 
-                    {/* Tab buttons side by side */}
+                    {/* Stat cards */}
                     <div className="grid grid-cols-2 gap-3 mb-4">
-                        <button onClick={() => setActiveCardTab('yellow')}
-                            className={`flex items-center justify-center gap-3 p-3 rounded-xl border-2 transition-all ${activeCardTab === 'yellow' ? 'border-yellow-400 bg-yellow-50 dark:bg-yellow-950/20' : 'border-border/50 bg-muted/20'}`}>
-                            <div className="w-3 h-5 rounded-sm bg-yellow-400 rotate-[-5deg] shadow-sm shrink-0" />
-                            <div className="text-left">
-                                <p className={`text-sm font-bold ${activeCardTab === 'yellow' ? 'text-yellow-700 dark:text-yellow-400' : 'text-muted-foreground'}`}>Yellow Card</p>
-                                <p className="text-[11px] text-muted-foreground">{yellowFlags.length} flags</p>
+                        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/20">
+                            <div className="shrink-0" style={{ width: 15, height: 20, borderRadius: 2, backgroundColor: '#FCFF38', transform: 'rotate(-5deg)', boxShadow: '1px 2px 0px rgba(0,0,0,0.35)' }} />
+                            <div>
+                                <p className="text-lg font-extrabold text-amber-500">{yellowFlags.length}</p>
+                                <p className="text-[10px] text-amber-500">Yellow Cards</p>
                             </div>
-                        </button>
-                        <button onClick={() => setActiveCardTab('red')}
-                            className={`flex items-center justify-center gap-3 p-3 rounded-xl border-2 transition-all ${activeCardTab === 'red' ? 'border-red-400 bg-red-50 dark:bg-red-950/20' : 'border-border/50 bg-muted/20'}`}>
-                            <div className="w-3 h-5 rounded-sm bg-red-600 rotate-[-5deg] shadow-sm shrink-0" />
-                            <div className="text-left">
-                                <p className={`text-sm font-bold ${activeCardTab === 'red' ? 'text-red-700 dark:text-red-400' : 'text-muted-foreground'}`}>Red Card</p>
-                                <p className="text-[11px] text-muted-foreground">{redFlags.length} flags</p>
+                        </div>
+                        <div className="flex items-center gap-2.5 p-3 rounded-xl bg-red-50 dark:bg-red-950/20">
+                            <div className="shrink-0" style={{ width: 15, height: 20, borderRadius: 2, backgroundColor: '#DC2626', transform: 'rotate(-5deg)', boxShadow: '1px 2px 0px rgba(0,0,0,0.35)' }} />
+                            <div>
+                                <p className="text-lg font-extrabold text-red-500">{redFlags.length}</p>
+                                <p className="text-[10px] text-red-500">Red Cards</p>
                             </div>
-                        </button>
+                        </div>
                     </div>
 
-                    {/* Flag list */}
-                    <div className="space-y-2">
-                        {activeFlags.length === 0 ? (
-                            <div className="text-center py-8">
-                                <p className="text-2xl mb-2">✅</p>
-                                <p className="text-sm text-muted-foreground">No {activeCardTab} cards!</p>
-                            </div>
-                        ) : activeFlags.map((flag, i) => {
-                            const isYellow = flag.type === 'yellow';
-                            const expanded = expandedFlag === i;
-                            return (
-                                <div key={i}
-                                    className={`rounded-xl border-2 overflow-hidden transition-all ${isYellow ? 'border-yellow-200 dark:border-yellow-900/50 bg-yellow-50 dark:bg-yellow-950/20' : 'border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/20'}`}>
-                                    <button className="w-full flex items-start gap-3 p-3 text-left" onClick={() => setExpandedFlag(expanded ? null : i)}>
-                                        <div className={`w-3 h-5 rounded-sm shrink-0 mt-0.5 rotate-[-5deg] shadow-sm ${isYellow ? 'bg-yellow-400' : 'bg-red-600'}`} />
+                    {/* Most recent — one of each type, same as the app */}
+                    {FLAGS.length === 0 ? (
+                        <div className="text-center py-6">
+                            <p className="text-2xl mb-1">✅</p>
+                            <p className="text-xs text-muted-foreground">No flags! Keep it up.</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-2">
+                            {[FLAGS.find(f => f.type === 'yellow'), FLAGS.find(f => f.type === 'red')]
+                                .filter((f): f is typeof FLAGS[0] => f !== undefined)
+                                .map((flag, i) => (
+                                    <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border-l-[3px] ${flag.type === 'yellow' ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-400' : 'bg-red-50 dark:bg-red-950/20 border-red-500'}`}>
+                                        <div className="shrink-0 mt-0.5" style={{ width: 17, height: 24, borderRadius: 2, backgroundColor: flag.type === 'yellow' ? '#fcff38' : '#DC2626', transform: 'rotate(-5deg)', boxShadow: '1px 2px 0px rgba(0,0,0,0.35)' }} />
                                         <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap mb-1">
-                                                <span className="text-xs">{CATEGORY_ICONS[flag.category] ?? '⚠️'}</span>
-                                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isYellow ? 'bg-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300' : 'bg-red-200 text-red-800 dark:bg-red-900 dark:text-red-300'}`}>
-                                                    {flag.category}
-                                                </span>
-                                            </div>
-                                            <p className={`text-xs font-semibold ${isYellow ? 'text-yellow-800 dark:text-yellow-300' : 'text-red-800 dark:text-red-300'}`}>{flag.title}</p>
-                                            <div className="flex items-center gap-3 mt-1 text-[10px] text-muted-foreground">
-                                                <span>📅 {flag.date}</span>
-                                                {flag.subject && <span>📚 {flag.subject}</span>}
-                                            </div>
+                                            <p className="text-xs font-semibold text-foreground">{flag.title}</p>
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">{flag.date}</p>
                                         </div>
-                                        <ChevronRight size={14} className={`shrink-0 text-muted-foreground transition-transform ${expanded ? 'rotate-90' : ''}`} />
-                                    </button>
-
-                                    {expanded && (
-                                        <div className="px-3 pb-3 space-y-2">
-                                            <div className={`p-2.5 rounded-lg ${isYellow ? 'bg-yellow-100 dark:bg-yellow-950/40' : 'bg-red-100 dark:bg-red-950/40'}`}>
-                                                <p className={`text-[10px] font-bold mb-1 ${isYellow ? 'text-yellow-700 dark:text-yellow-400' : 'text-red-700 dark:text-red-400'}`}>📝 Incident Detail</p>
-                                                <p className="text-[11px] text-foreground">{flag.detail}</p>
-                                            </div>
-                                            {flag.actionTaken && (
-                                                <div className="p-2.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-900/50">
-                                                    <p className="text-[10px] font-bold mb-1 text-emerald-700 dark:text-emerald-400">⚡ Action Taken</p>
-                                                    <p className="text-[11px] text-foreground">{flag.actionTaken}</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            );
-                        })}
-                    </div>
+                                    </div>
+                                ))}
+                        </div>
+                    )}
                 </SectionCard>
             </div>
 

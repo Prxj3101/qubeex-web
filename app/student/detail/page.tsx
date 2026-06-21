@@ -450,7 +450,7 @@ export default function StudentDetailPage() {
             </div>
 
             {/* ── RIGHT — Detail Sections (scrollable) ── */}
-            <div className="w-[70%] min-w-0 space-y-3 overflow-y-auto pb-6"
+            <div className="w-[70%] min-w-0 space-y-3 overflow-y-auto pb-6 pr-2"
                 style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
 
                 {/* ROW 1 — Student Info + Academic Details */}

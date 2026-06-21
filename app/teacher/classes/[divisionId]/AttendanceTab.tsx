@@ -825,13 +825,13 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                         <div className="space-y-4">
                             {/* Class overall stats */}
                             <div className="grid grid-cols-2 gap-3">
-                                <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
+                                <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
                                     <p className={`text-2xl font-black ${pctColor(classStats?.overallPct ?? null)}`}>
                                         {classStats?.overallPct !== null && classStats?.overallPct !== undefined ? `${classStats.overallPct}%` : '—'}
                                     </p>
                                     <p className="text-[11px] text-muted-foreground mt-1">Class Overall</p>
                                 </div>
-                                <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
+                                <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
                                     <p className={`text-2xl font-black ${pctColor(classStats?.currentMonthPct ?? null)}`}>
                                         {classStats?.currentMonthPct !== null && classStats?.currentMonthPct !== undefined ? `${classStats.currentMonthPct}%` : '—'}
                                     </p>
@@ -840,7 +840,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                             </div>
 
                             {/* Month wise breakdown */}
-                            <div className="rounded-2xl border border-border/50 bg-background overflow-hidden">
+                            <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
                                 <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month-wise Class Average</p>
                                     <button onClick={onSwitchToDaily}
@@ -883,7 +883,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                             </div>
 
                             {/* Short Attendance */}
-                            <div className="rounded-2xl border border-border/50 bg-background overflow-hidden">
+                            <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
                                 <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center gap-2">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex-1">Short Attendance</p>
                                     <div className="flex gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border/40">
@@ -933,13 +933,13 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                 {/* Top section — stats left, monthwise right */}
                                 <div className="flex gap-3">
                                     <div className="flex flex-col gap-3 w-[140px] shrink-0">
-                                        <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
+                                        <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
                                             <p className={`text-2xl font-black ${pctColor(selectedStudent.overallPct)}`}>
                                                 {selectedStudent.overallPct !== null ? `${selectedStudent.overallPct}%` : '—'}
                                             </p>
                                             <p className="text-[11px] text-muted-foreground mt-1">Overall</p>
                                         </div>
-                                        <div className="rounded-2xl border border-border/50 bg-background p-4 text-center">
+                                        <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
                                             <p className={`text-2xl font-black ${pctColor(selectedStudent.currentMonthPct)}`}>
                                                 {selectedStudent.currentMonthPct !== null ? `${selectedStudent.currentMonthPct}%` : '—'}
                                             </p>
@@ -948,7 +948,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                     </div>
 
                                     {/* Month-wise bars */}
-                                    <div className="flex-1 rounded-2xl border border-border/50 bg-background overflow-hidden">
+                                    <div className="flex-1 rounded-2xl border border-border/50 bg-card overflow-hidden">
                                         <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
                                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month-wise Attendance</p>
                                         </div>
@@ -989,7 +989,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
 
                                 {/* Individual Student Sheet */}
                                 <div className="rounded-2xl border border-border/50 overflow-hidden">
-                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between relative">
+                                    <div className="px-4 py-2.5 border-b border-border/40 bg-card flex items-center justify-between relative">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Attendance Sheet</p>
                                         <div className="absolute left-1/2 -translate-x-1/2 flex items-baseline gap-2">
                                             <span className="text-[12px] font-semibold text-foreground">{selectedStudent.name}</span>
