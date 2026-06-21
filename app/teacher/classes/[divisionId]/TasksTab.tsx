@@ -920,7 +920,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                     )}
                     {subTab === 'questions' && selectedContainerId && (
                         <button onClick={() => {
-                            const url = `/api/teacher/tasks/questions/export?divisionId=${divisionId}`;
+                            const url = `/api/teacher/tasks/questions/export?containerId=${selectedContainerId}`;
                             window.open(process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') + url || url);
                         }} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg border border-border hover:bg-muted transition-all">
                             <Download size={13} /> Export
