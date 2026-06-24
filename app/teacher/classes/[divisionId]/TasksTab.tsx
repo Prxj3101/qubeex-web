@@ -1223,9 +1223,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                             </div>
                         ) : (
                             <div className="space-y-3 pl-1 pb-1">
-                                {hasMultipleBatches ? (
-                                    // Grouped view with PDF source separators
-                                    (() => {
+                                {(() => {
                                         let globalIdx = 0;
                                         return groupedQuestions.map((group, gIdx) => (
                                             <div key={group.batchId ?? group.source + gIdx}>
@@ -1277,20 +1275,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                             </div>
                                         ));
                                     })()
-                                ) : (
-                                    // Single batch or no batch info — plain list
-                                    displayedQuestions.map((q, idx) => (
-                                        <QuestionCard key={q.id} question={q} index={idx + 1}
-                                            modules={modules}
-                                            onApprove={() => updateStatus(q.id, 'APPROVED')}
-                                            onReject={() => updateStatus(q.id, 'REJECTED')}
-                                            onDelete={() => q.status === 'REJECTED' ? deleteQuestion(q.id) : updateStatus(q.id, 'REJECTED')}
-                                            onAssignModule={(moduleId) => assignToModule(q.id, moduleId)}
-                                            onUnassignModule={() => unassignFromModule(q.id)}
-                                            onEdit={(qText, ans, opts) => handleEditQuestion(q.id, qText, ans, opts)}
-                                        />
-                                    ))
-                                )}
+                                }
                             </div>
                         )}
                     </>

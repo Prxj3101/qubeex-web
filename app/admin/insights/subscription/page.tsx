@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import api from '@/lib/api';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import {
@@ -91,14 +92,28 @@ const PLAN_CONFIG = {
     },
 };
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const invoices = [
-    { month: 'May 2025', plan: 'Pro', amount: '₹4,999', status: 'pending', dueDate: '4 Jun 2025' },
-    { month: 'Apr 2025', plan: 'Pro', amount: '₹4,999', status: 'paid', dueDate: '4 May 2025' },
-    { month: 'Mar 2025', plan: 'Pro', amount: '₹4,999', status: 'paid', dueDate: '4 Apr 2025' },
-    { month: 'Feb 2025', plan: 'Basic', amount: '₹2,499', status: 'paid', dueDate: '4 Mar 2025' },
-    { month: 'Jan 2025', plan: 'Basic', amount: '₹2,499', status: 'paid', dueDate: '4 Feb 2025' },
-];
+// ─── Bill type (matches GET /api/admin/bills response) ───────────────────────
+type Bill = {
+    id: string;
+    type: string;
+    billingMonth: string | null;
+    totalAmount: number;
+    status: 'PENDING' | 'PAID';
+    dueDate: string | null;
+    paidAt: string | null;
+    generatedAt: string;
+    razorpayLinkUrl: string | null;
+};
+
+const formatBillAmount = (amount: number) =>
+    `₹${amount.toLocaleString('en-IN')}`;
+
+const formatBillDate = (iso: string | null) => {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('en-IN', {
+        day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Kolkata',
+    });
+};
 
 const planHistory = [
     { date: 'Feb 1, 2025', from: 'Basic', to: 'Pro', type: 'upgrade' },
@@ -208,7 +223,36 @@ export default function SubscriptionPage() {
     const currentRate = tiers.find((t: { min: number; max: number; rate: number }) => activeUsers >= t.min && activeUsers <= t.max)?.rate ?? tiers[0].rate;
     const monthlyBill = billedUsers * currentRate;
 
-    const [billModal, setBillModal] = useState<typeof invoices[0] | null>(null);
+    // ── Bills state ──────────────────────────────────────────────────────────
+    const [bills, setBills] = useState<Bill[]>([]);
+    const [billsLoading, setBillsLoading] = useState(true);
+    const [payNowLoading, setPayNowLoading] = useState(false);
+    const billsFetchedRef = useRef(false);
+
+    useEffect(() => {
+        if (billsFetchedRef.current) return;
+        billsFetchedRef.current = true;
+        api.get('/admin/bills', { params: { limit: 10 } })
+            .then(res => setBills(res.data.data?.bills ?? []))
+            .catch(() => {})
+            .finally(() => setBillsLoading(false));
+    }, []);
+
+    const latestBill = bills[0] ?? null;
+    const latestPending = bills.find(b => b.status === 'PENDING') ?? null;
+
+    const handlePayNow = async () => {
+        if (!latestPending || payNowLoading) return;
+        setPayNowLoading(true);
+        try {
+            const res = await api.get(`/admin/bills/${latestPending.id}/payment-link`);
+            window.location.href = res.data.data.url;
+        } catch {
+            setPayNowLoading(false);
+        }
+    };
+
+    const [billModal, setBillModal] = useState<Bill | null>(null);
 
     return (
         <div className="min-h-screen bg-background">
@@ -589,27 +633,26 @@ export default function SubscriptionPage() {
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                                         Generated Bill
                                     </p>
-                                    {invoices.length > 0 ? (
+                                    {billsLoading ? (
+                                        <div className="h-12 rounded-xl bg-muted/40 animate-pulse" />
+                                    ) : latestBill ? (
                                         <div className="divide-y divide-border/40">
                                             <div className="flex items-center justify-between py-3">
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <p className="text-xs font-semibold">{invoices[0].month}</p>
+                                                        <p className="text-xs font-semibold">{latestBill.billingMonth ?? latestBill.type}</p>
                                                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400">New</span>
                                                     </div>
-                                                    <p className="text-[11px] text-muted-foreground">Due {invoices[0].dueDate}</p>
+                                                    <p className="text-[11px] text-muted-foreground">Due {formatBillDate(latestBill.dueDate)}</p>
                                                 </div>
                                                 <div className="flex items-center gap-2">
-                                                    <p className="text-sm font-bold">{invoices[0].amount}</p>
-                                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${invoices[0].status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
-                                                        {invoices[0].status}
+                                                    <p className="text-sm font-bold">{formatBillAmount(latestBill.totalAmount)}</p>
+                                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${latestBill.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                                                        {latestBill.status.toLowerCase()}
                                                     </span>
-                                                    <button onClick={() => setBillModal(invoices[0])}
+                                                    <button onClick={() => setBillModal(latestBill)}
                                                         className="h-7 px-2.5 rounded-lg border border-border text-[11px] font-semibold text-muted-foreground hover:bg-muted transition-all">
                                                         View
-                                                    </button>
-                                                    <button className="w-7 h-7 rounded-lg bg-muted/40 flex items-center justify-center hover:bg-muted transition-colors">
-                                                        <Download className="w-3 h-3 text-muted-foreground" />
                                                     </button>
                                                 </div>
                                             </div>
@@ -634,18 +677,22 @@ export default function SubscriptionPage() {
                             {/* Plan card */}
                             <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 flex flex-col gap-4">
                                 <div className="flex items-center justify-between">
-                                    <p className="text-sm font-medium text-foreground">Latest Bill — {invoices[0].month}</p>
+                                    <p className="text-sm font-medium text-foreground">Latest Bill — {latestBill?.billingMonth ?? latestBill?.type ?? '—'}</p>
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs text-muted-foreground">Bill Status:</span>
-                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${invoices[0].status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
-                                            {invoices[0].status}
+                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${latestBill?.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                                            {latestBill?.status?.toLowerCase() ?? 'pending'}
                                         </span>
                                     </div>
                                 </div>
                                 {/* Recent bill info */}
                                 <div className="space-y-2">
-                                    <p className="text-3xl font-bold text-foreground">{invoices[0].amount}</p>
-                                    <p className="text-xs text-muted-foreground">Due {invoices[0].dueDate}</p>
+                                    {billsLoading ? (
+                                        <div className="h-9 w-28 rounded-lg bg-muted/40 animate-pulse" />
+                                    ) : (
+                                        <p className="text-3xl font-bold text-foreground">{latestBill ? formatBillAmount(latestBill.totalAmount) : '—'}</p>
+                                    )}
+                                    <p className="text-xs text-muted-foreground">Due {formatBillDate(latestBill?.dueDate ?? null)}</p>
                                 </div>
 
                                 <div className="pt-1 border-t border-border/50 space-y-1.5">
@@ -655,21 +702,20 @@ export default function SubscriptionPage() {
                                     ].map((row) => (
                                         <div key={row.label} className="flex items-center justify-between text-xs">
                                             <span className="text-muted-foreground">{row.label}</span>
-                                            <span className={`font-medium ${row.label === 'Bill status' ? invoices[0].status === 'paid' ? 'text-emerald-500' : 'text-amber-500' : 'text-foreground'}`}>
-                                                {row.value}
-                                            </span>
+                                            <span className="font-medium text-foreground">{row.value}</span>
                                         </div>
                                     ))}
                                 </div>
 
                                 <div className="space-y-2 pt-1">
-                                    {invoices[0].status !== 'paid' ? (
+                                    {latestPending ? (
                                         <>
                                             <button
-                                                onClick={() => setBillingTab('history')}
-                                                className="w-full text-xs font-semibold py-2.5 rounded-xl text-white hover:opacity-90 transition-all"
+                                                onClick={handlePayNow}
+                                                disabled={payNowLoading}
+                                                className="w-full text-xs font-semibold py-2.5 rounded-xl text-white hover:opacity-90 transition-all disabled:opacity-60"
                                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                Pay Now
+                                                {payNowLoading ? 'Redirecting…' : 'Pay Now'}
                                             </button>
                                             <button
                                                 onClick={() => router.push('/admin/support/tickets')}
@@ -708,27 +754,40 @@ export default function SubscriptionPage() {
                                 {/* Invoice history tab */}
                                 {billingTab === 'invoices' && (
                                     <div className="divide-y divide-border/40 h-[340px] overflow-y-auto">
-                                        {invoices.map((inv, idx) => (
-                                            <div key={idx} className="flex items-center justify-between px-5 py-3">
+                                        {billsLoading ? (
+                                            [0, 1, 2].map(i => (
+                                                <div key={i} className="flex items-center justify-between px-5 py-3">
+                                                    <div className="space-y-1.5">
+                                                        <div className="h-3 w-20 rounded bg-muted/40 animate-pulse" />
+                                                        <div className="h-2.5 w-28 rounded bg-muted/30 animate-pulse" />
+                                                    </div>
+                                                    <div className="h-3 w-16 rounded bg-muted/40 animate-pulse" />
+                                                </div>
+                                            ))
+                                        ) : bills.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
+                                                <Receipt className="w-8 h-8 text-muted-foreground/30" />
+                                                <p className="text-xs font-medium text-muted-foreground">No bills yet</p>
+                                            </div>
+                                        ) : bills.map((inv, idx) => (
+                                            <div key={inv.id} className="flex items-center justify-between px-5 py-3">
                                                 <div>
                                                     <div className="flex items-center gap-2">
-                                                        <p className="text-xs font-semibold">{inv.month}</p>
+                                                        <p className="text-xs font-semibold">{inv.billingMonth ?? inv.type}</p>
                                                         {idx === 0 && (
                                                             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400">New</span>
                                                         )}
                                                     </div>
-                                                    <p className="text-[11px] text-muted-foreground">Due {inv.dueDate}</p>                                                </div>
+                                                    <p className="text-[11px] text-muted-foreground">Due {formatBillDate(inv.dueDate)}</p>
+                                                </div>
                                                 <div className="flex items-center gap-2">
-                                                    <p className="text-sm font-bold">{inv.amount}</p>
-                                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${inv.status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
-                                                        {inv.status}
+                                                    <p className="text-sm font-bold">{formatBillAmount(inv.totalAmount)}</p>
+                                                    <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${inv.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                                                        {inv.status.toLowerCase()}
                                                     </span>
                                                     <button onClick={() => setBillModal(inv)}
                                                         className="h-7 px-2.5 rounded-lg border border-border text-[11px] font-semibold text-muted-foreground hover:bg-muted transition-all">
                                                         View
-                                                    </button>
-                                                    <button className="w-7 h-7 rounded-lg bg-muted/40 flex items-center justify-center hover:bg-muted transition-colors">
-                                                        <Download className="w-3 h-3 text-muted-foreground" />
                                                     </button>
                                                 </div>
                                             </div>
@@ -781,19 +840,31 @@ export default function SubscriptionPage() {
                                         </div>
 
                                         {/* Payment Gateway */}
-                                        <div className="bg-muted/30 rounded-xl p-4 border border-border/50 border-dashed">
+                                        <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
                                             <div className="flex items-center gap-2 mb-3">
                                                 <div className="w-6 h-6 rounded-lg bg-sky-100 dark:bg-sky-950/50 flex items-center justify-center">
                                                     <CreditCard className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
                                                 </div>
-                                                <p className="text-xs font-semibold">Online Payment Gateway</p>
-                                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">Coming Soon</span>
+                                                <p className="text-xs font-semibold">Online Payment</p>
                                             </div>
-                                            <div className="flex flex-col items-center justify-center py-4 gap-2">
-                                                <CreditCard size={28} className="text-muted-foreground/20" />
-                                                <p className="text-xs text-muted-foreground">Online payment gateway coming soon</p>
-                                                <p className="text-[11px] text-muted-foreground/60">Pay via card, netbanking, or UPI directly</p>
-                                            </div>
+                                            {latestPending ? (
+                                                <div className="flex flex-col gap-2">
+                                                    <p className="text-[11px] text-muted-foreground">Pay via card, UPI, or netbanking securely via Razorpay.</p>
+                                                    <button
+                                                        onClick={handlePayNow}
+                                                        disabled={payNowLoading}
+                                                        className="w-full text-xs font-semibold py-2.5 rounded-xl text-white hover:opacity-90 transition-all disabled:opacity-60"
+                                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                        {payNowLoading ? 'Redirecting to Razorpay…' : `Pay ${formatBillAmount(latestPending.totalAmount)} via Razorpay`}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center py-4 gap-2">
+                                                    <CheckCircle2 size={28} className="text-emerald-500/60" />
+                                                    <p className="text-xs text-muted-foreground">No pending bills</p>
+                                                    <p className="text-[11px] text-muted-foreground/60">All bills are paid</p>
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )}
@@ -814,8 +885,8 @@ export default function SubscriptionPage() {
                         >
                             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/50">
                                 <div>
-                                    <h3 className="text-base font-bold">Invoice — {billModal.month}</h3>
-                                    <p className="text-[11px] text-muted-foreground">Due {billModal.dueDate}</p>
+                                    <h3 className="text-base font-bold">Invoice — {formatBillDate(billModal.billingMonth)}</h3>
+                                    <p className="text-[11px] text-muted-foreground">Due {formatBillDate(billModal.dueDate)}</p>
                                 </div>
                                 <button onClick={() => setBillModal(null)}
                                     className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
@@ -834,8 +905,8 @@ export default function SubscriptionPage() {
                                         <p className="text-sm font-bold" style={{ color: currentPlan === 'PRO' ? '#DA7756' : '#7C3AED' }}>
                                             {currentPlan}
                                         </p>
-                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${billModal.status === 'paid' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
-                                            {billModal.status}
+                                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${billModal.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                                            {billModal.status.toLowerCase()}
                                         </span>
                                     </div>
                                 </div>
@@ -845,14 +916,14 @@ export default function SubscriptionPage() {
                                         <p className="text-xs font-medium">Monthly User Bill</p>
                                         <p className="text-[11px] text-muted-foreground">{billedUsers} users × ₹{currentRate}/user</p>
                                     </div>
-                                    <p className="text-xs font-bold">{billModal.amount}</p>
+                                    <p className="text-xs font-bold">{formatBillAmount(billModal.totalAmount)}</p>
                                 </div>
                                 <div className="h-px bg-border/50" />
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-bold">Total Amount</p>
-                                    <p className="text-lg font-black" style={{ color: '#DA7756' }}>{billModal.amount}</p>
+                                    <p className="text-lg font-black" style={{ color: '#DA7756' }}>{formatBillAmount(billModal.totalAmount)}</p>
                                 </div>
-                                <p className="text-[11px] text-muted-foreground">Due {billModal.dueDate}</p>
+                                <p className="text-[11px] text-muted-foreground">Due {formatBillDate(billModal.dueDate)}</p>
                             </div>
                             <div className="flex items-center justify-between px-6 py-4 border-t border-border/50 bg-muted/20">
                                 <button onClick={() => setBillModal(null)}
