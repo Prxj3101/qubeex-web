@@ -190,9 +190,14 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
                         style={{ width: 'auto', height: '40px' }}
                         className="rounded-md"
                     />
-                    <span className="text-[25.5px] font-bold text-[#374151] dark:text-[#FAE5D9] -mt-1" style={{ fontFamily: 'var(--font-poppins)' }}>
-                        QubeEx
-                    </span>
+                    <div className="flex items-end gap-1.5 -mt-1">
+                        <span className="text-[25.5px] font-bold text-[#374151] dark:text-[#FAE5D9]" style={{ fontFamily: 'var(--font-poppins)' }}>
+                            QubeEx
+                        </span>
+                        <span className="mb-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-border/60 text-muted-foreground tracking-wide bg-transparent">
+                            BETA
+                        </span>
+                    </div>
                 </div>
 
                 <div className="flex items-center gap-2">

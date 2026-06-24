@@ -1768,7 +1768,7 @@ export default function DivisionDetailPage() {
                                                             <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={BookOpen} label="Academic Details" />
                                                                 <div className="grid grid-cols-2 gap-2">
-                                                                    <ReadField label="Class" value="Class 10" />
+                                                                    <ReadField label="Class" value="10" />
                                                                     <ReadField label="Division" value="A" />
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-2">

@@ -705,7 +705,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                 </button>
                                             </div>
                                             <div className="rounded-xl border border-border/40 overflow-hidden">
-                                                {[{ label: 'Name', value: 'Student Name' }, { label: 'Roll No', value: 'Roll Number' }, { label: 'Class', value: 'Class Name' }, { label: 'Division', value: 'Division Name' }, ...extraStudentFields].map((f, i) => (
+                                                {[{ label: 'Name', value: 'Student Name' }, { label: 'Roll No', value: 'Roll Number' }, { label: 'Class', value: divisionName.split('-')[0] ?? divisionName }, { label: 'Division', value: divisionName.split('-')[1] ?? '' }, ...extraStudentFields].map((f, i) => (
                                                     <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border/20 last:border-none">
                                                         <span className="text-[11px] text-muted-foreground w-24 shrink-0">{f.label}</span>
                                                         <span className="text-[11px] font-medium text-foreground/50 italic">{f.value}</span>
@@ -948,7 +948,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                 </div>
 
                                 {/* BACK — Rules & Regulations */}
-                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0 }}
+                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                                     className={!feeCardFlipped ? 'invisible' : ''}>
                                     <div className="px-4 py-3 space-y-3">
                                         <div className="flex items-center justify-between">
@@ -1078,7 +1078,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                     <div className="space-y-4">
 
                                         {/* Student header */}
-                                        <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-muted/20">
+                                        <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20">
                                             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
                                                 style={{ background: getAvatarColor(selectedStudent.name) }}>
                                                 {getInitials(selectedStudent.name)}
@@ -1126,8 +1126,8 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                                 {[
                                                                     { label: 'Name', value: selectedStudent.name },
                                                                     { label: 'Roll No', value: selectedStudent.rollNo },
-                                                                    { label: 'Class', value: 'Class Name' },
-                                                                    { label: 'Division', value: divisionName },
+                                                                    { label: 'Class', value: divisionName.split('-')[0] ?? divisionName },
+                                                                    { label: 'Division', value: divisionName.split('-')[1] ?? '' },
                                                                     ...extraStudentFields,
                                                                 ].map((f, i) => (
                                                                     <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border/20 last:border-none">
@@ -1274,7 +1274,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                 </div>
 
                                                 {/* BACK — Rules & Regulations */}
-                                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0 }}
+                                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
                                                     className={`bg-card rounded-2xl border border-border/50 shadow-sm ${!studentCardFlipped ? 'invisible' : ''}`}>
 
                                                     {/* Header */}

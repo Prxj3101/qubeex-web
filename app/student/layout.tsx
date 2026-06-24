@@ -14,7 +14,7 @@ const NAV_ITEMS = [
     { label: 'Results', href: '/student/marksheet', icon: GraduationCap },
     {
         label: 'Profile', href: '/student/profile', icon: User,
-        activePath: ['/student/detail', '/student/attendance', '/student/reportcard'],
+        activePath: ['/student/detail', '/student/attendance', '/student/reportcard', '/student/flags', '/student/fees'],
     },
 ];
 

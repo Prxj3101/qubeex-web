@@ -15,6 +15,7 @@ import {
     ResponsiveContainer, LineChart, Line, Cell, LabelList,
     AreaChart, Area, ReferenceLine,
 } from 'recharts';
+import { FLAGS } from '@/lib/flags';
 
 // ─── Mock Data ────────────────────────────────────────────────────────────────
 
@@ -82,11 +83,6 @@ const ATTENDANCE_WINDOW = getAttendanceWindowMonths(new Date()).map((month) => {
     return { month, value: found ? found.value : 0 };
 });
 
-const FLAGS = [
-    { type: 'yellow', title: 'Late Submission', category: 'Late Submission', date: '12 Mar 2026', subject: 'DC', detail: 'Assignment submitted 2 days after deadline.', actionTaken: 'Warning issued. Next offense will result in red card.' },
-    { type: 'yellow', title: 'Classroom Misconduct', category: 'Classroom Misconduct', date: '5 Feb 2026', subject: 'SMA', detail: 'Disturbing class during lecture.', actionTaken: 'Verbal warning given by faculty.' },
-    { type: 'red', title: 'Tab Switch Violation', category: 'Tab Switch Violation', date: '20 Jan 2026', subject: 'DC', detail: 'Switched tabs 3 times during online test.', actionTaken: 'Test invalidated. Zero marks awarded.' },
-];
 
 const FEES = [
     { year: 'Year 1 (2022-23)', total: 85000, paid: 85000 },
@@ -465,10 +461,10 @@ export default function StudentProfile() {
                     {/* ── Flags ── */}
                     <SectionCard title="Remarks: Flags & Warnings" icon={Flag} iconColor="#EF4444"
                         action={
-                            <a href="#" className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
+                            <button onClick={() => router.push('/student/flags')} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
                                 <span className="leading-none">View All</span>
                                 <ChevronRight size={12} />
-                            </a>
+                            </button>
                         }>
 
                         {/* Stat cards */}
@@ -497,7 +493,10 @@ export default function StudentProfile() {
                             </div>
                         ) : (
                             <div className="space-y-2">
-                                {[FLAGS.find(f => f.type === 'yellow'), FLAGS.find(f => f.type === 'red')]
+                                {[
+                                    [...FLAGS].filter(f => f.type === 'yellow').sort((a, b) => new Date(a.date).getTime() < new Date(b.date).getTime() ? 1 : -1)[0],
+                                    [...FLAGS].filter(f => f.type === 'red').sort((a, b) => new Date(a.date).getTime() < new Date(b.date).getTime() ? 1 : -1)[0],
+                                ]
                                     .filter((f): f is typeof FLAGS[0] => f !== undefined)
                                     .map((flag, i) => (
                                         <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border-l-[3px] ${flag.type === 'yellow' ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-400' : 'bg-red-50 dark:bg-red-950/20 border-red-500'}`}>
@@ -517,9 +516,9 @@ export default function StudentProfile() {
                     {/* ── Fees ── */}
                     <SectionCard title="Fees" icon={IndianRupee} iconColor="#10B981"
                         action={
-                            <button className="text-xs font-semibold px-3 py-1 rounded-full text-white transition-all hover:opacity-90"
-                                style={{ background: 'linear-gradient(135deg, #10B981, #059669)' }}>
-                                Pay Fees
+                            <button onClick={() => router.push('/student/fees')} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
+                                <span className="leading-none">Pay Fees</span>
+                                <ChevronRight size={12} />
                             </button>
                         }>
 
