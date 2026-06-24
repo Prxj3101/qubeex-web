@@ -84,11 +84,27 @@ const ATTENDANCE_WINDOW = getAttendanceWindowMonths(new Date()).map((month) => {
 });
 
 
-const FEES = [
-    { year: 'Year 1 (2022-23)', total: 85000, paid: 85000 },
-    { year: 'Year 2 (2023-24)', total: 85000, paid: 85000 },
-    { year: 'Year 3 (2024-25)', total: 90000, paid: 60000 },
-    { year: 'Year 4 (2025-26)', total: 90000, paid: 0 },
+const FEE_MONTHS_PROFILE = [
+    { month: 'June',      dueDate: '10 Jun 2025', amount: 6700, status: 'PAID'    as const, paidDate: '8 Jun 2025'  },
+    { month: 'July',      dueDate: '10 Jul 2025', amount: 6700, status: 'PAID'    as const, paidDate: '9 Jul 2025'  },
+    { month: 'August',    dueDate: '10 Aug 2025', amount: 6700, status: 'PAID'    as const, paidDate: '7 Aug 2025'  },
+    { month: 'September', dueDate: '10 Sep 2025', amount: 6700, status: 'PAID'    as const, paidDate: '9 Sep 2025'  },
+    { month: 'October',   dueDate: '10 Oct 2025', amount: 6700, status: 'PAID'    as const, paidDate: '8 Oct 2025'  },
+    { month: 'November',  dueDate: '10 Nov 2025', amount: 6700, status: 'PAID'    as const, paidDate: '10 Nov 2025' },
+    { month: 'December',  dueDate: '10 Dec 2025', amount: 6700, status: 'PAID'    as const, paidDate: '9 Dec 2025'  },
+    { month: 'January',   dueDate: '10 Jan 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
+    { month: 'February',  dueDate: '10 Feb 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
+    { month: 'March',     dueDate: '10 Mar 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
+    { month: 'April',     dueDate: '10 Apr 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
+    { month: 'May',       dueDate: '10 May 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
+];
+const TERM1_MONTHS = ['June', 'July', 'August', 'September', 'October'];
+const TERM2_MONTHS = ['November', 'December', 'January', 'February', 'March', 'April', 'May'];
+const term1 = FEE_MONTHS_PROFILE.filter(m => TERM1_MONTHS.includes(m.month));
+const term2 = FEE_MONTHS_PROFILE.filter(m => TERM2_MONTHS.includes(m.month));
+const termData = [
+    { label: 'Term 1', range: 'June – October',   months: term1 },
+    { label: 'Term 2', range: 'November – May',    months: term2 },
 ];
 
 const ACHIEVEMENTS = [
@@ -110,8 +126,6 @@ function getPct(v: number) {
     return { color, label, cls };
 }
 
-const totalFees = FEES.reduce((s, f) => s + f.total, 0);
-const totalPaid = FEES.reduce((s, f) => s + f.paid, 0);
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -458,6 +472,95 @@ export default function StudentProfile() {
                         </div>
                     </SectionCard>
 
+                    {/* ── Fees ── */}
+                    <SectionCard title="Fees" icon={IndianRupee} iconColor="#10B981"
+                        action={
+                            <button onClick={() => router.push('/student/fees')} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
+                                <span className="leading-none">Pay Fees</span>
+                                <ChevronRight size={12} />
+                            </button>
+                        }>
+
+                        {/* Term progress bars */}
+                        <div className="space-y-2.5 mb-4">
+                            {termData.map((term) => {
+                                const paid   = term.months.filter(m => m.status === 'PAID').length;
+                                const total  = term.months.length;
+                                const pct    = Math.round((paid / total) * 100);
+                                const cleared = paid === total;
+                                const paidAmt   = term.months.filter(m => m.status === 'PAID').reduce((n, m) => n + m.amount, 0);
+                                const totalAmt  = term.months.reduce((n, m) => n + m.amount, 0);
+                                return (
+                                    <div key={term.label} className="p-3 bg-muted/40 rounded-xl space-y-1.5">
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <span className="text-xs font-semibold">{term.label}</span>
+                                                <span className="text-[10px] text-muted-foreground ml-1.5">{term.range}</span>
+                                            </div>
+                                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${cleared ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : paid === 0 ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                                                {cleared ? '✅ Paid' : `${paid}/${total} paid`}
+                                            </span>
+                                        </div>
+                                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                                            <div className="h-full rounded-full transition-all duration-500"
+                                                style={{ width: `${pct}%`, backgroundColor: cleared ? '#10B981' : '#F59E0B' }} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Monthly payment schedule table */}
+                        <div className="rounded-xl border border-border/40 overflow-hidden">
+                            {/* Fixed header */}
+                            <table className="text-xs w-full" style={{ tableLayout: 'fixed' }}>
+                                <colgroup>
+                                    <col style={{ width: '18%' }} />
+                                    <col style={{ width: '16%' }} />
+                                    <col style={{ width: '22%' }} />
+                                    <col style={{ width: '22%' }} />
+                                    <col style={{ width: '22%' }} />
+                                </colgroup>
+                                <thead>
+                                    <tr className="bg-card border-b border-border/30">
+                                        {['Month', 'Amount', 'Due Date', 'Paid Date', 'Status'].map((col, i) => (
+                                            <th key={i} className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
+                                        ))}
+                                    </tr>
+                                </thead>
+                            </table>
+                            {/* Scrollable body */}
+                            <div className="overflow-y-auto max-h-[344px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent', willChange: 'transform', transform: 'translateZ(0)' }}>
+                                <table className="text-xs w-full" style={{ tableLayout: 'fixed' }}>
+                                    <colgroup>
+                                        <col style={{ width: '18%' }} />
+                                        <col style={{ width: '16%' }} />
+                                        <col style={{ width: '22%' }} />
+                                        <col style={{ width: '22%' }} />
+                                        <col style={{ width: '22%' }} />
+                                    </colgroup>
+                                    <tbody className="divide-y divide-border/20">
+                                        {FEE_MONTHS_PROFILE.map((m, i) => (
+                                            <tr key={i}>
+                                                <td className="px-3 py-2 font-semibold text-[11px]">{m.month}</td>
+                                                <td className="px-3 py-2 text-[11px]">₹{m.amount.toLocaleString()}</td>
+                                                <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.dueDate}</td>
+                                                <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.paidDate ?? '—'}</td>
+                                                <td className="px-3 py-2">
+                                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${m.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>
+                                                        {m.status === 'PAID' ? '✓ Paid' : '⏳ Pending'}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </SectionCard>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 items-stretch">
                     {/* ── Flags ── */}
                     <SectionCard title="Remarks: Flags & Warnings" icon={Flag} iconColor="#EF4444"
                         action={
@@ -485,7 +588,7 @@ export default function StudentProfile() {
                             </div>
                         </div>
 
-                        {/* Most recent — one of each type, same as the app */}
+                        {/* Most recent — one of each type */}
                         {FLAGS.length === 0 ? (
                             <div className="text-center py-6">
                                 <p className="text-2xl mb-1">✅</p>
@@ -510,66 +613,14 @@ export default function StudentProfile() {
                             </div>
                         )}
                     </SectionCard>
-                </div>
-
-                <div className="grid grid-cols-2 gap-3 items-stretch">
-                    {/* ── Fees ── */}
-                    <SectionCard title="Fees" icon={IndianRupee} iconColor="#10B981"
-                        action={
-                            <button onClick={() => router.push('/student/fees')} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
-                                <span className="leading-none">Pay Fees</span>
-                                <ChevronRight size={12} />
-                            </button>
-                        }>
-
-                        {/* Summary */}
-                        <div className="grid grid-cols-3 gap-3 mb-4">
-                            {[
-                                { label: 'Total Fees', value: `₹${(totalFees / 1000).toFixed(0)}k`, color: 'text-foreground' },
-                                { label: 'Paid', value: `₹${(totalPaid / 1000).toFixed(0)}k`, color: 'text-emerald-600 dark:text-emerald-400' },
-                                { label: 'Pending', value: `₹${((totalFees - totalPaid) / 1000).toFixed(0)}k`, color: 'text-amber-600 dark:text-amber-400' },
-                            ].map(({ label, value, color }) => (
-                                <div key={label} className="bg-muted/40 rounded-xl p-3 text-center">
-                                    <p className={`text-base font-black ${color}`}>{value}</p>
-                                    <p className="text-[11px] text-muted-foreground">{label}</p>
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="space-y-2.5">
-                            {FEES.map((row) => {
-                                const pct = Math.round((row.paid / row.total) * 100);
-                                const cleared = row.paid === row.total;
-                                const pending = row.total - row.paid;
-                                return (
-                                    <div key={row.year} className="p-3 bg-muted/40 rounded-xl space-y-1.5">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-xs font-medium">{row.year}</span>
-                                            <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${cleared ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : pending === row.total ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
-                                                {cleared ? '✅ Paid' : `₹${(pending / 1000).toFixed(0)}k due`}
-                                            </span>
-                                        </div>
-                                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full transition-all duration-500"
-                                                style={{ width: `${pct}%`, backgroundColor: cleared ? '#10B981' : '#F59E0B' }} />
-                                        </div>
-                                        <div className="flex justify-between">
-                                            <span className="text-[10px] text-muted-foreground">Paid ₹{(row.paid / 1000).toFixed(0)}k</span>
-                                            <span className="text-[10px] text-muted-foreground">Total ₹{(row.total / 1000).toFixed(0)}k</span>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-
-                        <div className="mt-3 p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/50 flex items-center justify-between">
-                            <span className="text-xs font-semibold text-amber-700 dark:text-amber-400">Total Pending</span>
-                            <span className="text-base font-black text-amber-600 dark:text-amber-400">₹1,20,000</span>
-                        </div>
-                    </SectionCard>
 
                     {/* ── Achievements ── */}
-                    <SectionCard title="Projects & Achievements" icon={Award} iconColor="#F59E0B">
+                    <SectionCard title="Projects & Achievements" icon={Award} iconColor="#F59E0B"
+                        action={
+                            <span className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted text-muted-foreground cursor-default select-none">
+                                Coming Soon
+                            </span>
+                        }>
                         <div className="space-y-2.5">
                             {ACHIEVEMENTS.map((a, i) => (
                                 <div key={i} className="flex items-center gap-3 p-3 bg-amber-50 dark:bg-amber-950/20 rounded-xl border border-amber-200/40 dark:border-amber-900/30">

@@ -197,7 +197,7 @@ export default function FeesPage() {
                                                                 const total = monthTotal(m);
                                                                 const assigned = FEE_STRUCTURES.filter(s => m.assignedStructureIds.includes(s.id));
                                                                 return (
-                                                                    <tr key={m.id} className="hover:bg-muted/10 transition-colors">
+                                                                    <tr key={m.id} className={`transition-colors ${selectedMonth === m.id ? 'bg-violet-100 dark:bg-violet-950/40' : 'hover:bg-muted/10'}`}>
                                                                         <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer"
                                                                             onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
                                                                             {m.month}
@@ -358,7 +358,7 @@ export default function FeesPage() {
                         </div>
 
                         {/* QR Code */}
-                        <div className="pt-3">
+                        <div className="pt-3 pb-4">
                             <p className="text-xs font-semibold flex items-center gap-1.5 mb-2"><QrCode size={14} /> QR Code</p>
                             <div className="flex justify-center">
                                 {QR_IMAGE_URL ? (
