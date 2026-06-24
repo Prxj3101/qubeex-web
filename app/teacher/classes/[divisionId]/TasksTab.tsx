@@ -2626,7 +2626,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 setValidUntil(t.validUntil ? new Date(t.validUntil).toISOString().slice(0, 16) : '');
                 setIsRandomized(t.isRandomized ?? false);
                 setAnswerSpace(t.answerSpace ?? true);
-                const rawSections = (t.sections ?? []) as Array<Record<string, unknown>>;
+                const rawSections = (t.sections ?? []) as unknown as Array<Record<string, unknown>>;
                 const loadedSections: PaperSection[] = rawSections.map(s => ({
                     id: s.id as string,
                     title: s.title as string,
