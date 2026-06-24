@@ -7,7 +7,7 @@ import {
     Loader2, BookOpen, Layers, Check, X as XIcon,
     Clock, Link2, Play, Eye, ChevronDown, ChevronUp,
     FlaskConical, Brain, Users, Copy, CheckCircle2, AlertCircle,
-    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil,
+    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil, ArrowDownToLine, Share2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -31,10 +31,15 @@ interface ConceptualDetails {
     category?: string;
 }
 
+type QuestionSource = 'AI' | 'MANUAL' | 'IMPORTED';
+
 interface Question {
     id: string;
     type: QuestionType;
     status: QuestionStatus;
+    source: QuestionSource;
+    sourceFile: string | null;
+    uploadBatchId: string | null;
     question: string;
     questionTemplate: string | null;
     options: string[] | null;
@@ -43,8 +48,6 @@ interface Question {
     category: string | null;
     createdAt: string;
     moduleAssignment: { moduleId: string; module: { name: string } } | null;
-    sourceFile?: string | null;
-    uploadBatchId?: string | null;
 }
 
 interface ModuleQuestion {
@@ -80,6 +83,7 @@ interface PaperSection {
     title: string;
     instruction: string;
     questionTypes: QuestionType[];
+    attemptCount: number;     // 0 = attempt all questions
     marksPerQuestion: number;
 }
 
@@ -99,12 +103,13 @@ interface TestBase {
     testLink: string;
     status: TestStatus;
     durationMinutes: number;
-    marksPerQuestion: number;
+    totalMarks: number;
     numberOfQuestions: number;
     maxAttempts: number;
     validUntil: string | null;
     paperType: string;
     isRandomized: boolean;
+    answerSpace: boolean;
     sections: PaperSection[] | null;
     createdAt?: string;
     _count: { attempts: number; submissions?: number };
@@ -131,7 +136,7 @@ interface TestDetail extends TestBase {
 
 const TYPE_META: Record<QuestionType, { label: string; color: string; section: string }> = {
     MCQ:          { label: 'MCQ',        color: 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',   section: 'Section A' },
-    CONCEPTUAL:   { label: 'MCQ',        color: 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',   section: 'Section A' },
+    CONCEPTUAL:   { label: 'MCQ',         color: 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',   section: 'Section A' },
     FILL_BLANK:   { label: 'Fill Blank', color: 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300',           section: 'Section B' },
     TRUE_FALSE:   { label: 'True/False', color: 'bg-pink-100 dark:bg-pink-950 text-pink-700 dark:text-pink-300',           section: 'Section B' },
     SHORT_ANSWER: { label: 'Short Ans',  color: 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300', section: 'Section C' },
@@ -164,6 +169,7 @@ interface Assignment {
     description: string | null;
     status: AssignmentStatus;
     totalMarks: number;
+    numberOfQuestions: number;
     dueDate: string | null;
     createdAt?: string;
     _count: { submissions: number; totalStudents?: number };
@@ -173,51 +179,10 @@ interface Assignment {
 
 export type TasksSubTab = 'questions' | 'tests' | 'assignments' | 'modules';
 
-interface TasksTabProps { divisionId: string; subTab: TasksSubTab; onSubTabChange: (tab: TasksSubTab) => void; onStatsChange?: (stats: { tests: number; assignments: number }) => void; }
+interface TasksTabProps { divisionId: string; subjectId: string | null; subTab: TasksSubTab; onSubTabChange: (tab: TasksSubTab) => void; onStatsChange?: (stats: { tests: number; assignments: number }) => void; }
 
-const MOCK_HISTORY_TEST: Test = {
-    id: 'mock-history-1',
-    title: 'Chapter 1 : DFS Mid-Term Test',
-    description: 'Covers depth-first search, BFS, and graph traversal topics',
-    testLink: 'mock-link-1',
-    status: 'COMPLETED',
-    durationMinutes: 60,
-    marksPerQuestion: 2,
-    numberOfQuestions: 20,
-    maxAttempts: 1,
-    validUntil: '2026-05-10T23:59:00.000Z',
-    createdAt: '2026-05-01T10:30:00.000Z',
-    paperType: 'TEST',
-    isRandomized: false,
-    sections: null,
-    questions: Array(18).fill({ id: 'q', isCompulsory: false }),
-    _count: { attempts: 34, submissions: 31 },
-};
 
-const MOCK_ASSIGNMENTS: Assignment[] = [
-    {
-        id: 'mock-assign-1',
-        title: 'Chapter 2 : Hadoop Assignment',
-        description: 'Implement a basic MapReduce job and submit the output logs',
-        status: 'ACTIVE',
-        totalMarks: 20,
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-        _count: { submissions: 12, totalStudents: 45 },
-    },
-    {
-        id: 'mock-assign-2',
-        title: 'Chapter 1 : DFS Practical Assignment',
-        description: 'Trace DFS and BFS traversal on given graphs and submit handwritten answers',
-        status: 'COMPLETED',
-        totalMarks: 15,
-        dueDate: '2026-05-15T23:59:00.000Z',
-        createdAt: '2026-05-01T09:00:00.000Z',
-        _count: { submissions: 41, totalStudents: 45 },
-    },
-];
-
-export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTabChange, onStatsChange }: TasksTabProps) {
+export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange: _onSubTabChange, onStatsChange }: TasksTabProps) {
 
     // ── Containers ────────────────────────────────────────────────────────────
     interface QContainer { id: string; name: string; createdAt: string; questionCount: number; }
@@ -262,7 +227,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         const trimmed = name.trim();
         if (!trimmed) return;
         try {
-            const res = await api.post('/teacher/tasks/containers', { divisionId, name: trimmed });
+            const res = await api.post('/teacher/tasks/containers', { divisionId, subjectId: subjectId ?? undefined, name: trimmed });
             setContainers(prev => [res.data.data, ...prev]);
             toast.success('Container created');
         } catch (err) { toast.error(apiError(err)); }
@@ -305,6 +270,20 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     const [statusFilter, setStatusFilter] = useState<QuestionStatus | 'ALL'>('ALL');
     const [typeFilter, setTypeFilter] = useState<QuestionType | 'ALL'>('ALL');
 
+    // ── Share / Import ────────────────────────────────────────────────────────
+    const [shareOpen, setShareOpen] = useState(false);
+    const [shareSelectedIds, setShareSelectedIds] = useState<Set<string>>(new Set());
+    const [shareToken, setShareToken] = useState<string | null>(null);
+    const [shareCreating, setShareCreating] = useState(false);
+    const [importOpen, setImportOpen] = useState(false);
+    const [importTokenInput, setImportTokenInput] = useState('');
+    const [importVerifying, setImportVerifying] = useState(false);
+    const [importPreview, setImportPreview] = useState<{ questions: Question[]; expiresAt: string } | null>(null);
+    const [importSelectedIds, setImportSelectedIds] = useState<Set<string>>(new Set());
+    const [importSaving, setImportSaving] = useState(false);
+
+    // ── Manual question entry ─────────────────────────────────────────────────
+
     // ── Upload panel ──────────────────────────────────────────────────────────
     const [generateOpen, setGenerateOpen] = useState(false);
     const [pdfFile, setPdfFile] = useState<File | null>(null);
@@ -320,7 +299,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     const [tests, setTests] = useState<Test[]>([]);
     const [tLoading, setTLoading] = useState(false);
     const [createTestOpen, setCreateTestOpen] = useState(false);
-    const [newTest, setNewTest] = useState({ title: '', description: '', durationMinutes: 60, marksPerQuestion: 1, numberOfQuestions: 10, maxAttempts: 1, validUntil: '' });
+    const [newTest, setNewTest] = useState({ title: '', description: '', durationMinutes: 60, totalMarks: 100, numberOfQuestions: 10, maxAttempts: 1, validUntil: '' });
     const [savingTest, setSavingTest] = useState(false);
     const [copiedLink, setCopiedLink] = useState<string | null>(null);
     const [paperBuilderOpen, setPaperBuilderOpen] = useState(false);
@@ -383,9 +362,9 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         setTLoading(true);
         try {
             const res = await api.get(`/teacher/tasks/tests?divisionId=${divisionId}`);
-            setTests([...res.data.data, MOCK_HISTORY_TEST]);
+            setTests(res.data.data);
         } catch {
-            setTests([MOCK_HISTORY_TEST]);
+            setTests([]);
         } finally {
             setTLoading(false);
         }
@@ -394,19 +373,19 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     const fetchAssignments = useCallback(async () => {
         setALoading(true);
         try {
-            const res = await api.get(`/teacher/tasks/assignments?divisionId=${divisionId}`);
-            setAssignments([...res.data.data, ...MOCK_ASSIGNMENTS]);
+            const res = await api.get(`/teacher/tasks/assignments?divisionId=${divisionId}${subjectId ? `&subjectId=${subjectId}` : ''}`);
+            setAssignments(res.data.data);
         } catch {
-            setAssignments(MOCK_ASSIGNMENTS);
+            setAssignments([]);
         } finally {
             setALoading(false);
         }
-    }, [divisionId]);
+    }, [divisionId, subjectId]);
 
     const fetchModules = useCallback(async () => {
         setMLoading(true);
         try {
-            const res = await api.get(`/teacher/tasks/modules?divisionId=${divisionId}`);
+            const res = await api.get(`/teacher/tasks/modules?divisionId=${divisionId}${subjectId ? `&subjectId=${subjectId}` : ''}`);
             setModules(res.data.data);
         } catch {
             setModules([]);
@@ -418,7 +397,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     const fetchContainers = useCallback(async () => {
         setContainersLoading(true);
         try {
-            const res = await api.get(`/teacher/tasks/containers?divisionId=${divisionId}`);
+            const res = await api.get(`/teacher/tasks/containers?divisionId=${divisionId}${subjectId ? `&subjectId=${subjectId}` : ''}`);
             setContainers(res.data.data);
         } catch {
             setContainers([]);
@@ -428,9 +407,9 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
     }, [divisionId]);
 
     useEffect(() => {
-        if (selectedContainerId) fetchQuestions(selectedContainerId, statusFilter !== 'ALL' ? statusFilter : undefined);
+        if (selectedContainerId) fetchQuestions(selectedContainerId);
         else setQuestions([]);
-    }, [selectedContainerId, statusFilter, fetchQuestions]);
+    }, [selectedContainerId, fetchQuestions]);
 
     useEffect(() => {
         fetchTests();
@@ -526,6 +505,58 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         } catch (err) { toast.error(apiError(err)); }
     };
 
+    const handleEditQuestion = async (id: string, q: string, ans: string, opts?: string[]) => {
+        try {
+            const body: Record<string, unknown> = { question: q, answer: ans };
+            if (opts) body.options = opts;
+            const res = await api.patch(`/teacher/tasks/questions/${id}`, body);
+            setQuestions(prev => prev.map(existing => existing.id === id ? { ...existing, ...res.data.data } : existing));
+            toast.success('Question updated');
+        } catch (err) { toast.error(apiError(err)); }
+    };
+
+
+    const handleCreateShareToken = async () => {
+        if (shareSelectedIds.size === 0) return toast.error('Select at least one question to share');
+        setShareCreating(true);
+        try {
+            const res = await api.post('/teacher/tasks/questions/share', { questionIds: Array.from(shareSelectedIds) });
+            setShareToken(res.data.data.token);
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setShareCreating(false); }
+    };
+
+    const handleVerifyShareToken = async () => {
+        const token = importTokenInput.trim();
+        if (!token) return toast.error('Paste a share code first');
+        setImportVerifying(true);
+        setImportPreview(null);
+        setImportSelectedIds(new Set());
+        try {
+            const res = await api.get(`/teacher/tasks/questions/share/${token}`);
+            setImportPreview(res.data.data);
+            setImportSelectedIds(new Set((res.data.data.questions as Question[]).map((q: Question) => q.id)));
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setImportVerifying(false); }
+    };
+
+    const handleImportQuestions = async () => {
+        if (!selectedContainerId || !importPreview || importSelectedIds.size === 0) return;
+        setImportSaving(true);
+        try {
+            const res = await api.post('/teacher/tasks/questions/import', {
+                token: importTokenInput.trim(),
+                containerId: selectedContainerId,
+                questionIds: Array.from(importSelectedIds),
+            });
+            setQuestions(prev => [...(res.data.data as Question[]), ...prev]);
+            setImportOpen(false);
+            setImportTokenInput(''); setImportPreview(null); setImportSelectedIds(new Set());
+            toast.success(`${res.data.data.length} question(s) imported for review`);
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setImportSaving(false); }
+    };
+
     // ── Tests ──────────────────────────────────────────────────────────────────
 
     const handleCreateAssignment = async () => {
@@ -533,34 +564,19 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         setSavingAssignment(true);
         try {
             const payload: Record<string, unknown> = {
-                divisionId, title: newAssignment.title,
+                divisionId, subjectId: subjectId ?? undefined,
+                title: newAssignment.title,
                 description: newAssignment.description || undefined,
                 totalMarks: newAssignment.totalMarks,
             };
             if (newAssignment.dueDate) payload.dueDate = new Date(newAssignment.dueDate).toISOString();
             const res = await api.post('/teacher/tasks/assignments', payload);
-            const created: Assignment = res.data.data;
-            setAssignments(prev => [created, ...prev]);
+            setAssignments(prev => [res.data.data, ...prev]);
             toast.success('Assignment created');
-        } catch {
-            // optimistic fallback: add a local DRAFT card
-            const local: Assignment = {
-                id: `local-${Date.now()}`,
-                title: newAssignment.title,
-                description: newAssignment.description || null,
-                status: 'DRAFT',
-                totalMarks: newAssignment.totalMarks,
-                dueDate: newAssignment.dueDate ? new Date(newAssignment.dueDate).toISOString() : null,
-                createdAt: new Date().toISOString(),
-                _count: { submissions: 0, totalStudents: 0 },
-            };
-            setAssignments(prev => [local, ...prev]);
-            toast.success('Assignment created');
-        } finally {
-            setSavingAssignment(false);
             setCreateAssignmentOpen(false);
             setNewAssignment({ title: '', description: '', totalMarks: 10, dueDate: '' });
-        }
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setSavingAssignment(false); }
     };
 
     const handleCreateTest = async () => {
@@ -568,8 +584,8 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         setSavingTest(true);
         try {
             const payload: Record<string, unknown> = {
-                divisionId, title: newTest.title, description: newTest.description || undefined,
-                durationMinutes: newTest.durationMinutes, marksPerQuestion: newTest.marksPerQuestion,
+                divisionId, subjectId: subjectId ?? undefined, title: newTest.title, description: newTest.description || undefined,
+                durationMinutes: newTest.durationMinutes, totalMarks: newTest.totalMarks,
                 numberOfQuestions: newTest.numberOfQuestions, maxAttempts: newTest.maxAttempts,
             };
             if (newTest.validUntil) payload.validUntil = new Date(newTest.validUntil).toISOString();
@@ -578,7 +594,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
             setTests(prev => [created, ...prev]);
             toast.success('Test created — opening Paper Builder');
             setCreateTestOpen(false);
-            setNewTest({ title: '', description: '', durationMinutes: 60, marksPerQuestion: 1, numberOfQuestions: 10, maxAttempts: 1, validUntil: '' });
+            setNewTest({ title: '', description: '', durationMinutes: 60, totalMarks: 100, numberOfQuestions: 10, maxAttempts: 1, validUntil: '' });
             setPaperBuilderTestId(created.id);
             setPaperBuilderOpen(true);
         } catch (err) { toast.error(apiError(err)); } finally { setSavingTest(false); }
@@ -597,6 +613,22 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
             await api.delete(`/teacher/tasks/tests/${id}`);
             setTests(prev => prev.filter(t => t.id !== id));
             toast.success('Test deleted');
+        } catch (err) { toast.error(apiError(err)); }
+    };
+
+    const deleteAssignment = async (id: string) => {
+        try {
+            await api.delete(`/teacher/tasks/assignments/${id}`);
+            setAssignments(prev => prev.filter(a => a.id !== id));
+            toast.success('Assignment deleted');
+        } catch (err) { toast.error(apiError(err)); }
+    };
+
+    const updateAssignmentStatus = async (id: string, status: AssignmentStatus) => {
+        try {
+            const res = await api.patch(`/teacher/tasks/assignments/${id}`, { status });
+            setAssignments(prev => prev.map(a => a.id === id ? { ...a, ...res.data.data } : a));
+            toast.success(status === 'ACTIVE' ? 'Assignment activated' : 'Assignment completed');
         } catch (err) { toast.error(apiError(err)); }
     };
 
@@ -624,23 +656,46 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
 
     const assignToModule = async (questionId: string, moduleId: string) => {
         try {
-            await api.post(`/teacher/tasks/modules/${moduleId}/questions`, { questionId });
+            const res = await api.post(`/teacher/tasks/modules/${moduleId}/questions`, { questionId });
             const mod = modules.find(m => m.id === moduleId);
             setQuestions(prev => prev.map(q => q.id === questionId
                 ? { ...q, moduleAssignment: { moduleId, module: { name: mod?.name ?? '' } } }
                 : q));
+            const theQ = questions.find(q => q.id === questionId);
+            if (theQ) {
+                const newMQ: ModuleQuestion = {
+                    id: res.data.data.id,
+                    questionId,
+                    assignedAt: res.data.data.assignedAt ?? new Date().toISOString(),
+                    question: {
+                        id: theQ.id, type: theQ.type, status: theQ.status,
+                        question: theQ.question, options: theQ.options, answer: theQ.answer,
+                        createdAt: theQ.createdAt,
+                        details: theQ.details as ModuleQuestion['question']['details'],
+                        category: theQ.category,
+                    },
+                };
+                setModules(prev => prev.map(m => m.id === moduleId ? { ...m, questions: [...m.questions, newMQ] } : m));
+            }
             toast.success(`Added to ${mod?.name ?? 'module'}`);
+        } catch (err) { toast.error(apiError(err)); }
+    };
+
+    const removeFromModule = async (moduleId: string, questionId: string) => {
+        try {
+            await api.delete(`/teacher/tasks/modules/${moduleId}/questions/${questionId}`);
+            setModules(prev => prev.map(m => m.id === moduleId
+                ? { ...m, questions: m.questions.filter(mq => mq.questionId !== questionId) }
+                : m));
+            setQuestions(prev => prev.map(q => q.id === questionId ? { ...q, moduleAssignment: null } : q));
+            toast.success('Removed from module');
         } catch (err) { toast.error(apiError(err)); }
     };
 
     const unassignFromModule = async (questionId: string) => {
         const q = questions.find(q2 => q2.id === questionId);
         if (!q?.moduleAssignment) return;
-        try {
-            await api.delete(`/teacher/tasks/modules/${q.moduleAssignment.moduleId}/questions/${questionId}`);
-            setQuestions(prev => prev.map(q2 => q2.id === questionId ? { ...q2, moduleAssignment: null } : q2));
-            toast.success('Removed from module');
-        } catch (err) { toast.error(apiError(err)); }
+        await removeFromModule(q.moduleAssignment.moduleId, questionId);
     };
 
     // ── Modules ────────────────────────────────────────────────────────────────
@@ -649,7 +704,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         if (!newModName.trim()) return toast.error('Module name is required');
         setSavingModule(true);
         try {
-            const res = await api.post('/teacher/tasks/modules', { divisionId, name: newModName, description: newModDesc || undefined });
+            const res = await api.post('/teacher/tasks/modules', { divisionId, subjectId: subjectId ?? undefined, name: newModName, description: newModDesc || undefined });
             setModules(prev => [...prev, res.data.data]);
             toast.success('Module created');
             setCreatingModule(false);
@@ -695,56 +750,39 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
         setSavingEditModule(true);
         try {
             const res = await api.patch(`/teacher/tasks/modules/${editingModuleId}`, { name: editModName, description: editModDesc || undefined });
-            setModules(prev => prev.map(m => m.id === editingModuleId ? { ...m, ...res.data.data } : m));
+            setModules(prev => prev.map(m => m.id === editingModuleId ? { ...m, name: res.data.data.name ?? editModName, description: res.data.data.description ?? editModDesc } : m));
             toast.success('Module updated');
-        } catch {
-            setModules(prev => prev.map(m => m.id === editingModuleId ? { ...m, name: editModName, description: editModDesc } as any : m));
-            toast.success('Module updated');
+            setEditingModuleId(null);
+        } catch (err) {
+            toast.error(apiError(err));
         } finally {
             setSavingEditModule(false);
-            setEditingModuleId(null);
         }
     };
 
     const saveCustomQuestion = async (moduleId: string) => {
         if (!customQ.question.trim()) return toast.error('Question text is required');
         if (customQ.type === 'MCQ' && customQ.options.some(o => !o.trim())) return toast.error('Fill all 4 MCQ options');
+        if (customQ.type === 'MCQ' && !customQ.answer.trim()) return toast.error('Select the correct option');
+        if (customQ.type === 'NUMERICAL' && isNaN(Number(customQ.answer.trim()))) return toast.error('Numerical answer must be a number');
         if (!customQ.answer.trim()) return toast.error('Answer is required');
         setSavingCustomQ(true);
         try {
             const payload: Record<string, unknown> = {
                 type: customQ.type,
-                question: customQ.question,
-                answer: customQ.answer,
-                moduleId,
-                status: 'APPROVED',
+                question: customQ.question.trim(),
+                answer: customQ.answer.trim(),
             };
             if (customQ.type === 'MCQ') payload.options = customQ.options;
-            if (customQ.type === 'NUMERICAL') payload.details = { correct_answer_formula: customQ.formula, variables: {} };
-            const res = await api.post('/teacher/tasks/questions/custom', payload);
+            if (customQ.type === 'NUMERICAL') payload.formula = customQ.formula.trim() || undefined;
+            const res = await api.post(`/teacher/tasks/modules/${moduleId}/questions/manual`, payload);
             const newMQ: ModuleQuestion = res.data.data;
             setModules(prev => prev.map(m => m.id === moduleId ? { ...m, questions: [...m.questions, newMQ] } : m));
             toast.success('Question added');
-        } catch {
-            // optimistic local add
-            const localMQ: ModuleQuestion = {
-                id: `local-${Date.now()}`, questionId: `local-q-${Date.now()}`, assignedAt: new Date().toISOString(),
-                question: {
-                    id: `local-q-${Date.now()}`, type: customQ.type, status: 'APPROVED',
-                    question: customQ.question,
-                    options: customQ.type === 'MCQ' ? customQ.options : null,
-                    answer: customQ.answer, createdAt: new Date().toISOString(),
-                    details: customQ.type === 'NUMERICAL' ? { correct_answer_formula: customQ.formula, variables: {} } : null,
-                    category: null,
-                },
-            };
-            setModules(prev => prev.map(m => m.id === moduleId ? { ...m, questions: [...m.questions, localMQ] } : m));
-            toast.success('Question added');
-        } finally {
-            setSavingCustomQ(false);
             setAddQModuleId(null);
             setCustomQ({ type: 'MCQ', question: '', answer: '', options: ['', '', '', ''], formula: '' });
-        }
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setSavingCustomQ(false); }
     };
 
     // ── Filtered questions ─────────────────────────────────────────────────────
@@ -766,27 +804,28 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
 
     const approvedQuestions = questions.filter(q => q.status === 'APPROVED');
 
-    // Group displayed questions by upload batch.
-    // If uploadBatchId is present, use it. Otherwise fall back to date-proximity:
-    // a gap of >2 min between consecutive questions = new batch.
+    // Group displayed questions by source + upload batch.
+    // MANUAL → group key "MANUAL"; IMPORTED → "IMPORTED"; AI → by uploadBatchId or 2-min proximity.
     const groupedQuestions = useMemo(() => {
-        type Group = { batchId: string | null; sourceFile: string | null; generatedAt: string; items: Question[] };
+        type Group = { batchId: string | null; sourceFile: string | null; source: QuestionSource; generatedAt: string; items: Question[] };
         const groups: Group[] = [];
 
         for (let i = 0; i < displayedQuestions.length; i++) {
             const q = displayedQuestions[i];
             const prev = groups[groups.length - 1];
-
             const prevLastCreatedAt = prev?.items[prev.items.length - 1]?.createdAt;
-            const sameAsPrev = prev && (
-                q.uploadBatchId
-                    ? q.uploadBatchId === prev.batchId
-                    : !q.uploadBatchId && prevLastCreatedAt
-                        && (Math.abs(new Date(q.createdAt).getTime() - new Date(prevLastCreatedAt).getTime()) < 2 * 60 * 1000)
+
+            const sameAsPrev = prev && prev.source === q.source && (
+                q.source !== 'AI'
+                    ? true // merge all MANUAL/IMPORTED into one group each
+                    : q.uploadBatchId
+                        ? q.uploadBatchId === prev.batchId
+                        : !q.uploadBatchId && prevLastCreatedAt
+                            && (Math.abs(new Date(q.createdAt).getTime() - new Date(prevLastCreatedAt).getTime()) < 2 * 60 * 1000)
             );
 
             if (!sameAsPrev) {
-                groups.push({ batchId: q.uploadBatchId ?? null, sourceFile: q.sourceFile ?? null, generatedAt: q.createdAt, items: [] });
+                groups.push({ batchId: q.uploadBatchId ?? null, sourceFile: q.sourceFile ?? null, source: q.source, generatedAt: q.createdAt, items: [] });
             }
             groups[groups.length - 1].items.push(q);
         }
@@ -919,12 +958,16 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                         </button>
                     )}
                     {subTab === 'questions' && selectedContainerId && (
-                        <button onClick={() => {
-                            const url = `/api/teacher/tasks/questions/export?containerId=${selectedContainerId}`;
-                            window.open(process.env.NEXT_PUBLIC_API_URL?.replace('/api', '') + url || url);
-                        }} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg border border-border hover:bg-muted transition-all">
-                            <Download size={13} /> Export
-                        </button>
+                        <>
+                            <button onClick={() => { setImportOpen(true); setImportTokenInput(''); setImportPreview(null); setImportSelectedIds(new Set()); }}
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg border border-border hover:bg-muted transition-all">
+                                <ArrowDownToLine size={13} /> Import
+                            </button>
+                            <button onClick={() => { setShareOpen(true); setShareToken(null); setShareSelectedIds(new Set(containerQuestions.map(q => q.id))); }}
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1.5 rounded-lg border border-border hover:bg-muted transition-all">
+                                <Share2 size={13} /> Share
+                            </button>
+                        </>
                     )}
                 </div>
             </div>
@@ -1161,7 +1204,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                         {count}
                                     </button>
                                 ))}
-                                <button onClick={() => selectedContainerId && fetchQuestions(selectedContainerId, statusFilter !== 'ALL' ? statusFilter : undefined)}
+                                <button onClick={() => selectedContainerId && fetchQuestions(selectedContainerId)}
                                     className="ml-auto p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-all" title="Refresh">
                                     <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                                 </button>
@@ -1185,16 +1228,32 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                     (() => {
                                         let globalIdx = 0;
                                         return groupedQuestions.map((group, gIdx) => (
-                                            <div key={group.batchId ?? gIdx}>
-                                                {/* PDF source header — before this group's questions */}
+                                            <div key={group.batchId ?? group.source + gIdx}>
+                                                {/* Source group header */}
                                                 <div className={`flex items-center gap-3 ${gIdx === 0 ? 'mb-3' : 'mt-5 mb-3'}`}>
                                                     <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/60 border border-border/60 text-[11px] text-muted-foreground shrink-0">
-                                                        <FileText size={11} className="text-primary/60" />
-                                                        <span className="font-medium text-foreground/70">{group.sourceFile ?? 'Untitled PDF'}</span>
-                                                        <span className="opacity-50">·</span>
-                                                        <span>{new Date(group.generatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                                                        <span className="opacity-50">at</span>
-                                                        <span>{new Date(group.generatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                                                        {group.source === 'MANUAL' ? (
+                                                            <>
+                                                                <Pencil size={11} className="text-primary/60" />
+                                                                <span className="font-medium text-foreground/70">Manually added</span>
+                                                            </>
+                                                        ) : group.source === 'IMPORTED' ? (
+                                                            <>
+                                                                <ArrowDownToLine size={11} className="text-primary/60" />
+                                                                <span className="font-medium text-foreground/70">Imported</span>
+                                                                <span className="opacity-50">·</span>
+                                                                <span>{new Date(group.generatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <FileText size={11} className="text-primary/60" />
+                                                                <span className="font-medium text-foreground/70">{group.sourceFile ?? 'PDF'}</span>
+                                                                <span className="opacity-50">·</span>
+                                                                <span>{new Date(group.generatedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                                                                <span className="opacity-50">at</span>
+                                                                <span>{new Date(group.generatedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                                                            </>
+                                                        )}
                                                     </div>
                                                     <div className="flex-1 h-px bg-border/60" />
                                                 </div>
@@ -1210,6 +1269,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                                                 onDelete={() => q.status === 'REJECTED' ? deleteQuestion(q.id) : updateStatus(q.id, 'REJECTED')}
                                                                 onAssignModule={(moduleId) => assignToModule(q.id, moduleId)}
                                                                 onUnassignModule={() => unassignFromModule(q.id)}
+                                                                onEdit={(qText, ans, opts) => handleEditQuestion(q.id, qText, ans, opts)}
                                                             />
                                                         </div>
                                                     );
@@ -1227,6 +1287,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                             onDelete={() => q.status === 'REJECTED' ? deleteQuestion(q.id) : updateStatus(q.id, 'REJECTED')}
                                             onAssignModule={(moduleId) => assignToModule(q.id, moduleId)}
                                             onUnassignModule={() => unassignFromModule(q.id)}
+                                            onEdit={(qText, ans, opts) => handleEditQuestion(q.id, qText, ans, opts)}
                                         />
                                     ))
                                 )}
@@ -1336,7 +1397,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                             <p className="text-xs text-muted-foreground pl-1">No active or draft assignments</p>
                                         ) : (
                                             <div className="grid grid-cols-1 gap-3 px-1">
-                                                {liveAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} />)}
+                                                {liveAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => updateAssignmentStatus(a.id, 'COMPLETED')} />)}
                                             </div>
                                         )}
                                     </div>
@@ -1353,7 +1414,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                                 <div className="flex-1 h-px bg-border/60" />
                                             </div>
                                             <div className="grid grid-cols-1 gap-3 px-1">
-                                                {historyAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} />)}
+                                                {historyAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => updateAssignmentStatus(a.id, 'COMPLETED')} />)}
                                             </div>
                                         </div>
                                     )}
@@ -1455,9 +1516,14 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                                             {m.questions.length === 0 ? (
                                                                 <p className="text-xs text-muted-foreground py-2">No questions in this module</p>
                                                             ) : m.questions.map(mq => (
-                                                                <div key={mq.id} className="flex items-start gap-2 py-1.5">
+                                                                <div key={mq.id} className="flex items-start gap-2 py-1.5 group/mq">
                                                                     <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[mq.question.type]?.color ?? 'bg-muted text-muted-foreground'}`}>{TYPE_META[mq.question.type]?.label}</span>
                                                                     <span className="flex-1 text-sm">{mq.question.question}</span>
+                                                                    <button onClick={() => removeFromModule(m.id, mq.questionId)}
+                                                                        className="shrink-0 text-muted-foreground hover:text-red-500 opacity-0 group-hover/mq:opacity-100 transition-all p-0.5 rounded mt-0.5"
+                                                                        title="Remove from module">
+                                                                        <X size={12} />
+                                                                    </button>
                                                                 </div>
                                                             ))}
                                                         </div>
@@ -1592,6 +1658,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                     approvedQuestions={approvedQuestions}
                     modules={modules}
                     lockedPaperType={paperBuilderType}
+                    entityType={paperBuilderType === 'ASSIGNMENT' ? 'assignment' : 'test'}
                     onClose={() => { setPaperBuilderOpen(false); setPaperBuilderTestId(null); }}
                     onSaved={handlePaperSaved}
                 />
@@ -1648,7 +1715,7 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                                 </div>
                                 {[
                                     { label: 'Duration (mins)', key: 'durationMinutes', min: 5, max: 300 },
-                                    { label: 'Marks / Question', key: 'marksPerQuestion', min: 1, max: 10 },
+                                    { label: 'Total Marks', key: 'totalMarks', min: 1, max: 1000 },
                                     { label: 'No. of Questions', key: 'numberOfQuestions', min: 1, max: 100 },
                                     { label: 'Max Attempts', key: 'maxAttempts', min: 1, max: 10 },
                                 ].map(({ label, key, min, max }) => (
@@ -1845,13 +1912,160 @@ export default function TasksTab({ divisionId, subTab, onSubTabChange: _onSubTab
                     </>
                 )}
             </AnimatePresence>
+
+            {/* Share modal */}
+            <AnimatePresence>
+                {shareOpen && (
+                    <>
+                        <motion.div key="sh-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setShareOpen(false)} />
+                        <motion.div key="sh-modal" initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.92, y: 16 }} transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none px-4">
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-md pointer-events-auto flex flex-col gap-4 max-h-[85vh]">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold">Share questions</p>
+                                    <button onClick={() => setShareOpen(false)} className="text-muted-foreground hover:text-foreground text-lg leading-none">×</button>
+                                </div>
+
+                                {shareToken ? (
+                                    <div className="flex flex-col gap-3">
+                                        <p className="text-xs text-muted-foreground">Share this code with another teacher in your institution. It expires in 7 days.</p>
+                                        <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
+                                            <span className="flex-1 text-sm font-mono break-all select-all">{shareToken}</span>
+                                            <button onClick={() => { navigator.clipboard.writeText(shareToken); toast.success('Copied!'); }}
+                                                className="shrink-0 text-xs px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                                <Copy size={13} />
+                                            </button>
+                                        </div>
+                                        <p className="text-[11px] text-muted-foreground">The recipient opens their container → Import → pastes this code.</p>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <p className="text-xs text-muted-foreground">Select approved questions to share. The recipient can import them into their own container.</p>
+                                        <div className="flex-1 overflow-y-auto flex flex-col gap-1 max-h-72">
+                                            {containerQuestions.length === 0 ? (
+                                                <p className="text-xs text-muted-foreground text-center py-6">No questions in this container yet.</p>
+                                            ) : (
+                                                <>
+                                                    <button onClick={() => setShareSelectedIds(
+                                                        shareSelectedIds.size === containerQuestions.length
+                                                            ? new Set()
+                                                            : new Set(containerQuestions.map(q => q.id))
+                                                    )} className="text-xs text-primary hover:underline self-start mb-1">
+                                                        {shareSelectedIds.size === containerQuestions.length ? 'Deselect all' : 'Select all'}
+                                                    </button>
+                                                    {containerQuestions.map(q => (
+                                                        <label key={q.id} className="flex items-start gap-2.5 cursor-pointer px-3 py-2 rounded-lg hover:bg-muted/60 transition-all">
+                                                            <input type="checkbox" checked={shareSelectedIds.has(q.id)}
+                                                                onChange={e => {
+                                                                    const next = new Set(shareSelectedIds);
+                                                                    e.target.checked ? next.add(q.id) : next.delete(q.id);
+                                                                    setShareSelectedIds(next);
+                                                                }} className="mt-0.5 shrink-0" />
+                                                            <span className="text-sm leading-snug line-clamp-2">{q.question}</span>
+                                                        </label>
+                                                    ))}
+                                                </>
+                                            )}
+                                        </div>
+                                        <div className="flex gap-2 justify-end pt-1">
+                                            <button onClick={() => setShareOpen(false)}
+                                                className="text-xs px-4 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                                Cancel
+                                            </button>
+                                            <button onClick={handleCreateShareToken} disabled={shareCreating || shareSelectedIds.size === 0}
+                                                className="text-xs px-4 py-1.5 rounded-lg text-white font-medium transition-all disabled:opacity-60"
+                                                style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                                                {shareCreating ? 'Generating…' : `Generate link (${shareSelectedIds.size})`}
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Import modal */}
+            <AnimatePresence>
+                {importOpen && (
+                    <>
+                        <motion.div key="im-overlay" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setImportOpen(false)} />
+                        <motion.div key="im-modal" initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.92, y: 16 }} transition={{ type: 'spring', stiffness: 380, damping: 28 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none px-4">
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-md pointer-events-auto flex flex-col gap-4 max-h-[85vh]">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-sm font-semibold">Import questions</p>
+                                    <button onClick={() => setImportOpen(false)} className="text-muted-foreground hover:text-foreground text-lg leading-none">×</button>
+                                </div>
+
+                                <div className="flex gap-2">
+                                    <input value={importTokenInput} onChange={e => setImportTokenInput(e.target.value)}
+                                        placeholder="Paste share code here…"
+                                        className="flex-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                    <button onClick={handleVerifyShareToken} disabled={importVerifying}
+                                        className="text-xs px-3 py-2 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all disabled:opacity-60 shrink-0">
+                                        {importVerifying ? <Loader2 size={13} className="animate-spin" /> : 'Verify'}
+                                    </button>
+                                </div>
+
+                                {importPreview && (
+                                    <>
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs text-muted-foreground">{importPreview.questions.length} question(s) in this share. Select which to import.</p>
+                                            <button onClick={() => setImportSelectedIds(
+                                                importSelectedIds.size === importPreview.questions.length
+                                                    ? new Set()
+                                                    : new Set(importPreview.questions.map(q => q.id))
+                                            )} className="text-xs text-primary hover:underline">
+                                                {importSelectedIds.size === importPreview.questions.length ? 'Deselect all' : 'Select all'}
+                                            </button>
+                                        </div>
+                                        <div className="flex-1 overflow-y-auto flex flex-col gap-1 max-h-64">
+                                            {importPreview.questions.map(q => (
+                                                <label key={q.id} className="flex items-start gap-2.5 cursor-pointer px-3 py-2 rounded-lg hover:bg-muted/60 transition-all">
+                                                    <input type="checkbox" checked={importSelectedIds.has(q.id)}
+                                                        onChange={e => {
+                                                            const next = new Set(importSelectedIds);
+                                                            e.target.checked ? next.add(q.id) : next.delete(q.id);
+                                                            setImportSelectedIds(next);
+                                                        }} className="mt-0.5 shrink-0" />
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm leading-snug line-clamp-2">{q.question}</p>
+                                                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md mt-0.5 inline-block ${TYPE_META[q.type]?.color ?? 'bg-muted text-muted-foreground'}`}>{TYPE_META[q.type]?.label ?? q.type}</span>
+                                                    </div>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        <div className="flex gap-2 justify-end pt-1">
+                                            <button onClick={() => setImportOpen(false)}
+                                                className="text-xs px-4 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                                Cancel
+                                            </button>
+                                            <button onClick={handleImportQuestions} disabled={importSaving || importSelectedIds.size === 0}
+                                                className="text-xs px-4 py-1.5 rounded-lg text-white font-medium transition-all disabled:opacity-60"
+                                                style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                                                {importSaving ? 'Importing…' : `Import selected (${importSelectedIds.size})`}
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
 
 // ── Question Card ─────────────────────────────────────────────────────────────
 
-function QuestionCard({ question, modules, index, onApprove, onReject, onDelete, onAssignModule, onUnassignModule }: {
+function QuestionCard({ question, modules, index, onApprove, onReject, onDelete, onAssignModule, onUnassignModule, onEdit }: {
     question: Question;
     modules: TaskModule[];
     index: number;
@@ -1860,6 +2074,7 @@ function QuestionCard({ question, modules, index, onApprove, onReject, onDelete,
     onDelete: () => void;
     onAssignModule: (moduleId: string) => void;
     onUnassignModule: () => void;
+    onEdit: (q: string, ans: string, opts?: string[]) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
     const [moduleDropdownOpen, setModuleDropdownOpen] = useState(false);
@@ -1867,6 +2082,23 @@ function QuestionCard({ question, modules, index, onApprove, onReject, onDelete,
     const [editOpen, setEditOpen] = useState(false);
     const [editQuestion, setEditQuestion] = useState(question.question);
     const [editAnswer, setEditAnswer] = useState(question.answer);
+    const isMcqType = question.type === 'MCQ' || question.type === 'CONCEPTUAL';
+    const initialOptions = isMcqType
+        ? (question.type === 'MCQ' ? (question.options ?? ['', '', '', '']) : (() => {
+              const cd = question.details as ConceptualDetails | null;
+              if (!cd) return ['', '', '', ''];
+              return [cd.correct_answer, ...(cd.distractors ?? ['', '', ''])].slice(0, 4);
+          })())
+        : ['', '', '', ''];
+    const [editOptions, setEditOptions] = useState<string[]>(initialOptions);
+    const [editCorrectIdx, setEditCorrectIdx] = useState<number>(() => {
+        if (!isMcqType) return 0;
+        if (question.type === 'MCQ') return (question.options ?? []).indexOf(question.answer);
+        const cd = question.details as ConceptualDetails | null;
+        if (!cd) return 0;
+        const all = [cd.correct_answer, ...(cd.distractors ?? [])].slice(0, 4);
+        return 0; // correct_answer is always first
+    });
     const meta = TYPE_META[question.type];
     const statusMeta = STATUS_META[question.status];
     const marks = (question.details as Record<string, unknown> | null)?.marks as number | undefined;
@@ -2075,19 +2307,36 @@ function QuestionCard({ question, modules, index, onApprove, onReject, onDelete,
                                 <textarea value={editQuestion} onChange={e => setEditQuestion(e.target.value)} rows={3}
                                     className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40" />
                             </div>
-                            <div className="flex flex-col gap-1">
-                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Answer</label>
-                                <textarea value={editAnswer} onChange={e => setEditAnswer(e.target.value)} rows={2}
-                                    className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                            </div>
+                            {isMcqType ? (
+                                <div className="flex flex-col gap-1.5">
+                                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Options (select correct)</label>
+                                    {editOptions.map((opt, i) => (
+                                        <div key={i} className="flex items-center gap-2">
+                                            <button onClick={() => { setEditCorrectIdx(i); setEditAnswer(editOptions[i]); }}
+                                                className={`w-4 h-4 rounded-full border-2 shrink-0 ${editCorrectIdx === i ? 'border-emerald-500 bg-emerald-500' : 'border-border'}`} />
+                                            <span className="text-xs text-muted-foreground shrink-0 w-4">{'ABCD'[i]}.</span>
+                                            <input value={opt} onChange={e => {
+                                                const next = [...editOptions]; next[i] = e.target.value;
+                                                setEditOptions(next);
+                                                if (editCorrectIdx === i) setEditAnswer(e.target.value);
+                                            }} className="flex-1 text-sm rounded-lg border border-border bg-background px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="flex flex-col gap-1">
+                                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Answer</label>
+                                    <textarea value={editAnswer} onChange={e => setEditAnswer(e.target.value)} rows={2}
+                                        className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
+                            )}
                             <div className="flex gap-2 justify-end">
                                 <button onClick={() => setEditOpen(false)}
                                     className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
                                     Cancel
                                 </button>
                                 <button onClick={() => {
-                                        question.question = editQuestion;
-                                        question.answer = editAnswer;
+                                        onEdit(editQuestion, editAnswer, isMcqType ? editOptions : undefined);
                                         setEditOpen(false);
                                     }}
                                     className="text-xs px-3 py-1.5 rounded-lg text-white font-medium transition-all"
@@ -2105,7 +2354,10 @@ function QuestionCard({ question, modules, index, onApprove, onReject, onDelete,
 
 // ── Assignment Card ───────────────────────────────────────────────────────────
 
-function AssignmentCard({ assignment, onOpen }: { assignment: Assignment; onOpen: () => void }) {
+function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete }: {
+    assignment: Assignment; onOpen: () => void;
+    onDelete: () => void; onActivate: () => void; onComplete: () => void;
+}) {
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const effectiveStatus: AssignmentStatus = (assignment.dueDate && new Date(assignment.dueDate) < new Date()) ? 'COMPLETED' : assignment.status;
     const statusColor = {
@@ -2123,7 +2375,7 @@ function AssignmentCard({ assignment, onOpen }: { assignment: Assignment; onOpen
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md shrink-0 ${statusColor}`}>{effectiveStatus}</span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground"><FileText size={12} />{assignment.totalMarks} marks</span>
                         <span className="text-muted-foreground opacity-40">·</span>
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 size={12} />— submitted</span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><BookOpen size={12} />{assignment.numberOfQuestions} questions</span>
                         {assignment._count.totalStudents != null && (
                             <>
                                 <span className="text-muted-foreground opacity-40">·</span>
@@ -2157,7 +2409,7 @@ function AssignmentCard({ assignment, onOpen }: { assignment: Assignment; onOpen
                                             className="px-2.5 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
                                             Cancel
                                         </button>
-                                        <button onClick={() => setDeleteConfirm(false)}
+                                        <button onClick={() => { setDeleteConfirm(false); onDelete(); }}
                                             className="px-2.5 py-1 text-xs rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
                                             Delete
                                         </button>
@@ -2178,13 +2430,13 @@ function AssignmentCard({ assignment, onOpen }: { assignment: Assignment; onOpen
                 </div>
                 <div className="flex items-center gap-2">
                     {effectiveStatus === 'DRAFT' && (
-                        <button className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
+                        <button onClick={onActivate} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
                             <Play size={12} /> Activate
                         </button>
                     )}
                     {effectiveStatus === 'ACTIVE' && (
-                        <button className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
-                            <ArrowRight size={12} /> Resend
+                        <button onClick={onComplete} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
+                            <CheckCircle2 size={12} /> Complete
                         </button>
                     )}
                     <button onClick={onOpen} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
@@ -2290,7 +2542,7 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, copiedLink }
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><Clock size={12} />{test.durationMinutes} min</span>
                     <span className="opacity-40">·</span>
-                    <span>{test.marksPerQuestion} marks/q</span>
+                    <span>{test.totalMarks} marks</span>
                     <span className="opacity-40">|</span>
                     <span><span className="text-foreground/50">Created at:</span> {test.createdAt ? `${new Date(test.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(test.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
                     <span className="opacity-40">·</span>
@@ -2321,11 +2573,12 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, copiedLink }
 
 // ── Paper Builder ─────────────────────────────────────────────────────────────
 
-function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onClose, onSaved }: {
+function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, entityType, onClose, onSaved }: {
     testId: string;
     approvedQuestions: Question[];
     modules: TaskModule[];
     lockedPaperType: 'TEST' | 'ASSIGNMENT';
+    entityType: 'test' | 'assignment';
     onClose: () => void;
     onSaved: () => void;
 }) {
@@ -2348,6 +2601,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
     const [maxAttempts, setMaxAttempts] = useState(1);
     const [validUntil, setValidUntil] = useState('');
     const [isRandomized, setIsRandomized] = useState(false);
+    const [answerSpace, setAnswerSpace] = useState(true);
 
     // Builder state
     const [sections, setSections] = useState<PaperSection[]>([]);
@@ -2358,7 +2612,10 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
     const [expandedModuleId, setExpandedModuleId] = useState<string | null>(null);
 
     useEffect(() => {
-        api.get(`/teacher/tasks/tests/${testId}`)
+        const loadUrl = entityType === 'assignment'
+            ? `/teacher/tasks/assignments/${testId}`
+            : `/teacher/tasks/tests/${testId}`;
+        api.get(loadUrl)
             .then(res => {
                 const t: TestDetail = res.data.data;
                 setTitle(t.title);
@@ -2368,12 +2625,22 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
                 setMaxAttempts(t.maxAttempts);
                 setValidUntil(t.validUntil ? new Date(t.validUntil).toISOString().slice(0, 16) : '');
                 setIsRandomized(t.isRandomized ?? false);
-                const loadedSections = (t.sections ?? []) as PaperSection[];
+                setAnswerSpace(t.answerSpace ?? true);
+                const rawSections = (t.sections ?? []) as Array<Record<string, unknown>>;
+                const loadedSections: PaperSection[] = rawSections.map(s => ({
+                    id: s.id as string,
+                    title: s.title as string,
+                    instruction: (s.instruction as string) ?? '',
+                    questionTypes: (s.questionTypes as QuestionType[]) ?? [],
+                    attemptCount: (s.attemptCount as number) ?? 0,
+                    marksPerQuestion: (s.marksPerQuestion as number) ?? 1,
+                }));
                 const defaultSections: PaperSection[] = loadedSections.length > 0 ? loadedSections : [{
                     id: crypto.randomUUID(),
                     title: 'Section A',
                     instruction: '',
                     questionTypes: [],
+                    attemptCount: 0,
                     marksPerQuestion: 1,
                 }];
                 setSections(defaultSections);
@@ -2401,6 +2668,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
             title: `Section ${String.fromCharCode(65 + sections.length)}`,
             instruction: '',
             questionTypes: [],
+            attemptCount: 0,
             marksPerQuestion: 1,
         };
         setSections(prev => [...prev, newSec]);
@@ -2421,11 +2689,12 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
             toast.info('Already in paper');
             return;
         }
-        const section = sections.find(s => s.id === activeSectionId);
+        const sectionId = paperType === 'TEST' ? (activeSectionId ?? null) : null;
+        const section = sections.find(s => s.id === sectionId);
         setBuilderQs(prev => [...prev, {
             questionId: question.id,
-            sectionId: paperType === 'TEST' ? (activeSectionId ?? null) : null,
-            marks: section?.marksPerQuestion ?? 1,
+            sectionId,
+            marks: section ? section.marksPerQuestion : 1,
             order: prev.length,
             isCompulsory: true,
             question,
@@ -2450,28 +2719,45 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
     };
 
     const savePaper = async (activate = false) => {
-        if (!title.trim()) return toast.error('Test title is required');
+        if (!title.trim()) return toast.error('Title is required');
         setSaving(true);
         try {
-            await api.put(`/teacher/tasks/tests/${testId}/paper`, {
-                title,
-                description: description || null,
-                paperType,
-                durationMinutes,
-                maxAttempts,
-                validUntil: validUntil ? new Date(validUntil).toISOString() : null,
-                isRandomized,
-                sections: paperType === 'TEST' ? sections : [],
-                questions: builderQs.map((q, i) => ({
-                    questionId: q.questionId,
-                    sectionId: q.sectionId,
-                    marks: q.marks,
-                    order: i,
-                    isCompulsory: q.isCompulsory,
-                })),
-            });
-            if (activate) {
-                await api.patch(`/teacher/tasks/tests/${testId}`, { status: 'ACTIVE' });
+            const questionPayload = builderQs.map((q, i) => ({
+                questionId: q.questionId,
+                sectionId: q.sectionId,
+                marks: q.marks,
+                order: i,
+                isCompulsory: q.isCompulsory,
+            }));
+
+            if (entityType === 'assignment') {
+                await api.put(`/teacher/tasks/assignments/${testId}/paper`, {
+                    title,
+                    description: description || null,
+                    isRandomized,
+                    answerSpace,
+                    sections,
+                    questions: questionPayload,
+                });
+                if (activate) {
+                    await api.patch(`/teacher/tasks/assignments/${testId}`, { status: 'ACTIVE' });
+                }
+            } else {
+                await api.put(`/teacher/tasks/tests/${testId}/paper`, {
+                    title,
+                    description: description || null,
+                    paperType,
+                    durationMinutes,
+                    maxAttempts,
+                    validUntil: validUntil ? new Date(validUntil).toISOString() : null,
+                    isRandomized,
+                    answerSpace,
+                    sections: paperType === 'TEST' ? sections : [],
+                    questions: questionPayload,
+                });
+                if (activate) {
+                    await api.patch(`/teacher/tasks/tests/${testId}`, { status: 'ACTIVE' });
+                }
             }
             toast.success(activate ? 'Paper saved and activated' : 'Paper saved');
             onSaved();
@@ -2479,7 +2765,13 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
     };
 
     const addedIds = new Set(builderQs.map(q => q.questionId));
-    const totalMarks = builderQs.reduce((sum, q) => sum + q.marks, 0);
+    const totalMarks = paperType === 'TEST'
+        ? sections.reduce((sum, s) => {
+            const sQs = builderQs.filter(q => q.sectionId === s.id).length;
+            const attemptN = s.attemptCount > 0 ? Math.min(s.attemptCount, sQs) : sQs;
+            return sum + attemptN * s.marksPerQuestion;
+          }, 0) + builderQs.filter(q => !q.sectionId).reduce((sum, q) => sum + q.marks, 0)
+        : builderQs.reduce((sum, q) => sum + q.marks, 0);
 
     const containerStyle = isFullscreen
         ? { position: 'fixed' as const, top: mainTop, left: 0, right: 0, bottom: 0, zIndex: 60 }
@@ -2589,7 +2881,16 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
                                                         }}
                                                         className={`flex items-start gap-2 px-3 py-2 border-b border-border/30 last:border-0 transition-all group ${alreadyAdded ? 'opacity-40 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'}`}>
                                                         <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[q.type]?.color}`}>{TYPE_META[q.type]?.label}</span>
-                                                        <span className="flex-1 text-xs leading-snug line-clamp-2">{q.question}</span>
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className="text-xs leading-snug line-clamp-2">{q.question}</span>
+                                                            {q.type === 'MCQ' && Array.isArray(q.options) && q.options.length > 0 && (
+                                                                <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0">
+                                                                    {q.options.map((opt, oi) => (
+                                                                        <span key={oi} className="text-[10px] text-muted-foreground truncate">{String.fromCharCode(65 + oi)}) {opt}</span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                         {!alreadyAdded && <Plus size={11} className="text-primary shrink-0 opacity-0 group-hover:opacity-100 mt-0.5 transition-all" />}
                                                     </div>
                                                 );
@@ -2606,23 +2907,34 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
                 <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Metadata bar */}
                 <div className="shrink-0 px-4 py-2.5 border-b border-border/50 flex items-center gap-4 flex-wrap text-sm">
-                    <div className="flex items-center gap-1.5">
-                        <label className="text-[11px] text-muted-foreground">Duration</label>
-                        <input type="number" min={5} max={600} value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))}
-                            className="w-14 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
-                        <span className="text-[11px] text-muted-foreground">min</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <label className="text-[11px] text-muted-foreground">Attempts</label>
-                        <input type="number" min={1} max={10} value={maxAttempts} onChange={e => setMaxAttempts(Number(e.target.value))}
-                            className="w-10 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                        <label className="text-[11px] text-muted-foreground">Valid until</label>
-                        <input type="datetime-local" value={validUntil} onChange={e => setValidUntil(e.target.value)}
-                            className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
-                    </div>
+                    {entityType === 'test' && (
+                        <>
+                            <div className="flex items-center gap-1.5">
+                                <label className="text-[11px] text-muted-foreground">Duration</label>
+                                <input type="number" min={5} max={600} value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))}
+                                    className="w-14 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                                <span className="text-[11px] text-muted-foreground">min</span>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <label className="text-[11px] text-muted-foreground">Attempts</label>
+                                <input type="number" min={1} max={10} value={maxAttempts} onChange={e => setMaxAttempts(Number(e.target.value))}
+                                    className="w-10 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                                <label className="text-[11px] text-muted-foreground">Valid until</label>
+                                <input type="datetime-local" value={validUntil} onChange={e => setValidUntil(e.target.value)}
+                                    className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                            </div>
+                        </>
+                    )}
                     <div className="ml-auto flex items-center gap-3">
+                        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                            <div onClick={() => setAnswerSpace(v => !v)}
+                                className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${answerSpace ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${answerSpace ? 'translate-x-4' : ''}`} />
+                            </div>
+                            <span className="text-muted-foreground">Answer Space</span>
+                        </label>
                         <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
                             <div onClick={() => setIsRandomized(v => !v)}
                                 className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${isRandomized ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
@@ -2684,7 +2996,8 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
                                     {sections.map((section) => {
                                         const sectionQs = builderQs.filter(q => q.sectionId === section.id);
                                         const isActive = activeSectionId === section.id;
-                                        const sectionMarks = sectionQs.reduce((s, q) => s + q.marks, 0);
+                                        const effectiveAttempt = section.attemptCount > 0 ? Math.min(section.attemptCount, sectionQs.length) : sectionQs.length;
+                                        const sectionTotal = effectiveAttempt * section.marksPerQuestion;
                                         return (
                                             <div key={section.id}>
                                                 {/* Section header */}
@@ -2698,16 +3011,28 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
                                                             style={{ color: theme.sectionText }} />
                                                         {sectionQs.length > 0 && (
                                                             <span className="text-[10px]" style={{ color: theme.sectionMeta }}>
-                                                                ({sectionQs.length} × {section.marksPerQuestion} = {sectionMarks} marks)
+                                                                ({effectiveAttempt}/{sectionQs.length} × {section.marksPerQuestion}m = {sectionTotal} marks)
                                                             </span>
                                                         )}
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                                                        <span className="text-[10px]" style={{ color: theme.sectionMeta }}>Marks/Q:</span>
-                                                        <input type="number" min={0} max={100} value={section.marksPerQuestion}
-                                                            onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, marksPerQuestion: Number(e.target.value) } : s))}
+                                                        <span className="text-[10px]" style={{ color: theme.sectionMeta }}>Attempt</span>
+                                                        <input type="number" min={0} max={sectionQs.length || 99}
+                                                            value={section.attemptCount === 0 ? '' : section.attemptCount}
+                                                            placeholder="all"
+                                                            onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, attemptCount: Number(e.target.value) || 0 } : s))}
                                                             className="w-10 text-xs text-center rounded focus:outline-none"
                                                             style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
+                                                        <span className="text-[10px]" style={{ color: theme.sectionMeta }}>·</span>
+                                                        <input type="number" min={0} max={100} value={section.marksPerQuestion}
+                                                            onChange={e => {
+                                                                const mpq = Number(e.target.value);
+                                                                setSections(prev => prev.map(s => s.id === section.id ? { ...s, marksPerQuestion: mpq } : s));
+                                                                setBuilderQs(prev => prev.map(q => q.sectionId === section.id ? { ...q, marks: mpq } : q));
+                                                            }}
+                                                            className="w-10 text-xs text-center rounded focus:outline-none"
+                                                            style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
+                                                        <span className="text-[10px]" style={{ color: theme.sectionMeta }}>m each</span>
                                                         {sections.length > 1 && (
                                                             <button onClick={() => removeSection(section.id)}
                                                                 className="opacity-0 group-hover:opacity-100 transition-all p-0.5 rounded"
@@ -2751,18 +3076,42 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
                                                                             className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
                                                                     </div>
                                                                     <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{num}.</span>
-                                                                    <span className="flex-1 text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
+                                                                    <div className="flex-1 min-w-0">
+                                                                        <span className="text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
+                                                                        {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
+                                                                            const opts = bq.question.type === 'MCQ'
+                                                                                ? (bq.question.options ?? [])
+                                                                                : (() => { const d = bq.question.details as ConceptualDetails | null; return d ? [d.correct_answer, ...d.distractors] : []; })();
+                                                                            return opts.length > 0 ? (
+                                                                                <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-0.5 pl-1">
+                                                                                    {opts.map((opt, oi) => (
+                                                                                        <span key={oi} className="text-[11px]" style={{ color: theme.metaColor }}>{String.fromCharCode(65 + oi)}) {opt}</span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            ) : null;
+                                                                        })()}
+                                                                        {bq.question.type === 'TRUE_FALSE' && (
+                                                                            <div className="mt-1.5 flex gap-8 pl-1">
+                                                                                <span className="text-[11px]" style={{ color: theme.metaColor }}>A) True</span>
+                                                                                <span className="text-[11px]" style={{ color: theme.metaColor }}>B) False</span>
+                                                                            </div>
+                                                                        )}
+                                                                        {answerSpace && (bq.question.type === 'FILL_BLANK' || bq.question.type === 'NUMERICAL') && (
+                                                                            <div className="mt-2 pl-1" style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.3, width: '60%' }} />
+                                                                        )}
+                                                                        {answerSpace && bq.question.type === 'SHORT_ANSWER' && (
+                                                                            <div className="mt-2 pl-1 space-y-2.5">
+                                                                                {[0, 1, 2].map(i => <div key={i} style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.22, width: '100%' }} />)}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
                                                                     <div className="flex items-center gap-2 shrink-0">
-                                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                                                            <input type="number" min={0} value={bq.marks}
-                                                                                onChange={e => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: Number(e.target.value) } : q))}
-                                                                                className="w-9 text-xs text-center rounded focus:outline-none"
-                                                                                style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 2px' }} />
+                                                                        <div className="opacity-0 group-hover:opacity-100 transition-all">
                                                                             <button onClick={() => removeQuestion(bq.questionId)} className="p-0.5 rounded transition-all" style={{ color: '#C05050' }}><X size={12} /></button>
                                                                         </div>
                                                                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
                                                                             style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
-                                                                            [{bq.marks}m]
+                                                                            [{section.marksPerQuestion}m]
                                                                         </span>
                                                                     </div>
                                                                 </div>
@@ -2806,16 +3155,53 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, onC
                                                             className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
                                                     </div>
                                                     <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{qi + 1}.</span>
-                                                    <span className="flex-1 text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-start gap-1.5">
+                                                            <span className="flex-1 text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
+                                                            {!bq.isCompulsory && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FEF3C7', color: '#92400E', border: '0.5px solid #F59E0B' }}>Optional</span>}
+                                                        </div>
+                                                        {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
+                                                            const opts = bq.question.type === 'MCQ'
+                                                                ? (bq.question.options ?? [])
+                                                                : (() => { const d = bq.question.details as ConceptualDetails | null; return d ? [d.correct_answer, ...d.distractors] : []; })();
+                                                            return opts.length > 0 ? (
+                                                                <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-0.5 pl-1">
+                                                                    {opts.map((opt, oi) => (
+                                                                        <span key={oi} className="text-[11px]" style={{ color: theme.metaColor }}>{String.fromCharCode(65 + oi)}) {opt}</span>
+                                                                    ))}
+                                                                </div>
+                                                            ) : null;
+                                                        })()}
+                                                        {bq.question.type === 'TRUE_FALSE' && (
+                                                            <div className="mt-1.5 flex gap-8 pl-1">
+                                                                <span className="text-[11px]" style={{ color: theme.metaColor }}>A) True</span>
+                                                                <span className="text-[11px]" style={{ color: theme.metaColor }}>B) False</span>
+                                                            </div>
+                                                        )}
+                                                        {answerSpace && (bq.question.type === 'FILL_BLANK' || bq.question.type === 'NUMERICAL') && (
+                                                            <div className="mt-2 pl-1" style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.3, width: '60%' }} />
+                                                        )}
+                                                        {answerSpace && bq.question.type === 'SHORT_ANSWER' && (
+                                                            <div className="mt-2 pl-1 space-y-2.5">
+                                                                {[0, 1, 2].map(i => <div key={i} style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.22, width: '100%' }} />)}
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                     <div className="flex items-center gap-2 shrink-0">
                                                         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                                            <button onClick={() => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, isCompulsory: !q.isCompulsory } : q))}
+                                                                title={bq.isCompulsory ? 'Mark as optional' : 'Mark as compulsory'}
+                                                                className="text-[9px] font-bold px-1.5 py-0.5 rounded transition-all"
+                                                                style={{ background: bq.isCompulsory ? theme.marksBadgeBg : '#FEF3C7', color: bq.isCompulsory ? theme.marksBadgeText : '#92400E', border: `0.5px solid ${bq.isCompulsory ? theme.marksBadgeBorder : '#F59E0B'}` }}>
+                                                                {bq.isCompulsory ? 'C' : 'O'}
+                                                            </button>
                                                             <input type="number" min={0} value={bq.marks}
                                                                 onChange={e => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: Number(e.target.value) } : q))}
                                                                 className="w-9 text-xs text-center rounded focus:outline-none"
                                                                 style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 2px' }} />
                                                             <button onClick={() => removeQuestion(bq.questionId)} className="p-0.5" style={{ color: '#C05050' }}><X size={12} /></button>
                                                         </div>
-                                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
                                                             style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
                                                             [{bq.marks}m]
                                                         </span>
