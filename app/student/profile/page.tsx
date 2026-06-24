@@ -85,26 +85,26 @@ const ATTENDANCE_WINDOW = getAttendanceWindowMonths(new Date()).map((month) => {
 
 
 const FEE_MONTHS_PROFILE = [
-    { month: 'June',      dueDate: '10 Jun 2025', amount: 6700, status: 'PAID'    as const, paidDate: '8 Jun 2025'  },
-    { month: 'July',      dueDate: '10 Jul 2025', amount: 6700, status: 'PAID'    as const, paidDate: '9 Jul 2025'  },
-    { month: 'August',    dueDate: '10 Aug 2025', amount: 6700, status: 'PAID'    as const, paidDate: '7 Aug 2025'  },
-    { month: 'September', dueDate: '10 Sep 2025', amount: 6700, status: 'PAID'    as const, paidDate: '9 Sep 2025'  },
-    { month: 'October',   dueDate: '10 Oct 2025', amount: 6700, status: 'PAID'    as const, paidDate: '8 Oct 2025'  },
-    { month: 'November',  dueDate: '10 Nov 2025', amount: 6700, status: 'PAID'    as const, paidDate: '10 Nov 2025' },
-    { month: 'December',  dueDate: '10 Dec 2025', amount: 6700, status: 'PAID'    as const, paidDate: '9 Dec 2025'  },
-    { month: 'January',   dueDate: '10 Jan 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
-    { month: 'February',  dueDate: '10 Feb 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
-    { month: 'March',     dueDate: '10 Mar 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
-    { month: 'April',     dueDate: '10 Apr 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
-    { month: 'May',       dueDate: '10 May 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined     },
+    { month: 'June', dueDate: '10 Jun 2025', amount: 6700, status: 'PAID' as const, paidDate: '8 Jun 2025' },
+    { month: 'July', dueDate: '10 Jul 2025', amount: 6700, status: 'PAID' as const, paidDate: '9 Jul 2025' },
+    { month: 'August', dueDate: '10 Aug 2025', amount: 6700, status: 'PAID' as const, paidDate: '7 Aug 2025' },
+    { month: 'September', dueDate: '10 Sep 2025', amount: 6700, status: 'PAID' as const, paidDate: '9 Sep 2025' },
+    { month: 'October', dueDate: '10 Oct 2025', amount: 6700, status: 'PAID' as const, paidDate: '8 Oct 2025' },
+    { month: 'November', dueDate: '10 Nov 2025', amount: 6700, status: 'PAID' as const, paidDate: '10 Nov 2025' },
+    { month: 'December', dueDate: '10 Dec 2025', amount: 6700, status: 'PAID' as const, paidDate: '9 Dec 2025' },
+    { month: 'January', dueDate: '10 Jan 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
+    { month: 'February', dueDate: '10 Feb 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
+    { month: 'March', dueDate: '10 Mar 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
+    { month: 'April', dueDate: '10 Apr 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
+    { month: 'May', dueDate: '10 May 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
 ];
 const TERM1_MONTHS = ['June', 'July', 'August', 'September', 'October'];
 const TERM2_MONTHS = ['November', 'December', 'January', 'February', 'March', 'April', 'May'];
 const term1 = FEE_MONTHS_PROFILE.filter(m => TERM1_MONTHS.includes(m.month));
 const term2 = FEE_MONTHS_PROFILE.filter(m => TERM2_MONTHS.includes(m.month));
 const termData = [
-    { label: 'Term 1', range: 'June – October',   months: term1 },
-    { label: 'Term 2', range: 'November – May',    months: term2 },
+    { label: 'Term 1', range: 'June – October', months: term1 },
+    { label: 'Term 2', range: 'November – May', months: term2 },
 ];
 
 const ACHIEVEMENTS = [
@@ -484,12 +484,12 @@ export default function StudentProfile() {
                         {/* Term progress bars */}
                         <div className="space-y-2.5 mb-4">
                             {termData.map((term) => {
-                                const paid   = term.months.filter(m => m.status === 'PAID').length;
-                                const total  = term.months.length;
-                                const pct    = Math.round((paid / total) * 100);
+                                const paid = term.months.filter(m => m.status === 'PAID').length;
+                                const total = term.months.length;
+                                const pct = Math.round((paid / total) * 100);
                                 const cleared = paid === total;
-                                const paidAmt   = term.months.filter(m => m.status === 'PAID').reduce((n, m) => n + m.amount, 0);
-                                const totalAmt  = term.months.reduce((n, m) => n + m.amount, 0);
+                                const paidAmt = term.months.filter(m => m.status === 'PAID').reduce((n, m) => n + m.amount, 0);
+                                const totalAmt = term.months.reduce((n, m) => n + m.amount, 0);
                                 return (
                                     <div key={term.label} className="p-3 bg-muted/40 rounded-xl space-y-1.5">
                                         <div className="flex items-center justify-between">
