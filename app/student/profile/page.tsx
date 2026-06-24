@@ -614,7 +614,7 @@ export default function StudentProfile() {
                         )}
                     </SectionCard>
 
-                    {/* ── Achievements ── */}
+                    {/* ── Achievements ─ */}
                     <SectionCard title="Projects & Achievements" icon={Award} iconColor="#F59E0B"
                         action={
                             <span className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted text-muted-foreground cursor-default select-none">
