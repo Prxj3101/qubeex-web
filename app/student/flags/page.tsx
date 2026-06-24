@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, Calendar, User, ShieldAlert, ChevronDown, ChevronUp } from 'lucide-react';
-import { FLAGS, FlagItem } from '@/lib/flags';
+import { FLAGS, FlagItem, CardType } from '@/lib/flags';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
