@@ -84,6 +84,12 @@ export function LoginForm() {
                 return;
             }
 
+            if (user.role === 'STUDENT' && user.mustChangePassword) {
+                toast.success(`Welcome, ${user.name || 'Student'}! Please set your password to continue.`);
+                router.push('/student/set-password');
+                return;
+            }
+
             toast.success(`Welcome back, ${user.name || user.email}!`);
             router.push(ROLE_REDIRECT[user.role] || '/login');
         } catch (err: unknown) {

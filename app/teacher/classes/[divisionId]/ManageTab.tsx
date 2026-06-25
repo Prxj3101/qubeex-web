@@ -9,10 +9,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Users, BookOpen, ExternalLink, ChevronDown, Power, Flag, Plus, Trash2,
     PowerOff, User, Shield, MapPin, Eye, EyeOff, Download, FileText, Table2, Camera, Heart, Pencil,
+    RotateCcw, Copy, ShieldCheck,
 } from 'lucide-react';
 import { Division, getInitials, getAvatarColor } from './DivisionClassPageClient';
 import { useStudentPhotosStore } from '@/store/studentPhotosStore';
 import api from '@/lib/api';
+import { getErrorMessage } from '@/lib/error';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Guardian { name: string; number: string; relation: string }
@@ -271,6 +273,9 @@ export default function ManageTab({ division, isClassTeacher }: {
     });
     const [editDraft, setEditDraft] = useState<Partial<Student & { name: string }>>({});
     const [showPassword, setShowPassword] = useState(false);
+    const [resettingPassword, setResettingPassword] = useState(false);
+    const [resetResult, setResetResult] = useState<string | null>(null);
+    const [showResetResult, setShowResetResult] = useState(false);
 
     const [showExportMenu, setShowExportMenu] = useState(false);
     const fetchedRef = useRef(false);
@@ -430,6 +435,34 @@ export default function ManageTab({ division, isClassTeacher }: {
         }
     };
 
+    const handleResetPassword = async () => {
+        if (!selectedStudent) return;
+        setResettingPassword(true);
+        try {
+            const res = await api.post(
+                `/teacher/classes/${division.id}/students/${selectedStudent.id}/reset-password`
+            );
+            const newPass: string = res.data.data.newTempPassword;
+            setResetResult(newPass);
+            setShowResetResult(true);
+            setStudents(prev => prev.map(s =>
+                s.id === selectedStudent.id
+                    ? { ...s, tempPassword: newPass, user: { ...s.user, mustChangePassword: true } }
+                    : s
+            ));
+            setSelectedStudent(prev => prev ? {
+                ...prev,
+                tempPassword: newPass,
+                user: { ...prev.user, mustChangePassword: true }
+            } : prev);
+            toast.success('Password reset. Share the new temporary password with the student.');
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Failed to reset password'));
+        } finally {
+            setResettingPassword(false);
+        }
+    };
+
     const d = (key: keyof Student, fallback = '') => {
         if (!selectedStudent) return fallback;
         const draftVal = (editDraft as Record<string, unknown>)[key];
@@ -450,6 +483,7 @@ export default function ManageTab({ division, isClassTeacher }: {
     });
 
     return (
+        <>
         <div className="flex gap-3 h-full pt-3 pb-3 px-1 overflow-hidden">
 
             {/* LEFT — Students List */}
@@ -792,6 +826,18 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                             </button>
                                                         )}
                                                     </div>
+                                                    {/* Reset password — class teacher only */}
+                                                    {isClassTeacher && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleResetPassword}
+                                                            disabled={resettingPassword}
+                                                            className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-500 hover:text-amber-400 disabled:opacity-50 transition-colors"
+                                                        >
+                                                            <RotateCcw size={12} className={resettingPassword ? 'animate-spin' : ''} />
+                                                            {resettingPassword ? 'Resetting…' : 'Reset Password'}
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -986,5 +1032,48 @@ export default function ManageTab({ division, isClassTeacher }: {
                 </div>
             </div>
         </div>
+
+        {/* Reset Password Result Modal */}
+        {showResetResult && resetResult && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+                >
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                            <ShieldCheck size={20} className="text-amber-400" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-sm">Password Reset</h3>
+                            <p className="text-xs text-muted-foreground">Share this with the student</p>
+                        </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-2">New temporary password:</p>
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border font-mono text-sm mb-4">
+                        <span className="flex-1 text-amber-500 font-semibold tracking-wider">{resetResult}</span>
+                        <button
+                            type="button"
+                            onClick={() => { navigator.clipboard.writeText(resetResult); toast.success('Copied!'); }}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            <Copy size={14} />
+                        </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-4">
+                        The student will be required to set a new password when they next log in.
+                    </p>
+                    <button
+                        type="button"
+                        onClick={() => { setShowResetResult(false); setResetResult(null); }}
+                        className="w-full h-10 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+                    >
+                        Done
+                    </button>
+                </motion.div>
+            </div>
+        )}
+        </>
     );
 }
