@@ -9,6 +9,7 @@ interface User {
     institutionId?: string | null;
     institutionType?: 'SCHOOL' | 'COLLEGE' | 'COACHING' | null;
     permissions?: string[] | null;
+    mustChangePassword?: boolean;
 }
 
 interface AuthStore {
