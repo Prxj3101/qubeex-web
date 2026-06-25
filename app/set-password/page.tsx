@@ -178,7 +178,7 @@ function SetPasswordContent() {
 
     // ── Main Form ──
     return (
-        <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: '#0F0A1E' }}>
+        <div className="h-screen overflow-hidden flex items-center justify-center px-4" style={{ background: '#0F0A1E' }}>
             <CursorWave />
             {/* Background effects */}
             <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 8 }}>
@@ -192,192 +192,196 @@ function SetPasswordContent() {
                 initial={{ opacity: 0, y: 24 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: 'easeOut' }}
-                className="relative w-full max-w-md"
-                style={{ zIndex: 20 }}
+                className="relative w-full max-w-md flex flex-col"
+                style={{ zIndex: 20, maxHeight: '92vh' }}
             >
-                {/* Logo + Brand */}
-                <div className="text-center mb-8">
-                    <div className="flex flex-col items-center gap-2 mb-4">
+                {/* Logo + Brand — fixed outside card */}
+                <div className="text-center mb-5 shrink-0">
+                    <div className="flex flex-col items-center gap-2 mb-3">
                         <img
                             src="/QubeEx_darkmode_DA7756.png"
                             alt="QubeEx Logo"
-                            style={{ width: 'auto', height: '60px' }}
+                            style={{ width: 'auto', height: '52px' }}
                             className="rounded-md"
                         />
-                        <span className="text-[30px] font-bold text-[#FAE5D9]" style={{ fontFamily: 'var(--font-poppins)' }}>
+                        <span className="text-[26px] font-bold text-[#FAE5D9]" style={{ fontFamily: 'var(--font-poppins)' }}>
                             QubeEx
                         </span>
                     </div>
-                    <h1 className="text-[20px] font-bold text-white">Set Your Password</h1>
-                    <p className="text-sm text-white/50 mt-1">Complete your Admin account setup to get started</p>
+                    <h1 className="text-[18px] font-bold text-white">Set Your Password</h1>
+                    <p className="text-xs text-white/50 mt-1">Complete your Admin account setup to get started</p>
                 </div>
-
-                {/* Card */}
 
                 {/* Top accent line */}
-                <div className="h-[2px] w-full"
+                <div className="h-[2px] w-full shrink-0"
                     style={{ background: 'linear-gradient(90deg, transparent, #7C3AED, #DA7756, transparent)' }} />
-                <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-6 backdrop-blur-xl shadow-2xl">
 
-                    {/* Institution Info — read only */}
-                    <div className="bg-white/[0.04] border border-white/8 rounded-2xl p-4 mb-6 space-y-3">
-                        <p className="text-[11px] font-semibold text-white/30 uppercase tracking-wider mb-3">Your Account Details</p>
-                        {[
-                            { icon: Building2, label: 'Institution', value: tokenData.institutionName },
-                            { icon: User, label: 'Your Name', value: tokenData.adminName },
-                            { icon: Mail, label: 'Email', value: tokenData.email },
-                        ].map(({ icon: Icon, label, value }) => (
-                            <div key={label} className="flex items-center gap-3">
-                                <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
-                                    <Icon size={13} className="text-white/40" />
+                {/* Card — fixed size, inner content scrolls */}
+                <div className="bg-white/[0.04] border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl flex flex-col min-h-0 flex-1 overflow-hidden">
+                    <div className="overflow-y-auto flex-1 px-6 pt-6"
+                        style={{ scrollbarWidth: 'none' }}>
+
+                        {/* Institution Info — read only */}
+                        <div className="bg-white/[0.04] border border-white/8 rounded-2xl p-4 mb-6 space-y-3">
+                            <p className="text-[11px] font-semibold text-white/30 uppercase tracking-wider mb-3">Your Account Details</p>
+                            {[
+                                { icon: Building2, label: 'Institution', value: tokenData.institutionName },
+                                { icon: User, label: 'Your Name', value: tokenData.adminName },
+                                { icon: Mail, label: 'Email', value: tokenData.email },
+                            ].map(({ icon: Icon, label, value }) => (
+                                <div key={label} className="flex items-center gap-3">
+                                    <div className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
+                                        <Icon size={13} className="text-white/40" />
+                                    </div>
+                                    <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+                                        <span className="text-xs text-white/40 shrink-0">{label}</span>
+                                        <span className="text-xs font-medium text-white/80 truncate text-right">{value}</span>
+                                    </div>
                                 </div>
-                                <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-                                    <span className="text-xs text-white/40 shrink-0">{label}</span>
-                                    <span className="text-xs font-medium text-white/80 truncate text-right">{value}</span>
+                            ))}
+
+                            {/* Institution Code highlight */}
+                            {tokenData.institutionCode && (
+                                <div className="mt-3 pt-3 border-t border-white/8">
+                                    <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">Institution ID</p>
+                                    <p className="text-lg font-bold tracking-widest font-mono" style={{ color: '#DA7756' }}>
+                                        {tokenData.institutionCode}
+                                    </p>
+                                    <p className="text-[10px] text-white/30 mt-1">This has been pre-filled below. Keep it safe for future logins.</p>
                                 </div>
+                            )}
+                        </div>
+
+                        {/* Institute ID — pre-filled, read-only */}
+                        <div className="mb-5">
+                            <label className="block text-xs font-semibold text-white/60 mb-2">
+                                Institution ID <span className="text-[#DA7756]">*</span>
+                            </label>
+                            <div className="relative">
+                                <Hash size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+                                <input
+                                    type="text"
+                                    value={instituteId}
+                                    readOnly
+                                    className="w-full h-11 pl-10 pr-4 rounded-xl bg-[#DA7756]/8 border border-[#DA7756]/30 text-sm font-mono font-semibold tracking-wider text-[#DA7756] focus:outline-none cursor-default select-all"
+                                />
                             </div>
-                        ))}
+                            <p className="text-[11px] text-white/30 mt-1.5 flex items-center gap-1">
+                                <ShieldCheck size={11} />
+                                Auto-filled from your invite — use this to log in after setup
+                            </p>
+                        </div>
 
-                        {/* Institution Code highlight */}
-                        {tokenData.institutionCode && (
-                            <div className="mt-3 pt-3 border-t border-white/8">
-                                <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">Institution ID</p>
-                                <p className="text-lg font-bold tracking-widest font-mono" style={{ color: '#DA7756' }}>
-                                    {tokenData.institutionCode}
+                        {/* New Password */}
+                        <div className="mb-4">
+                            <label className="block text-xs font-semibold text-white/60 mb-2">
+                                New Password <span className="text-[#DA7756]">*</span>
+                            </label>
+                            <div className="relative">
+                                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    value={password}
+                                    onChange={e => setPassword(e.target.value)}
+                                    placeholder="Create a strong password"
+                                    className="w-full h-11 pl-10 pr-10 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#7C3AED]/60 focus:bg-white/8 transition-all"
+                                />
+                                <button onClick={() => setShowPassword(v => !v)}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
+                                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                                </button>
+                            </div>
+
+                            {/* Strength bar */}
+                            {password.length > 0 && (
+                                <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
+                                    className="mt-2.5 space-y-2">
+                                    <div className="flex gap-1">
+                                        {[1, 2, 3, 4, 5].map(i => (
+                                            <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300"
+                                                style={{ background: i <= strength.score ? strength.color : 'rgba(255,255,255,0.08)' }} />
+                                        ))}
+                                    </div>
+                                    <p className="text-[11px] font-medium" style={{ color: strength.color }}>
+                                        {strength.label}
+                                    </p>
+                                </motion.div>
+                            )}
+                        </div>
+
+                        {/* Confirm Password */}
+                        <div className="mb-5">
+                            <label className="block text-xs font-semibold text-white/60 mb-2">
+                                Confirm Password <span className="text-[#DA7756]">*</span>
+                            </label>
+                            <div className="relative">
+                                <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
+                                <input
+                                    type={showConfirm ? 'text' : 'password'}
+                                    value={confirmPassword}
+                                    onChange={e => setConfirmPassword(e.target.value)}
+                                    placeholder="Re-enter your password"
+                                    className={`w-full h-11 pl-10 pr-10 rounded-xl bg-white/5 border text-sm text-white placeholder:text-white/25 focus:outline-none focus:bg-white/8 transition-all ${confirmPassword.length > 0
+                                        ? passwordsMatch
+                                            ? 'border-emerald-500/50 focus:border-emerald-500/70'
+                                            : 'border-red-500/50 focus:border-red-500/70'
+                                        : 'border-white/10 focus:border-[#7C3AED]/60'
+                                        }`}
+                                />
+                                <button onClick={() => setShowConfirm(v => !v)}
+                                    className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
+                                    {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
+                                </button>
+                            </div>
+                            {confirmPassword.length > 0 && (
+                                <p className={`text-[11px] mt-1.5 flex items-center gap-1 ${passwordsMatch ? 'text-emerald-400' : 'text-red-400'}`}>
+                                    {passwordsMatch
+                                        ? <><CheckCircle2 size={11} /> Passwords match</>
+                                        : <><XCircle size={11} /> Passwords do not match</>
+                                    }
                                 </p>
-                                <p className="text-[10px] text-white/30 mt-1">This has been pre-filled below. Keep it safe for future logins.</p>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Institute ID — pre-filled, read-only */}
-                    <div className="mb-5">
-                        <label className="block text-xs font-semibold text-white/60 mb-2">
-                            Institution ID <span className="text-[#DA7756]">*</span>
-                        </label>
-                        <div className="relative">
-                            <Hash size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
-                            <input
-                                type="text"
-                                value={instituteId}
-                                readOnly
-                                className="w-full h-11 pl-10 pr-4 rounded-xl bg-[#DA7756]/8 border border-[#DA7756]/30 text-sm font-mono font-semibold tracking-wider text-[#DA7756] focus:outline-none cursor-default select-all"
-                            />
-                        </div>
-                        <p className="text-[11px] text-white/30 mt-1.5 flex items-center gap-1">
-                            <ShieldCheck size={11} />
-                            Auto-filled from your invite — use this to log in after setup
-                        </p>
-                    </div>
-
-                    {/* New Password */}
-                    <div className="mb-4">
-                        <label className="block text-xs font-semibold text-white/60 mb-2">
-                            New Password <span className="text-[#DA7756]">*</span>
-                        </label>
-                        <div className="relative">
-                            <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                value={password}
-                                onChange={e => setPassword(e.target.value)}
-                                placeholder="Create a strong password"
-                                className="w-full h-11 pl-10 pr-10 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#7C3AED]/60 focus:bg-white/8 transition-all"
-                            />
-                            <button onClick={() => setShowPassword(v => !v)}
-                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
-                                {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
-                            </button>
+                            )}
                         </div>
 
-                        {/* Strength bar */}
+                        {/* Password rules */}
                         {password.length > 0 && (
-                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-                                className="mt-2.5 space-y-2">
-                                <div className="flex gap-1">
-                                    {[1, 2, 3, 4, 5].map(i => (
-                                        <div key={i} className="flex-1 h-1 rounded-full transition-all duration-300"
-                                            style={{ background: i <= strength.score ? strength.color : 'rgba(255,255,255,0.08)' }} />
-                                    ))}
-                                </div>
-                                <p className="text-[11px] font-medium" style={{ color: strength.color }}>
-                                    {strength.label}
-                                </p>
+                            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                                className="grid grid-cols-2 gap-1.5 mb-5">
+                                {RULES.map(rule => {
+                                    const passed = rule.test(password);
+                                    return (
+                                        <div key={rule.label} className={`flex items-center gap-1.5 text-[11px] transition-colors ${passed ? 'text-emerald-400' : 'text-white/30'}`}>
+                                            {passed
+                                                ? <CheckCircle2 size={11} className="shrink-0" />
+                                                : <XCircle size={11} className="shrink-0" />
+                                            }
+                                            {rule.label}
+                                        </div>
+                                    );
+                                })}
                             </motion.div>
                         )}
+
                     </div>
 
-                    {/* Confirm Password */}
-                    <div className="mb-5">
-                        <label className="block text-xs font-semibold text-white/60 mb-2">
-                            Confirm Password <span className="text-[#DA7756]">*</span>
-                        </label>
-                        <div className="relative">
-                            <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
-                            <input
-                                type={showConfirm ? 'text' : 'password'}
-                                value={confirmPassword}
-                                onChange={e => setConfirmPassword(e.target.value)}
-                                placeholder="Re-enter your password"
-                                className={`w-full h-11 pl-10 pr-10 rounded-xl bg-white/5 border text-sm text-white placeholder:text-white/25 focus:outline-none focus:bg-white/8 transition-all ${confirmPassword.length > 0
-                                    ? passwordsMatch
-                                        ? 'border-emerald-500/50 focus:border-emerald-500/70'
-                                        : 'border-red-500/50 focus:border-red-500/70'
-                                    : 'border-white/10 focus:border-[#7C3AED]/60'
-                                    }`}
-                            />
-                            <button onClick={() => setShowConfirm(v => !v)}
-                                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60 transition-colors">
-                                {showConfirm ? <EyeOff size={15} /> : <Eye size={15} />}
-                            </button>
-                        </div>
-                        {confirmPassword.length > 0 && (
-                            <p className={`text-[11px] mt-1.5 flex items-center gap-1 ${passwordsMatch ? 'text-emerald-400' : 'text-red-400'}`}>
-                                {passwordsMatch
-                                    ? <><CheckCircle2 size={11} /> Passwords match</>
-                                    : <><XCircle size={11} /> Passwords do not match</>
-                                }
-                            </p>
-                        )}
+                    {/* Fixed bottom — submit + footer */}
+                    <div className="shrink-0 px-6 pb-6 pt-4 border-t border-white/8">
+                        <button
+                            onClick={handleSubmit}
+                            disabled={!canSubmit}
+                            className="w-full h-12 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            style={{ background: canSubmit ? 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' : 'rgba(255,255,255,0.08)' }}
+                        >
+                            {submitting
+                                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting password…</>
+                                : <><ShieldCheck size={16} /> Set Password & Continue</>
+                            }
+                        </button>
+                        <p className="text-center text-xs text-white/20 mt-4">
+                            Having trouble? Contact your QubeEx representative.
+                        </p>
                     </div>
-
-                    {/* Password rules */}
-                    {password.length > 0 && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                            className="grid grid-cols-2 gap-1.5 mb-5">
-                            {RULES.map(rule => {
-                                const passed = rule.test(password);
-                                return (
-                                    <div key={rule.label} className={`flex items-center gap-1.5 text-[11px] transition-colors ${passed ? 'text-emerald-400' : 'text-white/30'}`}>
-                                        {passed
-                                            ? <CheckCircle2 size={11} className="shrink-0" />
-                                            : <XCircle size={11} className="shrink-0" />
-                                        }
-                                        {rule.label}
-                                    </div>
-                                );
-                            })}
-                        </motion.div>
-                    )}
-
-                    {/* Submit */}
-                    <button
-                        onClick={handleSubmit}
-                        disabled={!canSubmit}
-                        className="w-full h-12 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        style={{ background: canSubmit ? 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' : 'rgba(255,255,255,0.08)' }}
-                    >
-                        {submitting
-                            ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting password…</>
-                            : <><ShieldCheck size={16} /> Set Password & Continue</>
-                        }
-                    </button>
                 </div>
-
-                {/* Footer */}
-                <p className="text-center text-xs text-white/20 mt-6">
-                    Having trouble? Contact your QubeEx representative.
-                </p>
             </motion.div>
         </div>
     );
