@@ -304,14 +304,14 @@ export default function SuperAdminProfilePage() {
         <div className="flex flex-col" style={{ height: '100%' }}>
 
             {/* ── STICKY HEADER ── */}
-            <div className="sticky top-0 z-20 bg-background pb-3">
-                <div className="flex items-center justify-between pt-3 px-1">
+            <div className="sticky top-0 z-20 bg-background pb-2 space-y-2">
+                <div className="flex items-center justify-between pt-1 px-1">
                     <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <User size={28} />
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <User size={21} />
                             My Profile
                         </h1>
-                        <p className="text-muted-foreground text-sm">Manage your account, security, and preferences</p>
+                        <p className="text-muted-foreground text-[13px]">Manage your account, security, and preferences</p>
                     </div>
                     <button
                         onClick={handleLogout}
@@ -321,7 +321,7 @@ export default function SuperAdminProfilePage() {
                         Log out
                     </button>
                 </div>
-                <div className="h-px bg-border/60 mt-3" />
+                <div className="h-px bg-border/60" />
             </div>
 
             {/* ── SCROLLABLE CONTENT ── */}

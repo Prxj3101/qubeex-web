@@ -318,24 +318,25 @@ export default function ReviewsPage() {
         : null;
 
     return (
-        <div className="space-y-4 pt-3">
+        <div className="space-y-2">
 
             {/* ── Page Header ── */}
-            <div className="flex items-center justify-between px-1 flex-wrap gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold flex items-center gap-2">
-                        <Star size={26} className="fill-amber-400 text-amber-400" />
-                        Reviews & Feedback
-                    </h1>
-                    <div className="flex items-center gap-2 mt-0.5">
-                        {avgRating && <StarRating rating={Math.round(Number(avgRating))} size={13} />}
-                        <span className="text-sm text-muted-foreground">
-                            {avgRating ? `${avgRating} avg · ` : ''}{pagination.total} review{pagination.total !== 1 ? 's' : ''}
-                        </span>
+            <div className="sticky top-0 z-20 bg-background pb-1 space-y-2">
+                <div className="flex items-center justify-between pt-0 px-1 flex-wrap gap-3">
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <Star size={21} className="fill-amber-400 text-amber-400" />
+                            Reviews & Feedback
+                        </h1>
+                        <div className="flex items-center gap-2">
+                            {avgRating && <StarRating rating={Math.round(Number(avgRating))} size={13} />}
+                            <span className="text-[13px] text-muted-foreground">
+                                {avgRating ? `${avgRating} avg · ` : ''}{pagination.total} review{pagination.total !== 1 ? 's' : ''}
+                            </span>
+                        </div>
                     </div>
-                </div>
 
-                <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
                     {/* Search */}
                     <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -386,6 +387,8 @@ export default function ReviewsPage() {
                         <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
                     </Button>
                 </div>
+                </div>
+                <div className="h-px bg-border/60" />
             </div>
 
             {/* ── Reviews Grid ── */}

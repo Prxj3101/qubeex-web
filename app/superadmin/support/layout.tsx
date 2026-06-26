@@ -15,21 +15,9 @@ export default function SupportLayout({ children }: { children: React.ReactNode 
 
     return (
         <div className="flex flex-col" style={{ height: '100%' }}>
-            <div className="sticky top-0 z-20 bg-background space-y-3 pb-3">
+            <div className="sticky top-0 z-20 bg-background space-y-2 pb-2">
 
-                {/* Header */}
-                <div className="flex items-center justify-between pt-3 px-1">
-                    <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <Headset size={28} />
-                            Support
-                        </h1>
-                        <p className="text-muted-foreground text-sm">Manage tickets and institution feedback</p>
-                    </div>
-                </div>
-                <div className="h-px bg-border/60" />
-
-                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit mt-3">
+                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                     {SUPPORT_TABS.map((tab) => {
                         const isActive = pathname === tab.href;
                         return (
@@ -50,7 +38,6 @@ export default function SupportLayout({ children }: { children: React.ReactNode 
                         );
                     })}
                 </div>
-                <div className="h-px bg-border/60" />
             </div>
             <div className="flex-1 overflow-y-auto pb-6">
                 {children}

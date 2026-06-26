@@ -1,4 +1,4 @@
-import { ALL_FEATURES } from "./institution-detail.constants";
+import { ALL_FEATURES, VOLUME_THRESHOLD, COMMITTED_DISCOUNT } from "./institution-detail.constants";
 import type { ApiBill, Bill, BillItem } from "./institution-detail.types";
 
 export function toIST(iso?: string | null, opts?: Intl.DateTimeFormatOptions) {
@@ -46,11 +46,46 @@ export function mapApiBillToUiBill(bill: ApiBill): Bill {
   };
 }
 
+/** Returns the base per-user rate for the slab the user count falls in (for display). */
 export function getRate(
   tiers: readonly { min: number; max: number; rate: number }[],
   users: number,
 ) {
   return tiers.find((t) => users >= t.min && users <= t.max)?.rate ?? tiers[0].rate;
+}
+
+/**
+ * Marginal billing: first VOLUME_THRESHOLD users at base rate,
+ * users beyond threshold at marginal rate.
+ * Applies committed discount (15%) if planOption === 'COMMITTED'.
+ */
+export function getMarginalMonthlyBill(
+  users: number,
+  baseRate: number,
+  marginalRate: number,
+  planOption: "FLEXIBLE" | "COMMITTED" = "FLEXIBLE",
+): number {
+  const billableUsers = Math.max(200, users);
+  let bill: number;
+  if (billableUsers <= VOLUME_THRESHOLD) {
+    bill = billableUsers * baseRate;
+  } else {
+    bill = VOLUME_THRESHOLD * baseRate + (billableUsers - VOLUME_THRESHOLD) * marginalRate;
+  }
+  if (planOption === "COMMITTED") bill = Math.round(bill * (1 - COMMITTED_DISCOUNT));
+  return bill;
+}
+
+/** Effective per-user rate given marginal billing + committed discount. */
+export function getEffectiveRate(
+  users: number,
+  baseRate: number,
+  marginalRate: number,
+  planOption: "FLEXIBLE" | "COMMITTED" = "FLEXIBLE",
+): number {
+  const billableUsers = Math.max(200, users);
+  const bill = getMarginalMonthlyBill(users, baseRate, marginalRate, planOption);
+  return Math.round((bill / billableUsers) * 100) / 100;
 }
 
 export function fmt(n: number) {

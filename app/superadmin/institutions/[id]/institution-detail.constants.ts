@@ -14,57 +14,60 @@ import {
   Sparkles,
 } from "lucide-react";
 
+// Pricing is uniform across all institution types.
+// Volume tier is MARGINAL — only users beyond 1500 pay the lower rate.
+// Committed plan option gives 15% off monthly bill; Flexible is full rate.
+// During pause (Flexible only): 50% billing, limited access, max 2 months/year.
+// AI tokens: BASIC/PRO = 10M/month, TRIAL = 2M.
+export const PLAN_BASE = {
+  BASIC: {
+    licence: 39999,
+    baseRate: 29,           // per user, up to 1500
+    marginalRate: 24,       // per user, beyond 1500 (marginal)
+    aiTokens: 10,           // millions/month
+    storage: "500GB",
+  },
+  PRO: {
+    licence: 59999,
+    baseRate: 39,
+    marginalRate: 33,
+    aiTokens: 10,
+    storage: "1TB",
+  },
+  TRIAL: {
+    licence: 0,
+    baseRate: 0,
+    marginalRate: 0,
+    aiTokens: 2,
+    storage: "100GB",
+  },
+} as const;
+
+export const COMMITTED_DISCOUNT = 0.15; // 15% off monthly bill
+export const PAUSE_BILLING_FACTOR = 0.5; // 50% billing during pause
+export const VOLUME_THRESHOLD = 1500;    // marginal rate kicks in beyond this
+
+// Legacy tiers shape kept for backward compat with getRate() calls
+const makeTiers = (base: number, marginal: number) => [
+  { min: 1,    max: 1499,    rate: base     },
+  { min: 1500, max: Infinity, rate: marginal },
+] as const;
+
 export const PRICING = {
   SCHOOL: {
-    BASIC: {
-      licence: 39999,
-      tiers: [
-        { min: 200, max: 1499, rate: 20 },
-        { min: 1500, max: Infinity, rate: 17 },
-      ],
-    },
-    PRO: {
-      licence: 69999,
-      tiers: [
-        { min: 200, max: 1499, rate: 25 },
-        { min: 1500, max: Infinity, rate: 22 },
-      ],
-    },
-    TRIAL: { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] },
+    BASIC:  { licence: PLAN_BASE.BASIC.licence,  tiers: makeTiers(PLAN_BASE.BASIC.baseRate,  PLAN_BASE.BASIC.marginalRate)  },
+    PRO:    { licence: PLAN_BASE.PRO.licence,     tiers: makeTiers(PLAN_BASE.PRO.baseRate,    PLAN_BASE.PRO.marginalRate)    },
+    TRIAL:  { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] as const },
   },
   COLLEGE: {
-    BASIC: {
-      licence: 59999,
-      tiers: [
-        { min: 200, max: 1499, rate: 30 },
-        { min: 1500, max: Infinity, rate: 27 },
-      ],
-    },
-    PRO: {
-      licence: 89999,
-      tiers: [
-        { min: 200, max: 1499, rate: 35 },
-        { min: 1500, max: Infinity, rate: 32 },
-      ],
-    },
-    TRIAL: { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] },
+    BASIC:  { licence: PLAN_BASE.BASIC.licence,  tiers: makeTiers(PLAN_BASE.BASIC.baseRate,  PLAN_BASE.BASIC.marginalRate)  },
+    PRO:    { licence: PLAN_BASE.PRO.licence,     tiers: makeTiers(PLAN_BASE.PRO.baseRate,    PLAN_BASE.PRO.marginalRate)    },
+    TRIAL:  { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] as const },
   },
   COACHING: {
-    BASIC: {
-      licence: 39999,
-      tiers: [
-        { min: 200, max: 1499, rate: 20 },
-        { min: 1500, max: Infinity, rate: 17 },
-      ],
-    },
-    PRO: {
-      licence: 69999,
-      tiers: [
-        { min: 200, max: 1499, rate: 25 },
-        { min: 1500, max: Infinity, rate: 22 },
-      ],
-    },
-    TRIAL: { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] },
+    BASIC:  { licence: PLAN_BASE.BASIC.licence,  tiers: makeTiers(PLAN_BASE.BASIC.baseRate,  PLAN_BASE.BASIC.marginalRate)  },
+    PRO:    { licence: PLAN_BASE.PRO.licence,     tiers: makeTiers(PLAN_BASE.PRO.baseRate,    PLAN_BASE.PRO.marginalRate)    },
+    TRIAL:  { licence: 0, tiers: [{ min: 0, max: Infinity, rate: 0 }] as const },
   },
 } as const;
 

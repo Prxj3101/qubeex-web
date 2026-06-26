@@ -56,7 +56,7 @@ export function SectionCard({
         </p>
         {editBtn}
       </div>
-      <div className="p-5">{children}</div>
+      <div className="px-5 pt-2 pb-5">{children}</div>
     </div>
   );
 }
@@ -83,10 +83,12 @@ export function EditableField({
   label,
   value,
   onChange,
+  placeholder,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  placeholder?: string;
 }) {
   return (
     <div className="flex items-center gap-3 py-2 border-b border-border/40 last:border-none">
@@ -94,7 +96,8 @@ export function EditableField({
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all"
+        placeholder={placeholder}
+        className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/50 placeholder:font-normal"
       />
     </div>
   );

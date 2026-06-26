@@ -96,23 +96,26 @@ export default function SystemHealthPage() {
     const allOperational = SERVICES.every(s => s.status === 'operational');
 
     return (
-        <div className="space-y-5 pt-3">
+        <div className="space-y-2">
 
             {/* ── Page Header ── */}
-            <div className="flex items-center justify-between px-1">
-                <div>
-                    <h1 className="text-2xl font-bold flex items-center gap-2">
-                        <Activity size={26} />
-                        System Health
-                    </h1>
-                    <p className="text-muted-foreground text-sm mt-0.5">
-                        Last updated: {lastUpdated.toLocaleTimeString('en-IN')} · Auto-refreshes every 30s
-                    </p>
+            <div className="sticky top-0 z-20 bg-background pb-1 space-y-2">
+                <div className="flex items-center justify-between pt-0 px-1">
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <Activity size={21} />
+                            System Health
+                        </h1>
+                        <p className="text-muted-foreground text-[13px]">
+                            Last updated: {lastUpdated.toLocaleTimeString('en-IN')} · Auto-refreshes every 30s
+                        </p>
+                    </div>
+                    <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="flex items-center gap-2">
+                        <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+                        Refresh
+                    </Button>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="flex items-center gap-2">
-                    <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-                    Refresh
-                </Button>
+                <div className="h-px bg-border/60" />
             </div>
 
             {/* ── Overall Status Banner ── */}

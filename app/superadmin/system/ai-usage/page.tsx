@@ -70,29 +70,32 @@ export default function AIUsagePage() {
     const maxTokens = Math.max(...INSTITUTIONS.map(i => i.tokens));
 
     return (
-        <div className="space-y-5 pt-3">
+        <div className="space-y-2">
 
             {/* ── Page Header ── */}
-            <div className="flex items-center justify-between px-1">
-                <div>
-                    <h1 className="text-2xl font-bold flex items-center gap-2">
-                        <Brain size={26} />
-                        AI Usage & Cost
-                    </h1>
-                    <p className="text-muted-foreground text-sm mt-0.5">Monitor AI consumption across all institutions</p>
+            <div className="sticky top-0 z-20 bg-background pb-1 space-y-2">
+                <div className="flex items-center justify-between pt-0 px-1">
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <Brain size={21} />
+                            AI Usage & Cost
+                        </h1>
+                        <p className="text-muted-foreground text-[13px]">Monitor AI consumption across all institutions</p>
+                    </div>
+                    {/* Date filter pills */}
+                    <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50">
+                        {DATE_FILTERS.map(f => (
+                            <button key={f} onClick={() => setActiveFilter(f)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeFilter === f
+                                        ? 'bg-primary text-white shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                    }`}>
+                                {f}
+                            </button>
+                        ))}
+                    </div>
                 </div>
-                {/* Date filter pills */}
-                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50">
-                    {DATE_FILTERS.map(f => (
-                        <button key={f} onClick={() => setActiveFilter(f)}
-                            className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${activeFilter === f
-                                    ? 'bg-primary text-white shadow-sm'
-                                    : 'text-muted-foreground hover:text-foreground'
-                                }`}>
-                            {f}
-                        </button>
-                    ))}
-                </div>
+                <div className="h-px bg-border/60" />
             </div>
 
             {/* ── Summary Stat Cards ── */}

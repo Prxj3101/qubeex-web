@@ -17,21 +17,9 @@ export default function SystemLayout({ children }: { children: React.ReactNode }
         <div className="flex flex-col" style={{ height: '100%' }}>
 
             {/* Sticky header */}
-            <div className="sticky top-0 z-20 bg-background space-y-3 pb-3">
+            <div className="sticky top-0 z-20 bg-background space-y-2 pb-2">
 
-                {/* Header */}
-                <div className="flex items-center justify-between pt-3 px-1">
-                    <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <Activity size={28} />
-                            System & AI
-                        </h1>
-                        <p className="text-muted-foreground text-sm">Monitor system health and AI usage</p>
-                    </div>
-                </div>
-                <div className="h-px bg-border/60" />
-
-                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit mt-3">
+                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                     {SYSTEM_TABS.map((tab) => {
                         const isActive = pathname === tab.href;
                         return (
@@ -52,7 +40,6 @@ export default function SystemLayout({ children }: { children: React.ReactNode }
                         );
                     })}
                 </div>
-                <div className="h-px bg-border/60" />
             </div>
 
             {/* Scrollable content */}

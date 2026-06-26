@@ -377,21 +377,22 @@ export default function TicketsPage() {
     const hasFilters      = debouncedSearch || activeStatus !== 'ALL' || activeCategories.length > 0;
 
     return (
-        <div className="space-y-4 pt-3">
+        <div className="space-y-2">
 
             {/* ── Page Header ── */}
-            <div className="flex items-center justify-between px-1 flex-wrap gap-3">
-                <div>
-                    <h1 className="text-2xl font-bold flex items-center gap-2">
-                        <TicketIcon size={26} />
-                        Support Tickets
-                    </h1>
-                    <p className="text-muted-foreground text-sm mt-0.5">
-                        {pagination.total > 0 ? `${pagination.total} ticket${pagination.total !== 1 ? 's' : ''}` : 'No tickets yet'}
-                    </p>
-                </div>
+            <div className="sticky top-0 z-20 bg-background pb-1 space-y-2">
+                <div className="flex items-center justify-between pt-0 px-1 flex-wrap gap-3">
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <TicketIcon size={21} />
+                            Support Tickets
+                        </h1>
+                        <p className="text-muted-foreground text-[13px]">
+                            {pagination.total > 0 ? `${pagination.total} ticket${pagination.total !== 1 ? 's' : ''}` : 'No tickets yet'}
+                        </p>
+                    </div>
 
-                <div className="flex items-center gap-2 flex-wrap justify-end">
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
                     {/* Search */}
                     <div className="relative">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
@@ -441,6 +442,8 @@ export default function TicketsPage() {
                         <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
                     </Button>
                 </div>
+                </div>
+                <div className="h-px bg-border/60" />
             </div>
 
             {/* ── Tickets Grid ── */}

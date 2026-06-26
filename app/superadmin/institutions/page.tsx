@@ -255,16 +255,16 @@ export default function InstitutionsPage() {
         <div className="flex flex-col" style={{ height: '100%' }}>
 
             {/* ── STICKY SECTION ── */}
-            <div className="sticky top-0 z-20 bg-background space-y-3 pb-3">
+            <div className="sticky top-0 z-20 bg-background space-y-2 pb-2">
 
                 {/* Header row */}
-                <div className="flex items-center justify-between pt-3 px-1">
+                <div className="flex items-center justify-between pt-0 px-1">
                     <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <Building2 size={28} />
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <Building2 size={21} />
                             Institutions
                         </h1>
-                        <p className="text-muted-foreground text-sm">Manage all institutions</p>
+                        <p className="text-muted-foreground text-[13px]">Manage all institutions</p>
                     </div>
                     <div className="flex gap-2">
                         <Button variant="outline" size="icon" onClick={fetchInstitutions} disabled={loading}>
@@ -359,7 +359,7 @@ export default function InstitutionsPage() {
 
             {/* ── SCROLLABLE CARDS ── */}
             <div className="flex-1 overflow-y-auto pb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
                     {loading
                         ? Array.from({ length: 6 }).map((_, i) => (
                             <div key={i} className="bg-card border border-border/50 rounded-2xl h-48 animate-pulse" />

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -11,7 +12,7 @@ import { getErrorMessage } from '@/lib/error';
 import { Institution } from '@/types';
 import {
     Building2, GraduationCap, BookOpen, ChevronDown,
-    User, MapPin, CreditCard, Layers, Camera, X,
+    User, MapPin, CreditCard, Layers, Camera, X, Calendar,
 } from 'lucide-react';
 
 interface Props {
@@ -33,13 +34,131 @@ const PLANS = [
 ] as const;
 
 const COUNTRY_CODES = [
-    { code: '+91', flag: '🇮🇳', country: 'IN' },
-    { code: '+1', flag: '🇺🇸', country: 'US' },
-    { code: '+44', flag: '🇬🇧', country: 'UK' },
-    { code: '+61', flag: '🇦🇺', country: 'AU' },
-    { code: '+971', flag: '🇦🇪', country: 'AE' },
-    { code: '+65', flag: '🇸🇬', country: 'SG' },
+    { code: '+91', flag: '🇮🇳', country: 'IN', max: 10 },
+    { code: '+1', flag: '🇺🇸', country: 'US', max: 10 },
+    { code: '+44', flag: '🇬🇧', country: 'UK', max: 10 },
+    { code: '+61', flag: '🇦🇺', country: 'AU', max: 9 },
+    { code: '+971', flag: '🇦🇪', country: 'AE', max: 9 },
+    { code: '+65', flag: '🇸🇬', country: 'SG', max: 8 },
 ];
+
+// ─── Admin phone — portal dropdown (same as student detail) ───────────────────
+function parsePhone(val: string) {
+    const match = (val ?? '').match(/^(\+\d+)\s*(.*)$/);
+    return match ? { code: match[1], number: match[2] } : { code: '+91', number: val ?? '' };
+}
+
+function AdminPhoneField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const { code, number } = parsePhone(value);
+    const [open, setOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const dropRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState({ top: 0, left: 0 });
+
+    useEffect(() => {
+        if (!open) return;
+        const close = (e: MouseEvent) => {
+            if (
+                btnRef.current && !btnRef.current.contains(e.target as Node) &&
+                dropRef.current && !dropRef.current.contains(e.target as Node)
+            ) setOpen(false);
+        };
+        const onScroll = (e: Event) => {
+            if (dropRef.current && dropRef.current.contains(e.target as Node)) return;
+            setOpen(false);
+        };
+        document.addEventListener('mousedown', close);
+        window.addEventListener('scroll', onScroll, true);
+        return () => {
+            document.removeEventListener('mousedown', close);
+            window.removeEventListener('scroll', onScroll, true);
+        };
+    }, [open]);
+
+    const handleToggle = () => {
+        if (!open && btnRef.current) {
+            const r = btnRef.current.getBoundingClientRect();
+            setPos({ top: r.bottom + 4, left: r.left });
+        }
+        setOpen(v => !v);
+    };
+
+    return (
+        <div className="flex gap-1.5">
+            <div className="shrink-0">
+                <button ref={btnRef} type="button" onClick={handleToggle}
+                    className="h-8 px-2.5 rounded-md border border-primary/50 bg-primary/5 text-xs flex items-center gap-1 whitespace-nowrap hover:bg-primary/10 transition-all">
+                    {code} <ChevronDown size={10} className="text-muted-foreground" />
+                </button>
+                {open && typeof document !== 'undefined' && createPortal(
+                    <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                        className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
+                        {COUNTRY_CODES.map(c => (
+                            <button key={c.code} type="button"
+                                onClick={() => { onChange(`${c.code} ${number}`); setOpen(false); }}
+                                className={`w-full px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors ${code === c.code ? 'text-primary font-semibold' : 'text-foreground'}`}>
+                                {c.flag} {c.code}
+                            </button>
+                        ))}
+                    </div>,
+                    document.body
+                )}
+            </div>
+            <input
+                value={number}
+                onChange={e => {
+                    const raw = e.target.value;
+                    const maxDigits = COUNTRY_CODES.find(c => c.code === code)?.max ?? 10;
+                    if (raw.replace(/\D/g, '').length <= maxDigits) onChange(`${code} ${raw}`);
+                }}
+                placeholder="98765 43210"
+                className="flex-1 h-8 px-3 rounded-md border border-primary/50 bg-primary/5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+            />
+        </div>
+    );
+}
+
+// ─── Auto-format DOB as YYYY-MM-DD ────────────────────────────────────────────
+function formatDob(text: string): string {
+    const digits = text.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
+
+// ─── Gender dropdown (same as student detail EditDropdown) ────────────────────
+const ADMIN_GENDERS = [
+    { value: 'Male', label: 'Male' },
+    { value: 'Female', label: 'Female' },
+    { value: 'Other', label: 'Other' },
+];
+
+function AdminGenderDropdown({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="relative">
+            <button type="button" onClick={() => setOpen(v => !v)}
+                className="w-full h-8 px-3 rounded-md border border-primary/50 bg-primary/5 text-xs text-left flex items-center justify-between">
+                <span className={value ? 'text-foreground' : 'text-muted-foreground'}>
+                    {value || 'Select'}
+                </span>
+                <ChevronDown size={11} className="text-muted-foreground" />
+            </button>
+            {open && (
+                <div className="absolute top-9 left-0 z-[9999] w-full bg-card border border-border rounded-xl shadow-xl py-1"
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                    {ADMIN_GENDERS.map(o => (
+                        <button key={o.value} type="button"
+                            onClick={() => { onChange(o.value); setOpen(false); }}
+                            className={`w-full px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors ${value === o.value ? 'text-primary font-semibold' : 'text-foreground'}`}>
+                            {o.label}
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
 
 function SectionLabel({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
     return (
@@ -60,8 +179,6 @@ function FL({ children }: { children: React.ReactNode }) {
 export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     const router = useRouter();
     const [loading, setLoading] = useState(false);
-    const [countryCode, setCountryCode] = useState('+91');
-    const [showCCDropdown, setShowCCDropdown] = useState(false);
     const [logoPreview, setLogoPreview] = useState<string | null>(null);
     const [logoFile, setLogoFile] = useState<File | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -70,7 +187,8 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
         name: '', email: '', phone: '',
         type: 'SCHOOL' as 'SCHOOL' | 'COLLEGE' | 'COACHING',
         address: '', city: '', state: '', country: 'India', pincode: '',
-        adminName: '', adminEmail: '',
+        adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '',
+        establishedOn: '',
         plan: 'BASIC' as 'BASIC' | 'PRO' | 'TRIAL',
         trialDays: '14',
         board: '', medium: '',
@@ -128,7 +246,11 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
 
             const res = await api.post('/superadmin/institutions', {
                 ...form,
-                phone: form.phone ? `${countryCode} ${form.phone}` : undefined,
+                phone: form.phone || undefined,
+                adminPhone: form.adminPhone || undefined,
+                adminDob: form.adminDob || undefined,
+                adminGender: form.adminGender || undefined,
+                establishedOn: form.establishedOn || undefined,
                 logoUrl,
                 plan: form.plan,
                 trialDays: Number.isInteger(trialDays) ? trialDays : 14,
@@ -152,14 +274,11 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     };
 
     const resetForm = () => {
-        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', plan: 'BASIC', trialDays: '14', board: '', medium: '' });
-        setCountryCode('+91');
+        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '', establishedOn: '', plan: 'BASIC', trialDays: '14', board: '', medium: '' });
         setLogoPreview(null);
         setLogoFile(null);
         if (fileRef.current) fileRef.current.value = '';
     };
-
-    const selectedCC = COUNTRY_CODES.find(c => c.code === countryCode) ?? COUNTRY_CODES[0];
 
     return (
         <Dialog open={open} onOpenChange={onClose}>
@@ -259,31 +378,23 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                     <Input placeholder="admin@school.edu.in" value={form.email} onChange={e => set('email', e.target.value)} className="h-8 text-sm" />
                                 </div>
                                 <div>
-                                    <FL>Phone Number</FL>
-                                    <div className="flex gap-2">
-                                        <div className="relative">
-                                            <button type="button" onClick={() => setShowCCDropdown(v => !v)}
-                                                className="flex items-center gap-1 h-8 px-2.5 rounded-md border border-input bg-background text-xs hover:bg-muted transition-colors whitespace-nowrap">
-                                                <span>{selectedCC.flag}</span>
-                                                <span className="font-medium">{selectedCC.code}</span>
-                                                <ChevronDown size={11} className="text-muted-foreground" />
-                                            </button>
-                                            {showCCDropdown && (
-                                                <div className="absolute top-9 left-0 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[140px]">
-                                                    {COUNTRY_CODES.map(cc => (
-                                                        <button key={cc.code} type="button"
-                                                            onClick={() => { setCountryCode(cc.code); setShowCCDropdown(false); }}
-                                                            className={`w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-muted transition-colors text-left
-                                                                ${cc.code === countryCode ? 'font-semibold text-primary' : 'text-foreground'}`}>
-                                                            <span>{cc.flag}</span><span>{cc.code}</span>
-                                                            <span className="text-[10px] text-muted-foreground ml-auto">{cc.country}</span>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <Input placeholder="98765 43210" value={form.phone} onChange={e => set('phone', e.target.value)} className="flex-1 h-8 text-sm" />
+                                    <FL>Established On</FL>
+                                    <div className="relative">
+                                        <Calendar size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                        <input
+                                            value={form.establishedOn}
+                                            onChange={e => set('establishedOn', formatDob(e.target.value))}
+                                            placeholder="YYYY-MM-DD"
+                                            className="h-8 w-full pl-8 pr-3 rounded-md border border-primary/50 bg-primary/5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 placeholder:text-muted-foreground/50"
+                                        />
                                     </div>
+                                </div>
+                                <div>
+                                    <FL>Phone Number</FL>
+                                    <AdminPhoneField
+                                        value={form.phone}
+                                        onChange={v => set('phone', v)}
+                                    />
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
                                     <div>
@@ -332,6 +443,34 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                 <div>
                                     <FL>Admin Email *</FL>
                                     <Input placeholder="rahul@school.edu.in" value={form.adminEmail} onChange={e => set('adminEmail', e.target.value)} className="h-8 text-sm" />
+                                </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <FL>Admin Phone</FL>
+                                        <AdminPhoneField
+                                            value={form.adminPhone}
+                                            onChange={v => set('adminPhone', v)}
+                                        />
+                                    </div>
+                                    <div>
+                                        <FL>Admin Gender</FL>
+                                        <AdminGenderDropdown
+                                            value={form.adminGender}
+                                            onChange={v => set('adminGender', v)}
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <FL>Admin Date of Birth</FL>
+                                    <div className="relative">
+                                        <Calendar size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                        <input
+                                            value={form.adminDob}
+                                            onChange={e => set('adminDob', formatDob(e.target.value))}
+                                            placeholder="YYYY-MM-DD"
+                                            className="h-8 w-full pl-8 pr-3 rounded-md border border-primary/50 bg-primary/5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+                                        />
+                                    </div>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground flex items-center gap-1.5">
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block shrink-0" />

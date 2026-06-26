@@ -34,6 +34,11 @@ export type AdminUser = {
   role: string;
   isActive: boolean;
   createdAt: string;
+  phone?: string | null;
+  dob?: string | null;
+  gender?: string | null;
+  prefix?: string | null;
+  title?: string | null;
 };
 
 export type InstData = {
@@ -52,6 +57,12 @@ export type InstData = {
   board?: string | null;
   medium?: string | null;
   logoUrl?: string | null;
+  establishedOn?: string | null;
+  adminPhone?: string | null;
+  adminDob?: string | null;
+  adminGender?: string | null;
+  adminPrefix?: string | null;
+  adminTitle?: string | null;
   createdAt: string;
   updatedAt: string;
   users?: AdminUser[];
@@ -70,6 +81,7 @@ export type InstData = {
     endDate?: string;
     trialDays?: number | null;
     trialOutcome?: string | null;
+    planOption?: string | null;
   } | null;
 };
 

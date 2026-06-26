@@ -222,15 +222,15 @@ export default function AuditLogsPage() {
         <div className="flex flex-col h-full overflow-hidden">
 
             {/* ── Sticky Header ── */}
-            <div className="sticky top-0 z-20 bg-background pb-3 space-y-3">
+            <div className="sticky top-0 z-20 bg-background pb-2 space-y-2">
 
-                <div className="flex items-center justify-between pt-3 px-1">
+                <div className="flex items-center justify-between pt-0 px-1">
                     <div>
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            <ScrollText size={28} />
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            <ScrollText size={21} />
                             Audit Logs
                         </h1>
-                        <p className="text-muted-foreground text-sm">
+                        <p className="text-muted-foreground text-[13px]">
                             {pagination.total > 0
                                 ? `${pagination.total.toLocaleString('en-IN')} total events · All times in IST`
                                 : 'Track all platform and institution activity'}
