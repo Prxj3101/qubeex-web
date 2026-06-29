@@ -1,36 +1,55 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Rss, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Rss, X, Loader2 } from 'lucide-react';
+import api from '@/lib/api';
+import { useStudentStore } from '@/store/studentStore';
+import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
+import { useFeedBadge } from '@/context/FeedBadgeContext';
+import { toast } from 'sonner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type EventType = 'holiday' | 'event' | 'sports' | 'trip' | 'meeting' | 'test' | 'termtest' | 'exam' | 'submission';
-interface CalEvent { id: string; date: number; type: EventType; label: string; createdBy: string; }
+
+interface CalEvent {
+    id: string;
+    date: number;
+    fullDate: string;
+    type: EventType;
+    label: string;
+    isClassEvent: boolean;
+    createdBy: { id: string; name: string } | null;
+}
 
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
 type FeedSource = 'general' | 'class';
 
 interface FeedPost {
-    id: string; type: PostType; source: FeedSource;
-    author: string; role: string;
-    subject?: string; title: string; body: string; time: string;
-    attachments?: { name: string; kind: 'pdf' | 'link' }[];
+    id: string;
+    type: PostType;
+    source: FeedSource;
+    author: { id: string; name: string; role: string };
+    subject?: string | null;
+    title: string;
+    body: string;
+    createdAt: string;
+    attachmentUrl?: string | null;
+    attachmentType?: string | null;
+    attachmentName?: string | null;
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
 const EVENT_CFG = {
-    // Campus-wide (from main feed calendar)
-    holiday:    { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40',      text: 'text-red-700 dark:text-red-400',       label: 'Holiday',       emoji: '🏖️' },
-    event:      { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40',    text: 'text-blue-700 dark:text-blue-400',     label: 'Event',         emoji: '📅' },
-    sports:     { dot: '#DB2777', bg: 'bg-pink-100 dark:bg-pink-950/40',    text: 'text-pink-700 dark:text-pink-400',     label: 'Sports',        emoji: '🏆' },
-    trip:       { dot: '#92400E', bg: 'bg-amber-100 dark:bg-amber-950/40',  text: 'text-amber-800 dark:text-amber-500',   label: 'Trip',          emoji: '🚌' },
-    meeting:    { dot: '#F97316', bg: 'bg-orange-100 dark:bg-orange-950/40',text: 'text-orange-700 dark:text-orange-400', label: 'Meeting',       emoji: '🤝' },
-    // Class-specific (from class calendar)
-    test:       { dot: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-950/40',text: 'text-violet-700 dark:text-violet-400', label: 'Test',          emoji: '📝' },
-    termtest:   { dot: '#10B981', bg: 'bg-emerald-100 dark:bg-emerald-950/40',text: 'text-emerald-700 dark:text-emerald-400',label: 'Term Test',  emoji: '📋' },
-    exam:       { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40',  text: 'text-amber-700 dark:text-amber-400',   label: 'Semester Exam', emoji: '🎓' },
-    submission: { dot: '#0891B2', bg: 'bg-cyan-100 dark:bg-cyan-950/40',    text: 'text-cyan-700 dark:text-cyan-400',     label: 'Submission',    emoji: '📤' },
+    holiday:    { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40',        text: 'text-red-700 dark:text-red-400',         label: 'Holiday',       emoji: '🏖️' },
+    event:      { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40',      text: 'text-blue-700 dark:text-blue-400',       label: 'Event',         emoji: '📅' },
+    sports:     { dot: '#DB2777', bg: 'bg-pink-100 dark:bg-pink-950/40',      text: 'text-pink-700 dark:text-pink-400',       label: 'Sports',        emoji: '🏆' },
+    trip:       { dot: '#92400E', bg: 'bg-amber-100 dark:bg-amber-950/40',    text: 'text-amber-800 dark:text-amber-500',     label: 'Trip',          emoji: '🚌' },
+    meeting:    { dot: '#F97316', bg: 'bg-orange-100 dark:bg-orange-950/40',  text: 'text-orange-700 dark:text-orange-400',   label: 'Meeting',       emoji: '🤝' },
+    test:       { dot: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-950/40',  text: 'text-violet-700 dark:text-violet-400',   label: 'Test',          emoji: '📝' },
+    termtest:   { dot: '#10B981', bg: 'bg-emerald-100 dark:bg-emerald-950/40',text: 'text-emerald-700 dark:text-emerald-400', label: 'Term Test',     emoji: '📋' },
+    exam:       { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40',    text: 'text-amber-700 dark:text-amber-400',     label: 'Semester Exam', emoji: '🎓' },
+    submission: { dot: '#0891B2', bg: 'bg-cyan-100 dark:bg-cyan-950/40',      text: 'text-cyan-700 dark:text-cyan-400',       label: 'Submission',    emoji: '📤' },
 } as const;
 
 const POST_META = {
@@ -40,17 +59,12 @@ const POST_META = {
     result:       { emoji: '✅', label: 'Result',        cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
 } as const;
 
-const SOURCE_CFG: Record<FeedSource, { label: string; cls: string }> = {
-    general: { label: 'General', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-400' },
-    class:   { label: '10-A',    cls: 'bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400' },
-};
-
 type FilterKey = PostType | FeedSource | 'all';
 
 const FILTERS: { key: FilterKey; label: string; emoji: string }[] = [
     { key: 'all',          label: 'All',          emoji: '🗂️' },
     { key: 'general',      label: 'General',      emoji: '🏫' },
-    { key: 'class',        label: '10-A',         emoji: '🏷️' },
+    { key: 'class',        label: 'My Class',     emoji: '🏷️' },
     { key: 'announcement', label: 'Announcement', emoji: '📢' },
     { key: 'notice',       label: 'Notice',       emoji: '📌' },
     { key: 'material',     label: 'Material',     emoji: '📄' },
@@ -59,111 +73,36 @@ const FILTERS: { key: FilterKey; label: string; emoji: string }[] = [
 
 const AVATAR_COLORS = ['#7C3AED', '#2563EB', '#059669', '#D97706', '#DC2626', '#0891B2'];
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-const ALL_POSTS: FeedPost[] = [
-    {
-        id: 'c1', type: 'announcement', source: 'class', author: 'Mrs. Priya Sharma', role: 'Class Teacher', subject: 'M1',
-        title: 'Chapter 5 syllabus revised',
-        body: 'Algebra chapter 5 topics have been updated. Students are requested to focus on quadratic equations only. Notes will be shared by tomorrow.',
-        time: '2h ago',
-    },
-    {
-        id: 'g1', type: 'notice', source: 'general', author: 'Principal Office', role: 'Admin',
-        title: 'School closed on 14th May',
-        body: 'School will remain closed on 14th May due to a state-declared holiday. All pending submissions are extended by 2 days automatically.',
-        time: '4h ago',
-    },
-    {
-        id: 'c2', type: 'material', source: 'class', author: 'Mr. Rahul Verma', role: 'Subject Teacher', subject: 'S1',
-        title: 'Physics Notes — Chapter 3',
-        body: 'Complete notes for Laws of Motion uploaded. Please revise before the unit test on Friday.',
-        time: '5h ago',
-        attachments: [{ name: 'Physics_Ch3_Notes.pdf', kind: 'pdf' }],
-    },
-    {
-        id: 'g2', type: 'announcement', source: 'general', author: 'Admin Office', role: 'Admin',
-        title: 'Annual Sports Day — 25th May',
-        body: 'Annual Sports Day will be held on 25th May. All students must register for events by 20th May. Registration forms are available at the admin office.',
-        time: '1d ago',
-    },
-    {
-        id: 'c3', type: 'result', source: 'class', author: 'Mrs. Sunita Rao', role: 'Subject Teacher', subject: 'Eng',
-        title: 'Unit Test 1 Results Published',
-        body: 'Results for English Unit Test 1 are now live. Check your marks in the Tests section. Class average: 28/40.',
-        time: '2d ago',
-    },
-    {
-        id: 'g3', type: 'notice', source: 'general', author: 'Principal Office', role: 'Admin',
-        title: 'New Library Timings from June',
-        body: 'Library will now be open from 8 AM to 6 PM on all working days starting June 1st. Weekend access requires prior registration.',
-        time: '2d ago',
-    },
-    {
-        id: 'c4', type: 'announcement', source: 'class', author: 'Mr. Anil Kumar', role: 'Subject Teacher', subject: 'His',
-        title: 'History Project Submission — 20th May',
-        body: 'All students must submit their history projects by 20th May. Late submissions will not be accepted. Format: A4 size, handwritten.',
-        time: '3d ago',
-    },
-    {
-        id: 'g4', type: 'announcement', source: 'general', author: 'Admin Office', role: 'Admin',
-        title: 'Parent-Teacher Meeting — 30th May',
-        body: 'PTM scheduled for 30th May from 10 AM to 1 PM. All parents are requested to attend. Bring your ward\'s report card for discussion.',
-        time: '4d ago',
-    },
-    {
-        id: 'c5', type: 'material', source: 'class', author: 'Mrs. Deepa Nair', role: 'Subject Teacher', subject: 'Geo',
-        title: 'Map Work Reference Sheet',
-        body: 'Reference sheet for map work uploaded. Useful for unit test and half yearly exam preparation.',
-        time: '4d ago',
-        attachments: [{ name: 'MapWork_Ref.pdf', kind: 'pdf' }, { name: 'Practice Questions', kind: 'link' }],
-    },
-    {
-        id: 'g5', type: 'material', source: 'general', author: 'Admin Office', role: 'Admin',
-        title: 'Exam Guidelines & Hall Ticket Info',
-        body: 'Please read the attached exam guidelines carefully. Hall tickets will be distributed on 18th May.',
-        time: '5d ago',
-        attachments: [{ name: 'Exam_Guidelines_2025.pdf', kind: 'pdf' }],
-    },
-];
-
-// General (campus-wide) events — managed by admin/principal
-const GENERAL_CAL_EVENTS: CalEvent[] = [
-    { id: 'e1', date: 1,  type: 'holiday', label: 'Maharashtra Day',       createdBy: 'Principal Office' },
-    { id: 'e2', date: 5,  type: 'event',   label: 'Science Exhibition',    createdBy: 'Principal Office' },
-    { id: 'e3', date: 10, type: 'meeting', label: 'Parent-Teacher Meeting',createdBy: 'Principal Office' },
-    { id: 'e4', date: 14, type: 'holiday', label: 'Budget Holiday',        createdBy: 'Principal Office' },
-    { id: 'e5', date: 18, type: 'sports',  label: 'Inter-House Sports',    createdBy: 'Principal Office' },
-    { id: 'e6', date: 22, type: 'event',   label: 'Annual Day Rehearsal',  createdBy: 'Principal Office' },
-    { id: 'e7', date: 25, type: 'trip',    label: 'Educational Trip',      createdBy: 'Principal Office' },
-    { id: 'e8', date: 28, type: 'event',   label: 'Prize Distribution',    createdBy: 'Principal Office' },
-];
-
-// Class-specific events — managed by class teacher
-const CLASS_CAL_EVENTS: CalEvent[] = [
-    { id: 'c1', date: 5,  type: 'test',      label: 'Unit Test — Mathematics',  createdBy: 'Mrs. Priya Sharma' },
-    { id: 'c2', date: 10, type: 'submission', label: 'History Assignment Due',   createdBy: 'Mr. Anil Kumar' },
-    { id: 'c3', date: 15, type: 'termtest',  label: 'Term Test — Science',       createdBy: 'Mr. Rahul Verma' },
-    { id: 'c4', date: 18, type: 'test',      label: 'Science Quiz',              createdBy: 'Mr. Rahul Verma' },
-    { id: 'c5', date: 22, type: 'exam',      label: 'Semester Exam — English',   createdBy: 'Mrs. Sunita Rao' },
-    { id: 'c6', date: 23, type: 'exam',      label: 'Semester Exam — Maths',     createdBy: 'Mrs. Priya Sharma' },
-    { id: 'c7', date: 25, type: 'submission',label: 'Geography Project Due',     createdBy: 'Mrs. Deepa Nair' },
-    { id: 'c8', date: 28, type: 'exam',      label: 'Semester Exam — Science',   createdBy: 'Mr. Rahul Verma' },
-];
-
-// Combined — both shown on calendar
-const CAL_EVENTS: CalEvent[] = [...GENERAL_CAL_EVENTS, ...CLASS_CAL_EVENTS];
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getDaysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate(); }
 function getFirstDay(y: number, m: number) { return new Date(y, m, 1).getDay(); }
 function getInitials(name: string) { return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase(); }
 function getAvatarColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]; }
+function formatRelative(iso: string) {
+    const diff = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
+}
+function formatDateTime(iso: string) {
+    const d = new Date(iso);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${h12}:${m} ${ampm}`;
+}
 
 // ── Academic Calendar ─────────────────────────────────────────────────────────
 function AcademicCalendar() {
     const now = new Date();
     const [year, setYear] = useState(now.getFullYear());
     const [month, setMonth] = useState(now.getMonth());
+    const [events, setEvents] = useState<CalEvent[]>([]);
     const [selectedDate, setSelectedDate] = useState<number | null>(null);
     const [showModal, setShowModal] = useState(false);
 
@@ -181,7 +120,16 @@ function AcademicCalendar() {
     ];
     while (cells.length % 7 !== 0) cells.push(null);
 
-    const eventsOn = (d: number) => CAL_EVENTS.filter(e => e.date === d);
+    const fetchEvents = useCallback(async () => {
+        try {
+            const res = await api.get('/student/feed/events', { params: { year, month } });
+            setEvents(res.data.data);
+        } catch { /* silent */ }
+    }, [year, month]);
+
+    useEffect(() => { fetchEvents(); }, [fetchEvents]);
+
+    const eventsOn = (d: number) => events.filter(e => e.date === d);
     const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1); } else setMonth(m => m - 1); };
     const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
@@ -226,7 +174,7 @@ function AcademicCalendar() {
                                 {evs.length > 0 && (
                                     <div className="flex gap-0.5 absolute bottom-1 items-center">
                                         {evs.slice(0, 3).map((ev, di) => (
-                                            <div key={di} className="w-2.5 h-2.5 rounded-full" style={{ background: EVENT_CFG[ev.type].dot }} />
+                                            <div key={di} className="w-2.5 h-2.5 rounded-full" style={{ background: EVENT_CFG[ev.type]?.dot ?? '#888' }} />
                                         ))}
                                         {evs.length > 3 && <span className="text-[10px] font-bold text-muted-foreground leading-none">+{evs.length - 3}</span>}
                                     </div>
@@ -258,17 +206,25 @@ function AcademicCalendar() {
                                 </button>
                             </div>
                             <div className="space-y-2">
-                                {eventsOn(selectedDate).map(ev => (
-                                    <div key={ev.id} className={`flex items-center gap-3 p-3 rounded-xl border-l-4 ${EVENT_CFG[ev.type].bg}`}
-                                        style={{ borderLeftColor: EVENT_CFG[ev.type].dot }}>
-                                        <span className="text-lg">{EVENT_CFG[ev.type].emoji}</span>
-                                        <div className="flex-1 min-w-0">
-                                            <p className={`text-[11px] font-semibold ${EVENT_CFG[ev.type].text}`}>{EVENT_CFG[ev.type].label}</p>
-                                            <p className={`text-xs font-bold ${EVENT_CFG[ev.type].text}`}>{ev.label}</p>
-                                            <p className="text-[10px] text-muted-foreground mt-0.5">by {ev.createdBy}</p>
+                                {eventsOn(selectedDate).map(ev => {
+                                    const cfg = EVENT_CFG[ev.type] ?? EVENT_CFG.event;
+                                    return (
+                                        <div key={ev.id} className={`flex items-center gap-3 p-3 rounded-xl border-l-4 ${cfg.bg}`}
+                                            style={{ borderLeftColor: cfg.dot }}>
+                                            <span className="text-lg">{cfg.emoji}</span>
+                                            <div className="flex-1 min-w-0">
+                                                <div className="flex items-center gap-1.5">
+                                                    <p className={`text-[11px] font-semibold ${cfg.text}`}>{cfg.label}</p>
+                                                    {ev.isClassEvent && (
+                                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-400">Class</span>
+                                                    )}
+                                                </div>
+                                                <p className={`text-xs font-bold ${cfg.text}`}>{ev.label}</p>
+                                                {ev.createdBy && <p className="text-[10px] text-muted-foreground mt-0.5">by {ev.createdBy.name}</p>}
+                                            </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </motion.div>
                     </div>
@@ -279,12 +235,16 @@ function AcademicCalendar() {
 }
 
 // ── Feed Card ─────────────────────────────────────────────────────────────────
-function FeedCard({ post }: { post: FeedPost }) {
+function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string }) {
     const [expanded, setExpanded] = useState(false);
     const meta = POST_META[post.type];
-    const src = SOURCE_CFG[post.source];
-    const avatarColor = getAvatarColor(post.author);
-    const initials = getInitials(post.author);
+    const avatarColor = getAvatarColor(post.author.name);
+    const initials = getInitials(post.author.name);
+
+    const sourceLabel = post.source === 'class' ? (divisionName || 'My Class') : 'General';
+    const sourceCls = post.source === 'class'
+        ? 'bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-400'
+        : 'bg-violet-100 text-violet-700 dark:bg-violet-950/60 dark:text-violet-400';
 
     return (
         <motion.div
@@ -292,50 +252,44 @@ function FeedCard({ post }: { post: FeedPost }) {
             animate={{ opacity: 1, y: 0 }}
             className="bg-card border border-border/50 rounded-2xl p-4 space-y-3"
         >
-            {/* Type chip + source tag + timestamp */}
             <div className="flex items-center justify-between">
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${meta.cls}`}>
                     {meta.emoji} {meta.label}
                     {post.subject && <span className="font-normal opacity-75">· {post.subject}</span>}
                 </span>
                 <div className="flex items-center gap-1.5">
-                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${src.cls}`}>
-                        {src.label}
+                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${sourceCls}`}>
+                        {sourceLabel}
                     </span>
-                    <span className="text-[11px] text-muted-foreground">{post.time}</span>
+                    <span className="text-[11px] text-muted-foreground">{formatRelative(post.createdAt)}</span>
                 </div>
             </div>
 
-            {/* Author */}
             <div className="flex items-center gap-2.5">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
                     style={{ background: avatarColor }}>
                     {initials}
                 </div>
                 <div>
-                    <p className="text-xs font-semibold">{post.author}</p>
-                    <p className="text-[10px] text-muted-foreground">{post.role}</p>
+                    <p className="text-xs font-semibold">{post.author.name}</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">{post.author.role.toLowerCase()}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">{formatDateTime(post.createdAt)}</p>
                 </div>
             </div>
 
-            {/* Content */}
             <div>
                 <p className="text-sm font-bold mb-1">{post.title}</p>
-                <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>
-                    {post.body}
-                </p>
+                {post.body && (
+                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>
+                        {post.body}
+                    </p>
+                )}
             </div>
 
-            {/* Attachments */}
-            {post.attachments && expanded && (
-                <div className="space-y-1.5">
-                    {post.attachments.map((att, i) => (
-                        <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-950/30 cursor-pointer hover:opacity-80 transition-opacity">
-                            <span className="text-sm">{att.kind === 'pdf' ? '📄' : '🔗'}</span>
-                            <span className="text-xs font-semibold text-blue-700 dark:text-blue-400 truncate">{att.name}</span>
-                        </div>
-                    ))}
-                </div>
+            {post.attachmentUrl && post.attachmentName && post.attachmentType && (
+                <AttachmentPreview
+                    attachment={{ url: post.attachmentUrl, name: post.attachmentName, type: post.attachmentType }}
+                />
             )}
 
             <button onClick={() => setExpanded(v => !v)}
@@ -347,19 +301,95 @@ function FeedCard({ post }: { post: FeedPost }) {
     );
 }
 
+// ── Feed Skeleton ─────────────────────────────────────────────────────────────
+function FeedSkeleton() {
+    return (
+        <div className="space-y-2">
+            {[1, 2, 3].map(i => (
+                <div key={i} className="bg-card border border-border/50 rounded-2xl p-4 space-y-3 animate-pulse">
+                    <div className="flex items-center justify-between">
+                        <div className="h-6 w-28 bg-muted rounded-full" />
+                        <div className="h-4 w-16 bg-muted rounded-full" />
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-full bg-muted" />
+                        <div className="space-y-1">
+                            <div className="h-3 w-24 bg-muted rounded" />
+                            <div className="h-2.5 w-16 bg-muted rounded" />
+                        </div>
+                    </div>
+                    <div className="space-y-1.5">
+                        <div className="h-4 w-48 bg-muted rounded" />
+                        <div className="h-3 w-full bg-muted rounded" />
+                        <div className="h-3 w-3/4 bg-muted rounded" />
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function StudentFeedPage() {
+    const { division } = useStudentStore();
+    const { setFeedHasNew } = useFeedBadge();
     const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
+    const [posts, setPosts] = useState<FeedPost[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [inScreenHasNew, setInScreenHasNew] = useState(false);
+    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const latestCreatedAtRef = useRef<string | null>(null);
 
-    const filtered = ALL_POSTS.filter(p => {
-        if (activeFilter === 'all') return true;
-        if (activeFilter === 'general' || activeFilter === 'class') return p.source === activeFilter;
-        return p.type === activeFilter;
-    });
+    const fetchPosts = useCallback(async (isInitial = false) => {
+        if (isInitial) setLoading(true);
+        try {
+            const typeParam = (activeFilter === 'general' || activeFilter === 'class' || activeFilter === 'all')
+                ? undefined
+                : activeFilter;
+            const res = await api.get('/student/feed/posts', {
+                params: { limit: 50, ...(typeParam ? { type: typeParam } : {}) },
+            });
+            const all: FeedPost[] = res.data.data;
+            const newestAt = all[0]?.createdAt ?? null;
+
+            if (isInitial) {
+                latestCreatedAtRef.current = newestAt;
+                setInScreenHasNew(false);
+            } else if (newestAt && latestCreatedAtRef.current && newestAt > latestCreatedAtRef.current) {
+                latestCreatedAtRef.current = newestAt;
+                setInScreenHasNew(true); // in-page pulse dot (user is on the feed)
+                // nav badge fires only when user is NOT on this page (layout clears it on navigate-in)
+                setFeedHasNew(true);
+            }
+
+            // Client-side source filter
+            const filtered = activeFilter === 'general'
+                ? all.filter(p => p.source === 'general')
+                : activeFilter === 'class'
+                ? all.filter(p => p.source === 'class')
+                : all;
+
+            setPosts(filtered);
+        } catch (err: unknown) {
+            if (isInitial) {
+                const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+                toast.error(msg ?? 'Failed to load feed');
+            }
+        }
+        if (isInitial) setLoading(false);
+    }, [activeFilter, setFeedHasNew]);
+
+    useEffect(() => {
+        fetchPosts(true);
+        pollRef.current = setInterval(() => fetchPosts(false), 30_000);
+        return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    }, [fetchPosts]);
+
+    // Update FILTERS label for 'class' dynamically
+    const filters = FILTERS.map(f => f.key === 'class' ? { ...f, label: division || 'My Class' } : f);
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            {/* Page Header */}
             <div className="shrink-0 px-1 pb-3">
                 <h1 className="text-xl font-bold flex items-center gap-2">
                     <Rss size={21} /> Feed
@@ -368,18 +398,22 @@ export default function StudentFeedPage() {
                 <div className="h-px bg-border/60 mt-2" />
             </div>
 
-            {/* Feed + Calendar */}
             <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-2">
 
                 {/* Feed panel — LEFT */}
                 <div className="w-[65%] flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
 
-                    {/* Header + filters */}
                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between">
-                            <h2 className="text-sm font-bold">📢 Announcements &amp; Feed</h2>
+                            <h2 className="text-sm font-bold flex items-center gap-1.5">
+                                📢 Announcements &amp; Feed
+                                {loading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
+                                {inScreenHasNew && !loading && (
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="New updates" />
+                                )}
+                            </h2>
                             <div className="flex items-center gap-1.5 flex-wrap justify-end">
-                                {FILTERS.map(tab => (
+                                {filters.map(tab => (
                                     <button key={tab.key} onClick={() => setActiveFilter(tab.key)}
                                         className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-semibold whitespace-nowrap transition-all ${
                                             activeFilter === tab.key
@@ -393,18 +427,23 @@ export default function StudentFeedPage() {
                         </div>
                     </div>
 
-                    {/* Feed list */}
                     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-0 bg-background">
-                        <AnimatePresence mode="popLayout">
-                            {filtered.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-16 text-center">
-                                    <p className="text-sm font-medium text-muted-foreground">No posts here</p>
-                                    <p className="text-xs text-muted-foreground/60 mt-1">Check back later</p>
-                                </div>
-                            ) : (
-                                filtered.map(post => <FeedCard key={post.id} post={post} />)
-                            )}
-                        </AnimatePresence>
+                        {loading ? (
+                            <FeedSkeleton />
+                        ) : (
+                            <AnimatePresence mode="popLayout">
+                                {posts.length === 0 ? (
+                                    <div className="flex flex-col items-center justify-center py-16 text-center">
+                                        <p className="text-sm font-medium text-muted-foreground">No posts here</p>
+                                        <p className="text-xs text-muted-foreground/60 mt-1">Check back later</p>
+                                    </div>
+                                ) : (
+                                    posts.map(post => (
+                                        <FeedCard key={post.id} post={post} divisionName={division} />
+                                    ))
+                                )}
+                            </AnimatePresence>
+                        )}
                     </div>
                 </div>
 

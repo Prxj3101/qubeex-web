@@ -10,6 +10,7 @@ interface StudentState {
     rollNo: string;
     standard: string;
     division: string;
+    divisionId: string;
     houseColor: string;
     institutionName: string;
     tempPassword: string | null;
@@ -62,6 +63,7 @@ export const useStudentStore = create<StudentState>()(persist((set, get) => ({
     rollNo: '',
     standard: '',
     division: '',
+    divisionId: '',
     houseColor: '',
     institutionName: '',
     tempPassword: null,
@@ -107,6 +109,7 @@ export const useStudentStore = create<StudentState>()(persist((set, get) => ({
                 rollNo: s.rollNo ?? '',
                 standard: s.standard?.name ?? '',
                 division: s.division?.name ?? '',
+                divisionId: s.division?.id ?? '',
                 houseColor: s.houseColor ?? '',
                 institutionName: s.institution?.name ?? '',
                 tempPassword: s.tempPassword ?? null,

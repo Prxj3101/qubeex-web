@@ -26,6 +26,7 @@ interface NavItem {
     icon?: LucideIcon;
     activePath?: string | string[];
     locked?: boolean;
+    badge?: boolean;
 }
 
 interface TopbarProps {
@@ -248,7 +249,12 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
                                     "relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl",
                                     isActive ? "text-white" : "text-muted-foreground hover:text-foreground"
                                 )}>
-                                    {Icon && <Icon size={15} />}
+                                    <span className="relative">
+                                        {Icon && <Icon size={15} />}
+                                        {item.badge && (
+                                            <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-red-500 border border-background" />
+                                        )}
+                                    </span>
                                     {item.label}
                                 </div>
                             </Link>
