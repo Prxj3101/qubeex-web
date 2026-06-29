@@ -11,7 +11,6 @@ import {
     DropdownMenu,
     DropdownMenuContent,
     DropdownMenuItem,
-    DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import Link from 'next/link';
@@ -19,6 +18,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
+import { useStudentStore } from '@/store/studentStore';
+import { AvatarImage } from '@/components/ui/avatar';
 
 interface NavItem {
     label: string;
@@ -102,6 +103,11 @@ function AvatarMenu() {
     const router = useRouter();
     const pathname = usePathname();
     const role = getRole(pathname, user?.role);
+    const studentPhoto = useStudentStore(s => s.photo);
+    const studentName = useStudentStore(s => s.name);
+    const isStudent = pathname.startsWith('/student');
+    const photoUrl = isStudent ? studentPhoto : null;
+    const displayName = isStudent && studentName ? studentName : (user?.name || user?.email || 'Signed in');
 
     const settingsHref =
         pathname.startsWith('/superadmin') ? '/superadmin/settings' :
@@ -126,19 +132,27 @@ function AvatarMenu() {
             <DropdownMenuTrigger asChild>
                 <button className="outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full">
                     <Avatar className="h-8 w-8 cursor-pointer ring-2 ring-border">
+                        {photoUrl && <AvatarImage src={photoUrl} alt={displayName} className="object-cover" />}
                         <AvatarFallback className="text-[11px] font-semibold bg-violet-100 dark:bg-[#7C3AED]/25 text-violet-700 dark:text-violet-300">
-                            {initialMap[role]}
+                            {isStudent && studentName
+                                ? studentName.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+                                : initialMap[role]}
                         </AvatarFallback>
                     </Avatar>
                 </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 p-2 rounded-2xl border border-border/50 shadow-lg bg-card">
                 <div className="flex items-center gap-3 px-2 py-2.5 mb-1">
-                    <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-[#7C3AED]/25 flex items-center justify-center text-sm font-bold text-violet-700 dark:text-violet-300 shrink-0">
-                        {initialMap[role]}
-                    </div>
+                    <Avatar className="w-9 h-9 rounded-xl shrink-0">
+                        {photoUrl && <AvatarImage src={photoUrl} alt={displayName} className="object-cover rounded-xl" />}
+                        <AvatarFallback className="rounded-xl bg-violet-100 dark:bg-[#7C3AED]/25 text-sm font-bold text-violet-700 dark:text-violet-300">
+                            {isStudent && studentName
+                                ? studentName.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+                                : initialMap[role]}
+                        </AvatarFallback>
+                    </Avatar>
                     <div className="min-w-0">
-                        <p className="text-xs font-semibold truncate">{user?.name || user?.email || 'Signed in'}</p>
+                        <p className="text-xs font-semibold truncate">{displayName}</p>
                         <p className="text-[11px] text-muted-foreground">{labelMap[role]}</p>
                     </div>
                 </div>
