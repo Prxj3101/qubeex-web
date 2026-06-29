@@ -371,11 +371,14 @@ export default function StudentProfile() {
                                     <p className="text-sm font-medium">No results published yet</p>
                                 </div>
                             ) : (() => {
-                                const AngledTick = ({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) => (
-                                    <g transform={`translate(${x ?? 0},${y ?? 0})`}>
-                                        <text x={0} y={0} dy={8} textAnchor="end" fill="var(--muted-foreground)" fontSize={10} transform="rotate(-35)">{payload?.value}</text>
-                                    </g>
-                                );
+                                const AngledTick = (props: unknown) => {
+                                    const { x, y, payload } = props as { x: number; y: number; payload: { value: string } };
+                                    return (
+                                        <g transform={`translate(${x},${y})`}>
+                                            <text x={0} y={0} dy={8} textAnchor="end" fill="var(--muted-foreground)" fontSize={10} transform="rotate(-35)">{payload?.value}</text>
+                                        </g>
+                                    );
+                                };
                                 return (
                                     <>
                                         <ResponsiveContainer width="100%" height={240}>
