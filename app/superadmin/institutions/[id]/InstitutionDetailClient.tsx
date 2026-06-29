@@ -112,11 +112,11 @@ const ADMIN_GENDER_OPTIONS = [{ value: "Male", label: "Male" }, { value: "Female
 // ── Phone edit field (portal dropdown, same as student detail) ────────────────
 const INST_PHONE_CODES = [
   { code: "+91", flag: "🇮🇳", max: 10 },
-  { code: "+1",  flag: "🇺🇸", max: 10 },
+  { code: "+1", flag: "🇺🇸", max: 10 },
   { code: "+44", flag: "🇬🇧", max: 10 },
-  { code: "+61", flag: "🇦🇺", max: 9  },
-  { code: "+971",flag: "🇦🇪", max: 9  },
-  { code: "+65", flag: "🇸🇬", max: 8  },
+  { code: "+61", flag: "🇦🇺", max: 9 },
+  { code: "+971", flag: "🇦🇪", max: 9 },
+  { code: "+65", flag: "🇸🇬", max: 8 },
 ];
 
 function parseInstPhone(val: string) {
@@ -605,11 +605,10 @@ function ViewDetailsTab({
                         {ADMIN_PREFIX_OPTIONS.map((opt) => (
                           <button key={opt} type="button"
                             onClick={() => setAdminDraft((d) => ({ ...d, adminPrefix: d.adminPrefix === opt ? "" : opt }))}
-                            className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
-                              adminDraft.adminPrefix === opt
+                            className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${adminDraft.adminPrefix === opt
                                 ? "border-transparent text-white"
                                 : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent"
-                            }`}
+                              }`}
                             style={adminDraft.adminPrefix === opt ? { background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" } : {}}>
                             {opt}
                           </button>
@@ -635,11 +634,10 @@ function ViewDetailsTab({
                       {ADMIN_TITLE_OPTIONS.map((opt) => (
                         <button key={opt} type="button"
                           onClick={() => setAdminDraft((d) => ({ ...d, adminTitle: d.adminTitle === opt ? "" : opt }))}
-                          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
-                            adminDraft.adminTitle === opt
+                          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${adminDraft.adminTitle === opt
                               ? "border-transparent text-white"
                               : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent"
-                          }`}
+                            }`}
                           style={adminDraft.adminTitle === opt ? { background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" } : {}}>
                           {opt}
                         </button>
@@ -664,11 +662,10 @@ function ViewDetailsTab({
                       {ADMIN_GENDER_OPTIONS.map((opt) => (
                         <button key={opt.value} type="button"
                           onClick={() => setAdminDraft((d) => ({ ...d, adminGender: opt.value }))}
-                          className={`text-[11px] font-semibold px-3 py-1 rounded-full border transition-all ${
-                            adminDraft.adminGender === opt.value
+                          className={`text-[11px] font-semibold px-3 py-1 rounded-full border transition-all ${adminDraft.adminGender === opt.value
                               ? "border-transparent text-white"
                               : "border-border/60 text-muted-foreground hover:border-border hover:text-foreground"
-                          }`}
+                            }`}
                           style={adminDraft.adminGender === opt.value ? { background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" } : {}}>
                           {opt.label}
                         </button>
@@ -894,7 +891,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
     (inst.subscription?.plan?.name as "BASIC" | "PRO" | "TRIAL") ?? "BASIC";
   const [planActive, setPlanActive] = useState(
     (inst.subscription?.status ?? "") === "ACTIVE" ||
-      (inst.subscription?.status ?? "") === "PAUSED",
+    (inst.subscription?.status ?? "") === "PAUSED",
   );
   const [plan, setPlan] = useState<"BASIC" | "PRO" | "TRIAL">(initialPlan);
   const [planOption, setPlanOption] = useState<"FLEXIBLE" | "COMMITTED">(
@@ -1167,7 +1164,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
 
     const isAfter12Months = upgradeDate
       ? upgradeDate.getTime() - activationDate.getTime() >
-        365 * 24 * 60 * 60 * 1000
+      365 * 24 * 60 * 60 * 1000
       : false;
 
     const getFeatureExpiry = (key: string) => {
@@ -1187,7 +1184,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       12,
       Math.floor(
         (today3.getTime() - activationDate.getTime()) /
-          (1000 * 60 * 60 * 24 * 30),
+        (1000 * 60 * 60 * 24 * 30),
       ),
     );
     const monthsRemaining = Math.max(0, 12 - monthsUsed);
@@ -1295,33 +1292,33 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       },
       ...(storageAdded
         ? [
-            {
-              label: "Storage Add-On",
-              desc: `${storageAddGb}GB × ₹${storagePricePerGb}/GB`,
-              amount: storageAddTotal,
-              type: "addon" as const,
-            },
-          ]
+          {
+            label: "Storage Add-On",
+            desc: `${storageAddGb}GB × ₹${storagePricePerGb}/GB`,
+            amount: storageAddTotal,
+            type: "addon" as const,
+          },
+        ]
         : []),
       ...(tokenAdded
         ? [
-            {
-              label: "AI Tokens Add-On",
-              desc: `${tokenAddK}M tokens × ₹${tokenPricePer10k}/1M`,
-              amount: tokenAddTotal,
-              type: "addon" as const,
-            },
-          ]
+          {
+            label: "AI Tokens Add-On",
+            desc: `${tokenAddK}M tokens × ₹${tokenPricePer10k}/1M`,
+            amount: tokenAddTotal,
+            type: "addon" as const,
+          },
+        ]
         : []),
       ...(addonExtraBill > 0
         ? [
-            {
-              label: "Feature Re-enable Charges",
-              desc: "Expired add-on features renewed",
-              amount: addonExtraBill,
-              type: "addon" as const,
-            },
-          ]
+          {
+            label: "Feature Re-enable Charges",
+            desc: "Expired add-on features renewed",
+            amount: addonExtraBill,
+            type: "addon" as const,
+          },
+        ]
         : []),
     ];
     const currentMonthTotal = currentMonthItems.reduce(
@@ -2030,13 +2027,12 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                             toast.error(getErrorMessage(err, "Failed to update bill"));
                           }
                         }}
-                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full transition-all ${
-                          bill.status === "PAID"
+                        className={`text-[11px] font-semibold px-2 py-0.5 rounded-full transition-all ${bill.status === "PAID"
                             ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 hover:bg-emerald-200"
                             : bill.status === "FAILED"
                               ? "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 cursor-not-allowed"
                               : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 hover:bg-amber-200"
-                        }`}
+                          }`}
                       >
                         {bill.status}
                       </button>
@@ -2490,10 +2486,10 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                             ).map((f) => {
                               const exp = upgradeIsAfter12
                                 ? new Date(
-                                    new Date().setFullYear(
-                                      new Date().getFullYear() + 1,
-                                    ),
-                                  )
+                                  new Date().setFullYear(
+                                    new Date().getFullYear() + 1,
+                                  ),
+                                )
                                 : basicExpiryDate;
                               const days = daysLeft(exp);
                               const expired = isExpired(exp);
@@ -3393,120 +3389,120 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       </SectionCard>
 
       <SectionCard
-          title={
-            <span className="flex items-center gap-2">
-              <IndianRupee size={15} />
-              Monthly Billing
-            </span>
-          }
-        >
-          <div className="space-y-3">
-            <div className="rounded-xl border border-border/50 overflow-hidden">
-              <div className="px-4 py-2.5 bg-muted/30 border-b border-border/40">
-                <p className="text-xs font-semibold">Pricing Tiers — {plan}</p>
-              </div>
-              <div className="divide-y divide-border/30">
-                {planPricing.tiers.map((tier, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between px-4 py-2.5"
-                  >
-                    <span className="text-xs text-muted-foreground">
-                      {tier.max === Infinity
-                        ? `${tier.min}+ users`
-                        : `${tier.min}–${tier.max} users`}
-                    </span>
-                    <span className="text-xs font-bold text-muted-foreground">
-                      {fmt(tier.rate)}/user/mo
-                    </span>
-                  </div>
-                ))}
-              </div>
+        title={
+          <span className="flex items-center gap-2">
+            <IndianRupee size={15} />
+            Monthly Billing
+          </span>
+        }
+      >
+        <div className="space-y-3">
+          <div className="rounded-xl border border-border/50 overflow-hidden">
+            <div className="px-4 py-2.5 bg-muted/30 border-b border-border/40">
+              <p className="text-xs font-semibold">Pricing Tiers — {plan}</p>
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              <InfoBox label="Min. Users" value="200" sub="minimum billed" />
-              <InfoBox
-                label="Base Rate"
-                value={`${fmt(planPricing.tiers[0].rate)}/user`}
-                sub="200–1499 users"
-              />
-              <InfoBox
-                label="Min. First Bill"
-                value={fmt(200 * planPricing.tiers[0].rate)}
-                sub="minimum amount"
-                highlight
-              />
+            <div className="divide-y divide-border/30">
+              {planPricing.tiers.map((tier, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between px-4 py-2.5"
+                >
+                  <span className="text-xs text-muted-foreground">
+                    {tier.max === Infinity
+                      ? `${tier.min}+ users`
+                      : `${tier.min}–${tier.max} users`}
+                  </span>
+                  <span className="text-xs font-bold text-muted-foreground">
+                    {fmt(tier.rate)}/user/mo
+                  </span>
+                </div>
+              ))}
             </div>
-            <p className="text-[11px] text-muted-foreground px-1">
-              💡 Min. 200 users billed. Rate drops automatically as your
-              institution grows.
-            </p>
           </div>
-        </SectionCard>
+          <div className="grid grid-cols-3 gap-3">
+            <InfoBox label="Min. Users" value="200" sub="minimum billed" />
+            <InfoBox
+              label="Base Rate"
+              value={`${fmt(planPricing.tiers[0].rate)}/user`}
+              sub="200–1499 users"
+            />
+            <InfoBox
+              label="Min. First Bill"
+              value={fmt(200 * planPricing.tiers[0].rate)}
+              sub="minimum amount"
+              highlight
+            />
+          </div>
+          <p className="text-[11px] text-muted-foreground px-1">
+            💡 Min. 200 users billed. Rate drops automatically as your
+            institution grows.
+          </p>
+        </div>
+      </SectionCard>
 
       <SectionCard
-          title={
-            <span className="flex items-center gap-2">
-              <span
-                onDoubleClick={() => setShowDiscount((v) => !v)}
-                className="cursor-default select-none"
-              >
-                <Landmark
-                  size={15}
-                  className="text-muted-foreground/100 hover:text-muted-foreground/70 transition-colors"
-                />
-              </span>
-              One-time Licence Fee
+        title={
+          <span className="flex items-center gap-2">
+            <span
+              onDoubleClick={() => setShowDiscount((v) => !v)}
+              className="cursor-default select-none"
+            >
+              <Landmark
+                size={15}
+                className="text-muted-foreground/100 hover:text-muted-foreground/70 transition-colors"
+              />
             </span>
-          }
-        >
-          <div className="bg-muted/40 rounded-xl p-4">
-            <p className="text-xs font-semibold">Licence Cost</p>
-            <p className="text-xl font-black mt-0.5">{fmt(finalLicence)}</p>
-            {showDiscount && (
-              <div className="border-t border-border/50 pt-3 mt-3">
-                <div className="flex items-center gap-3 mb-1">
+            One-time Licence Fee
+          </span>
+        }
+      >
+        <div className="bg-muted/40 rounded-xl p-4">
+          <p className="text-xs font-semibold">Licence Cost</p>
+          <p className="text-xl font-black mt-0.5">{fmt(finalLicence)}</p>
+          {showDiscount && (
+            <div className="border-t border-border/50 pt-3 mt-3">
+              <div className="flex items-center gap-3 mb-1">
+                <input
+                  type="range"
+                  min={0}
+                  max={50}
+                  step={1}
+                  value={discount}
+                  onChange={(e) => {
+                    setDiscount(Number(e.target.value));
+                    setDiscountInput(e.target.value);
+                  }}
+                  className="flex-1 accent-[#DA7756] h-1.5 cursor-pointer"
+                />
+                <div className="flex items-center gap-1 shrink-0">
                   <input
-                    type="range"
+                    type="number"
                     min={0}
                     max={50}
-                    step={1}
-                    value={discount}
+                    value={discountInput}
                     onChange={(e) => {
-                      setDiscount(Number(e.target.value));
                       setDiscountInput(e.target.value);
+                      setDiscount(
+                        Math.min(
+                          50,
+                          Math.max(0, Number(e.target.value) || 0),
+                        ),
+                      );
                     }}
-                    className="flex-1 accent-[#DA7756] h-1.5 cursor-pointer"
+                    className="w-14 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-[#DA7756]"
                   />
-                  <div className="flex items-center gap-1 shrink-0">
-                    <input
-                      type="number"
-                      min={0}
-                      max={50}
-                      value={discountInput}
-                      onChange={(e) => {
-                        setDiscountInput(e.target.value);
-                        setDiscount(
-                          Math.min(
-                            50,
-                            Math.max(0, Number(e.target.value) || 0),
-                          ),
-                        );
-                      }}
-                      className="w-14 h-7 px-2 text-center rounded-lg border border-border bg-card text-xs font-bold focus:outline-none focus:border-[#DA7756]"
-                    />
-                    <span className="text-xs text-muted-foreground">% off</span>
-                  </div>
+                  <span className="text-xs text-muted-foreground">% off</span>
                 </div>
-                {discount > 0 && (
-                  <p className="text-[11px] text-[#DA7756] font-medium">
-                    Saving {fmt(discountAmt)} · Final: {fmt(finalLicence)}
-                  </p>
-                )}
               </div>
-            )}
-          </div>
-        </SectionCard>
+              {discount > 0 && (
+                <p className="text-[11px] text-[#DA7756] font-medium">
+                  Saving {fmt(discountAmt)} · Final: {fmt(finalLicence)}
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      </SectionCard>
 
       <SectionCard
         title={
@@ -3656,23 +3652,23 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
         className={`p-5 rounded-2xl border-2 transition-all mb-6 ${canActivate ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20" : "border-border/50 bg-muted/20"}`}
       >
         <div className="mb-4">
-            <div
-              className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${licencePaid ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20" : "border-border/50 bg-card"}`}
-            >
-              <div>
-                <p className="text-xs font-semibold">
-                  Licence Payment Received
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  Mark once one-time licence payment confirmed
-                </p>
-              </div>
-              <Toggle
-                on={licencePaid}
-                onToggle={() => setLicencePaid((v) => !v)}
-              />
+          <div
+            className={`flex items-center justify-between p-3.5 rounded-xl border-2 transition-all ${licencePaid ? "border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20" : "border-border/50 bg-card"}`}
+          >
+            <div>
+              <p className="text-xs font-semibold">
+                Licence Payment Received
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Mark once one-time licence payment confirmed
+              </p>
             </div>
+            <Toggle
+              on={licencePaid}
+              onToggle={() => setLicencePaid((v) => !v)}
+            />
           </div>
+        </div>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-bold">
