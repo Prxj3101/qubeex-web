@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useStudentStore } from '@/store/studentStore';
 import { motion } from 'framer-motion';
@@ -17,35 +18,14 @@ import {
 } from 'recharts';
 import { FLAGS } from '@/lib/flags';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const STUDENT = {
-    name: 'Prajwal Jagdish Kotian',
-    rollNo: '09',
-    standard: 'Class 10',
-    div: 'Division A',
-    academicYear: '2026-27',
-    dob: '2001-05-31',
-    email: 'prajwal.kotian@gmail.com',
-    totalStudents: 62,
-    uid: 'STU-2026-0009',
-};
-
 type MarksMode = 'offline' | 'online' | 'combined';
 
-const OVERALL_RANK: Record<MarksMode, number> = { offline: 6, online: 3, combined: 4 };
+interface MarksheetSubject {
+    id: string; name: string; code: string; color: string | null;
+    total: { scored: number; max: number }; pct: number | null; grade: string;
+}
 
-const SUBJECT_PERFORMANCE = [
-    { name: 'English', code: 'ENG', color: '#DA7756', offline: 78, online: 82 },
-    { name: 'Hindi', code: 'HIN', color: '#EC4899', offline: 70, online: 75 },
-    { name: 'Marathi', code: 'MAR', color: '#0891B2', offline: 65, online: 70 },
-    { name: 'Algebra', code: 'ALG', color: '#7C3AED', offline: 80, online: 85 },
-    { name: 'Geometry', code: 'GEO', color: '#059669', offline: 72, online: 78 },
-    { name: 'Science 1', code: 'SC1', color: '#0EA5E9', offline: 68, online: 74 },
-    { name: 'Science 2', code: 'SC2', color: '#6366F1', offline: 75, online: 80 },
-    { name: 'History', code: 'HIS', color: '#D97706', offline: 60, online: 66 },
-    { name: 'Geography', code: 'GEOG', color: '#16A34A', offline: 73, online: 77 },
-];
+const SUBJECT_COLORS = ['#DA7756','#EC4899','#0891B2','#7C3AED','#059669','#0EA5E9','#6366F1','#D97706','#16A34A','#E11D48','#7C3AED','#0284C7'];
 
 const ATTENDANCE_TREND = [
     { month: 'Jun', value: 62 },
@@ -163,6 +143,11 @@ export default function StudentProfile() {
     const router = useRouter();
     const student = useStudentStore();
 
+    useEffect(() => {
+        student.fetchProfile();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
     const dobDate = new Date(student.dob);
     const age = new Date().getFullYear() - dobDate.getFullYear();
     const dobDisplay = dobDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -170,20 +155,64 @@ export default function StudentProfile() {
     const [marksMode, setMarksMode] = useState<MarksMode>('combined');
     const [copied, setCopied] = useState(false);
 
-    const chartData = SUBJECT_PERFORMANCE.map(s => ({
-        name: s.code,
-        fullName: s.name,
-        color: s.color,
-        pct: marksMode === 'offline' ? s.offline : marksMode === 'online' ? s.online : Math.round((s.offline + s.online) / 2),
-    }));
-    const avg = Math.round(chartData.reduce((a, b) => a + b.pct, 0) / chartData.length);
-    const overallRank = OVERALL_RANK[marksMode];
+    // ── Real marksheet / subject performance data ──
+    const [marksheetData, setMarksheetData] = useState<{
+        subjects: MarksheetSubject[];
+        grandPct: number | null;
+        classRank: number | null;
+        classSize: number | null;
+    } | null>(null);
+
+    useEffect(() => {
+        api.get('/student/marksheet').then(r => setMarksheetData(r.data.data)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // ── Real attendance data ──
+    interface AttendanceMonth { month: string; key: number; pct: number | null; }
+    const [attendanceApiData, setAttendanceApiData] = useState<{
+        overall: { pct: number | null };
+        monthly: AttendanceMonth[];
+    } | null>(null);
+
+    useEffect(() => {
+        api.get('/student/attendance').then(r => setAttendanceApiData(r.data.data)).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    const MONTHS_ORDER = ['Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr','May'];
+    const attendanceTrendData = useMemo(() =>
+        MONTHS_ORDER.map(m => {
+            const found = attendanceApiData?.monthly.find(x => x.month === m);
+            return { month: m, value: found?.pct ?? 0 };
+        }),
+    [attendanceApiData]);
+
+    const overallAttendancePct = attendanceApiData?.overall.pct ?? null;
+
+    const attendanceWindow = useMemo(() =>
+        ATTENDANCE_WINDOW.map(({ month }) => {
+            const found = attendanceApiData?.monthly.find(x => x.month === month);
+            return { month, value: found?.pct ?? 0 };
+        }),
+    [attendanceApiData]);
+
+    const chartData = (marksheetData?.subjects ?? []).map((s, i) => {
+        const offline = s.pct ?? 0;
+        const online = 0; // online marks not yet implemented
+        const pct = marksMode === 'offline' ? offline : marksMode === 'online' ? online : Math.round((offline + online) / 2);
+        return { name: s.name, code: s.code, color: s.color ?? SUBJECT_COLORS[i % SUBJECT_COLORS.length], pct };
+    });
+    const avg = chartData.length > 0
+        ? Math.round(chartData.reduce((a, b) => a + b.pct, 0) / chartData.length)
+        : 0;
+    const overallRank: number | null = marksheetData?.classRank ?? null;
 
     const yellowFlags = FLAGS.filter(f => f.type === 'yellow');
     const redFlags = FLAGS.filter(f => f.type === 'red');
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(STUDENT.uid);
+        navigator.clipboard.writeText(student.studentId);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -209,7 +238,7 @@ export default function StudentProfile() {
                         style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
                         <div>
                             <p className="text-white font-bold text-base" style={{ fontFamily: 'var(--font-poppins)' }}>
-                                Sacred Heart High School
+                                {student.institutionName || 'School'}
                             </p>
                             <p className="text-white/70 text-xs">Student ID Card</p>
                         </div>
@@ -237,10 +266,12 @@ export default function StudentProfile() {
                             </div>
                             <div className="mt-2 text-center">
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-semibold">
-                                    {STUDENT.standard}
+                                    {student.standard}
                                 </span>
                             </div>
                         </div>
+                        {/* console.log(student.photo); */}
+                        
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
@@ -252,14 +283,14 @@ export default function StudentProfile() {
                                 </div>
                             </div>
                             <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold mt-0.5">
-                                {STUDENT.standard} · {STUDENT.div}
+                                {student.standard} · {student.division}
                             </p>
                             <div className="h-px bg-border/50 my-3" />
                             <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-                                <InfoRow label="Roll No" value={STUDENT.rollNo} />
-                                <InfoRow label="Class" value="10-A" />
+                                <InfoRow label="Roll No" value={student.rollNo} />
+                                <InfoRow label="Class" value={`${student.standard} · ${student.division}`} />
                                 <InfoRow label="Admission Year" value={student.admissionYear} />
-                                <InfoRow label="Date of Birth" value={`${dobDisplay} (${age} yrs)`} />
+                                <InfoRow label="Date of Birth" value={student.dob ? `${dobDisplay} (${age} yrs)` : '—'} />
                                 <InfoRow label="Email" value={student.email} />
                             </div>
                         </div>
@@ -268,7 +299,7 @@ export default function StudentProfile() {
                     {/* UID strip */}
                     <div className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-50 dark:bg-violet-950/30 border-t border-violet-200/50 dark:border-violet-900/50">
                         <Hash size={14} className="text-muted-foreground shrink-0" />
-                        <span className="font-mono text-sm font-semibold tracking-wider flex-1" style={{ color: '#DA7756' }}>{STUDENT.uid}</span>
+                        <span className="font-mono text-sm font-semibold tracking-wider flex-1" style={{ color: '#DA7756' }}>{student.studentId}</span>
                         <button onClick={handleCopy}
                             className="flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground transition-all">
                             <Copy size={11} />
@@ -287,15 +318,15 @@ export default function StudentProfile() {
                                 <p className="text-xs font-semibold text-muted-foreground">Overall Rank</p>
                             </div>
                             <p className="text-4xl font-black" style={{
-                                color:
+                                color: overallRank === null ? 'var(--muted-foreground)' :
                                     overallRank === 1 ? '#F59E0B' :
                                         overallRank <= 3 ? '#7C3AED' :
                                             overallRank <= 10 ? 'var(--blue)' :
                                                 'var(--muted-foreground)'
                             }}>
-                                #{overallRank}
+                                {overallRank === null ? '—' : `#${overallRank}`}
                             </p>
-                            <p className="text-xs text-muted-foreground mt-1">out of {STUDENT.totalStudents} students</p>
+                            <p className="text-xs text-muted-foreground mt-1">Overall rank</p>
                         </div>
                         <div className="bg-card border border-border/50 rounded-xl p-4">
                             <div className="flex items-center gap-2 mb-2">
@@ -334,39 +365,53 @@ export default function StudentProfile() {
                                     <ChevronRight size={12} />
                                 </button>
                             }>
-                            <ResponsiveContainer width="100%" height={200}>
-                                <BarChart data={chartData}>
-                                    <defs>
-                                        {chartData.map((d, i) => (
-                                            <linearGradient key={i} id={`subjBarGrad-${i}`} x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="0%" stopColor={d.color} stopOpacity={1} />
-                                                <stop offset="100%" stopColor={d.color} stopOpacity={0.45} />
-                                            </linearGradient>
-                                        ))}
-                                    </defs>
-                                    <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
-                                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} />
-                                    <YAxis tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} domain={[0, 100]} />
-                                    <Tooltip
-                                        cursor={false}
-                                        contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
-                                        labelStyle={{ color: 'var(--card-foreground)', fontWeight: 600 }}
-                                        itemStyle={{ color: 'var(--card-foreground)' }}
-                                        labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName ?? label}
-                                        formatter={(value: any) => [`${value}%`, 'Score']}
-                                    />
-                                    <Bar dataKey="pct" radius={[4, 4, 0, 0]} maxBarSize={32}>
-                                        <LabelList dataKey="pct" position="top" formatter={(v: any) => `${v}%`}
-                                            style={{ fontSize: 10, fontWeight: 600, fill: 'var(--foreground)' }} />
-                                        {chartData.map((d, i) => <Cell key={i} fill={`url(#subjBarGrad-${i})`} />)}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-
-                            <div className="flex items-center gap-2 mt-2">
-                                <div className="flex-1 border-t-2 border-dashed border-violet-500/50" />
-                                <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-400">Avg {avg}%</span>
-                            </div>
+                            {chartData.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
+                                    <BarChart2 size={32} className="mb-2 opacity-30" />
+                                    <p className="text-sm font-medium">No results published yet</p>
+                                </div>
+                            ) : (() => {
+                                const AngledTick = ({ x, y, payload }: { x?: number; y?: number; payload?: { value: string } }) => (
+                                    <g transform={`translate(${x ?? 0},${y ?? 0})`}>
+                                        <text x={0} y={0} dy={8} textAnchor="end" fill="var(--muted-foreground)" fontSize={10} transform="rotate(-35)">{payload?.value}</text>
+                                    </g>
+                                );
+                                return (
+                                    <>
+                                        <ResponsiveContainer width="100%" height={240}>
+                                            <BarChart data={chartData} margin={{ top: 16, bottom: 56, left: 0, right: 8 }}>
+                                                <defs>
+                                                    {chartData.map((d, i) => (
+                                                        <linearGradient key={i} id={`subjBarGrad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="0%" stopColor={d.color} stopOpacity={1} />
+                                                            <stop offset="100%" stopColor={d.color} stopOpacity={0.45} />
+                                                        </linearGradient>
+                                                    ))}
+                                                </defs>
+                                                <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
+                                                <XAxis dataKey="name" tick={AngledTick} interval={0} axisLine={false} tickLine={false} height={70} />
+                                                <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} domain={[0, 100]} width={32} />
+                                                <Tooltip
+                                                    cursor={false}
+                                                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+                                                    labelStyle={{ color: 'var(--card-foreground)', fontWeight: 600 }}
+                                                    itemStyle={{ color: 'var(--card-foreground)' }}
+                                                    formatter={(value: unknown) => [`${value}%`, 'Score']}
+                                                />
+                                                <Bar dataKey="pct" radius={[4, 4, 0, 0]}>
+                                                    <LabelList dataKey="pct" position="top" formatter={(v: unknown) => `${v}%`}
+                                                        style={{ fontSize: 10, fontWeight: 600, fill: 'var(--foreground)' }} />
+                                                    {chartData.map((d, i) => <Cell key={i} fill={`url(#subjBarGrad-${i})`} />)}
+                                                </Bar>
+                                            </BarChart>
+                                        </ResponsiveContainer>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <div className="flex-1 border-t-2 border-dashed border-violet-500/50" />
+                                            <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-400">Avg {avg}%</span>
+                                        </div>
+                                    </>
+                                );
+                            })()}
                         </SectionCard>
                     </div>
                 </div>
@@ -382,7 +427,7 @@ export default function StudentProfile() {
                         }>
 
                         <div className="space-y-3 mb-4">
-                            {ATTENDANCE_WINDOW.map(({ month, value }) => {
+                            {attendanceWindow.map(({ month, value }) => {
                                 const p = getPct(value);
                                 return (
                                     <div key={month} className="space-y-1">
@@ -402,13 +447,15 @@ export default function StudentProfile() {
                         {/* Overall */}
                         <div className="p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200/50 dark:border-emerald-900/50 flex items-center justify-between mb-4">
                             <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-400">Overall Attendance</span>
-                            <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">82%</span>
+                            <span className="text-lg font-black text-emerald-600 dark:text-emerald-400">
+                                {overallAttendancePct !== null ? `${overallAttendancePct}%` : '—'}
+                            </span>
                         </div>
 
                         {/* Trend chart */}
                         <p className="text-xs font-semibold mb-2">Overall Attendance Trend</p>
                         <ResponsiveContainer width="100%" height={240}>
-                            <AreaChart data={ATTENDANCE_TREND} margin={{ top: 28, right: 8, left: -20, bottom: 0 }}>
+                            <AreaChart data={attendanceTrendData} margin={{ top: 28, right: 8, left: -20, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="attendTrendGrad" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
@@ -416,7 +463,7 @@ export default function StudentProfile() {
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" vertical={false} />
-                                {ATTENDANCE_TREND.map((d) => (
+                                {attendanceTrendData.map((d) => (
                                     <ReferenceLine key={d.month} x={d.month} stroke="rgba(148,163,184,0.15)" strokeDasharray="3 3" />
                                 ))}
                                 <XAxis dataKey="month" tick={{ fontSize: 9, fill: '#94A3B8' }} />
@@ -436,7 +483,7 @@ export default function StudentProfile() {
                                     dot={(dotProps: any) => {
                                         const { cx, cy, payload } = dotProps;
                                         const value = payload.value;
-                                        const vals = ATTENDANCE_TREND.map((d) => d.value);
+                                        const vals = attendanceTrendData.map((d) => d.value);
                                         const isMax = value === Math.max(...vals);
                                         const isMin = value === Math.min(...vals);
                                         const labelColor = isMin ? '#EF4444' : '#10B981';

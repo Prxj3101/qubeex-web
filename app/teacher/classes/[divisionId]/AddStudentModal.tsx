@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { User, Camera, X, ChevronDown, BookOpen, Shield, MapPin, Users, Plus, Trash2, Eye, EyeOff } from 'lucide-react';
+import { User, Camera, X, ChevronDown, BookOpen, Shield, MapPin, Users, Plus, Trash2 } from 'lucide-react';
 
 const schema = z.object({
     name: z.string().min(1, 'Name is required').max(100),
@@ -165,11 +165,6 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
     const fileRef = useRef<HTMLInputElement>(null);
     const selectedCC = COUNTRY_CODES.find(c => c.code === countryCode) ?? COUNTRY_CODES[0];
 
-    const [showPassword, setShowPassword] = useState(false);
-    const [generatedPassword] = useState(() => {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#$!';
-        return Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    });
 
     const { register, handleSubmit, reset, formState: { errors }, watch } = useForm<FormValues>({
         resolver: zodResolver(schema),
@@ -433,18 +428,12 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                                     {/* Row 4 */}
                                     {/* Password field */}
                                     <div>
-                                        <FL>Current Password</FL>
-                                        <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between gap-2">
-                                            <span className="text-sm font-mono font-semibold flex-1" style={{ color: '#DA7756' }}>
-                                                {showPassword ? generatedPassword : '••••••••••'}
+                                        <FL>Password</FL>
+                                        <div className="h-8 px-3 rounded-md border border-dashed border-border/60 bg-muted/20 flex items-center justify-between">
+                                            <span className="text-xs text-muted-foreground/60 italic">
+                                                Auto-generated — shown after saving
                                             </span>
-                                            <div className="flex items-center gap-2 shrink-0">
-                                                <span className="text-[10px] text-muted-foreground/50">Auto generated</span>
-                                                <button type="button" onClick={() => setShowPassword(v => !v)}
-                                                    className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
-                                                    {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
-                                                </button>
-                                            </div>
+                                            <span className="text-[10px] text-muted-foreground/40">Auto generated</span>
                                         </div>
                                     </div>
                                 </div>

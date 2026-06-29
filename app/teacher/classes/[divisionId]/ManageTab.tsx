@@ -22,7 +22,9 @@ interface Guardian { name: string; number: string; relation: string }
 interface Student {
     id: string;
     studentId: string;
+    avatarUrl: string | null;
     user: { id: string; name: string | null; email: string; mustChangePassword: boolean };
+    hasLoggedIn: boolean;
     phone: string | null;
     dob: string | null;
     gender: string | null;
@@ -278,18 +280,42 @@ export default function ManageTab({ division, isClassTeacher }: {
     const [showResetResult, setShowResetResult] = useState(false);
 
     const [showExportMenu, setShowExportMenu] = useState(false);
+
+    // Student creation success modal
+    const [createdStudent, setCreatedStudent] = useState<{ studentId: string; tempPassword: string; name: string } | null>(null);
+    const [showCreatedModal, setShowCreatedModal] = useState(false);
+
+    // Stats per selected student
+    interface StudentStats { attendance: { present: number; total: number; pct: number | null }; score: { pct: number | null }; classRank: number | null }
+    const [studentStats, setStudentStats] = useState<StudentStats | null>(null);
+    const [loadingStats, setLoadingStats] = useState(false);
+
     const fetchedRef = useRef(false);
 
     const { photos, setPhoto } = useStudentPhotosStore();
     const photoInputRef = useRef<HTMLInputElement>(null);
-    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (!selectedStudent) return;
         const file = e.target.files?.[0];
         if (!file) return;
+        e.target.value = '';
+        // Optimistic preview
         const reader = new FileReader();
         reader.onload = (ev) => setPhoto(selectedStudent.id, ev.target?.result as string);
         reader.readAsDataURL(file);
-        e.target.value = '';
+        // Upload to backend
+        try {
+            const form = new FormData();
+            form.append('photo', file);
+            const res = await api.post(
+                `/teacher/classes/${division.id}/students/${selectedStudent.id}/photo`,
+                form, { headers: { 'Content-Type': 'multipart/form-data' } }
+            );
+            setPhoto(selectedStudent.id, res.data.data.avatarUrl);
+            toast.success('Photo updated');
+        } catch {
+            toast.error('Failed to upload photo');
+        }
     };
 
     const fetchStudents = useCallback(async () => {
@@ -297,6 +323,8 @@ export default function ManageTab({ division, isClassTeacher }: {
         try {
             const res = await api.get(`/teacher/classes/${division.id}/students`);
             const list: Student[] = res.data.data;
+            // Seed photo store with signed avatar URLs from the API
+            list.forEach(s => { if (s.avatarUrl) setPhoto(s.id, s.avatarUrl); });
             setStudents(list);
             setSelectedStudent(prev => {
                 if (!prev) return list[0] ?? null;
@@ -320,12 +348,23 @@ export default function ManageTab({ division, isClassTeacher }: {
         setEditDraft({});
         setEditingSections({ studentInfo: false, academic: false, medical: false, address: false, guardians: false });
         setShowPassword(false);
+        setStudentStats(null);
     }, [selectedStudent?.id]);
+
+    // Fetch stats when a student is selected
+    useEffect(() => {
+        if (!selectedStudent) return;
+        setLoadingStats(true);
+        api.get(`/teacher/classes/${division.id}/students/${selectedStudent.id}/stats`)
+            .then(r => setStudentStats(r.data.data))
+            .catch(() => setStudentStats(null))
+            .finally(() => setLoadingStats(false));
+    }, [selectedStudent?.id, division.id]);
 
     const handleAddStudent = async (data: StudentFormData) => {
         setAddingStudent(true);
         try {
-            await api.post(`/teacher/classes/${division.id}/students`, {
+            const res = await api.post(`/teacher/classes/${division.id}/students`, {
                 name: data.name,
                 email: data.email || undefined,
                 dob: data.dob || undefined,
@@ -344,12 +383,15 @@ export default function ManageTab({ division, isClassTeacher }: {
                 country: data.country || undefined,
                 guardians: data.guardians?.filter(g => g.name.trim()) ?? [],
             });
-            toast.success(`${data.name} added!`);
+            const { student, tempPassword } = res.data.data;
             setShowAddStudent(false);
+            setCreatedStudent({ studentId: student.studentId, tempPassword, name: data.name });
+            setShowCreatedModal(true);
             fetchedRef.current = false;
             fetchStudents();
-        } catch (err: any) {
-            toast.error(err?.response?.data?.error ?? 'Failed to add student');
+        } catch (err: unknown) {
+            const e = err as { response?: { data?: { error?: string } } };
+            toast.error(e?.response?.data?.error ?? 'Failed to add student');
         } finally {
             setAddingStudent(false);
         }
@@ -553,7 +595,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                         <p className="text-[10px] text-muted-foreground">{student.studentId}{student.rollNo ? ` · Roll ${student.rollNo}` : ''}</p>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        {student.user.mustChangePassword && (
+                                        {!student.hasLoggedIn && (
                                             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
                                                 First login
                                             </span>
@@ -671,8 +713,40 @@ export default function ManageTab({ division, isClassTeacher }: {
                                 ) : (
                                     <div className="px-4 py-3 space-y-3 pb-6">
 
+                                        {/* Stats strip */}
+                                        <div className="grid grid-cols-3 gap-2">
+                                            {[
+                                                {
+                                                    label: 'Class Rank',
+                                                    value: loadingStats ? '…' : (studentStats?.classRank != null ? `#${studentStats.classRank}` : '—'),
+                                                    sub: 'by score',
+                                                },
+                                                {
+                                                    label: 'Score %',
+                                                    value: loadingStats ? '…' : (studentStats?.score.pct != null ? `${studentStats.score.pct}%` : '—'),
+                                                    sub: 'latest exam',
+                                                },
+                                                {
+                                                    label: 'Attendance',
+                                                    value: loadingStats ? '…' : (studentStats?.attendance.pct != null ? `${studentStats.attendance.pct}%` : '—'),
+                                                    sub: studentStats?.attendance.total ? `${studentStats.attendance.present}/${studentStats.attendance.total} days` : 'no records',
+                                                },
+                                            ].map(stat => (
+                                                <div key={stat.label} className="flex flex-col items-center justify-center py-2.5 rounded-xl border border-border/50 bg-muted/30">
+                                                    <p className="text-lg font-black" style={{ color: '#DA7756' }}>{stat.value}</p>
+                                                    <p className="text-[11px] font-semibold text-foreground/70 mt-0.5">{stat.label}</p>
+                                                    <p className="text-[10px] text-muted-foreground/60">{stat.sub}</p>
+                                                </div>
+                                            ))}
+                                        </div>
+
                                         {/* Account status banner */}
-                                        {selectedStudent.user.mustChangePassword && (
+                                        {selectedStudent.hasLoggedIn ? (
+                                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                                                <p className="text-[11px] text-green-700 dark:text-green-300 font-medium">Active — student has logged in</p>
+                                            </div>
+                                        ) : (
                                             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                                                 <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
@@ -908,78 +982,79 @@ export default function ManageTab({ division, isClassTeacher }: {
                                             </div>
                                         </div>
 
-                                        {/* ROW 3 — Guardians */}
+                                        {/* ROW 3 — Parents / Guardian */}
                                         <div className="border border-border/50 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
                                             <SectionHeader icon={Users} label="Parents / Guardian"
                                                 editing={editingSections.guardians}
                                                 saving={savingSections.guardians}
                                                 onEdit={() => {
-                                                    const base = selectedStudent.guardians ?? [];
-                                                    const padded = [...base, { name: '', number: '', relation: '' }, { name: '', number: '', relation: '' }].slice(0, 2);
-                                                    setEditDraft(p => ({ ...p, guardians: padded }));
+                                                    setEditDraft(p => ({ ...p, guardians: (selectedStudent.guardians ?? []).map(g => ({ ...g })) }));
                                                     setEditingSections(p => ({ ...p, guardians: true }));
                                                 }}
                                                 onSave={() => handleSaveSection('guardians')}
                                                 onCancel={() => { setEditingSections(p => ({ ...p, guardians: false })); setEditDraft(p => ({ ...p, guardians: undefined })); }}
                                                 afterLabel={editingSections.guardians && (
-                                                    <button type="button"
-                                                        onClick={() => setEditDraft(p => ({
-                                                            ...p,
-                                                            guardians: [...(p.guardians ?? []), { name: '', number: '', relation: '' }],
-                                                        }))}
-                                                        className="flex items-center gap-1 text-[11px] text-primary font-semibold hover:underline">
-                                                        <Plus size={11} /> Add another
-                                                    </button>
+                                                    <div className="flex items-center gap-2">
+                                                        <button type="button"
+                                                            onClick={() => setEditDraft(p => ({ ...p, guardians: [...(p.guardians ?? []), { name: '', number: '', relation: 'Father' }] }))}
+                                                            className="text-[11px] text-primary font-semibold hover:underline">
+                                                            <Plus size={9} className="inline mr-0.5" />Parent
+                                                        </button>
+                                                        <span className="text-muted-foreground/40 text-[11px]">·</span>
+                                                        <button type="button"
+                                                            onClick={() => setEditDraft(p => ({ ...p, guardians: [...(p.guardians ?? []), { name: '', number: '', relation: 'Guardian' }] }))}
+                                                            className="text-[11px] text-primary font-semibold hover:underline">
+                                                            <Plus size={9} className="inline mr-0.5" />Guardian
+                                                        </button>
+                                                    </div>
                                                 )}
                                             />
+                                            {(selectedStudent.guardians ?? []).length === 0 && !editingSections.guardians && (
+                                                <p className="text-xs text-muted-foreground/60 text-center py-1">No parents or guardians added yet</p>
+                                            )}
                                             {(() => {
-                                                const base = editingSections.guardians
+                                                const guardianList = editingSections.guardians
                                                     ? (editDraft.guardians ?? [])
                                                     : (selectedStudent.guardians ?? []);
-                                                const guardianList = editingSections.guardians
-                                                    ? base
-                                                    : [...base, { name: '', number: '', relation: '' }, { name: '', number: '', relation: '' }].slice(0, 2);
                                                 return guardianList.map((g, i) => (
                                                     <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
-                                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Guardian {i + 1}</p>
-                                                        <div className="flex items-end gap-2">
-                                                            <div className="grid grid-cols-3 gap-2 flex-1">
-                                                                {editingSections.guardians ? (
-                                                                    <>
-                                                                        <EditField label="Name" value={g.name} onChange={v => {
-                                                                            const updated = [...(editDraft.guardians ?? guardianList)];
-                                                                            updated[i] = { ...updated[i], name: v };
-                                                                            setEditDraft(p => ({ ...p, guardians: updated }));
-                                                                        }} placeholder="e.g. Rajesh Mehta" />
-                                                                        <PhoneField label="Number" value={g.number} onChange={v => {
-                                                                            const updated = [...(editDraft.guardians ?? guardianList)];
-                                                                            updated[i] = { ...updated[i], number: v };
-                                                                            setEditDraft(p => ({ ...p, guardians: updated }));
-                                                                        }} />
-                                                                        <EditField label="Relation" value={g.relation} onChange={v => {
-                                                                            const updated = [...(editDraft.guardians ?? guardianList)];
-                                                                            updated[i] = { ...updated[i], relation: v };
-                                                                            setEditDraft(p => ({ ...p, guardians: updated }));
-                                                                        }} placeholder="e.g. Father" />
-                                                                    </>
-                                                                ) : (
-                                                                    <>
-                                                                        <ReadField label="Name" value={g.name} />
-                                                                        <ReadField label="Number" value={g.number} />
-                                                                        <ReadField label="Relation" value={g.relation} />
-                                                                    </>
-                                                                )}
-                                                            </div>
+                                                        <div className="flex items-center justify-between">
+                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                                {g.relation || `Entry ${i + 1}`}
+                                                            </p>
                                                             {editingSections.guardians && (
                                                                 <button type="button"
-                                                                    onClick={() => setEditDraft(p => {
-                                                                        const current = p.guardians ?? [];
-                                                                        if (current.length <= 2) return p;
-                                                                        return { ...p, guardians: current.filter((_, gi) => gi !== i) };
-                                                                    })}
-                                                                    className="w-8 h-8 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 border border-border/50 transition-all shrink-0">
-                                                                    <Trash2 size={13} />
+                                                                    onClick={() => setEditDraft(p => ({ ...p, guardians: (p.guardians ?? []).filter((_, gi) => gi !== i) }))}
+                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 border border-border/50 transition-all">
+                                                                    <Trash2 size={12} />
                                                                 </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="grid grid-cols-3 gap-2">
+                                                            {editingSections.guardians ? (
+                                                                <>
+                                                                    <EditField label="Name" value={g.name} onChange={v => {
+                                                                        const updated = [...(editDraft.guardians ?? guardianList)];
+                                                                        updated[i] = { ...updated[i], name: v };
+                                                                        setEditDraft(p => ({ ...p, guardians: updated }));
+                                                                    }} placeholder="e.g. Rajesh Mehta" />
+                                                                    <PhoneField label="Number" value={g.number} onChange={v => {
+                                                                        const updated = [...(editDraft.guardians ?? guardianList)];
+                                                                        updated[i] = { ...updated[i], number: v };
+                                                                        setEditDraft(p => ({ ...p, guardians: updated }));
+                                                                    }} />
+                                                                    <EditField label="Relation" value={g.relation} onChange={v => {
+                                                                        const updated = [...(editDraft.guardians ?? guardianList)];
+                                                                        updated[i] = { ...updated[i], relation: v };
+                                                                        setEditDraft(p => ({ ...p, guardians: updated }));
+                                                                    }} placeholder="e.g. Father" />
+                                                                </>
+                                                            ) : (
+                                                                <>
+                                                                    <ReadField label="Name" value={g.name} />
+                                                                    <ReadField label="Number" value={g.number} />
+                                                                    <ReadField label="Relation" value={g.relation} />
+                                                                </>
                                                             )}
                                                         </div>
                                                     </div>
@@ -1032,6 +1107,57 @@ export default function ManageTab({ division, isClassTeacher }: {
                 </div>
             </div>
         </div>
+
+        {/* Student Created Modal */}
+        {showCreatedModal && createdStudent && (
+            <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.7)' }}>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+                >
+                    <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                            <User size={18} className="text-white" />
+                        </div>
+                        <div>
+                            <h3 className="font-semibold text-sm">Student Added</h3>
+                            <p className="text-xs text-muted-foreground">{createdStudent.name} has been enrolled</p>
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 mb-4">
+                        <div>
+                            <p className="text-[11px] text-muted-foreground mb-1 font-medium">Student ID</p>
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border">
+                                <span className="flex-1 font-mono font-bold text-sm" style={{ color: '#DA7756' }}>{createdStudent.studentId}</span>
+                                <button type="button" onClick={() => { navigator.clipboard.writeText(createdStudent.studentId); toast.success('Copied!'); }}
+                                    className="text-muted-foreground hover:text-foreground transition-colors">
+                                    <Copy size={13} />
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <p className="text-[11px] text-muted-foreground mb-1 font-medium">Temporary Password</p>
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border">
+                                <span className="flex-1 font-mono font-semibold text-sm text-amber-500 tracking-wider">{createdStudent.tempPassword}</span>
+                                <button type="button" onClick={() => { navigator.clipboard.writeText(createdStudent.tempPassword); toast.success('Copied!'); }}
+                                    className="text-muted-foreground hover:text-foreground transition-colors">
+                                    <Copy size={13} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mb-4">Share these credentials with the student. They will be asked to set a new password on first login.</p>
+                    <button type="button"
+                        onClick={() => { setShowCreatedModal(false); setCreatedStudent(null); }}
+                        className="w-full h-10 rounded-xl text-sm font-medium text-white hover:opacity-90 transition-opacity"
+                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                    >Done</button>
+                </motion.div>
+            </div>
+        )}
 
         {/* Reset Password Result Modal */}
         {showResetResult && resetResult && (

@@ -1,34 +1,46 @@
 
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
     Hash, Mail, Phone, MapPin, Calendar, User,
     GraduationCap, Briefcase, Edit2, Check, X,
-    BookOpen, Layers, Camera, Tag,
+    BookOpen, Camera, Tag,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import api from '@/lib/api';
 
-// ── Mock Data ─────────────────────────────────────────────────────────────────
-const MOCK_TEACHER = {
-    id: 't1', teacherId: 'TCH-001', name: 'Ritu Sharma',
-    email: 'ritu.sharma@dps.edu.in', phone: '+91 98765 43210',
-    status: 'ACTIVE', joinedAt: '2025-08-15T00:00:00Z',
-    dob: '1990-03-22', gender: 'FEMALE',
-    address: '12, Green Park', city: 'New Delhi', state: 'Delhi',
-    pincode: '110016', country: 'India',
-    qualification: 'B.Ed, M.A (Mathematics)', experience: '8 years',
-    assignments: [
-        { id: 'a1', level1Name: 'Class 10', level2Name: 'Mathematics', level3Name: '10-A', role: 'CLASS_TEACHER' },
-        { id: 'a2', level1Name: 'Class 9', level2Name: 'Mathematics', level3Name: '9-B', role: 'SUBJECT_TEACHER' },
-        { id: 'a3', level1Name: 'Class 8', level2Name: 'Mathematics', level3Name: '8-C', role: 'SUBJECT_TEACHER' },
-        { id: 'a4', level1Name: 'Class 10', level2Name: 'Mathematics', level3Name: '10-B', role: 'SUBJECT_TEACHER' },
-        { id: 'a5', level1Name: 'Class 7', level2Name: 'Mathematics', level3Name: '7-A', role: 'SUBJECT_TEACHER' },
-        { id: 'a6', level1Name: 'Class 6', level2Name: 'Mathematics', level3Name: '6-B', role: 'SUBJECT_TEACHER' },
-    ],
-};
+// ── Types ─────────────────────────────────────────────────────────────────────
+interface TeacherAssignment {
+    id: string;
+    level1Name: string;
+    level2Name: string;
+    level3Name: string;
+    role: 'CLASS_TEACHER' | 'SUBJECT_TEACHER';
+}
 
+interface TeacherData {
+    id: string;
+    teacherId: string;
+    avatarUrl: string | null;
+    phone: string | null;
+    dob: string | null;
+    gender: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    pincode: string | null;
+    country: string | null;
+    qualification: string | null;
+    experience: string | null;
+    status: string;
+    joinedAt: string;
+    user: { id: string; name: string; email: string };
+    assignments: TeacherAssignment[];
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
     { bg: 'bg-violet-100 dark:bg-violet-950', text: 'text-violet-700 dark:text-violet-300' },
     { bg: 'bg-amber-100 dark:bg-amber-950', text: 'text-amber-700 dark:text-amber-300' },
@@ -36,16 +48,13 @@ const AVATAR_COLORS = [
     { bg: 'bg-sky-100 dark:bg-sky-950', text: 'text-sky-700 dark:text-sky-300' },
     { bg: 'bg-rose-100 dark:bg-rose-950', text: 'text-rose-700 dark:text-rose-300' },
 ];
-
 function getAvatarColor(id: string) {
     return AVATAR_COLORS[id.charCodeAt(id.length - 1) % AVATAR_COLORS.length];
 }
-
 function getInitials(name: string) {
     return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
-
-function formatDate(iso?: string) {
+function formatDate(iso?: string | null) {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
 }
@@ -112,39 +121,79 @@ function EditableField({ label, value, onChange }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function TeacherProfilePage() {
-    const teacher = MOCK_TEACHER;
-    const avatarColor = getAvatarColor(teacher.id);
-
-    const [editingSection, setEditingSection] = useState<string | null>(null);
-
-    const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+    const [teacher, setTeacher] = useState<TeacherData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
+    const [editingSection, setEditingSection] = useState<string | null>(null);
     const TITLE_OPTIONS = ['Teacher', 'Professor', 'Asst. Teacher', 'Lecturer', 'HOD', 'Mentor', 'Tutor', 'Educator'];
     const [titleDraft, setTitleDraft] = useState('Teacher');
     const [titleSaved, setTitleSaved] = useState('Teacher');
-
+    const [prefixDraft, setPrefixDraft] = useState('');
+    const [prefixSaved, setPrefixSaved] = useState('');
     const PREFIX_OPTIONS = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Er.', 'CA', 'Adv.'];
-    const defaultPrefix = teacher.gender === 'MALE' ? 'Mr.' : teacher.gender === 'FEMALE' ? 'Ms.' : '';
-    const [prefixDraft, setPrefixDraft] = useState(defaultPrefix);
-    const [prefixSaved, setPrefixSaved] = useState(defaultPrefix);
 
-    const [personalDraft, setPersonalDraft] = useState({
-        name: teacher.name, dob: teacher.dob, gender: teacher.gender,
-    });
-    const [personalSaved, setPersonalSaved] = useState({ ...personalDraft });
+    const [personalDraft, setPersonalDraft] = useState({ name: '', dob: '', gender: '' });
+    const [personalSaved, setPersonalSaved] = useState({ name: '', dob: '', gender: '' });
+    const [contactDraft, setContactDraft] = useState({ phone: '', address: '', city: '', state: '', pincode: '', country: '' });
+    const [contactSaved, setContactSaved] = useState({ phone: '', address: '', city: '', state: '', pincode: '', country: '' });
+    const [profDraft, setProfDraft] = useState({ qualification: '', experience: '' });
+    const [profSaved, setProfSaved] = useState({ qualification: '', experience: '' });
 
-    const [contactDraft, setContactDraft] = useState({
-        phone: teacher.phone, address: teacher.address,
-        city: teacher.city, state: teacher.state,
-        pincode: teacher.pincode, country: teacher.country,
-    });
-    const [contactSaved, setContactSaved] = useState({ ...contactDraft });
+    useEffect(() => {
+        api.get('/teacher/me')
+            .then(res => {
+                const d = res.data.data;
+                // Map divisionAssignments → assignments
+                const assignments: TeacherAssignment[] = (d.assignments ?? []).map((a: {
+                    id: string;
+                    division: { name: string; standard: { name: string } };
+                    subject: { name: string } | null;
+                }) => ({
+                    id: a.id,
+                    level1Name: a.division.standard.name,
+                    level2Name: a.subject?.name ?? '',
+                    level3Name: a.division.name,
+                    role: a.subject ? 'SUBJECT_TEACHER' : 'CLASS_TEACHER',
+                }));
+                const t: TeacherData = { ...d, assignments };
+                setTeacher(t);
+                setAvatarUrl(d.avatarUrl ?? null);
 
-    const [profDraft, setProfDraft] = useState({
-        qualification: teacher.qualification, experience: teacher.experience,
-    });
-    const [profSaved, setProfSaved] = useState({ ...profDraft });
+                const defaultPrefix = d.gender === 'MALE' ? 'Mr.' : d.gender === 'FEMALE' ? 'Ms.' : '';
+                setPrefixDraft(defaultPrefix); setPrefixSaved(defaultPrefix);
+
+                const personal = { name: d.user?.name ?? '', dob: d.dob ?? '', gender: d.gender ?? '' };
+                setPersonalDraft(personal); setPersonalSaved(personal);
+                const contact = {
+                    phone: d.phone ?? '', address: d.address ?? '',
+                    city: d.city ?? '', state: d.state ?? '',
+                    pincode: d.pincode ?? '', country: d.country ?? '',
+                };
+                setContactDraft(contact); setContactSaved(contact);
+                const prof = { qualification: d.qualification ?? '', experience: d.experience ?? '' };
+                setProfDraft(prof); setProfSaved(prof);
+            })
+            .catch(() => toast.error('Failed to load profile'))
+            .finally(() => setLoading(false));
+    }, []);
+
+    const handlePhotoChange = async (file: File) => {
+        setUploadingPhoto(true);
+        try {
+            const form = new FormData();
+            form.append('photo', file);
+            const res = await api.post('/teacher/photo', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+            setAvatarUrl(res.data.data.avatarUrl);
+            toast.success('Photo updated!');
+        } catch {
+            toast.error('Failed to upload photo');
+        } finally {
+            setUploadingPhoto(false);
+        }
+    };
 
     const cancelEdit = (s: string) => {
         if (s === 'personal') { setPersonalDraft({ ...personalSaved }); setTitleDraft(titleSaved); setPrefixDraft(prefixSaved); }
@@ -180,11 +229,23 @@ export default function TeacherProfilePage() {
         </button>
     );
 
-    const grouped = teacher.assignments.reduce<Record<string, typeof teacher.assignments>>((acc, a) => {
-        if (!acc[a.level1Name]) acc[a.level1Name] = [];
-        acc[a.level1Name].push(a);
-        return acc;
-    }, {});
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-full">
+                <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (!teacher) {
+        return (
+            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
+                Failed to load profile
+            </div>
+        );
+    }
+
+    const avatarColor = getAvatarColor(teacher.id);
 
     return (
         <div className="space-y-2 pt-0 px-1 pb-2 overflow-y-auto h-full">
@@ -204,15 +265,17 @@ export default function TeacherProfilePage() {
                 {/* Header Card */}
                 <div className="bg-card border border-border/50 rounded-2xl p-5">
                     <div className="flex items-start gap-4">
-                        <div className="relative cursor-pointer" onClick={() => fileRef.current?.click()}>
+                        <div className="relative cursor-pointer" onClick={() => !uploadingPhoto && fileRef.current?.click()}>
                             <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text} overflow-hidden`}>
-                                {avatarPreview
-                                    ? <img src={avatarPreview} alt={teacher.name} className="w-full h-full object-cover" />
-                                    : getInitials(teacher.name)
-                                }
+                                {uploadingPhoto ? (
+                                    <div className="w-5 h-5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                                ) : avatarUrl ? (
+                                    <img src={avatarUrl} alt={teacher.user.name} className="w-full h-full object-cover" />
+                                ) : (
+                                    getInitials(teacher.user.name)
+                                )}
                             </div>
-                            {/* Camera badge */}
-                            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-card border-2 border-background flex items-center justify-center shadow-sm"
+                            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                 <Camera size={11} className="text-white" />
                             </div>
@@ -221,14 +284,10 @@ export default function TeacherProfilePage() {
                         <input ref={fileRef} type="file" accept="image/*" className="hidden"
                             onChange={e => {
                                 const file = e.target.files?.[0];
-                                if (file) {
-                                    const reader = new FileReader();
-                                    reader.onload = () => setAvatarPreview(reader.result as string);
-                                    reader.readAsDataURL(file);
-                                    toast.success('Photo updated!');
-                                }
+                                if (file) handlePhotoChange(file);
                                 e.target.value = '';
                             }} />
+
                         <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-3">
                                 <div>
@@ -247,7 +306,7 @@ export default function TeacherProfilePage() {
                                     </div>
                                 </div>
                                 <span className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 shrink-0">
-                                    Active
+                                    {teacher.status === 'ACTIVE' ? 'Active' : teacher.status}
                                 </span>
                             </div>
                             <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
@@ -272,74 +331,49 @@ export default function TeacherProfilePage() {
                     <SectionCard title="Personal Info" editBtn={editBtns('personal')}>
                         {editingSection === 'personal' ? (
                             <>
-                                {/* Full Name with prefix */}
                                 <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
                                     <span className="text-xs text-muted-foreground w-28 shrink-0 mt-2">Full Name</span>
                                     <div className="flex-1 space-y-2">
                                         <div className="flex flex-wrap gap-1.5">
                                             {PREFIX_OPTIONS.map(opt => (
-                                                <button
-                                                    key={opt}
-                                                    onClick={() => setPrefixDraft(p => p === opt ? '' : opt)}
-                                                    className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
-                                                        prefixDraft === opt
-                                                            ? 'border-transparent text-white'
-                                                            : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
-                                                    }`}
-                                                    style={prefixDraft === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}
-                                                >
+                                                <button key={opt} onClick={() => setPrefixDraft(p => p === opt ? '' : opt)}
+                                                    className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${prefixDraft === opt ? 'border-transparent text-white' : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'}`}
+                                                    style={prefixDraft === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
                                                     {opt}
                                                 </button>
                                             ))}
                                         </div>
                                         <div className="flex items-center gap-2">
-                                            {prefixDraft && (
-                                                <span className="text-xs font-semibold shrink-0" style={{ color: '#DA7756' }}>{prefixDraft}</span>
-                                            )}
-                                            <input
-                                                value={personalDraft.name}
+                                            {prefixDraft && <span className="text-xs font-semibold shrink-0" style={{ color: '#DA7756' }}>{prefixDraft}</span>}
+                                            <input value={personalDraft.name}
                                                 onChange={e => setPersonalDraft(d => ({ ...d, name: e.target.value }))}
-                                                placeholder="Enter full name"
-                                                className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all"
-                                            />
+                                                placeholder="Full name"
+                                                className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all" />
                                         </div>
                                     </div>
                                 </div>
                                 <EditableField label="Date of Birth" value={personalDraft.dob} onChange={v => setPersonalDraft(d => ({ ...d, dob: v }))} />
-                                {/* Gender dropdown */}
                                 <div className="flex items-center gap-3 py-2 border-b border-border/40">
                                     <span className="text-xs text-muted-foreground w-28 shrink-0">Gender</span>
                                     <div className="flex gap-2">
                                         {[{ value: 'MALE', label: 'Male' }, { value: 'FEMALE', label: 'Female' }, { value: 'OTHER', label: 'Other' }].map(opt => (
                                             <button key={opt.value} type="button"
                                                 onClick={() => setPersonalDraft(d => ({ ...d, gender: opt.value }))}
-                                                className={`text-[11px] font-semibold px-3 py-1 rounded-full border transition-all ${
-                                                    personalDraft.gender === opt.value
-                                                        ? 'border-transparent text-white'
-                                                        : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
-                                                }`}
+                                                className={`text-[11px] font-semibold px-3 py-1 rounded-full border transition-all ${personalDraft.gender === opt.value ? 'border-transparent text-white' : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'}`}
                                                 style={personalDraft.gender === opt.value ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
                                                 {opt.label}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
-                                {/* Title chooser */}
                                 <div className="flex items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
                                     <Tag size={14} className="text-muted-foreground shrink-0 mt-1" />
                                     <span className="text-xs text-muted-foreground w-28 shrink-0 mt-0.5">Display Title</span>
                                     <div className="flex flex-wrap gap-1.5">
                                         {TITLE_OPTIONS.map(opt => (
-                                            <button
-                                                key={opt}
-                                                onClick={() => setTitleDraft(opt)}
-                                                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
-                                                    titleDraft === opt
-                                                        ? 'border-transparent text-white'
-                                                        : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
-                                                }`}
-                                                style={titleDraft === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}
-                                            >
+                                            <button key={opt} onClick={() => setTitleDraft(opt)}
+                                                className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${titleDraft === opt ? 'border-transparent text-white' : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'}`}
+                                                style={titleDraft === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
                                                 {opt}
                                             </button>
                                         ))}
@@ -349,23 +383,17 @@ export default function TeacherProfilePage() {
                         ) : (
                             <>
                                 <InfoRow icon={Hash} label="Teacher ID" value={
-                                    <span className="font-mono text-xs font-semibold tracking-wider" style={{ color: '#DA7756' }}>
-                                        {teacher.teacherId}
-                                    </span>
+                                    <span className="font-mono text-xs font-semibold tracking-wider" style={{ color: '#DA7756' }}>{teacher.teacherId}</span>
                                 } />
                                 <InfoRow icon={User} label="Full Name" value={
                                     <span>{prefixSaved && <span className="font-semibold mr-1" style={{ color: '#DA7756' }}>{prefixSaved}</span>}{personalSaved.name}</span>
                                 } />
                                 <InfoRow icon={Tag} label="Display Title" value={
-                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(218,119,86,0.12)', color: '#DA7756' }}>
-                                        {titleSaved}
-                                    </span>
+                                    <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(218,119,86,0.12)', color: '#DA7756' }}>{titleSaved}</span>
                                 } />
                                 <InfoRow icon={Calendar} label="Date of Birth" value={formatDate(personalSaved.dob)} />
                                 <InfoRow icon={User} label="Gender" value={
-                                    personalSaved.gender === 'MALE' ? 'Male'
-                                        : personalSaved.gender === 'FEMALE' ? 'Female'
-                                            : personalSaved.gender || '—'
+                                    personalSaved.gender === 'MALE' ? 'Male' : personalSaved.gender === 'FEMALE' ? 'Female' : personalSaved.gender || '—'
                                 } />
                                 <InfoRow icon={Calendar} label="Joined" value={formatDate(teacher.joinedAt)} />
                             </>
@@ -440,7 +468,7 @@ export default function TeacherProfilePage() {
                             </>
                         ) : (
                             <>
-                                <InfoRow icon={Mail} label="Email" value={teacher.email} />
+                                <InfoRow icon={Mail} label="Email" value={teacher.user.email} />
                                 <InfoRow icon={Phone} label="Phone" value={contactSaved.phone || '—'} />
                                 <InfoRow icon={MapPin} label="Address" value={contactSaved.address || '—'} />
                                 <InfoRow icon={MapPin} label="City" value={contactSaved.city || '—'} />
@@ -463,8 +491,6 @@ export default function TeacherProfilePage() {
                         </div>
                     ) : (
                         <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
-
-                            {/* Class Teacher */}
                             {teacher.assignments.filter(a => a.role === 'CLASS_TEACHER').length > 0 && (
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
@@ -489,8 +515,6 @@ export default function TeacherProfilePage() {
                                     </div>
                                 </div>
                             )}
-
-                            {/* Subject Teacher */}
                             {teacher.assignments.filter(a => a.role === 'SUBJECT_TEACHER').length > 0 && (
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
@@ -515,7 +539,6 @@ export default function TeacherProfilePage() {
                                     </div>
                                 </div>
                             )}
-
                         </div>
                     )}
                 </SectionCard>

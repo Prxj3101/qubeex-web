@@ -1389,31 +1389,67 @@ function StudentSummaryPanel({
 }
 
 // ── Overall View ──────────────────────────────────────────────────────────────
-function OverallView({ divisionName, subjects, onStatsChange }: {
+function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
     divisionName: string;
     subjects: Subject[];
     onStatsChange?: (stats: MarksStats) => void;
+    marksheetHook: UseMarksheetResult;
 }) {
-    const [selectedStudentId, setSelectedStudentId] = useState<string | null>(MOCK_STUDENTS[0].id);
+    const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
     const [rightTab, setRightTab] = useState<'class' | 'student'>('class');
     const [rankTab, setRankTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const [subjectTopperTab, setSubjectTopperTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const [reportCardTab, setReportCardTab] = useState<'offline' | 'online'>('offline');
-    const gradeLabel = (pct: number) => grade(pct, []);
-    const [trendSubjectId, setTrendSubjectId] = useState<string>(MOCK_SUBJECTS[0]?.id ?? '');
+    const gradeLabel = (pct: number) => grade(pct, marksheetHook.gradeScale);
+    const [trendSubjectId, setTrendSubjectId] = useState<string>('');
     const [trendMode, setTrendMode] = useState<'offline' | 'online' | 'combined'>('combined');
 
-    // per-subject top-5 computation
+    // Initialise selection once data arrives
+    useEffect(() => {
+        if (!selectedStudentId && marksheetHook.students.length > 0)
+            setSelectedStudentId(marksheetHook.students[0].id);
+    }, [marksheetHook.students, selectedStudentId]);
+
+    useEffect(() => {
+        if (!trendSubjectId && subjects.length > 0)
+            setTrendSubjectId(subjects[0].id);
+    }, [subjects, trendSubjectId]);
+
+    // Per-student offline totals across all subjects (online = 0 until implemented)
+    const studentStats = useMemo(() => {
+        return marksheetHook.students.map(st => {
+            let offScored = 0, offMax = 0;
+            subjects.forEach(sub => {
+                const cols = marksheetHook.examColumns[sub.id] ?? [];
+                cols.forEach(col => {
+                    const e = marksheetHook.scores[col.id]?.[st.id];
+                    if (e?.isAbsent) return;
+                    offMax += col.maxMarks;
+                    if (e?.score != null) offScored += e.score;
+                });
+            });
+            const offPct = offMax > 0 ? Math.round((offScored / offMax) * 100) : null;
+            const onPct: number | null = null; // online not yet implemented
+            const combPct = offPct ?? 0;
+            return { student: st, offPct, onPct, combPct };
+        });
+    }, [marksheetHook.students, marksheetHook.examColumns, marksheetHook.scores, subjects]);
+
+    // Per-subject top-3 students
     const subjectToppers = useMemo(() => {
         return subjects.map(sub => {
-            const offMax = OFFLINE_EXAMS.reduce((s, ex) => s + ex.maxMarks, 0);
-            const onMax = (ONLINE_EXAMS[sub.id] ?? []).reduce((s, ex) => s + ex.maxMarks, 0);
-            const rows = MOCK_STUDENTS.map(st => {
-                const offScored = OFFLINE_EXAMS.reduce((s, ex) => s + (INITIAL_OFFLINE[sub.id]?.[st.id]?.[ex.id] ?? 0), 0);
-                const onScored = (ONLINE_EXAMS[sub.id] ?? []).reduce((s, ex) => s + ((INITIAL_ONLINE[sub.id]?.[st.id]?.[ex.id] ?? 0) as number), 0);
+            const cols = marksheetHook.examColumns[sub.id] ?? [];
+            const offMax = cols.reduce((s, c) => s + c.maxMarks, 0);
+            const rows = marksheetHook.students.map(st => {
+                let offScored = 0;
+                cols.forEach(col => {
+                    const e = marksheetHook.scores[col.id]?.[st.id];
+                    if (e?.isAbsent) return;
+                    if (e?.score != null) offScored += e.score;
+                });
                 const offPct = offMax > 0 ? Math.round((offScored / offMax) * 100) : null;
-                const onPct = onMax > 0 ? Math.round((onScored / onMax) * 100) : null;
-                const combPct = offPct !== null && onPct !== null ? Math.round((offPct + onPct) / 2) : offPct ?? onPct ?? 0;
+                const onPct: number | null = null;
+                const combPct = offPct ?? 0;
                 return { student: st, offPct, onPct, combPct };
             });
             const getPct = (r: typeof rows[0]) =>
@@ -1423,36 +1459,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
             const sorted = [...rows].sort((a, b) => getPct(b) - getPct(a));
             return { sub, top5: sorted.slice(0, 3), getPct };
         });
-    }, [subjects, subjectTopperTab]);
-
-    const studentStats = useMemo(() => {
-        return MOCK_STUDENTS.map(st => {
-            let offTotal = 0, offScored = 0;
-            subjects.forEach(sub => {
-                OFFLINE_EXAMS.forEach(ex => {
-                    offTotal += ex.maxMarks;
-                    offScored += INITIAL_OFFLINE[sub.id]?.[st.id]?.[ex.id] ?? 0;
-                });
-            });
-            const offPct = offTotal > 0 ? Math.round((offScored / offTotal) * 100) : null;
-
-            let onTotal = 0, onScored = 0;
-            subjects.forEach(sub => {
-                const exams = ONLINE_EXAMS[sub.id] ?? ONLINE_EXAM_TEMPLATE.map(ex => ({ ...ex, id: `${ex.id}-${sub.id}` }));
-                exams.forEach(ex => {
-                    onTotal += ex.maxMarks;
-                    onScored += (INITIAL_ONLINE[sub.id]?.[st.id]?.[ex.id] ?? 0) as number;
-                });
-            });
-            const onPct = onTotal > 0 ? Math.round((onScored / onTotal) * 100) : null;
-
-            const combPct = offPct !== null && onPct !== null
-                ? Math.round((offPct + onPct) / 2)
-                : offPct ?? onPct ?? 0;
-
-            return { student: st, offPct, onPct, combPct };
-        });
-    }, [subjects]);
+    }, [subjects, marksheetHook.students, marksheetHook.examColumns, marksheetHook.scores, subjectTopperTab]);
 
     const rankMap = useMemo(() => {
         const sorted = [...studentStats].sort((a, b) => b.combPct - a.combPct);
@@ -1467,10 +1474,9 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
 
     useEffect(() => {
         if (!onStatsChangeRef.current) return;
-        const offPcts = studentStats.map(s => s.offPct).filter((p): p is number => p !== null);
-        const onPcts = studentStats.map(s => s.onPct).filter((p): p is number => p !== null);
-        const highOff = offPcts.length > 0 ? Math.max(...offPcts) : null;
-        const highOn = onPcts.length > 0 ? Math.max(...onPcts) : null;
+        const offPcts = studentStats.map(s => s.offPct).filter((p): p is number => typeof p === 'number');
+        const highOff: number | null = offPcts.length > 0 ? Math.max(...offPcts) : null;
+        const highOn: number | null = null; // online not yet implemented
         const key = `${highOff}-${highOn}`;
         if (key === prevOverallKey.current) return;
         prevOverallKey.current = key;
@@ -1491,7 +1497,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
             <div className="w-[30%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                 <div className="px-4 py-3.5 border-b border-border/40 shrink-0">
                     <p className="text-sm font-bold flex items-center gap-2">
-                        <Users size={14} /> Students ({MOCK_STUDENTS.length})
+                        <Users size={14} /> Students ({marksheetHook.students.length})
                     </p>
                 </div>
                 <div className="flex-1 overflow-y-auto bg-background">
@@ -1688,22 +1694,17 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                             </div>
                         );
                         const rank = rankMap[sel.student.id];
-                        const trendSub = MOCK_SUBJECTS.find(s => s.id === trendSubjectId) ?? MOCK_SUBJECTS[0];
-                        const offExams = OFFLINE_EXAMS;
-                        const onExams = trendSub ? (ONLINE_EXAMS[trendSub.id] ?? []) : [];
+                        const trendSub = subjects.find(s => s.id === trendSubjectId) ?? subjects[0];
+                        const offCols = trendSub ? (marksheetHook.examColumns[trendSub.id] ?? []) : [];
                         const trendData = (() => {
                             if (!trendSub) return [];
-                            const offRows = offExams.map(ex => ({
-                                name: ex.name,
-                                score: Math.round(((INITIAL_OFFLINE[trendSub.id]?.[sel.student.id]?.[ex.id] ?? 0) / ex.maxMarks) * 100),
-                            }));
-                            const onRows = onExams.map(ex => ({
-                                name: ex.name,
-                                score: Math.round((((INITIAL_ONLINE[trendSub.id]?.[sel.student.id]?.[ex.id] ?? 0) as number) / ex.maxMarks) * 100),
-                            }));
-                            if (trendMode === 'offline') return offRows;
-                            if (trendMode === 'online') return onRows;
-                            return [...offRows, ...onRows];
+                            const offRows = offCols.map(col => {
+                                const e = marksheetHook.scores[col.id]?.[sel.student.id];
+                                const sc = e?.isAbsent ? 0 : (e?.score ?? 0);
+                                return { name: col.name, score: col.maxMarks > 0 ? Math.round((sc / col.maxMarks) * 100) : 0 };
+                            });
+                            if (trendMode === 'online') return []; // online not yet available
+                            return offRows; // offline & combined both use offline for now
                         })();
 
                         return (
@@ -1715,7 +1716,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                     <div className="px-3 py-2 border-b border-border/40 bg-muted/20 flex items-center gap-2 shrink-0">
                                         <div className="flex-1 min-w-0 overflow-x-auto">
                                             <div className="flex gap-1.5">
-                                                {MOCK_SUBJECTS.map(s => (
+                                                {subjects.map(s => (
                                                     <button key={s.id} onClick={() => setTrendSubjectId(s.id)}
                                                         className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium whitespace-nowrap transition-all shrink-0"
                                                         style={trendSubjectId === s.id ? { background: s.color + '20', color: s.color, border: '1px solid ' + s.color + '40' } : { background: 'hsl(var(--muted))', color: 'hsl(var(--muted-foreground))', border: '1px solid hsl(var(--border))' }}>
@@ -1825,31 +1826,23 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                         </div>
                                     </div>
                                     {(() => {
-                                        const scores = reportCardTab === 'offline' ? INITIAL_OFFLINE : INITIAL_ONLINE;
-                                        const bgCell = (pct: number | null) =>
-                                            pct === null ? '#FAF5EE' : pct >= 75 ? '#DCFCE7' : pct >= 50 ? '#FEF9C3' : '#FEE2E2';
-                                        const fgCell = (pct: number | null) =>
-                                            pct === null ? '#888' : pct >= 75 ? '#15803d' : pct >= 50 ? '#854d0e' : '#b91c1c';
-                                        const headerExams = reportCardTab === 'offline'
-                                            ? OFFLINE_EXAMS
-                                            : (ONLINE_EXAMS[MOCK_SUBJECTS[0]?.id] ?? []);
-                                        const GRADED_SUBS = [
-                                            { id: 'gs1', name: 'PT' }, { id: 'gs2', name: 'SG' }, { id: 'gs3', name: 'ICT' },
-                                            { id: 'gs4', name: 'GK' }, { id: 'gs5', name: 'ART' }, { id: 'gs6', name: 'EVS' }, { id: 'gs7', name: 'VE' },
-                                        ];
+                                        // All subjects share the same exam column structure (offline)
+                                        const headerExams = marksheetHook.examColumns[subjects[0]?.id ?? ''] ?? [];
                                         const isOffline = reportCardTab === 'offline';
+                                        const gradedSubs = marksheetHook.gradedSubjects;
 
                                         // Compute per-subject data + running grand total
                                         let grandScored = 0, grandMax = 0;
-                                        const subjectData = MOCK_SUBJECTS.map(sub => {
-                                            const examList = isOffline ? OFFLINE_EXAMS : (ONLINE_EXAMS[sub.id] ?? []);
-                                            const maxTotal = examList.reduce((s, ex) => s + ex.maxMarks, 0);
-                                            let scored = 0;
-                                            const cells = examList.map(ex => {
-                                                const val = (scores[sub.id]?.[sel.student.id]?.[ex.id] ?? null) as number | null;
+                                        const subjectData = subjects.map(sub => {
+                                            const examList = marksheetHook.examColumns[sub.id] ?? [];
+                                            let scored = 0, maxTotal = 0;
+                                            const cells = examList.map(col => {
+                                                const e = marksheetHook.scores[col.id]?.[sel.student.id];
+                                                const val = e?.isAbsent ? null : (e?.score ?? null);
+                                                const pct = val !== null && col.maxMarks > 0 ? Math.round((val / col.maxMarks) * 100) : null;
+                                                if (!e?.isAbsent) maxTotal += col.maxMarks;
                                                 if (val !== null) scored += val;
-                                                const pct = val !== null && ex.maxMarks > 0 ? Math.round((val / ex.maxMarks) * 100) : null;
-                                                return { ex, val, maxMarks: ex.maxMarks, pct };
+                                                return { ex: col, val, maxMarks: col.maxMarks, pct };
                                             });
                                             const totalPct = maxTotal > 0 ? Math.round((scored / maxTotal) * 100) : null;
                                             grandScored += scored;
@@ -1929,7 +1922,7 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                             </tbody>
                                                         </table>
                                                         {/* Graded Subjects table - offline only */}
-                                                        {isOffline && (
+                                                        {isOffline && gradedSubs.length > 0 && (
                                                             <table className="text-[12px] border-separate border-spacing-0 min-w-max shrink-0" style={{ color: "#2A1F10" }}>
                                                                 <thead className="sticky top-0 z-30">
                                                                     <tr>
@@ -1939,84 +1932,32 @@ function OverallView({ divisionName, subjects, onStatsChange }: {
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
-                                                                    {GRADED_SUBS.map(gs => (
-                                                                        <tr key={gs.id}>
-                                                                            <td className="sticky left-0 z-20 bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-semibold text-[#2A1F10] whitespace-nowrap">{gs.name}</td>
-                                                                            <td className="border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap" style={{ color: '#C8B89A' }}>—</td>
-                                                                            <td className="border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap" style={{ color: '#C8B89A' }}>—</td>
-                                                                        </tr>
-                                                                    ))}
+                                                                    {gradedSubs.map(gs => {
+                                                                        const gsScore = marksheetHook.gradedScores[gs.id]?.[sel.student.id];
+                                                                        return (
+                                                                            <tr key={gs.id}>
+                                                                                <td className="sticky left-0 z-20 bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-semibold text-[#2A1F10] whitespace-nowrap">{gs.name}</td>
+                                                                                <td className="border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold"
+                                                                                    style={{ color: gsScore?.term1Grade ? gradeValColor(gsScore.term1Grade) : '#C8B89A' }}>
+                                                                                    {gsScore?.term1Grade ?? '—'}
+                                                                                </td>
+                                                                                <td className="border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold"
+                                                                                    style={{ color: gsScore?.term2Grade ? gradeValColor(gsScore.term2Grade) : '#C8B89A' }}>
+                                                                                    {gsScore?.term2Grade ?? '—'}
+                                                                                </td>
+                                                                            </tr>
+                                                                        );
+                                                                    })}
                                                                 </tbody>
                                                             </table>
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    /* Online: grouped by subject */
-                                                    <table className="text-[12px] border-separate border-spacing-0 min-w-max w-full" style={{ color: "#2A1F10" }}>
-                                                        <thead className="sticky top-0 z-30">
-                                                            <tr>
-                                                                <th className="sticky left-0 z-40 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-left font-bold text-[#2A1F10] whitespace-nowrap min-w-[180px]">Subject / Exam</th>
-                                                                <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center font-bold text-[#2A1F10] whitespace-nowrap min-w-[60px]">Score</th>
-                                                                <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center font-bold text-[#2A1F10] whitespace-nowrap min-w-[52px]">Max</th>
-                                                                <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center font-bold text-[#2A1F10] whitespace-nowrap min-w-[52px]">%</th>
-                                                                <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center font-bold text-[#2A1F10] whitespace-nowrap min-w-[48px]">Grade</th>
-                                                            </tr>
-                                                        </thead>
-                                                        <tbody>
-                                                            {subjectData.map(({ sub, cells, scored, maxTotal, totalPct }) => (
-                                                                <React.Fragment key={sub.id}>
-                                                                    <tr>
-                                                                        <td colSpan={5} className="sticky left-0 z-20 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1 font-bold text-[#2A1F10] whitespace-nowrap">
-                                                                            <div className="flex items-center gap-1.5">
-                                                                                <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sub.color }} />
-                                                                                {sub.name}
-                                                                            </div>
-                                                                        </td>
-                                                                    </tr>
-                                                                    {cells.map(({ ex, val, pct }) => (
-                                                                        <tr key={ex.id}>
-                                                                            <td className="sticky left-0 z-20 bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-[#2A1F10] whitespace-nowrap pl-7">
-                                                                                <div className="flex items-center gap-2">
-                                                                                    {(ex as any).date && <span style={{ fontSize: 11, opacity: 0.6, whiteSpace: 'nowrap' }}>{(ex as any).date}</span>}
-                                                                                    <span>{ex.name}</span>
-                                                                                </div>
-                                                                            </td>
-                                                                            <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap font-semibold">
-                                                                                {val !== null ? <span style={{ color: scoreColor(pct ?? 0) }}>{val}</span> : '—'}
-                                                                            </td>
-                                                                            <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap text-[#2A1F10]">{ex.maxMarks}</td>
-                                                                            <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap">
-                                                                                {pct !== null ? <span style={{ color: scoreColor(pct), fontWeight: 600 }}>{pct}%</span> : '—'}
-                                                                            </td>
-                                                                            <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap" style={{ color: '#C8B89A' }}>—</td>
-                                                                        </tr>
-                                                                    ))}
-                                                                    <tr>
-                                                                        <td className="sticky left-0 z-20 bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-semibold text-[#2A1F10] whitespace-nowrap pl-7 italic">Total</td>
-                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE]">{scored}</td>
-                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE]">{maxTotal}</td>
-                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap">
-                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct), fontWeight: 700 }}>{totalPct}%</span> : '—'}
-                                                                        </td>
-                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap font-semibold">
-                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{gradeLabel(totalPct)}</span> : '—'}
-                                                                        </td>
-                                                                    </tr>
-                                                                </React.Fragment>
-                                                            ))}
-                                                            <tr style={{ position: 'sticky', bottom: 0, zIndex: 25 }}>
-                                                                <td className="sticky left-0 z-30 bg-[#E8DDD0] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-bold text-[#2A1F10] whitespace-nowrap">Grand Total</td>
-                                                                <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center font-bold whitespace-nowrap bg-[#E8DDD0]">{grandScored}</td>
-                                                                <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center font-bold whitespace-nowrap bg-[#E8DDD0]">{grandMax}</td>
-                                                                <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap bg-[#E8DDD0]">
-                                                                    {grandPct !== null ? <span style={{ color: scoreColor(grandPct), fontWeight: 700 }}>{grandPct}%</span> : '—'}
-                                                                </td>
-                                                                <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
-                                                                    {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{gradeLabel(grandPct)}</span> : '—'}
-                                                                </td>
-                                                            </tr>
-                                                        </tbody>
-                                                    </table>
+                                                    /* Online exams not yet implemented */
+                                                    <div className="flex flex-col items-center justify-center h-full text-center p-8" style={{ background: '#F8F3EC' }}>
+                                                        <p className="text-sm font-semibold" style={{ color: '#2A1F10' }}>Online results not yet available</p>
+                                                        <p className="text-xs mt-1" style={{ color: '#7A6A55' }}>Online exam integration is coming soon</p>
+                                                    </div>
                                                 )}
                                             </div>
                                         );
@@ -2179,11 +2120,18 @@ export default function MarksTab({
             </div>
             {subTab === "overall" && (
                 <div className="flex-1 min-h-0 flex flex-col">
-                    <OverallView
-                        divisionName={divisionName}
-                        subjects={mappedSubjects}
-                        onStatsChange={onStatsChange}
-                    />
+                    {marksheetHook.loading ? (
+                        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                            Loading marksheet…
+                        </div>
+                    ) : (
+                        <OverallView
+                            divisionName={divisionName}
+                            subjects={mappedSubjects}
+                            onStatsChange={onStatsChange}
+                            marksheetHook={marksheetHook}
+                        />
+                    )}
                 </div>
             )}
         </div>

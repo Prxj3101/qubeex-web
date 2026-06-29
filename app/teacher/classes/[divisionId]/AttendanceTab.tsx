@@ -128,7 +128,8 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     const [remarkInput, setRemarkInput] = useState('');
 
     const currentKey = dateKey(selectedDate);
-    const year = today.getFullYear();
+    const startYear = today.getMonth() >= 5 ? today.getFullYear() : today.getFullYear() - 1;
+    const year = activeMonth >= 5 ? startYear : startYear + 1;
     const daysInMonth = new Date(year, activeMonth + 1, 0).getDate();
     const visibleDates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
@@ -177,13 +178,14 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     }, []);
 
     const exportMonthSheet = (monthKey: number) => {
-        const days = new Date(year, monthKey + 1, 0).getDate();
+        const exportYear = monthKey >= 5 ? startYear : startYear + 1;
+        const days = new Date(exportYear, monthKey + 1, 0).getDate();
         const dates = Array.from({ length: days }, (_, i) => i + 1);
         const headers = ['Roll No.', 'Name', 'Student ID', ...dates.map(String), 'P', 'A', 'L', '%', 'Overall %'];
         const rows = students.map(student => {
             let p = 0, a = 0, l = 0;
             const dateCells = dates.map(d => {
-                const dk = makeDateKey(year, monthKey, d);
+                const dk = makeDateKey(exportYear, monthKey, d);
                 if (holidays[dk]) return 'H';
                 const status = getLiveStatus(student.id, dk);
                 if (status === 'P') p++;
@@ -193,18 +195,18 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
             });
             const total = p + a + l;
             const pct = total > 0 ? `${Math.round(((p + l) / total) * 100)}%` : '—';
-            return [student.rollNo, student.name, getStudentId(student.rollNo, year), ...dateCells, p || '—', a || '—', l || '—', pct, student.overallPct !== null ? `${student.overallPct}%` : '—'];
+            return [student.rollNo, student.name, getStudentId(student.rollNo, exportYear), ...dateCells, p || '—', a || '—', l || '—', pct, student.overallPct !== null ? `${student.overallPct}%` : '—'];
         });
-        return { headers, rows, sheetName: MONTHS_S[monthKey] };
+        return { headers, rows, sheetName: MONTHS_S[monthKey], exportYear };
     };
 
     const handleExportThisMonth = async () => {
         const XLSX = await import('xlsx');
-        const { headers, rows, sheetName } = exportMonthSheet(activeMonth);
+        const { headers, rows, sheetName, exportYear } = exportMonthSheet(activeMonth);
         const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, `${sheetName} Attendance`);
-        XLSX.writeFile(wb, `Attendance_${sheetName}_${year}.xlsx`);
+        XLSX.writeFile(wb, `Attendance_${sheetName}_${exportYear}.xlsx`);
         setShowExportMenu(false);
     };
 
@@ -213,9 +215,9 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         const XLSX = await import('xlsx');
         const wb = XLSX.utils.book_new();
         selectedExportMonths.forEach(monthKey => {
-            const { headers, rows, sheetName } = exportMonthSheet(monthKey);
+            const { headers, rows, sheetName, exportYear } = exportMonthSheet(monthKey);
             const ws = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-            XLSX.utils.book_append_sheet(wb, ws, `${sheetName} Attendance`);
+            XLSX.utils.book_append_sheet(wb, ws, `${sheetName} ${exportYear} Attendance`);
         });
         XLSX.writeFile(wb, `Attendance_${year}_Selected.xlsx`);
         setShowMonthSelector(false);
@@ -649,12 +651,13 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
         return () => { cancelled = true; };
     }, [divisionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Fetch student records when selected student changes
+    // Fetch student records when selected student changes — use full academic year range
     useEffect(() => {
         if (!selectedStudent) return;
         setLoadingStudentRec(true);
-        const year = new Date().getFullYear();
-        api.get(`${attBase}/student-records/${selectedStudent.studentId}?year=${year}`)
+        const now = new Date();
+        const sy = now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1;
+        api.get(`${attBase}/student-records/${selectedStudent.studentId}?startDate=${sy}-06-01&endDate=${sy + 1}-05-31`)
             .then(res => {
                 const recs: Record<string, AttendanceStatus> = {};
                 res.data.data.records.forEach((r: { date: string; status: string }) => {
@@ -676,7 +679,9 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
         holidaysByMonthDay[mm][dd] = name;
     });
 
-    const year = new Date().getFullYear();
+    const now = new Date();
+    const startYear = now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1;
+    const year = now.getFullYear(); // calendar year — kept for month-key calculations in class stats
 
     const generateList = (type: 'all' | 'current') => {
         const now = new Date();
@@ -722,7 +727,6 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
         );
     }
 
-    const now = new Date();
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     return (
@@ -1036,14 +1040,15 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                                         { month: 'Apr', key: 3 },
                                                         { month: 'May', key: 4 },
                                                     ].map(m => {
-                                                        const daysInMonth = new Date(year, m.key + 1, 0).getDate();
+                                                        const mYear = m.key >= 5 ? startYear : startYear + 1;
+                                                        const daysInMonth = new Date(mYear, m.key + 1, 0).getDate();
                                                         let p = 0, a = 0, l = 0;
 
                                                         Array.from({ length: 31 }, (_, i) => i + 1).forEach(d => {
                                                             const isOutOfMonth = d > daysInMonth;
-                                                            const isSunday = !isOutOfMonth && new Date(year, m.key, d).getDay() === 0;
+                                                            const isSunday = !isOutOfMonth && new Date(mYear, m.key, d).getDay() === 0;
                                                             const isHol = !isOutOfMonth && !isSunday && !!holidaysByMonthDay[m.key]?.[d];
-                                                            const dateStr = makeDateKey(year, m.key, d);
+                                                            const dateStr = makeDateKey(mYear, m.key, d);
                                                             const st: AttendanceStatus = !isOutOfMonth && !isSunday && !isHol
                                                                 ? (studentRecords[dateStr] ?? null)
                                                                 : null;
@@ -1064,10 +1069,10 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                                                 {/* Date cells 1-31 */}
                                                                 {Array.from({ length: 31 }, (_, i) => i + 1).map(d => {
                                                                     const isOutOfMonth = d > daysInMonth;
-                                                                    const isSunday = !isOutOfMonth && new Date(year, m.key, d).getDay() === 0;
+                                                                    const isSunday = !isOutOfMonth && new Date(mYear, m.key, d).getDay() === 0;
                                                                     const isHol = !isOutOfMonth && !isSunday && !!holidaysByMonthDay[m.key]?.[d];
                                                                     const holName = holidaysByMonthDay[m.key]?.[d];
-                                                                    const dateStr = makeDateKey(year, m.key, d);
+                                                                    const dateStr = makeDateKey(mYear, m.key, d);
                                                                     const status: AttendanceStatus = !isOutOfMonth && !isSunday && !isHol
                                                                         ? (studentRecords[dateStr] ?? null)
                                                                         : null;

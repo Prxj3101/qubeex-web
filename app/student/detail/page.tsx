@@ -266,13 +266,15 @@ export default function StudentDetailPage() {
     const store = useStudentStore();
     const updateInfo = store.updateInfo;
 
+    useEffect(() => { store.fetchProfile(); }, []);
+
     // ── Student Info edit ──
     const data = { name: store.name, dob: store.dob, email: store.email, phone: store.phone, gender: store.gender, nationality: store.nationality, admissionYear: store.admissionYear, religion: store.religion, category: store.category };
     const [draft, setDraft] = useState(data);
     const [editingInfo, setEditingInfo] = useState(false);
 
     const startEdit = () => { setDraft(data); setEditingInfo(true); };
-    const saveEdit = () => { updateInfo(draft); setEditingInfo(false); };
+    const saveEdit = async () => { await store.saveProfile(draft); setEditingInfo(false); };
     const cancelEdit = () => { setDraft(data); setEditingInfo(false); };
 
     // ── Medical edit ──
@@ -281,7 +283,7 @@ export default function StudentDetailPage() {
     const [editingMed, setEditingMed] = useState(false);
 
     const startMedEdit = () => { setMedDraft(medData); setEditingMed(true); };
-    const saveMedEdit = () => { updateInfo(medDraft); setEditingMed(false); };
+    const saveMedEdit = async () => { await store.saveProfile(medDraft); setEditingMed(false); };
     const cancelMedEdit = () => { setMedDraft(medData); setEditingMed(false); };
 
     // ── Address edit ──
@@ -290,7 +292,7 @@ export default function StudentDetailPage() {
     const [editingAddr, setEditingAddr] = useState(false);
 
     const startAddrEdit = () => { setAddrDraft(addrData); setEditingAddr(true); };
-    const saveAddrEdit = () => { updateInfo(addrDraft); setEditingAddr(false); };
+    const saveAddrEdit = async () => { await store.saveProfile(addrDraft); setEditingAddr(false); };
     const cancelAddrEdit = () => { setAddrDraft(addrData); setEditingAddr(false); };
 
     // ── Guardians edit ──
@@ -298,7 +300,7 @@ export default function StudentDetailPage() {
     const [editingGuardians, setEditingGuardians] = useState(false);
 
     const startGuardiansEdit = () => { setGuardianDraft(store.guardians.map(g => ({ ...g }))); setEditingGuardians(true); };
-    const saveGuardiansEdit = () => { updateInfo({ guardians: guardianDraft }); setEditingGuardians(false); };
+    const saveGuardiansEdit = async () => { await store.saveProfile({ guardians: guardianDraft }); setEditingGuardians(false); };
     const cancelGuardiansEdit = () => { setGuardianDraft(store.guardians.map(g => ({ ...g }))); setEditingGuardians(false); };
 
     // computed dob display from editable state
@@ -310,19 +312,20 @@ export default function StudentDetailPage() {
     })();
 
     const photoInputRef = useRef<HTMLInputElement>(null);
-    const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-            updateInfo({ photo: ev.target?.result as string });
-        };
-        reader.readAsDataURL(file);
         e.target.value = '';
+        // Show preview immediately
+        const reader = new FileReader();
+        reader.onload = (ev) => updateInfo({ photo: ev.target?.result as string });
+        reader.readAsDataURL(file);
+        // Upload to server
+        try { await store.uploadPhoto(file); } catch { /* preview already shown */ }
     };
 
     const handleCopy = () => {
-        navigator.clipboard.writeText(STUDENT.uid);
+        navigator.clipboard.writeText(store.studentId);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
     };
@@ -381,17 +384,17 @@ export default function StudentDetailPage() {
                             {/* Name */}
                             <div className="text-center">
                                 <p className="text-white font-bold text-base leading-tight">{data.name}</p>
-                                <p className="text-white/70 text-xs mt-0.5">{STUDENT.standard} · {STUDENT.div}</p>
+                                <p className="text-white/70 text-xs mt-0.5">{store.standard} · {store.division}</p>
                             </div>
 
                             {/* Chips */}
                             <div className="flex flex-wrap justify-center gap-1.5">
                                 {[
-                                    `Roll No: ${STUDENT.rollNo}`,
-                                    STUDENT.standard,
+                                    `Roll No: ${store.rollNo}`,
+                                    store.standard,
                                     data.admissionYear,
-                                ].map(chip => (
-                                    <span key={chip}
+                                ].map((chip, i) => (
+                                    <span key={i}
                                         className="text-[10px] font-semibold px-2.5 py-1 rounded-full"
                                         style={{ backgroundColor: 'rgba(255,255,255,0.18)', color: 'white' }}>
                                         {chip}
@@ -404,7 +407,7 @@ export default function StudentDetailPage() {
                         <div className="flex items-center gap-1 px-4 py-2.5 bg-violet-50 dark:bg-violet-950/30 border-t border-violet-200/50 dark:border-violet-900/50">
                             <Hash size={13} className="text-muted-foreground shrink-0" />
                             <span className="font-mono text-xs font-semibold tracking-wider flex-1 truncate" style={{ color: '#DA7756' }}>
-                                {STUDENT.uid}
+                                {store.studentId}
                             </span>
                             <button onClick={handleCopy}
                                 className="flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-lg bg-muted hover:bg-muted/80 text-muted-foreground transition-all shrink-0">
@@ -517,37 +520,38 @@ export default function StudentDetailPage() {
                     <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                         <SectionHeader icon={BookOpen} label="Academic Details" />
                         <div className="grid grid-cols-2 gap-2">
-                            <ReadField label="Class" value={STUDENT.standard.replace(/^Class\s*/i, '')} />
-                            <ReadField label="Division" value={STUDENT.div.replace(/^Division\s*/i, '')} />
+                            <ReadField label="Class" value={store.standard.replace(/^Class\s*/i, '')} />
+                            <ReadField label="Division" value={store.division.replace(/^Division\s*/i, '')} />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                            <ReadField label="Roll No" value={STUDENT.rollNo} />
-                            <ReadField label="House Color" value={STUDENT.houseColor} />
+                            <ReadField label="Roll No" value={store.rollNo} />
+                            <ReadField label="House Color" value={store.houseColor ?? ''} />
                         </div>
                         {/* Student ID */}
                         <div>
                             <p className="text-[11px] text-muted-foreground mb-1 font-medium">Student ID</p>
                             <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between">
                                 <span className="text-sm font-mono font-semibold" style={{ color: '#DA7756' }}>
-                                    {STUDENT.uid}
+                                    {store.studentId}
                                 </span>
                                 <span className="text-[10px] text-muted-foreground/50">Read only</span>
                             </div>
                         </div>
-                        {/* Password */}
+                        {/* Password — only shown if student hasn't changed it yet */}
+                        {store.mustChangePassword && store.tempPassword && (
                         <div>
                             <div className="flex items-center gap-1.5 mb-1">
-                                <p className="text-[11px] text-muted-foreground font-medium">Current Password</p>
+                                <p className="text-[11px] text-muted-foreground font-medium">Temporary Password</p>
                                 <div className="group relative">
                                     <Info size={11} className="text-muted-foreground/50 hover:text-blue-500 cursor-pointer transition-colors" />
                                     <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 w-48 px-2.5 py-1.5 rounded-lg bg-gray-900 dark:bg-gray-800 border border-gray-700 shadow-lg text-[10px] text-white leading-relaxed opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-50 whitespace-normal">
-                                        Your password can be changed from the app settings.
+                                        Change your password on first login. This is shown only until you set a new password.
                                     </div>
                                 </div>
                             </div>
-                            <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between gap-2">
-                                <span className="text-sm font-mono flex-1" style={{ color: '#DA7756' }}>
-                                    {showPassword ? 'password123' : '••••••••••'}
+                            <div className="h-8 px-3 rounded-md border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 flex items-center justify-between gap-2">
+                                <span className="text-sm font-mono flex-1 text-amber-600 dark:text-amber-400">
+                                    {showPassword ? store.tempPassword : '••••••••••'}
                                 </span>
                                 <button type="button" onClick={() => setShowPassword(v => !v)}
                                     className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0">
@@ -555,6 +559,7 @@ export default function StudentDetailPage() {
                                 </button>
                             </div>
                         </div>
+                        )}
                         {/* Lock notice */}
                         <div className="flex items-center gap-2 p-2.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200/50 dark:border-blue-900/50">
                             <span className="text-sm">🔒</span>
@@ -627,16 +632,42 @@ export default function StudentDetailPage() {
                     </div>
                 </div>
 
-                {/* ROW 3 — Guardians */}
+                {/* ROW 3 — Parents / Guardian */}
                 <div className="border border-border/50 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
                     <SectionHeader icon={Users} label="Parents / Guardian"
                         editing={editingGuardians} onEdit={startGuardiansEdit} onSave={saveGuardiansEdit} onCancel={cancelGuardiansEdit}
+                        afterLabel={editingGuardians && (
+                            <div className="flex items-center gap-2">
+                                <button type="button"
+                                    onClick={() => setGuardianDraft(p => [...p, { name: '', number: '', relation: 'Father' }])}
+                                    className="text-[11px] text-primary font-semibold hover:underline">
+                                    + Parent
+                                </button>
+                                <span className="text-muted-foreground/40 text-[11px]">·</span>
+                                <button type="button"
+                                    onClick={() => setGuardianDraft(p => [...p, { name: '', number: '', relation: 'Guardian' }])}
+                                    className="text-[11px] text-primary font-semibold hover:underline">
+                                    + Guardian
+                                </button>
+                            </div>
+                        )}
                     />
+                    {(editingGuardians ? guardianDraft : store.guardians).length === 0 && !editingGuardians && (
+                        <p className="text-xs text-muted-foreground/60 text-center py-2">No parents or guardians added yet</p>
+                    )}
                     {(editingGuardians ? guardianDraft : store.guardians).map((g, i) => (
                         <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                                Guardian {i + 1}
-                            </p>
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                    {g.relation || `Entry ${i + 1}`}
+                                </p>
+                                {editingGuardians && (
+                                    <button type="button" onClick={() => setGuardianDraft(p => p.filter((_, gi) => gi !== i))}
+                                        className="text-[10px] text-red-500 hover:text-red-400 font-medium">
+                                        Remove
+                                    </button>
+                                )}
+                            </div>
                             <div className="grid grid-cols-3 gap-2">
                                 {editingGuardians ? (
                                     <>
