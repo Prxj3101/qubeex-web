@@ -181,6 +181,8 @@ export default function TeacherSettingsPageClient() {
     const [showNew, setShowNew] = useState(false);
     const [showConfirm, setShowConfirm] = useState(false);
     const [savingPwd, setSavingPwd] = useState(false);
+    const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+    const [showSignOutAllConfirm, setShowSignOutAllConfirm] = useState(false);
 
     const strength = useMemo(() => calculateStrength(newPwd), [newPwd]);
     const passwordsMatch = confirmPwd.length > 0 && newPwd === confirmPwd;
@@ -291,7 +293,7 @@ export default function TeacherSettingsPageClient() {
 
             {/* ── STICKY HEADER ── */}
             <div className="sticky top-0 z-20 bg-background shrink-0">
-                <div className="flex items-center justify-between pt-3 px-1">
+                <div className="flex items-center justify-between pt-0 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Settings size={21} />
@@ -300,18 +302,18 @@ export default function TeacherSettingsPageClient() {
                         <p className="text-[13px] text-muted-foreground">Manage your account and security</p>
                     </div>
                     <button
-                        onClick={handleLogout}
+                        onClick={() => setShowLogoutConfirm(true)}
                         className="flex items-center gap-2 h-9 px-4 rounded-xl border border-red-200 dark:border-red-900/50 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all active:scale-95"
                     >
                         <LogOut size={14} />
                         Log out
                     </button>
                 </div>
-                <div className="h-px bg-border/60 mt-3" />
+                <div className="h-px bg-border/60 mt-2" />
             </div>
 
             {/* ── SCROLLABLE BODY ── */}
-            <div className="flex-1 min-h-0 overflow-y-auto pb-6 px-1 pt-4">
+            <div className="flex-1 min-h-0 overflow-y-auto pb-6 px-1 pt-2">
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
                     {/* ── LEFT COLUMN ── */}
@@ -323,28 +325,6 @@ export default function TeacherSettingsPageClient() {
                                 title="Personal Details"
                                 icon={User}
                                 description="Your basic information"
-                                action={
-                                    editing ? (
-                                        <div className="flex gap-1.5 shrink-0">
-                                            <Button variant="outline" size="sm" onClick={handleCancelEdit} disabled={savingProfile} className="h-8 text-xs">
-                                                Cancel
-                                            </Button>
-                                            <button
-                                                onClick={handleSaveProfile}
-                                                disabled={savingProfile}
-                                                className="flex items-center h-8 px-3 rounded-md text-xs font-semibold text-white transition-all duration-150 hover:opacity-90 active:scale-95 disabled:opacity-50"
-                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                                            >
-                                                {savingProfile ? <RefreshCw size={13} className="mr-1.5 animate-spin" /> : <Save size={13} className="mr-1.5" />}
-                                                Save
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <button onClick={handleStartEdit} className="flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground border border-border/60 hover:border-border transition-all">
-                                            <Edit3 size={12} /> Edit
-                                        </button>
-                                    )
-                                }
                             >
                                 {profileLoading ? (
                                     <div className="space-y-3 py-1">
@@ -488,6 +468,7 @@ export default function TeacherSettingsPageClient() {
                         {/* Recent Login Activity */}
                         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1, duration: 0.3 }}>
                             <SectionCard title="Recent Login Activity" icon={Activity} description="Sessions in the last 30 days">
+
                                 <div className="space-y-0">
                                     {activityLoading ? (
                                         [...Array(3)].map((_, i) => (
@@ -528,9 +509,113 @@ export default function TeacherSettingsPageClient() {
                                 </div>
                             </SectionCard>
                         </motion.div>
+
+                        {/* Danger Zone */}
+                        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.3 }}
+                            className="bg-card border border-red-200 dark:border-red-900/50 rounded-2xl overflow-hidden"
+                        >
+                            <div className="bg-red-50/50 dark:bg-red-950/20 px-5 py-4 border-b border-red-200 dark:border-red-900/50 flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-950 flex items-center justify-center">
+                                    <AlertTriangle size={15} className="text-red-500" />
+                                </div>
+                                <div>
+                                    <p className="text-sm font-semibold text-red-600 dark:text-red-400">Danger Zone</p>
+                                    <p className="text-[11px] text-red-500/80">Irreversible actions</p>
+                                </div>
+                            </div>
+                            <div className="p-5">
+                                <div className="flex items-center justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-medium">Sign out from all devices</p>
+                                        <p className="text-[11px] text-muted-foreground">Invalidates your session everywhere — you&apos;ll need to sign in again</p>
+                                    </div>
+                                    <button
+                                        onClick={() => setShowSignOutAllConfirm(true)}
+                                        className="flex items-center gap-1.5 h-9 px-3 rounded-md text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-all active:scale-95 shrink-0"
+                                    >
+                                        <LogOut size={13} />
+                                        Sign out everywhere
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
                     </div>
                 </div>
             </div>
+
+            {/* ── Sign Out All Confirm ── */}
+            <AnimatePresence>
+                {showSignOutAllConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+                        onClick={() => setShowSignOutAllConfirm(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 8 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                            transition={{ duration: 0.18 }}
+                            onClick={e => e.stopPropagation()}
+                            className="bg-card border border-border/50 rounded-2xl shadow-xl p-6 w-80 mx-4"
+                        >
+                            <div className="w-11 h-11 rounded-xl bg-red-100 dark:bg-red-950/40 flex items-center justify-center mb-4">
+                                <AlertTriangle size={20} className="text-red-500" />
+                            </div>
+                            <h3 className="text-base font-semibold mb-1">Sign out everywhere?</h3>
+                            <p className="text-[13px] text-muted-foreground mb-5">This will invalidate your session on all devices. You&apos;ll need to sign in again on each one.</p>
+                            <div className="flex gap-2">
+                                <Button variant="outline" className="flex-1 h-9 text-sm" onClick={() => setShowSignOutAllConfirm(false)}>
+                                    Cancel
+                                </Button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex-1 h-9 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-all active:scale-95"
+                                >
+                                    Sign out all
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* ── Logout Confirm ── */}
+            <AnimatePresence>
+                {showLogoutConfirm && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+                        onClick={() => setShowLogoutConfirm(false)}
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 8 }}
+                            transition={{ duration: 0.18 }}
+                            onClick={e => e.stopPropagation()}
+                            className="bg-card border border-border/50 rounded-2xl shadow-xl p-6 w-80 mx-4"
+                        >
+                            <div className="w-11 h-11 rounded-xl bg-red-100 dark:bg-red-950/40 flex items-center justify-center mb-4">
+                                <LogOut size={20} className="text-red-500" />
+                            </div>
+                            <h3 className="text-base font-semibold mb-1">Log out?</h3>
+                            <p className="text-[13px] text-muted-foreground mb-5">You will be signed out of your account and redirected to the login page.</p>
+                            <div className="flex gap-2">
+                                <Button variant="outline" className="flex-1 h-9 text-sm" onClick={() => setShowLogoutConfirm(false)}>
+                                    Cancel
+                                </Button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex-1 h-9 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 transition-all active:scale-95"
+                                >
+                                    Log out
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

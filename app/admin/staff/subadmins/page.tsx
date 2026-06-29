@@ -36,15 +36,26 @@ const PERMISSION_TREE: PermNode[] = [
     {
         key: 'CAMPUS', label: 'Campus', icon: Building2,
         children: [
-            { key: 'CAMPUS_FEED',       label: 'Feed',       description: 'Campus feed & academic calendar' },
-            { key: 'CAMPUS_VIEW',       label: 'View',       description: 'Class overview tab' },
-            { key: 'CAMPUS_MANAGE',     label: 'Manage',     description: 'Class manage tab' },
-            { key: 'CAMPUS_FEES',       label: 'Fees',       description: 'Class fees tab' },
-            { key: 'CAMPUS_ATTENDANCE', label: 'Attendance', description: 'Class attendance tab' },
-            { key: 'CAMPUS_MARKSHEET',  label: 'Marksheet',  description: 'Class marksheet tab' },
+            { key: 'CAMPUS_FEED', label: 'Feed', description: 'Campus feed & academic calendar' },
+            {
+                key: 'CAMPUS_CLASSES', label: 'Classes', description: 'Class tabs access',
+                children: [
+                    { key: 'CAMPUS_VIEW',       label: 'View',       description: 'Class overview tab' },
+                    { key: 'CAMPUS_MANAGE',     label: 'Manage',     description: 'Class manage tab' },
+                    { key: 'CAMPUS_FEES',       label: 'Fees',       description: 'Class fees tab' },
+                    { key: 'CAMPUS_ATTENDANCE', label: 'Attendance', description: 'Class attendance tab' },
+                    { key: 'CAMPUS_MARKSHEET',  label: 'Marksheet',  description: 'Class marksheet tab' },
+                ],
+            },
         ],
     },
-    { key: 'INSIGHTS',   label: 'Insights',   icon: LineChart,  description: 'Analytics & subscription info' },
+    {
+        key: 'INSIGHTS', label: 'Insights', icon: LineChart,
+        children: [
+            { key: 'INSIGHTS_ANALYTICS',    label: 'Analytics',    description: 'Usage & performance analytics' },
+            { key: 'INSIGHTS_SUBSCRIPTION', label: 'Subscription', description: 'Plan & billing info' },
+        ],
+    },
     { key: 'SUPPORT',    label: 'Support',    icon: Headset,    description: 'Support tickets & reviews' },
     { key: 'AUDIT_LOGS', label: 'Audit Logs', icon: ScrollText, description: 'Admin activity audit trail' },
 ];
@@ -110,7 +121,7 @@ function PermissionTree({
     selected: string[];
     onChange: (keys: string[]) => void;
 }) {
-    const [expanded, setExpanded] = useState<Set<string>>(new Set(['STAFF', 'CAMPUS']));
+    const [expanded, setExpanded] = useState<Set<string>>(new Set(['STAFF', 'CAMPUS', 'CAMPUS_CLASSES', 'INSIGHTS']));
 
     function toggleExpand(key: string) {
         setExpanded(prev => {
@@ -130,8 +141,7 @@ function PermissionTree({
         if (allChecked) {
             onChange(selected.filter(k => !leaves.includes(k)));
         } else {
-            const next = new Set([...selected, ...leaves]);
-            onChange(Array.from(next));
+            onChange(Array.from(new Set([...selected, ...leaves])));
         }
     }
 
@@ -141,6 +151,60 @@ function PermissionTree({
         if (count === 0) return 'none';
         if (count === leaves.length) return 'all';
         return 'some';
+    }
+
+    function renderChild(child: PermNode, depth: number) {
+        const hasChildren = !!child.children?.length;
+        const isExpanded = expanded.has(child.key);
+        const pl = depth === 1 ? 'pl-8' : 'pl-12';
+
+        if (hasChildren) {
+            const state = parentState(child);
+            return (
+                <div key={child.key} className="divide-y divide-border/30">
+                    <label className={`flex items-center gap-3 ${pl} pr-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors ${state !== 'none' ? 'bg-indigo-50/40 dark:bg-indigo-950/10' : ''}`}>
+                        <input
+                            type="checkbox"
+                            checked={state === 'all'}
+                            ref={el => { if (el) el.indeterminate = state === 'some'; }}
+                            onChange={() => toggleParent(child)}
+                            className="accent-indigo-600 w-3.5 h-3.5"
+                        />
+                        <span className={`text-sm font-semibold flex-1 ${state !== 'none' ? 'text-indigo-700 dark:text-indigo-300' : 'text-muted-foreground'}`}>
+                            {child.label}
+                        </span>
+                        <button
+                            type="button"
+                            onClick={e => { e.preventDefault(); toggleExpand(child.key); }}
+                            className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            {isExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                        </button>
+                    </label>
+                    {isExpanded && child.children!.map(grandchild => renderChild(grandchild, depth + 1))}
+                </div>
+            );
+        }
+
+        const checked = selected.includes(child.key);
+        return (
+            <label key={child.key} className={`flex items-center gap-3 ${pl} pr-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors ${checked ? 'bg-indigo-50/40 dark:bg-indigo-950/10' : ''}`}>
+                <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => toggleLeaf(child.key)}
+                    className="accent-indigo-600 w-3.5 h-3.5 shrink-0"
+                />
+                <div className="flex flex-col flex-1 min-w-0">
+                    <span className={`text-sm font-medium ${checked ? 'text-indigo-700 dark:text-indigo-300' : 'text-muted-foreground'}`}>
+                        {child.label}
+                    </span>
+                    {child.description && (
+                        <span className="text-[11px] text-muted-foreground/60 leading-tight">{child.description}</span>
+                    )}
+                </div>
+            </label>
+        );
     }
 
     return (
@@ -153,9 +217,7 @@ function PermissionTree({
 
                 return (
                     <div key={node.key} className="rounded-xl border border-border/40 overflow-hidden">
-                        <label className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors ${
-                            state !== 'none' ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''
-                        }`}>
+                        <label className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer hover:bg-muted/30 transition-colors ${state !== 'none' ? 'bg-indigo-50/50 dark:bg-indigo-950/20' : ''}`}>
                             <input
                                 type="checkbox"
                                 checked={state === 'all'}
@@ -180,30 +242,9 @@ function PermissionTree({
                                 </button>
                             )}
                         </label>
-
                         {hasChildren && isExpanded && (
                             <div className="border-t border-border/40 divide-y divide-border/30">
-                                {node.children!.map(child => {
-                                    const checked = selected.includes(child.key);
-                                    return (
-                                        <label key={child.key} className={`flex items-center gap-3 pl-8 pr-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors ${
-                                            checked ? 'bg-indigo-50/40 dark:bg-indigo-950/10' : ''
-                                        }`}>
-                                            <input
-                                                type="checkbox"
-                                                checked={checked}
-                                                onChange={() => toggleLeaf(child.key)}
-                                                className="accent-indigo-600 w-3.5 h-3.5"
-                                            />
-                                            <span className={`text-sm font-medium flex-1 ${checked ? 'text-indigo-700 dark:text-indigo-300' : 'text-muted-foreground'}`}>
-                                                {child.label}
-                                            </span>
-                                            {child.description && (
-                                                <span className="text-[11px] text-muted-foreground/70">{child.description}</span>
-                                            )}
-                                        </label>
-                                    );
-                                })}
+                                {node.children!.map(child => renderChild(child, 1))}
                             </div>
                         )}
                     </div>
@@ -219,7 +260,8 @@ interface FormState {
     name: string;
     email: string;
     designation: string;
-    phone: string;
+    phoneCode: string;
+    phoneNumber: string;
     dob: string;
     gender: string;
     address: string;
@@ -233,12 +275,21 @@ interface FormState {
 }
 
 const EMPTY_FORM: FormState = {
-    name: '', email: '', designation: '', phone: '', dob: '', gender: '',
+    name: '', email: '', designation: '', phoneCode: '+91', phoneNumber: '', dob: '', gender: '',
     address: '', city: '', state: '', pincode: '', country: 'India',
     qualification: '', experience: '', permissions: [],
 };
 
 const GENDERS = ['Male', 'Female', 'Other'];
+
+const PHONE_CODES = ['+91', '+1', '+44', '+61', '+971', '+65', '+60', '+880', '+94', '+977'];
+
+function formatDob(raw: string): string {
+    const digits = raw.replace(/\D/g, '').slice(0, 8);
+    if (digits.length <= 4) return digits;
+    if (digits.length <= 6) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6)}`;
+}
 
 function SectionLabel({ label }: { label: string }) {
     return <p className="text-[11px] text-muted-foreground mb-1 font-medium">{label}</p>;
@@ -427,14 +478,22 @@ export default function SubadminsPage() {
     }
 
     function openEdit(subadmin: SubAdminRecord) {
+        const existingPhone = subadmin.phone ?? '';
+        const matchedCode = PHONE_CODES.find(c => existingPhone.startsWith(c)) ?? '+91';
+        const existingNumber = existingPhone.startsWith(matchedCode) ? existingPhone.slice(matchedCode.length).trim() : existingPhone;
         setForm({
             name: subadmin.name,
             email: subadmin.email,
             designation: subadmin.designation ?? '',
-            phone: subadmin.phone ?? '',
-            dob: '', gender: '',
-            address: '', city: subadmin.city ?? '',
-            state: subadmin.state ?? '', pincode: '', country: 'India',
+            phoneCode: matchedCode,
+            phoneNumber: existingNumber,
+            dob: '',
+            gender: '',
+            address: '',
+            city: subadmin.city ?? '',
+            state: subadmin.state ?? '',
+            pincode: '',
+            country: 'India',
             qualification: subadmin.qualification ?? '',
             experience: subadmin.experience ?? '',
             permissions: [...subadmin.permissions],
@@ -457,7 +516,7 @@ export default function SubadminsPage() {
                 email: form.email.trim(),
                 permissions: form.permissions,
                 designation: form.designation || undefined,
-                phone: form.phone || undefined,
+                phone: form.phoneNumber ? `${form.phoneCode} ${form.phoneNumber}` : undefined,
                 dob: form.dob || undefined,
                 gender: form.gender || undefined,
                 address: form.address || undefined,
@@ -654,7 +713,6 @@ export default function SubadminsPage() {
                                         <input
                                             value={form.name}
                                             onChange={e => setField('name', e.target.value)}
-                                            disabled={modal.type === 'edit'}
                                             placeholder="e.g. Priya Sharma"
                                             className="w-full h-9 px-3 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                         />
@@ -682,8 +740,6 @@ export default function SubadminsPage() {
                                 </div>
                             </div>
 
-                            {modal.type === 'add' && (
-                                <>
                                     {/* Contact & Personal */}
                                     <div>
                                         <div className="flex items-center gap-2 mb-3">
@@ -694,21 +750,34 @@ export default function SubadminsPage() {
                                             <div className="flex-1 h-px bg-border/60" />
                                         </div>
                                         <div className="grid grid-cols-2 gap-3">
-                                            <div>
+                                            <div className="col-span-2">
                                                 <SectionLabel label="Phone" />
-                                                <input
-                                                    value={form.phone}
-                                                    onChange={e => setField('phone', e.target.value)}
-                                                    placeholder="+91 98765 43210"
-                                                    className="w-full h-9 px-3 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all"
-                                                />
+                                                <div className="flex gap-1.5">
+                                                    <select
+                                                        value={form.phoneCode ?? '+91'}
+                                                        onChange={e => setField('phoneCode', e.target.value)}
+                                                        className="h-9 px-2 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all shrink-0"
+                                                    >
+                                                        {PHONE_CODES.map(c => (
+                                                            <option key={c} value={c}>{c}</option>
+                                                        ))}
+                                                    </select>
+                                                    <input
+                                                        value={form.phoneNumber ?? ''}
+                                                        onChange={e => setField('phoneNumber', e.target.value.replace(/\D/g, ''))}
+                                                        placeholder="98765 43210"
+                                                        maxLength={10}
+                                                        className="flex-1 h-9 px-3 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all"
+                                                    />
+                                                </div>
                                             </div>
                                             <div>
                                                 <SectionLabel label="Date of Birth" />
                                                 <input
-                                                    type="date"
                                                     value={form.dob}
-                                                    onChange={e => setField('dob', e.target.value)}
+                                                    onChange={e => setField('dob', formatDob(e.target.value))}
+                                                    placeholder="YYYY-MM-DD"
+                                                    maxLength={10}
                                                     className="w-full h-9 px-3 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all"
                                                 />
                                             </div>
@@ -794,8 +863,6 @@ export default function SubadminsPage() {
                                             </div>
                                         </div>
                                     </div>
-                                </>
-                            )}
                         </div>
 
                         {/* RIGHT — Permissions */}
