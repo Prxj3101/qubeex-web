@@ -13,6 +13,8 @@ import {
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { useUserAvatarStore } from '@/store/userAvatarStore';
+import NextImage from 'next/image';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AdminUser = {
@@ -257,6 +259,7 @@ function Skeleton({ className }: { className?: string }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminProfilePage() {
   const { user } = useAuthStore();
+  const setUserAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
   const [inst, setInst] = useState<InstData | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoErr, setLogoErr] = useState(false);
@@ -276,6 +279,10 @@ export default function AdminProfilePage() {
         if (d) {
           setInst(d as InstData);
           setCurrentLogoUrl(d.logoUrl ?? null);
+          if (d.adminAvatarUrl) {
+            setAdminAvatarPreview(d.adminAvatarUrl);
+            setUserAvatarUrl(d.adminAvatarUrl);
+          }
         }
       })
       .catch(() => { /* non-critical */ })
@@ -529,7 +536,7 @@ export default function AdminProfilePage() {
             <div className="relative shrink-0 cursor-pointer" onClick={() => adminAvatarRef.current?.click()}>
               <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold bg-primary/10 text-primary overflow-hidden select-none">
                 {adminAvatarPreview
-                  ? <img src={adminAvatarPreview} alt={adminSaved.adminName} className="w-full h-full object-cover" />
+                  ? <NextImage src={adminAvatarPreview} alt={adminSaved.adminName} fill sizes="64px" className="object-cover" unoptimized={adminAvatarPreview.startsWith('data:')} />
                   : adminSaved.adminName
                     ? adminSaved.adminName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
                     : <UserIcon size={24} />
@@ -539,16 +546,28 @@ export default function AdminProfilePage() {
                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                 <Camera size={11} className="text-white" />
               </div>
-              <input ref={adminAvatarRef} type="file" accept="image/*" className="hidden"
-                onChange={(e) => {
+              <input ref={adminAvatarRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+                onChange={async (e) => {
                   const file = e.target.files?.[0];
-                  if (file) {
-                    const reader = new FileReader();
-                    reader.onload = () => setAdminAvatarPreview(reader.result as string);
-                    reader.readAsDataURL(file);
-                    toast.success('Photo updated!');
-                  }
                   e.target.value = '';
+                  if (!file) return;
+                  const reader = new FileReader();
+                  reader.onload = () => {
+                    setAdminAvatarPreview(reader.result as string);
+                    setUserAvatarUrl(reader.result as string);
+                  };
+                  reader.readAsDataURL(file);
+                  try {
+                    const res = await api.post('/admin/me/photo', file, {
+                      headers: { 'Content-Type': file.type },
+                    });
+                    const signedUrl: string = res.data.data.avatarUrl;
+                    setAdminAvatarPreview(signedUrl);
+                    setUserAvatarUrl(signedUrl);
+                    toast.success('Photo updated!');
+                  } catch {
+                    toast.error('Failed to upload photo');
+                  }
                 }} />
             </div>
             <div className="flex-1 min-w-0">

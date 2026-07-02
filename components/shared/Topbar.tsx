@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useStudentStore } from '@/store/studentStore';
+import { useUserAvatarStore } from '@/store/userAvatarStore';
 import { AvatarImage } from '@/components/ui/avatar';
 
 interface NavItem {
@@ -105,8 +106,9 @@ function AvatarMenu() {
     const role = getRole(pathname, user?.role);
     const studentPhoto = useStudentStore(s => s.photo);
     const studentName = useStudentStore(s => s.name);
+    const userAvatarUrl = useUserAvatarStore(s => s.avatarUrl);
     const isStudent = pathname.startsWith('/student');
-    const photoUrl = isStudent ? studentPhoto : null;
+    const photoUrl = isStudent ? studentPhoto : userAvatarUrl;
     const displayName = isStudent && studentName ? studentName : (user?.name || user?.email || 'Signed in');
 
     const settingsHref =

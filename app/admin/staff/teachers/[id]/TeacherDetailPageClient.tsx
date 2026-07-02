@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import NextImage from 'next/image';
 import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -263,9 +264,9 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
             <div className="bg-card border border-border/50 rounded-2xl p-5">
                 <div className="flex items-start gap-4">
                     {/* Avatar */}
-                    <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text}`}>
+                    <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center text-xl font-bold shrink-0 relative ${teacher.avatarUrl ? '' : `${avatarColor.bg} ${avatarColor.text}`}`}>
                         {teacher.avatarUrl
-                            ? <img src={teacher.avatarUrl} alt={teacher.name} className="w-full h-full object-cover rounded-2xl" />
+                            ? <NextImage src={teacher.avatarUrl} alt={teacher.name} fill sizes="64px" className="object-cover" />
                             : getInitials(teacher.name)
                         }
                     </div>

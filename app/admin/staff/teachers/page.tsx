@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import api from '@/lib/api';
+import NextImage from 'next/image';
 import type {
     Teacher,
     TeacherAssignment,
@@ -181,11 +182,7 @@ function TeacherCard({
                 {/* Avatar — photo ya initials */}
                 <div className="w-12 h-12 rounded-xl bg-muted ring-2 ring-border shrink-0 overflow-hidden flex items-center justify-center">
                     {teacher.avatarUrl ? (
-                        <img
-                            src={teacher.avatarUrl}
-                            alt={teacher.name}
-                            className="w-full h-full object-cover"
-                        />
+                        <NextImage src={teacher.avatarUrl} alt={teacher.name} fill sizes="48px" className="object-cover" />
                     ) : (
                         <span className={`text-base font-bold select-none ${avatarColor.text}`}>
                             {getInitials(teacher.name)}

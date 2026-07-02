@@ -2,6 +2,7 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import api from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 import { TeacherAttendanceChart } from '@/components/teacher/TeacherAttendanceChart';
 import TeacherNotepad from '@/components/teacher/TeacherNotepad';
@@ -243,6 +244,26 @@ const greeting = hour < 12
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function TeacherOverviewPage() {
     const { user } = useAuthStore();
+
+    type OverviewData = {
+        teacher: { name: string; institutionName: string; classTeacherDivisionName: string | null };
+        stats: { classesAssigned: number; subjectsTeaching: number; testsConducted: number; avgAttendancePct: number | null };
+        attendanceTrend: { month: string; attendance: number; students: number }[];
+        shortAttendance: { name: string; rollNo: string; pct: number }[];
+        auditLogs: { id: string; action: string; category: string; severity: string; details: string | null; ip: string | null; createdAt: string }[];
+    };
+    const [overview, setOverview] = useState<OverviewData | null>(null);
+    const [overviewLoading, setOverviewLoading] = useState(true);
+    const fetchedRef = useRef(false);
+    useEffect(() => {
+        if (fetchedRef.current) return;
+        fetchedRef.current = true;
+        api.get('/teacher/overview')
+            .then(res => setOverview(res.data.data))
+            .catch(() => setOverview(null))
+            .finally(() => setOverviewLoading(false));
+    }, []);
+
     const [announcementVisible, setAnnouncementVisible] = useState(true);
     const thought = getTodaysThought();
     const [currentTime, setCurrentTime] = useState('');
@@ -331,34 +352,45 @@ export default function TeacherOverviewPage() {
             </AnimatePresence>
 
             {/* ── StatCards equivalent ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                {MOCK_STATS.map((s, i) => {
-                    const Icon = s.icon;
-                    return (
-                        <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} className="bg-card border border-border/50 rounded-xl p-4 relative shadow-sm shadow-black/10">
-                            <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
-                                <Icon size={15} className={s.iconColor} />
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-2">{s.label}</p>
-                            <p className="text-3xl font-semibold tracking-tight">{s.value}</p>
-                            <div className="flex items-center gap-1 mt-1.5">
-                                {s.trend === 'up'
-                                    ? <ArrowUpRight size={13} className="text-emerald-600 dark:text-emerald-400" />
-                                    : <ArrowDownRight size={13} className="text-red-500" />
-                                }
-                                <span className={`text-xs ${s.trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{s.sub}</span>
-                            </div>
-                        </motion.div>
-                    );
-                })}
-            </div>
+            {overviewLoading ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {(overview ? [
+                        { label: 'Classes Assigned', value: String(overview.stats.classesAssigned), sub: 'this academic year', trend: 'up' as const, icon: LayoutGrid, iconBg: 'bg-violet-100 dark:bg-violet-950', iconColor: 'text-violet-600 dark:text-violet-400' },
+                        { label: 'Subjects Teaching', value: String(overview.stats.subjectsTeaching), sub: 'this academic year', trend: 'up' as const, icon: BookOpen, iconBg: 'bg-amber-100 dark:bg-amber-950', iconColor: 'text-amber-600 dark:text-amber-400' },
+                        { label: 'Tests Conducted', value: String(overview.stats.testsConducted), sub: 'this academic year', trend: 'up' as const, icon: ClipboardList, iconBg: 'bg-green-100 dark:bg-green-950', iconColor: 'text-green-600 dark:text-green-400' },
+                        { label: 'Avg Attendance', value: overview.stats.avgAttendancePct !== null ? `${overview.stats.avgAttendancePct}%` : '—', sub: 'this academic year', trend: 'up' as const, icon: TrendingUp, iconBg: 'bg-sky-100 dark:bg-sky-950', iconColor: 'text-sky-600 dark:text-sky-400' },
+                    ] : MOCK_STATS).map((s, i) => {
+                        const Icon = s.icon;
+                        return (
+                            <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} className="bg-card border border-border/50 rounded-xl p-4 relative shadow-sm shadow-black/10">
+                                <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
+                                    <Icon size={15} className={s.iconColor} />
+                                </div>
+                                <p className="text-xs text-muted-foreground mb-2">{s.label}</p>
+                                <p className="text-3xl font-semibold tracking-tight">{s.value}</p>
+                                <div className="flex items-center gap-1 mt-1.5">
+                                    {s.trend === 'up'
+                                        ? <ArrowUpRight size={13} className="text-emerald-600 dark:text-emerald-400" />
+                                        : <ArrowDownRight size={13} className="text-red-500" />
+                                    }
+                                    <span className={`text-xs ${s.trend === 'up' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{s.sub}</span>
+                                </div>
+                            </motion.div>
+                        );
+                    })}
+                </div>
+            )}
 
             {/* ── Blackboard + Short Attendance (same as student overview) ── */}
             <div className="grid grid-cols-2 gap-3" style={{ height: '390px' }}>
 
                 {/* Blackboard — left, same size as student */}
                 <div className="lg:col-span-1">
-                    <Blackboard thought={thought} teacherClass={MOCK_TEACHER.classTeacher} />
+                    <Blackboard thought={thought} teacherClass={overview?.teacher.classTeacherDivisionName ?? '—'} />
                 </div>
 
                 {/* Notepad */}
@@ -372,7 +404,7 @@ export default function TeacherOverviewPage() {
 
                 {/* Graph — 2 cols */}
                 <div className="col-span-3">
-                    <TeacherAttendanceChart />
+                    <TeacherAttendanceChart data={overview?.attendanceTrend} />
                 </div>
 
                 {/* AI Token — 2 cols */}
@@ -427,11 +459,11 @@ export default function TeacherOverviewPage() {
                             <AlertTriangle size={15} className="text-muted-foreground" />
                             <p className="text-sm font-medium">Short Attendance</p>
                         </div>
-                        <span className="text-[10px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 px-2 py-0.5 rounded-full">{MOCK_SHORT_ATTENDANCE.length}</span>
+                        <span className="text-[10px] font-bold text-red-500 bg-red-100 dark:bg-red-950/40 px-2 py-0.5 rounded-full">{(overview?.shortAttendance ?? []).length}</span>
                     </div>
                     <p className="text-[10px] text-muted-foreground mb-3">Students below 75%</p>
                     <div className="space-y-2 flex-1 overflow-y-auto" style={{ maxHeight: '168px' }}>
-                        {MOCK_SHORT_ATTENDANCE.map((s, i) => (
+                        {(overview?.shortAttendance ?? []).map((s, i) => (
                             <motion.div key={s.rollNo} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
                                 className="flex items-center gap-2 p-2 rounded-xl border border-border/50 bg-muted/20">
                                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
@@ -466,11 +498,11 @@ export default function TeacherOverviewPage() {
                             View all →
                         </a>
                     </div>
-                    {MOCK_LOGS.length === 0 ? (
+                    {(overview?.auditLogs ?? []).length === 0 ? (
                         <p className="text-xs text-muted-foreground py-4">No recent activity.</p>
                     ) : (
                         <div className="space-y-0.5">
-                            {MOCK_LOGS.slice(0, 6).map((log) => {
+                            {(overview?.auditLogs ?? []).slice(0, 6).map((log) => {
                                 const actionCfg = ACTION_CONFIG[log.action] ?? {
                                     label: log.action.replace(/_/g, ' '),
                                     cls: 'bg-muted text-muted-foreground',

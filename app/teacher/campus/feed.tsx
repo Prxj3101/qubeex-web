@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Send, X, Paperclip, Rss, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { LinkifiedText } from '@/components/shared/LinkifiedText';
 import api from '@/lib/api';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
@@ -15,7 +17,7 @@ interface CalEvent { id: string; date: number; type: EventType; label: string; f
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
 interface FeedPost {
     id: string; type: PostType;
-    author: { id: string; name: string; role: string };
+    author: { id: string; name: string; role: string; avatarUrl?: string | null };
     subject?: string | null; title: string; body: string; createdAt: string;
     attachmentUrl?: string | null; attachmentType?: string | null; attachmentName?: string | null;
 }
@@ -239,9 +241,11 @@ function FeedCard({ post, myUserId, onDelete }: { post: FeedPost; myUserId: stri
 
             <div className="flex items-center gap-2.5">
                 <div className="relative">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                        style={{ background: avatarColor }}>
-                        {initials}
+                    <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                        style={{ background: post.author.avatarUrl ? 'transparent' : avatarColor }}>
+                        {post.author.avatarUrl
+                            ? <NextImage src={post.author.avatarUrl} alt={name} fill sizes="32px" className="object-cover" />
+                            : initials}
                     </div>
                 </div>
                 <div>
@@ -256,7 +260,7 @@ function FeedCard({ post, myUserId, onDelete }: { post: FeedPost; myUserId: stri
             <div>
                 <p className="text-sm font-bold mb-1">{post.title}</p>
                 {post.body && (
-                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>{post.body}</p>
+                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}><LinkifiedText text={post.body} /></p>
                 )}
             </div>
 

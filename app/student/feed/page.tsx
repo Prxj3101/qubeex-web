@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Rss, X, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
+import { LinkifiedText } from '@/components/shared/LinkifiedText';
 import { useStudentStore } from '@/store/studentStore';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { useFeedBadge } from '@/context/FeedBadgeContext';
@@ -29,7 +31,7 @@ interface FeedPost {
     id: string;
     type: PostType;
     source: FeedSource;
-    author: { id: string; name: string; role: string };
+    author: { id: string; name: string; role: string; avatarUrl?: string | null };
     subject?: string | null;
     title: string;
     body: string;
@@ -266,9 +268,11 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
             </div>
 
             <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                    style={{ background: avatarColor }}>
-                    {initials}
+                <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold text-white shrink-0 relative"
+                    style={{ background: post.author.avatarUrl ? 'transparent' : avatarColor }}>
+                    {post.author.avatarUrl
+                        ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="32px" className="object-cover" />
+                        : initials}
                 </div>
                 <div>
                     <p className="text-xs font-semibold">{post.author.name}</p>
@@ -281,7 +285,7 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
                 <p className="text-sm font-bold mb-1">{post.title}</p>
                 {post.body && (
                     <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>
-                        {post.body}
+                        <LinkifiedText text={post.body} />
                     </p>
                 )}
             </div>

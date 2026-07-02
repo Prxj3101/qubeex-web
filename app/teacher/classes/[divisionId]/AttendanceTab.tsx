@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '@/lib/api';
+import NextImage from 'next/image';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AttendanceStatus = 'P' | 'A' | 'L' | null;
@@ -18,12 +19,14 @@ interface AttendanceStudent {
     name: string;
     rollNo: string;
     overallPct: number | null;
+    avatarUrl?: string | null;
 }
 
 interface SummaryStudent {
     studentId: string;
     name: string;
     rollNo: string;
+    avatarUrl?: string | null;
     overallPct: number | null;
     currentMonthPct: number | null;
     monthlyStats: { monthKey: string; p: number; a: number; l: number; pct: number | null }[];
@@ -418,9 +421,11 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                     <td className="sticky left-0 z-10 border border-[#BACE85]/50 px-2 py-2 text-[11px] font-semibold text-center text-[#2A3A10] bg-[#F5F8EE] w-[68px]">{student.rollNo}</td>
                                     <td className="sticky left-[68px] z-10 border border-[#BACE85]/50 px-2 py-1.5 text-[11px] font-medium whitespace-nowrap text-[#2A3A10] bg-[#F5F8EE] w-[140px] overflow-hidden">
                                         <div className="flex items-center gap-1.5">
-                                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                style={{ background: getAvatarColor(student.name) }}>
-                                                {getInitials(student.name)}
+                                            <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[9px] font-bold text-white shrink-0 relative"
+                                                style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                                {student.avatarUrl
+                                                    ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="20px" className="object-cover" />
+                                                    : getInitials(student.name)}
                                             </div>
                                             <span className="truncate">{student.name}</span>
                                         </div>
@@ -766,8 +771,10 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                 setOverallRightTab('student');
                             }}
                                 className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-colors hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: getAvatarColor(student.name) }}>
-                                    {getInitials(student.name)}
+                                <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white shrink-0 relative" style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                    {student.avatarUrl
+                                        ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="28px" className="object-cover" />
+                                        : getInitials(student.name)}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs font-semibold truncate">{student.name}</p>

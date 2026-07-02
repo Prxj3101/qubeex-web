@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Check, StickyNote, ClipboardList, Pin, Pencil } from 'lucide-react';
+import api from '@/lib/api';
 
 interface Note {
     id: string;
@@ -38,37 +39,81 @@ const MOCK_TASKS: Task[] = [
 ];
 
 export default function TeacherNotepad() {
-    const [notes, setNotes] = useState<Note[]>(MOCK_NOTES);
+    const [notes, setNotes] = useState<Note[]>([]);
     const [newNote, setNewNote] = useState('');
     const [selectedColor, setSelectedColor] = useState(NOTE_COLORS[0]);
     const [showNoteInput, setShowNoteInput] = useState(false);
 
-    const [tasks, setTasks] = useState<Task[]>(MOCK_TASKS);
+    const [tasks, setTasks] = useState<Task[]>([]);
     const [newTask, setNewTask] = useState('');
     const [showTaskInput, setShowTaskInput] = useState(false);
 
+    useEffect(() => {
+        api.get('/teacher/notepad')
+            .then(res => {
+                const { notes: n, tasks: t } = res.data.data as {
+                    notes: { id: string; text: string; color: string; createdAt: string }[];
+                    tasks: { id: string; text: string; done: boolean }[];
+                };
+                setNotes(n.map(x => ({
+                    id: x.id,
+                    text: x.text,
+                    color: x.color,
+                    createdAt: new Date(x.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+                })));
+                setTasks(t.map(x => ({ id: x.id, text: x.text, done: x.done })));
+            })
+            .catch(() => { /* leave notepad empty on failure — non-critical widget */ });
+    }, []);
+
     const addNote = () => {
-        if (!newNote.trim()) return;
-        setNotes(prev => [{
-            id: Date.now().toString(),
-            text: newNote.trim(),
-            color: selectedColor.bg,
-            createdAt: new Date().toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
-        }, ...prev]);
+        const text = newNote.trim();
+        if (!text) return;
         setNewNote('');
         setShowNoteInput(false);
+        api.post('/teacher/notepad/notes', { text, color: selectedColor.bg })
+            .then(res => {
+                const created = res.data.data as { id: string; text: string; color: string; createdAt: string };
+                setNotes(prev => [{
+                    id: created.id,
+                    text: created.text,
+                    color: created.color,
+                    createdAt: new Date(created.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
+                }, ...prev]);
+            })
+            .catch(() => {});
     };
 
     const addTask = () => {
-        if (!newTask.trim()) return;
-        setTasks(prev => [...prev, { id: Date.now().toString(), text: newTask.trim(), done: false }]);
+        const text = newTask.trim();
+        if (!text) return;
         setNewTask('');
         setShowTaskInput(false);
+        api.post('/teacher/notepad/tasks', { text })
+            .then(res => {
+                const created = res.data.data as { id: string; text: string; done: boolean };
+                setTasks(prev => [...prev, { id: created.id, text: created.text, done: created.done }]);
+            })
+            .catch(() => {});
     };
 
-    const toggleTask = (id: string) => setTasks(prev => prev.map(t => t.id === id ? { ...t, done: !t.done } : t));
-    const deleteTask = (id: string) => setTasks(prev => prev.filter(t => t.id !== id));
-    const deleteNote = (id: string) => setNotes(prev => prev.filter(n => n.id !== id));
+    const toggleTask = (id: string) => {
+        const current = tasks.find(t => t.id === id);
+        if (!current) return;
+        const done = !current.done;
+        setTasks(prev => prev.map(t => t.id === id ? { ...t, done } : t));
+        api.patch(`/teacher/notepad/tasks/${id}`, { done }).catch(() => {
+            setTasks(prev => prev.map(t => t.id === id ? { ...t, done: current.done } : t));
+        });
+    };
+    const deleteTask = (id: string) => {
+        setTasks(prev => prev.filter(t => t.id !== id));
+        api.delete(`/teacher/notepad/tasks/${id}`).catch(() => {});
+    };
+    const deleteNote = (id: string) => {
+        setNotes(prev => prev.filter(n => n.id !== id));
+        api.delete(`/teacher/notepad/notes/${id}`).catch(() => {});
+    };
 
     const pending = tasks.filter(t => !t.done).length;
     const done = tasks.filter(t => t.done).length;
@@ -140,8 +185,10 @@ export default function TeacherNotepad() {
                                             onKeyDown={e => { if (e.key === 'Escape') setEditingTaskId(null); }}
                                             className="flex-1 h-6 px-2 rounded border border-primary/50 bg-muted/30 text-[11px] focus:outline-none" />
                                         <button onClick={() => {
-                                            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, text: editingTaskText } : t));
+                                            const text = editingTaskText;
+                                            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, text } : t));
                                             setEditingTaskId(null);
+                                            api.patch(`/teacher/notepad/tasks/${task.id}`, { text }).catch(() => {});
                                         }}
                                             className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
                                             <Check size={9} className="text-white" />
@@ -272,8 +319,10 @@ export default function TeacherNotepad() {
                                                 <X size={9} style={{ color: colorCfg.text }} />
                                             </button>
                                             <button onClick={() => {
-                                                setNotes(prev => prev.map(n => n.id === note.id ? { ...n, text: editingNoteText } : n));
+                                                const text = editingNoteText;
+                                                setNotes(prev => prev.map(n => n.id === note.id ? { ...n, text } : n));
                                                 setEditingNoteId(null);
+                                                api.patch(`/teacher/notepad/notes/${note.id}`, { text }).catch(() => {});
                                             }}
                                                 className="w-5 h-5 rounded-full bg-black/20 flex items-center justify-center hover:bg-black/30">
                                                 <Check size={9} style={{ color: colorCfg.text }} />

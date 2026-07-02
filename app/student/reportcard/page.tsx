@@ -4,6 +4,8 @@ import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import api from '@/lib/api';
+import NextImage from 'next/image';
+import { useStudentStore } from '@/store/studentStore';
 
 interface ExamCol { id: string; name: string; maxMarks: number; score: number | null; isAbsent: boolean; }
 interface MarksheetSubject {
@@ -43,6 +45,7 @@ function gradeColor(g: string | null) { return g ? (gradeColors[g] ?? '#94A3B8')
 
 export default function ReportCardPage() {
     const router = useRouter();
+    const studentPhoto = useStudentStore(s => s.photo);
     const [data, setData] = useState<MarksheetData | null>(null);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState<'offline' | 'online'>('offline');
@@ -126,9 +129,11 @@ export default function ReportCardPage() {
 
                 {/* ── LEFT — Name card ── */}
                 <div className="w-[200px] shrink-0 bg-card border border-border/50 rounded-2xl p-4 flex flex-col items-center gap-2 h-fit">
-                    <div className="w-14 h-14 rounded-full flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20"
-                        style={{ background: getAvatarColor(studentName) }}>
-                        {getInitials(studentName)}
+                    <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20 relative"
+                        style={{ background: studentPhoto ? 'transparent' : getAvatarColor(studentName) }}>
+                        {studentPhoto
+                            ? <NextImage src={studentPhoto} alt={studentName} fill sizes="56px" className="object-cover" unoptimized={studentPhoto.startsWith('data:')} />
+                            : getInitials(studentName)}
                     </div>
                     <div className="text-center">
                         <p className="text-sm font-bold leading-tight">{studentName}</p>

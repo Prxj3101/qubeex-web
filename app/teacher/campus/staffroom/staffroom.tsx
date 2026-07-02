@@ -11,9 +11,11 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
+import { LinkifiedText } from '@/components/shared/LinkifiedText';
+import NextImage from 'next/image';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface PostAuthor { id: string; name: string; role: 'ADMIN' | 'TEACHER'; }
+interface PostAuthor { id: string; name: string; role: 'ADMIN' | 'TEACHER'; avatarUrl?: string | null; }
 
 interface StaffroomPost {
     id: string; text: string;
@@ -106,8 +108,10 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
             {!isMe && (
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-1 ${avatarColor}`}>
-                    {getInitials(post.author.name)}
+                <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 mt-1 relative ${post.author.avatarUrl ? '' : avatarColor}`}>
+                    {post.author.avatarUrl
+                        ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="32px" className="object-cover" />
+                        : getInitials(post.author.name)}
                 </div>
             )}
             <div className={`flex flex-col max-w-[82%] ${isMe ? 'items-end' : 'items-start'}`}>
@@ -138,7 +142,10 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                 </div>
                 <div className={`px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
                     style={isMe ? { background: '#7C3AED' } : {}}>
-                    {post.text}
+                    <LinkifiedText
+                        text={post.text}
+                        className={isMe ? 'text-white underline decoration-white/70 hover:opacity-80 break-all' : 'text-primary underline hover:opacity-80 break-all'}
+                    />
                     {post.attachmentUrl && post.attachmentName && post.attachmentType && (
                         <div className="mt-2">
                             <AttachmentPreview attachment={{ url: post.attachmentUrl, name: post.attachmentName, type: post.attachmentType }} dark={isMe} compact />
@@ -169,7 +176,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                                         </div>
                                         <div className="px-2.5 py-1.5 rounded-xl bg-muted/60 border border-border/30 group relative">
                                             <p className="text-[10px] font-semibold text-muted-foreground">{c.author.name}</p>
-                                            <p className="text-xs text-foreground">{c.text}</p>
+                                            <p className="text-xs text-foreground"><LinkifiedText text={c.text} /></p>
                                             {c.author.id === myUserId && (
                                                 <button onClick={() => onDeleteComment(post.id, c.id)}
                                                     className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-500 transition-all">
@@ -607,7 +614,14 @@ export default function TeacherStaffroom() {
                                                         <div className={`flex flex-col max-w-[75%] ${msg.isMe ? 'items-end' : 'items-start'}`}>
                                                             <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
                                                                 style={msg.isMe ? { background: '#7C3AED' } : {}}>
-                                                                {msg.text && <p>{msg.text}</p>}
+                                                                {msg.text && (
+                                                                    <p>
+                                                                        <LinkifiedText
+                                                                            text={msg.text}
+                                                                            className={msg.isMe ? 'text-white underline decoration-white/70 hover:opacity-80 break-all' : 'text-primary underline hover:opacity-80 break-all'}
+                                                                        />
+                                                                    </p>
+                                                                )}
                                                                 {msg.attachmentUrl && msg.attachmentName && msg.attachmentType && (
                                                                     <div className={msg.text ? 'mt-1.5' : ''}>
                                                                         <AttachmentPreview attachment={{ url: msg.attachmentUrl, name: msg.attachmentName, type: msg.attachmentType }} dark={msg.isMe} compact />

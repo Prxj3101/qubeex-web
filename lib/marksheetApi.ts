@@ -37,6 +37,7 @@ export interface MarksheetStudent {
   id: string;
   name: string;
   rollNo: string;
+  avatarUrl?: string | null;
 }
 
 export interface GradeScaleEntry {
