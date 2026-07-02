@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import NextImage from 'next/image';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useStudentStore } from '@/store/studentStore';
@@ -258,7 +259,7 @@ export default function StudentProfile() {
                                 <div className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden"
                                     style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}>
                                     {student.photo
-                                        ? <img src={student.photo} alt="profile" className="w-full h-full object-cover" />
+                                        ? <NextImage src={student.photo} alt="profile" fill sizes="160px" className="object-cover" unoptimized={student.photo.startsWith('data:')} />
                                         : student.name.split(' ').map(n => n[0]).join('').slice(0, 2)
                                     }
                                 </div>

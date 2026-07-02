@@ -34,6 +34,8 @@ interface TeacherData {
     country: string | null;
     qualification: string | null;
     experience: string | null;
+    prefix: string | null;
+    title: string | null;
     status: string;
     joinedAt: string;
     user: { id: string; name: string; email: string };
@@ -128,6 +130,7 @@ export default function TeacherProfilePage() {
     const fileRef = useRef<HTMLInputElement>(null);
 
     const [editingSection, setEditingSection] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
     const TITLE_OPTIONS = ['Teacher', 'Professor', 'Asst. Teacher', 'Lecturer', 'HOD', 'Mentor', 'Tutor', 'Educator'];
     const [titleDraft, setTitleDraft] = useState('Teacher');
     const [titleSaved, setTitleSaved] = useState('Teacher');
@@ -162,8 +165,11 @@ export default function TeacherProfilePage() {
                 setTeacher(t);
                 setAvatarUrl(d.avatarUrl ?? null);
 
-                const defaultPrefix = d.gender === 'MALE' ? 'Mr.' : d.gender === 'FEMALE' ? 'Ms.' : '';
-                setPrefixDraft(defaultPrefix); setPrefixSaved(defaultPrefix);
+                const savedPrefix = d.prefix ?? (d.gender === 'MALE' ? 'Mr.' : d.gender === 'FEMALE' ? 'Ms.' : '');
+                setPrefixDraft(savedPrefix); setPrefixSaved(savedPrefix);
+
+                const savedTitle = d.title ?? 'Teacher';
+                setTitleDraft(savedTitle); setTitleSaved(savedTitle);
 
                 const personal = { name: d.user?.name ?? '', dob: d.dob ?? '', gender: d.gender ?? '' };
                 setPersonalDraft(personal); setPersonalSaved(personal);
@@ -202,12 +208,46 @@ export default function TeacherProfilePage() {
         setEditingSection(null);
     };
 
-    const saveEdit = (s: string) => {
-        if (s === 'personal') { setPersonalSaved({ ...personalDraft }); setTitleSaved(titleDraft); setPrefixSaved(prefixDraft); }
-        if (s === 'contact') setContactSaved({ ...contactDraft });
-        if (s === 'prof') setProfSaved({ ...profDraft });
-        setEditingSection(null);
-        toast.success('Changes saved');
+    const saveEdit = async (s: string) => {
+        setSaving(true);
+        try {
+            if (s === 'personal') {
+                await api.patch('/teacher/me', {
+                    name: personalDraft.name || undefined,
+                    dob: personalDraft.dob || null,
+                    gender: personalDraft.gender || null,
+                    prefix: prefixDraft || null,
+                    title: titleDraft || null,
+                });
+                setPersonalSaved({ ...personalDraft });
+                setTitleSaved(titleDraft);
+                setPrefixSaved(prefixDraft);
+            }
+            if (s === 'contact') {
+                await api.patch('/teacher/me', {
+                    phone: contactDraft.phone || null,
+                    address: contactDraft.address || null,
+                    city: contactDraft.city || null,
+                    state: contactDraft.state || null,
+                    pincode: contactDraft.pincode || null,
+                    country: contactDraft.country || null,
+                });
+                setContactSaved({ ...contactDraft });
+            }
+            if (s === 'prof') {
+                await api.patch('/teacher/me', {
+                    qualification: profDraft.qualification || null,
+                    experience: profDraft.experience || null,
+                });
+                setProfSaved({ ...profDraft });
+            }
+            setEditingSection(null);
+            toast.success('Changes saved');
+        } catch {
+            toast.error('Failed to save changes');
+        } finally {
+            setSaving(false);
+        }
     };
 
     const editBtns = (s: string) => editingSection === s ? (
@@ -216,10 +256,11 @@ export default function TeacherProfilePage() {
                 className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg bg-muted text-muted-foreground hover:opacity-80 transition-all">
                 <X size={11} /> Cancel
             </button>
-            <button onClick={() => saveEdit(s)}
-                className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg text-white hover:opacity-90 transition-all"
+            <button onClick={() => saveEdit(s)} disabled={saving}
+                className="flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-lg text-white hover:opacity-90 transition-all disabled:opacity-60"
                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                <Check size={11} /> Save
+                {saving ? <span className="w-2.5 h-2.5 border border-white/40 border-t-white rounded-full animate-spin" /> : <Check size={11} />}
+                {saving ? 'Saving…' : 'Save'}
             </button>
         </div>
     ) : (

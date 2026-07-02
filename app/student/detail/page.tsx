@@ -3,6 +3,7 @@
 import { ArrowLeft, User, BookOpen, Shield, MapPin, Users, Hash, Copy, Heart, Phone, CheckCircle, Pencil, X, Check, ChevronDown, Eye, EyeOff, Info, Camera } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
+import NextImage from 'next/image';
 import { createPortal } from 'react-dom';
 import { useStudentStore } from '@/store/studentStore';
 
@@ -366,7 +367,7 @@ export default function StudentDetailPage() {
                                     style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}
                                 >
                                     {store.photo
-                                        ? <img src={store.photo} alt="profile" className="w-full h-full object-cover" />
+                                        ? <NextImage src={store.photo} alt="profile" fill sizes="160px" className="object-cover" unoptimized={store.photo.startsWith('data:')} />
                                         : getInitials(data.name)
                                     }
                                 </div>
