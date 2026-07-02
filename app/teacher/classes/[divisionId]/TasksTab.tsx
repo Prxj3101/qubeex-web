@@ -7,7 +7,7 @@ import {
     Loader2, BookOpen, Layers, Check, X as XIcon,
     Clock, Link2, Play, Eye, ChevronDown, ChevronUp,
     FlaskConical, Brain, Users, Copy, CheckCircle2, AlertCircle,
-    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil, ArrowDownToLine, Share2,
+    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil, ArrowDownToLine, Share2, ShieldAlert,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -106,6 +106,7 @@ interface TestBase {
     totalMarks: number;
     numberOfQuestions: number;
     maxAttempts: number;
+    startDate: string | null;
     validUntil: string | null;
     paperType: string;
     isRandomized: boolean;
@@ -171,6 +172,7 @@ interface Assignment {
     totalMarks: number;
     numberOfQuestions: number;
     dueDate: string | null;
+    submissionType: 'OFFLINE' | 'ONLINE';
     createdAt?: string;
     _count: { submissions: number; totalStudents?: number };
 }
@@ -299,9 +301,11 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     const [tests, setTests] = useState<Test[]>([]);
     const [tLoading, setTLoading] = useState(false);
     const [createTestOpen, setCreateTestOpen] = useState(false);
-    const [newTest, setNewTest] = useState({ title: '', description: '', durationMinutes: 60, totalMarks: 100, numberOfQuestions: 10, maxAttempts: 1, validUntil: '' });
+    const [newTest, setNewTest] = useState({ title: '', description: '', durationMinutes: 60, totalMarks: 100, numberOfQuestions: 10, maxAttempts: 1, startDate: '', validUntil: '' });
     const [savingTest, setSavingTest] = useState(false);
     const [copiedLink, setCopiedLink] = useState<string | null>(null);
+    const [resultsTestId, setResultsTestId] = useState<string | null>(null);
+    const [submissionsAssignmentId, setSubmissionsAssignmentId] = useState<string | null>(null);
     const [paperBuilderOpen, setPaperBuilderOpen] = useState(false);
     const [paperBuilderTestId, setPaperBuilderTestId] = useState<string | null>(null);
     const [paperBuilderType, setPaperBuilderType] = useState<'TEST' | 'ASSIGNMENT'>('TEST');
@@ -310,7 +314,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     const [assignments, setAssignments] = useState<Assignment[]>([]);
     const [aLoading, setALoading] = useState(false);
     const [createAssignmentOpen, setCreateAssignmentOpen] = useState(false);
-    const [newAssignment, setNewAssignment] = useState({ title: '', description: '', totalMarks: 10, dueDate: '' });
+    const [newAssignment, setNewAssignment] = useState({ title: '', description: '', totalMarks: 10, dueDate: '', submissionType: 'OFFLINE' as 'OFFLINE' | 'ONLINE' });
     const [savingAssignment, setSavingAssignment] = useState(false);
 
     // ── Report stats to parent ────────────────────────────────────────────────
@@ -568,13 +572,14 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                 title: newAssignment.title,
                 description: newAssignment.description || undefined,
                 totalMarks: newAssignment.totalMarks,
+                submissionType: newAssignment.submissionType,
             };
             if (newAssignment.dueDate) payload.dueDate = new Date(newAssignment.dueDate).toISOString();
             const res = await api.post('/teacher/tasks/assignments', payload);
             setAssignments(prev => [res.data.data, ...prev]);
             toast.success('Assignment created');
             setCreateAssignmentOpen(false);
-            setNewAssignment({ title: '', description: '', totalMarks: 10, dueDate: '' });
+            setNewAssignment({ title: '', description: '', totalMarks: 10, dueDate: '', submissionType: 'OFFLINE' });
         } catch (err) { toast.error(apiError(err)); }
         finally { setSavingAssignment(false); }
     };
@@ -588,13 +593,14 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                 durationMinutes: newTest.durationMinutes, totalMarks: newTest.totalMarks,
                 numberOfQuestions: newTest.numberOfQuestions, maxAttempts: newTest.maxAttempts,
             };
+            if (newTest.startDate) payload.startDate = new Date(newTest.startDate).toISOString();
             if (newTest.validUntil) payload.validUntil = new Date(newTest.validUntil).toISOString();
             const res = await api.post('/teacher/tasks/tests', payload);
             const created: Test = res.data.data;
             setTests(prev => [created, ...prev]);
             toast.success('Test created — opening Paper Builder');
             setCreateTestOpen(false);
-            setNewTest({ title: '', description: '', durationMinutes: 60, totalMarks: 100, numberOfQuestions: 10, maxAttempts: 1, validUntil: '' });
+            setNewTest({ title: '', description: '', durationMinutes: 60, totalMarks: 100, numberOfQuestions: 10, maxAttempts: 1, startDate: '', validUntil: '' });
             setPaperBuilderTestId(created.id);
             setPaperBuilderOpen(true);
         } catch (err) { toast.error(apiError(err)); } finally { setSavingTest(false); }
@@ -1306,6 +1312,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                     onCopyLink={() => copyLink(test.testLink)}
                                     onDelete={() => deleteTest(test.id)}
                                     onActivate={() => updateTestStatus(test, 'ACTIVE')}
+                                    onResults={() => setResultsTestId(test.id)}
                                     copiedLink={copiedLink}
                                 />
                             );
@@ -1382,7 +1389,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                             <p className="text-xs text-muted-foreground pl-1">No active or draft assignments</p>
                                         ) : (
                                             <div className="grid grid-cols-1 gap-3 px-1">
-                                                {liveAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => updateAssignmentStatus(a.id, 'COMPLETED')} />)}
+                                                {liveAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => updateAssignmentStatus(a.id, 'COMPLETED')} onSubmissions={() => setSubmissionsAssignmentId(a.id)} />)}
                                             </div>
                                         )}
                                     </div>
@@ -1399,7 +1406,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                                 <div className="flex-1 h-px bg-border/60" />
                                             </div>
                                             <div className="grid grid-cols-1 gap-3 px-1">
-                                                {historyAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => updateAssignmentStatus(a.id, 'COMPLETED')} />)}
+                                                {historyAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => updateAssignmentStatus(a.id, 'COMPLETED')} onSubmissions={() => setSubmissionsAssignmentId(a.id)} />)}
                                             </div>
                                         </div>
                                     )}
@@ -1636,6 +1643,16 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                 )}
             </div>
 
+            {/* Test Results Panel */}
+            {resultsTestId && (
+                <TestResultsPanel testId={resultsTestId} onClose={() => setResultsTestId(null)} />
+            )}
+
+            {/* Assignment Submissions Panel */}
+            {submissionsAssignmentId && (
+                <AssignmentSubmissionsPanel assignmentId={submissionsAssignmentId} onClose={() => setSubmissionsAssignmentId(null)} />
+            )}
+
             {/* Paper Builder — full-screen overlay */}
             {paperBuilderOpen && paperBuilderTestId && (
                 <PaperBuilder
@@ -1693,10 +1710,11 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                         className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
                                 </div>
                                 <div className="col-span-2">
-                                    <label className="text-xs text-muted-foreground">Description</label>
-                                    <input value={newTest.description} onChange={e => setNewTest(p => ({ ...p, description: e.target.value }))}
-                                        placeholder="Optional"
-                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                    <label className="text-xs text-muted-foreground">Syllabus / Description <span className="text-muted-foreground/60">(one topic per line)</span></label>
+                                    <textarea value={newTest.description} onChange={e => setNewTest(p => ({ ...p, description: e.target.value }))}
+                                        placeholder="Chapter 5 — Photosynthesis&#10;Chapter 6 — Respiration"
+                                        rows={3}
+                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40 resize-none" />
                                 </div>
                                 {[
                                     { label: 'Duration (mins)', key: 'durationMinutes', min: 5, max: 300 },
@@ -1712,6 +1730,12 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                             className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
                                     </div>
                                 ))}
+                                <div>
+                                    <label className="text-xs text-muted-foreground">Start Date (optional)</label>
+                                    <input type="datetime-local" value={newTest.startDate}
+                                        onChange={e => setNewTest(p => ({ ...p, startDate: e.target.value }))}
+                                        className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
                                 <div>
                                     <label className="text-xs text-muted-foreground">Valid Until (optional)</label>
                                     <input type="datetime-local" value={newTest.validUntil}
@@ -1796,6 +1820,27 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                     <input type="datetime-local" value={newAssignment.dueDate}
                                         onChange={e => setNewAssignment(p => ({ ...p, dueDate: e.target.value }))}
                                         className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                </div>
+                                <div className="col-span-2">
+                                    <label className="text-xs text-muted-foreground">Submission Type</label>
+                                    <div className="flex gap-2 mt-1">
+                                        {(['OFFLINE', 'ONLINE'] as const).map(type => (
+                                            <button key={type} type="button"
+                                                onClick={() => setNewAssignment(p => ({ ...p, submissionType: type }))}
+                                                className={`flex-1 py-2 text-xs font-semibold rounded-lg border transition-all ${
+                                                    newAssignment.submissionType === type
+                                                        ? 'bg-primary text-primary-foreground border-primary'
+                                                        : 'border-border text-muted-foreground hover:bg-muted'
+                                                }`}>
+                                                {type === 'OFFLINE' ? '📝 Offline' : '📤 Online'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground mt-1">
+                                        {newAssignment.submissionType === 'OFFLINE'
+                                            ? 'Students submit physically. You mark each as submitted manually.'
+                                            : 'Students upload a PDF. You review and mark Correct or Write Again.'}
+                                    </p>
                                 </div>
                             </div>
 
@@ -2339,9 +2384,9 @@ function QuestionCard({ question, modules, index, onApprove, onReject, onDelete,
 
 // ── Assignment Card ───────────────────────────────────────────────────────────
 
-function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete }: {
+function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, onSubmissions }: {
     assignment: Assignment; onOpen: () => void;
-    onDelete: () => void; onActivate: () => void; onComplete: () => void;
+    onDelete: () => void; onActivate: () => void; onComplete: () => void; onSubmissions: () => void;
 }) {
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const effectiveStatus: AssignmentStatus = (assignment.dueDate && new Date(assignment.dueDate) < new Date()) ? 'COMPLETED' : assignment.status;
@@ -2358,6 +2403,9 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete }
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 mb-2 flex-wrap">
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md shrink-0 ${statusColor}`}>{effectiveStatus}</span>
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-md shrink-0 ${assignment.submissionType === 'ONLINE' ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-blue-950' : 'text-muted-foreground bg-muted'}`}>
+                            {assignment.submissionType === 'ONLINE' ? '📤 Online' : '📝 Offline'}
+                        </span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground"><FileText size={12} />{assignment.totalMarks} marks</span>
                         <span className="text-muted-foreground opacity-40">·</span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground"><BookOpen size={12} />{assignment.numberOfQuestions} questions</span>
@@ -2427,9 +2475,350 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete }
                     <button onClick={onOpen} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
                         <Eye size={12} /> Open & Edit
                     </button>
-                    <button className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
-                        <BarChart2 size={12} /> Results
+                    <button onClick={onSubmissions} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
+                        <BarChart2 size={12} /> Submissions
                     </button>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Test Results Panel ────────────────────────────────────────────────────────
+
+interface TestAttemptResult {
+    studentName: string;
+    rollNo: string;
+    attemptNumber: number;
+    totalScore: number;
+    maxScore: number;
+    tabChangeCount: number;
+    malpracticeFlag: boolean;
+    student: { id: string } | null;
+}
+
+interface TestResultData {
+    test: { title: string; subject: { name: string }; division: { name: string }; totalMarks: number };
+    attempts: TestAttemptResult[];
+}
+
+function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => void }) {
+    const [data, setData] = useState<TestResultData | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        api.get(`/teacher/tasks/tests/${testId}/results`)
+            .then(res => setData(res.data.data as TestResultData))
+            .catch(() => toast.error('Failed to load results'))
+            .finally(() => setLoading(false));
+    }, [testId]);
+
+    const handleDownload = () => {
+        const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+        const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api';
+        const url = `${base}/teacher/tasks/tests/${testId}/results/download`;
+        fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+            .then(async res => {
+                const blob = await res.blob();
+                const disposition = res.headers.get('Content-Disposition') ?? '';
+                const match = disposition.match(/filename="(.+)"/);
+                const filename = match?.[1] ?? 'results.csv';
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(a.href);
+            })
+            .catch(() => toast.error('Download failed'));
+    };
+
+    return (
+        <div className="fixed inset-0 z-50 flex">
+            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+            <div className="relative ml-auto w-full max-w-3xl h-full bg-background border-l border-border flex flex-col shadow-2xl">
+                {/* Header */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+                    <div>
+                        <h2 className="font-semibold text-sm">{data?.test.title ?? 'Results'}</h2>
+                        {data && <p className="text-xs text-muted-foreground">{data.test.subject.name} · {data.test.division.name}</p>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        {data && data.attempts.length > 0 && (
+                            <button onClick={handleDownload}
+                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-all">
+                                <Download size={12} /> Download CSV
+                            </button>
+                        )}
+                        <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
+                            <X size={18} />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto p-6">
+                    {loading ? (
+                        <div className="flex items-center justify-center h-full"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                    ) : !data || data.attempts.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
+                            <BarChart2 size={36} className="text-muted-foreground/30" />
+                            <p className="text-sm text-muted-foreground">No submissions yet.</p>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Summary */}
+                            <div className="flex gap-3 mb-5">
+                                <div className="flex-1 rounded-xl border border-border bg-card p-3 text-center">
+                                    <div className="text-lg font-bold">{data.attempts.length}</div>
+                                    <div className="text-[11px] text-muted-foreground">Submitted</div>
+                                </div>
+                                <div className="flex-1 rounded-xl border border-border bg-card p-3 text-center">
+                                    <div className="text-lg font-bold">
+                                        {data.attempts.length > 0 ? Math.round(data.attempts.reduce((s, a) => s + (a.maxScore > 0 ? (a.totalScore / a.maxScore) * 100 : 0), 0) / data.attempts.length) : 0}%
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground">Avg Score</div>
+                                </div>
+                                <div className="flex-1 rounded-xl border border-border bg-card p-3 text-center">
+                                    <div className="text-lg font-bold text-red-500">
+                                        {data.attempts.filter(a => a.malpracticeFlag).length}
+                                    </div>
+                                    <div className="text-[11px] text-muted-foreground">Malpractice</div>
+                                </div>
+                            </div>
+
+                            {/* Table */}
+                            <div className="overflow-x-auto rounded-xl border border-border">
+                                <table className="w-full text-xs">
+                                    <thead>
+                                        <tr className="border-b border-border bg-muted/40">
+                                            <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground">Roll No</th>
+                                            <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground">Name</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground">Score</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground">%</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground">Tab Changes</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground">Malpractice</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {data.attempts.map((a, i) => {
+                                            const pct = a.maxScore > 0 ? Math.round((a.totalScore / a.maxScore) * 100) : 0;
+                                            return (
+                                                <tr key={i} className={`border-b border-border/60 ${a.malpracticeFlag ? 'bg-red-500/5' : ''}`}>
+                                                    <td className="px-4 py-2.5 font-mono text-muted-foreground">{a.rollNo}</td>
+                                                    <td className="px-4 py-2.5 font-medium">{a.studentName}</td>
+                                                    <td className="px-4 py-2.5 text-center">{a.totalScore}/{a.maxScore}</td>
+                                                    <td className="px-4 py-2.5 text-center">
+                                                        <span className={`font-semibold ${pct >= 60 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{pct}%</span>
+                                                    </td>
+                                                    <td className="px-4 py-2.5 text-center text-muted-foreground">{a.tabChangeCount}</td>
+                                                    <td className="px-4 py-2.5 text-center">
+                                                        {a.malpracticeFlag ? (
+                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-full">
+                                                                <ShieldAlert size={10} /> Yes
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground/50">—</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// ── Assignment Submissions Panel ──────────────────────────────────────────────
+
+interface AssignmentSubmission {
+    student: { id: string; name: string | null; rollNo: string | null };
+    submission: {
+        id: string;
+        fileUrl: string | null;
+        submittedAt: string | null;
+        resubmitCount: number;
+        reviewStatus: string | null;
+        reviewNote: string | null;
+        reviewedAt: string | null;
+        offlineSubmittedAt: string | null;
+    } | null;
+}
+
+interface AssignmentSubmissionsData {
+    assignment: { id: string; title: string; submissionType: 'OFFLINE' | 'ONLINE'; dueDate: string | null; totalMarks: number };
+    students: AssignmentSubmission[];
+}
+
+function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: string; onClose: () => void }) {
+    const [data, setData] = useState<AssignmentSubmissionsData | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [reviewing, setReviewing] = useState<string | null>(null);
+    const [reviewNote, setReviewNote] = useState('');
+    const [toggling, setToggling] = useState<string | null>(null);
+
+    useEffect(() => {
+        api.get(`/teacher/tasks/assignments/${assignmentId}/submissions`)
+            .then(res => setData(res.data.data as AssignmentSubmissionsData))
+            .catch(() => toast.error('Failed to load submissions'))
+            .finally(() => setLoading(false));
+    }, [assignmentId]);
+
+    async function handleReview(studentId: string, reviewStatus: 'CORRECT' | 'WRITE_AGAIN') {
+        setReviewing(studentId + reviewStatus);
+        try {
+            await api.patch(`/teacher/tasks/assignments/${assignmentId}/submissions/${studentId}/review`, { reviewStatus, reviewNote: reviewNote || null });
+            toast.success(reviewStatus === 'CORRECT' ? 'Marked as Correct' : 'Sent back for revision');
+            const res = await api.get(`/teacher/tasks/assignments/${assignmentId}/submissions`);
+            setData(res.data.data as AssignmentSubmissionsData);
+            setReviewNote('');
+        } catch { toast.error('Failed to update review'); }
+        finally { setReviewing(null); }
+    }
+
+    async function handleToggleOffline(studentId: string, currentlySubmitted: boolean) {
+        setToggling(studentId);
+        try {
+            await api.patch(`/teacher/tasks/assignments/${assignmentId}/submissions/${studentId}/offline`, { submitted: !currentlySubmitted });
+            toast.success(!currentlySubmitted ? 'Marked as received offline' : 'Offline mark removed');
+            const res = await api.get(`/teacher/tasks/assignments/${assignmentId}/submissions`);
+            setData(res.data.data as AssignmentSubmissionsData);
+        } catch { toast.error('Failed to update offline status'); }
+        finally { setToggling(null); }
+    }
+
+    const submittedOnline = data?.students.filter(s => s.submission?.submittedAt).length ?? 0;
+    const submittedOffline = data?.students.filter(s => s.submission?.offlineSubmittedAt).length ?? 0;
+    const total = data?.students.length ?? 0;
+
+    return (
+        <div className="fixed inset-0 z-50 flex">
+            <div className="flex-1 bg-black/40" onClick={onClose} />
+            <div className="w-full max-w-xl bg-background border-l border-border flex flex-col overflow-hidden">
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+                    <div>
+                        <h2 className="font-bold text-base">{data?.assignment.title ?? 'Submissions'}</h2>
+                        {data && (
+                            <p className="text-xs text-muted-foreground">
+                                {data.assignment.submissionType === 'ONLINE' ? `${submittedOnline}/${total} submitted online` : `${submittedOffline}/${total} received offline`}
+                            </p>
+                        )}
+                    </div>
+                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded">
+                        <X size={18} />
+                    </button>
+                </div>
+
+                {/* Student list */}
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                    {loading ? (
+                        <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">Loading…</div>
+                    ) : !data || data.students.length === 0 ? (
+                        <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">No students found.</div>
+                    ) : data.students.map(({ student, submission }) => {
+                        const isOnline = data.assignment.submissionType === 'ONLINE';
+                        const hasOnline = !!submission?.submittedAt;
+                        const hasOffline = !!submission?.offlineSubmittedAt;
+                        const reviewStatus = submission?.reviewStatus;
+
+                        return (
+                            <div key={student.id} className="rounded-xl border border-border bg-card p-4">
+                                {/* Student info */}
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
+                                        {student.name?.charAt(0) ?? '?'}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-semibold truncate">{student.name ?? '—'}</p>
+                                        <p className="text-xs text-muted-foreground">Roll: {student.rollNo ?? '—'}</p>
+                                    </div>
+                                    {/* Status chip */}
+                                    {reviewStatus === 'CORRECT' && (
+                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">Correct</span>
+                                    )}
+                                    {reviewStatus === 'WRITE_AGAIN' && (
+                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/10 text-red-500">Write Again</span>
+                                    )}
+                                    {!reviewStatus && hasOnline && (
+                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500">Submitted</span>
+                                    )}
+                                    {!hasOnline && !hasOffline && (
+                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Pending</span>
+                                    )}
+                                </div>
+
+                                {/* Online submission details */}
+                                {isOnline && hasOnline && (
+                                    <div className="mb-3 rounded-lg bg-muted/50 p-3 space-y-2">
+                                        <p className="text-xs text-muted-foreground">
+                                            Submitted: {new Date(submission!.submittedAt!).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                            {submission!.resubmitCount > 0 && ` · Resubmission #${submission!.resubmitCount}`}
+                                        </p>
+                                        {submission?.fileUrl && (
+                                            <a href={submission.fileUrl} target="_blank" rel="noopener noreferrer"
+                                                className="text-xs text-primary underline underline-offset-2">
+                                                View PDF
+                                            </a>
+                                        )}
+                                        {reviewStatus === 'WRITE_AGAIN' && submission?.reviewNote && (
+                                            <p className="text-xs text-red-500 italic">&quot;{submission.reviewNote}&quot;</p>
+                                        )}
+
+                                        {/* Review actions */}
+                                        {reviewStatus !== 'CORRECT' && (
+                                            <div className="space-y-2 pt-1">
+                                                <input
+                                                    value={reviewNote}
+                                                    onChange={e => setReviewNote(e.target.value)}
+                                                    placeholder="Optional feedback note…"
+                                                    className="w-full text-xs rounded-lg border border-border bg-background px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                                                />
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => handleReview(student.id, 'CORRECT')}
+                                                        disabled={!!reviewing}
+                                                        className="flex-1 text-xs py-1.5 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-all">
+                                                        {reviewing === student.id + 'CORRECT' ? 'Saving…' : '✓ Correct'}
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleReview(student.id, 'WRITE_AGAIN')}
+                                                        disabled={!!reviewing}
+                                                        className="flex-1 text-xs py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/30 font-semibold hover:bg-red-500/20 disabled:opacity-50 transition-all">
+                                                        {reviewing === student.id + 'WRITE_AGAIN' ? 'Saving…' : '↩ Write Again'}
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Offline toggle */}
+                                <div className="flex items-center justify-between">
+                                    <span className="text-xs text-muted-foreground">
+                                        {hasOffline
+                                            ? `Offline copy received ${new Date(submission!.offlineSubmittedAt!).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
+                                            : 'Offline copy not received'}
+                                    </span>
+                                    <button
+                                        onClick={() => handleToggleOffline(student.id, hasOffline)}
+                                        disabled={toggling === student.id}
+                                        className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all disabled:opacity-50 ${
+                                            hasOffline
+                                                ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 hover:bg-emerald-500/20'
+                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 border border-border'
+                                        }`}>
+                                        {toggling === student.id ? '…' : hasOffline ? '✓ Received' : 'Mark Received'}
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>
@@ -2438,12 +2827,13 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete }
 
 // ── Test Card ─────────────────────────────────────────────────────────────────
 
-function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, copiedLink }: {
+function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, onResults, copiedLink }: {
     test: Test;
     onOpen: () => void;
     onCopyLink: () => void;
     onDelete: () => void;
     onActivate: () => void;
+    onResults: () => void;
     copiedLink: string | null;
 }) {
     const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -2547,13 +2937,21 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, copiedLink }
                     <button onClick={onOpen} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
                         <Eye size={12} /> Open & Edit
                     </button>
-                    <button className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
+                    <button onClick={onResults} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
                         <BarChart2 size={12} /> Results
                     </button>
                 </div>
             </div>
         </div>
     );
+}
+
+// Convert a UTC ISO string to the local-time format required by datetime-local inputs.
+// toISOString() always returns UTC, but datetime-local needs local wall-clock time.
+function toLocalDatetimeInput(utcIso: string): string {
+    const d = new Date(utcIso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 // ── Paper Builder ─────────────────────────────────────────────────────────────
@@ -2584,6 +2982,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     const [paperType, setPaperType] = useState<'TEST' | 'ASSIGNMENT'>(lockedPaperType);
     const [durationMinutes, setDurationMinutes] = useState(60);
     const [maxAttempts, setMaxAttempts] = useState(1);
+    const [startDate, setStartDate] = useState('');
     const [validUntil, setValidUntil] = useState('');
     const [isRandomized, setIsRandomized] = useState(false);
     const [answerSpace, setAnswerSpace] = useState(true);
@@ -2608,7 +3007,8 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 setPaperType((t.paperType ?? 'TEST') as 'TEST' | 'ASSIGNMENT');
                 setDurationMinutes(t.durationMinutes);
                 setMaxAttempts(t.maxAttempts);
-                setValidUntil(t.validUntil ? new Date(t.validUntil).toISOString().slice(0, 16) : '');
+                setStartDate(t.startDate ? toLocalDatetimeInput(t.startDate) : '');
+                setValidUntil(t.validUntil ? toLocalDatetimeInput(t.validUntil) : '');
                 setIsRandomized(t.isRandomized ?? false);
                 setAnswerSpace(t.answerSpace ?? true);
                 const rawSections = (t.sections ?? []) as unknown as Array<Record<string, unknown>>;
@@ -2734,6 +3134,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                     paperType,
                     durationMinutes,
                     maxAttempts,
+                    startDate: startDate ? new Date(startDate).toISOString() : null,
                     validUntil: validUntil ? new Date(validUntil).toISOString() : null,
                     isRandomized,
                     answerSpace,
@@ -2906,6 +3307,11 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                     className="w-10 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
                             </div>
                             <div className="flex items-center gap-1.5">
+                                <label className="text-[11px] text-muted-foreground">Start date</label>
+                                <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)}
+                                    className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                            </div>
+                            <div className="flex items-center gap-1.5">
                                 <label className="text-[11px] text-muted-foreground">Valid until</label>
                                 <input type="datetime-local" value={validUntil} onChange={e => setValidUntil(e.target.value)}
                                     className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
@@ -2960,6 +3366,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 <div className="flex items-center gap-6">
                                     <span><span className="font-semibold">Time:</span> {durationMinutes} min</span>
                                     <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
+                                    {startDate && <span><span className="font-semibold">Start:</span> {new Date(startDate).toLocaleDateString()}</span>}
                                     {validUntil && <span><span className="font-semibold">Valid Until:</span> {new Date(validUntil).toLocaleDateString()}</span>}
                                 </div>
                                 <div className="flex items-center gap-4">

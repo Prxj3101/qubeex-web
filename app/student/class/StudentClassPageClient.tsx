@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import PencilLoader from '@/components/student/PencilLoader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Users, Trophy, Calendar, Loader2, X, FileText } from 'lucide-react';
@@ -8,18 +9,19 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import api from '@/lib/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface Subject { id: string; name: string; code: string; color: string; teacherName: string }
+interface Subject { id: string; name: string; code: string; color: string; teacherName: string; teacherAvatarUrl: string | null }
 interface Classmate {
     id: string; name: string; rollNo: string;
     rank: number | null; attendancePct: number | null;
     marksPct: number | null; offlinePct: number | null; onlinePct: number | null; isMe: boolean;
+    avatarUrl: string | null;
 }
 interface SubjectScore {
     subjectId: string; subjectName: string; subjectCode: string; subjectColor: string;
     columns: { name: string; scored: number | null; max: number; isAbsent: boolean }[];
     totalScored: number; totalMax: number; pct: number | null;
 }
-interface LbEntry { name: string; combinedPct: number; offlinePct: number | null; onlinePct: number | null; isMe: boolean }
+interface LbEntry { name: string; avatarUrl: string | null; combinedPct: number; offlinePct: number | null; onlinePct: number | null; isMe: boolean }
 interface FeedFile {
     id: string; title: string;
     attachmentUrl: string | null; attachmentType: string | null; attachmentName: string | null;
@@ -86,7 +88,15 @@ function FileViewer({ file, onClose }: { file: FeedFile; onClose: () => void }) 
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
-function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+function Avatar({ name, avatarUrl, size = 28 }: { name: string; avatarUrl?: string | null; size?: number }) {
+    if (avatarUrl) {
+        return (
+            <div className="rounded-full overflow-hidden shrink-0 relative"
+                style={{ width: size, height: size }}>
+                <Image src={avatarUrl} alt={name} fill sizes={`${size * 2}px`} className="object-cover" />
+            </div>
+        );
+    }
     return (
         <div className="rounded-full flex items-center justify-center text-white font-bold shrink-0"
             style={{ width: size, height: size, fontSize: size * 0.36, background: getAvatarColor(name) }}>
@@ -178,7 +188,7 @@ function ViewTab({ data }: { data: ClassData }) {
                         {classmates.map(s => (
                             <div key={s.id} className="flex items-center gap-2.5 px-3 py-2.5 border-b transition-colors"
                                 style={{ borderColor: 'rgba(255,255,255,0.04)', background: s.isMe ? 'rgba(139,92,246,0.12)' : 'transparent' }}>
-                                <Avatar name={s.name} size={30} />
+                                <Avatar name={s.name} avatarUrl={s.avatarUrl} size={30} />
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
                                         <p className="text-[11px] font-semibold text-white truncate">{s.name}</p>
@@ -222,7 +232,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                     <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sub.color }} />
                                     <p className="text-[11px] font-semibold text-white flex-1 truncate">{sub.name}</p>
                                     <div className="flex items-center gap-2 shrink-0">
-                                        <Avatar name={sub.teacherName} size={22} />
+                                        <Avatar name={sub.teacherName} avatarUrl={sub.teacherAvatarUrl} size={22} />
                                         <p className="text-[10px] text-white/50 truncate max-w-[110px]">{sub.teacherName}</p>
                                     </div>
                                 </div>
@@ -257,7 +267,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                             const pct = getClassmatePct(s, lbMode);
                                             return (
                                                 <div key={s.id} className="flex flex-col items-center gap-1">
-                                                    <Avatar name={s.name} size={i === 1 ? 38 : 30} />
+                                                    <Avatar name={s.name} avatarUrl={s.avatarUrl} size={i === 1 ? 38 : 30} />
                                                     <p className="text-[9px] font-semibold text-white/80 text-center w-16 leading-tight truncate">{s.name.split(' ')[0]}</p>
                                                     {s.isMe && <span className="text-[7px] font-bold px-1 py-0.5 rounded-full bg-violet-500/30 text-violet-300">You</span>}
                                                     <p className="text-[9px] font-bold" style={{ color: cfg.color }}>{pct != null ? `${pct}%` : '—'}</p>
@@ -278,7 +288,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                                 <div key={s.id} className="flex items-center gap-2 px-3 py-2 rounded-xl"
                                                     style={{ background: s.isMe ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.04)', border: s.isMe ? '1px solid rgba(139,92,246,0.3)' : '1px solid rgba(255,255,255,0.06)' }}>
                                                     <span className="text-[10px] font-bold text-white/40 w-4 shrink-0">{i + 4}</span>
-                                                    <Avatar name={s.name} size={24} />
+                                                    <Avatar name={s.name} avatarUrl={s.avatarUrl} size={24} />
                                                     <p className="text-[10px] font-semibold text-white flex-1 truncate">
                                                         {s.name.split(' ')[0]}
                                                         {s.isMe && <span className="ml-1 text-[8px] text-violet-400">(You)</span>}
@@ -376,7 +386,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-bold text-white truncate">{subject.name}</p>
                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                        <Avatar name={subject.teacherName} size={14} />
+                                        <Avatar name={subject.teacherName} avatarUrl={subject.teacherAvatarUrl} size={14} />
                                         <p className="text-[9px] text-white/40 truncate">{subject.teacherName}</p>
                                     </div>
                                 </div>
@@ -403,7 +413,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                                     ? <span className="text-sm shrink-0">{medal}</span>
                                                     : <span className="text-[10px] font-bold text-white/30 w-4 text-center shrink-0">#{i + 1}</span>
                                                 }
-                                                <Avatar name={e.name} size={24} />
+                                                <Avatar name={e.name} avatarUrl={e.avatarUrl} size={24} />
                                                 <p className="text-[10px] font-semibold text-white flex-1 truncate">
                                                     {e.name.split(' ')[0]}
                                                     {e.isMe && <span className="ml-1 text-[8px] text-violet-400">(You)</span>}
