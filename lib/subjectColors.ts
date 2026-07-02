@@ -1,14 +1,13 @@
 export const SUBJECT_PALETTE = [
-    '#7C3AED', // violet
     '#DA7756', // terracotta
+    '#EC4899', // pink
     '#0891B2', // cyan
-    '#059669', // emerald
-    '#D97706', // amber
-    '#DC2626', // red
+    '#7C3AED', // violet
+    '#059669', // green
     '#2563EB', // blue
-    '#8B5CF6', // purple
-    '#EA580C', // orange
-    '#16A34A', // green
+    '#4F46E5', // indigo
+    '#D97706', // amber
+    '#16A34A', // green 2
 ];
 
 export function assignSubjectColor(index: number): string {
