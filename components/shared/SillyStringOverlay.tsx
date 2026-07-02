@@ -66,6 +66,7 @@ export function SillyStringOverlay({ name, fontSize = 30, active = true }: Silly
         }
 
         function resize() {
+            if (!C) return;
             W = C.width = C.offsetWidth;
             H = C.height = C.offsetHeight;
             buildLogo();
