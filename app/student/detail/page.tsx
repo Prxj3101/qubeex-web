@@ -363,22 +363,21 @@ export default function StudentDetailPage() {
                             {/* Avatar */}
                             <div className="relative">
                                 <div
-                                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden"
+                                    className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden"
                                     style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}
                                 >
                                     {store.photo
-                                        ? <NextImage src={store.photo} alt="profile" fill sizes="160px" className="object-cover" unoptimized={store.photo.startsWith('data:')} />
+                                        ? <NextImage src={store.photo} alt="profile" fill sizes="160px" quality={100} className="object-cover" unoptimized={store.photo.startsWith('data:')} />
                                         : getInitials(data.name)
                                     }
                                 </div>
                                 {/* Camera upload button — bottom right */}
-                                <button
+                                <div
                                     onClick={() => photoInputRef.current?.click()}
-                                    className="absolute bottom-0 right-0 translate-x-1/4 translate-y-1/4 w-6 h-6 rounded-full flex items-center justify-center hover:opacity-90 transition-all shadow-sm"
-                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                                    title="Upload photo">
-                                    <Camera size={15} className="text-white" />
-                                </button>
+                                    className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm cursor-pointer hover:opacity-90 transition-all"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                    <Camera size={11} className="text-white" />
+                                </div>
                                 <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                             </div>
 

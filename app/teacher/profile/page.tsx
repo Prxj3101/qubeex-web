@@ -2,11 +2,12 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import {
     Hash, Mail, Phone, MapPin, Calendar, User,
     GraduationCap, Briefcase, Edit2, Check, X,
-    BookOpen, Camera, Tag,
+    BookOpen, Camera, Tag, ChevronRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -58,6 +59,77 @@ function getAvatarColor(id: string) {
 function getInitials(name: string) {
     return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
+const PHONE_CODES = [
+    { code: '+91', flag: '🇮🇳', max: 10 },
+    { code: '+1',  flag: '🇺🇸', max: 10 },
+    { code: '+44', flag: '🇬🇧', max: 10 },
+    { code: '+61', flag: '🇦🇺', max: 9  },
+    { code: '+971',flag: '🇦🇪', max: 9  },
+    { code: '+65', flag: '🇸🇬', max: 8  },
+];
+
+function parsePhone(val: string) {
+    const match = (val ?? '').match(/^(\+\d+)\s*(.*)$/);
+    return match ? { code: match[1], number: match[2] } : { code: '+91', number: val ?? '' };
+}
+
+function PhoneEditField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+    const { code, number } = parsePhone(value);
+    const [open, setOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const dropRef = useRef<HTMLDivElement>(null);
+    const [pos, setPos] = useState({ top: 0, left: 0 });
+
+    useEffect(() => {
+        if (!open) return;
+        const close = (e: MouseEvent) => {
+            if (btnRef.current && !btnRef.current.contains(e.target as Node) &&
+                dropRef.current && !dropRef.current.contains(e.target as Node)) setOpen(false);
+        };
+        const onScroll = (e: Event) => { if (dropRef.current && dropRef.current.contains(e.target as Node)) return; setOpen(false); };
+        document.addEventListener('mousedown', close);
+        window.addEventListener('scroll', onScroll, true);
+        return () => { document.removeEventListener('mousedown', close); window.removeEventListener('scroll', onScroll, true); };
+    }, [open]);
+
+    return (
+        <div className="flex items-center gap-3 py-2 border-b border-border/40 last:border-none">
+            <span className="text-xs text-muted-foreground w-28 shrink-0">Phone</span>
+            <div className="flex gap-1.5 flex-1">
+                <div className="shrink-0">
+                    <button ref={btnRef} type="button" onClick={() => { if (!open && btnRef.current) { const r = btnRef.current.getBoundingClientRect(); setPos({ top: r.bottom + 4, left: r.left }); } setOpen(v => !v); }}
+                        className="h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs flex items-center gap-1 whitespace-nowrap hover:bg-primary/10 transition-all">
+                        {code} <ChevronRight size={10} className="text-muted-foreground rotate-90" />
+                    </button>
+                    {open && typeof document !== 'undefined' && createPortal(
+                        <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                            className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
+                            {PHONE_CODES.map(c => (
+                                <button key={c.code} type="button"
+                                    onClick={() => { onChange(`${c.code} ${number}`); setOpen(false); }}
+                                    className={`w-full px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors ${code === c.code ? 'text-primary font-semibold' : 'text-foreground'}`}>
+                                    {c.flag} {c.code}
+                                </button>
+                            ))}
+                        </div>, document.body
+                    )}
+                </div>
+                <input value={number}
+                    onChange={e => { const raw = e.target.value; const max = PHONE_CODES.find(c => c.code === code)?.max ?? 10; if (raw.replace(/\D/g, '').length <= max) onChange(`${code} ${raw}`); }}
+                    placeholder="98765 43210"
+                    className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/50 placeholder:font-normal" />
+            </div>
+        </div>
+    );
+}
+
+function formatDob(raw: string) {
+    const digits = raw.replace(/\D/g, '');
+    if (digits.length > 6) return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+    if (digits.length > 4) return `${digits.slice(0, 4)}-${digits.slice(4)}`;
+    return digits;
+}
+
 function formatDate(iso?: string | null) {
     if (!iso) return '—';
     return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -111,14 +183,14 @@ function InfoRow({ icon: Icon, label, value }: {
 }
 
 // ── Editable Field ────────────────────────────────────────────────────────────
-function EditableField({ label, value, onChange }: {
-    label: string; value: string; onChange: (v: string) => void;
+function EditableField({ label, value, onChange, placeholder }: {
+    label: string; value: string; onChange: (v: string) => void; placeholder?: string;
 }) {
     return (
         <div className="flex items-center gap-3 py-2 border-b border-border/40 last:border-none">
             <span className="text-xs text-muted-foreground w-28 shrink-0">{label}</span>
-            <input value={value} onChange={e => onChange(e.target.value)}
-                className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all" />
+            <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
+                className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/50 placeholder:font-normal" />
         </div>
     );
 }
@@ -175,7 +247,7 @@ export default function TeacherProfilePage() {
                 const savedTitle = d.title ?? 'Teacher';
                 setTitleDraft(savedTitle); setTitleSaved(savedTitle);
 
-                const personal = { name: d.user?.name ?? '', dob: d.dob ?? '', gender: d.gender ?? '' };
+                const personal = { name: d.user?.name ?? '', dob: (d.dob ?? '').slice(0, 10), gender: d.gender ?? '' };
                 setPersonalDraft(personal); setPersonalSaved(personal);
                 const contact = {
                     phone: d.phone ?? '', address: d.address ?? '',
@@ -312,16 +384,16 @@ export default function TeacherProfilePage() {
                 <div className="bg-card border border-border/50 rounded-2xl p-5">
                     <div className="flex items-start gap-4">
                         <div className="relative cursor-pointer" onClick={() => !uploadingPhoto && fileRef.current?.click()}>
-                            <div className={`w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text} overflow-hidden`}>
+                            <div className={`relative w-20 h-20 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text} overflow-hidden`}>
                                 {uploadingPhoto ? (
                                     <div className="w-5 h-5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
                                 ) : avatarUrl ? (
-                                    <NextImage src={avatarUrl} alt={teacher.user.name} fill sizes="64px" className="object-cover" />
+                                    <NextImage src={avatarUrl} alt={teacher.user.name} fill sizes="160px" className="object-cover" />
                                 ) : (
                                     getInitials(teacher.user.name)
                                 )}
                             </div>
-                            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center shadow-sm"
+                            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm"
                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                 <Camera size={11} className="text-white" />
                             </div>
@@ -398,7 +470,7 @@ export default function TeacherProfilePage() {
                                         </div>
                                     </div>
                                 </div>
-                                <EditableField label="Date of Birth" value={personalDraft.dob} onChange={v => setPersonalDraft(d => ({ ...d, dob: v }))} />
+                                <EditableField label="Date of Birth" value={personalDraft.dob} onChange={v => setPersonalDraft(d => ({ ...d, dob: formatDob(v) }))} placeholder="YYYY-MM-DD" />
                                 <div className="flex items-center gap-3 py-2 border-b border-border/40">
                                     <span className="text-xs text-muted-foreground w-28 shrink-0">Gender</span>
                                     <div className="flex gap-2">
@@ -490,8 +562,8 @@ export default function TeacherProfilePage() {
                     <SectionCard title="Professional Details" editBtn={editBtns('prof')}>
                         {editingSection === 'prof' ? (
                             <>
-                                <EditableField label="Qualification" value={profDraft.qualification} onChange={v => setProfDraft(d => ({ ...d, qualification: v }))} />
-                                <EditableField label="Experience" value={profDraft.experience} onChange={v => setProfDraft(d => ({ ...d, experience: v }))} />
+                                <EditableField label="Qualification" value={profDraft.qualification} onChange={v => setProfDraft(d => ({ ...d, qualification: v }))} placeholder="e.g. B.Ed, M.Sc" />
+                                <EditableField label="Experience" value={profDraft.experience} onChange={v => setProfDraft(d => ({ ...d, experience: v }))} placeholder="e.g. 5 years" />
                             </>
                         ) : (
                             <>
@@ -505,12 +577,12 @@ export default function TeacherProfilePage() {
                     <SectionCard title="Contact Details" editBtn={editBtns('contact')}>
                         {editingSection === 'contact' ? (
                             <>
-                                <EditableField label="Phone" value={contactDraft.phone} onChange={v => setContactDraft(d => ({ ...d, phone: v }))} />
-                                <EditableField label="Address" value={contactDraft.address} onChange={v => setContactDraft(d => ({ ...d, address: v }))} />
-                                <EditableField label="City" value={contactDraft.city} onChange={v => setContactDraft(d => ({ ...d, city: v }))} />
-                                <EditableField label="State" value={contactDraft.state} onChange={v => setContactDraft(d => ({ ...d, state: v }))} />
-                                <EditableField label="Pincode" value={contactDraft.pincode} onChange={v => setContactDraft(d => ({ ...d, pincode: v }))} />
-                                <EditableField label="Country" value={contactDraft.country} onChange={v => setContactDraft(d => ({ ...d, country: v }))} />
+                                <PhoneEditField value={contactDraft.phone} onChange={v => setContactDraft(d => ({ ...d, phone: v }))} />
+                                <EditableField label="Address" value={contactDraft.address} onChange={v => setContactDraft(d => ({ ...d, address: v }))} placeholder="Street / Building / Area" />
+                                <EditableField label="City" value={contactDraft.city} onChange={v => setContactDraft(d => ({ ...d, city: v }))} placeholder="e.g. Mumbai" />
+                                <EditableField label="State" value={contactDraft.state} onChange={v => setContactDraft(d => ({ ...d, state: v }))} placeholder="e.g. Maharashtra" />
+                                <EditableField label="Pincode" value={contactDraft.pincode} onChange={v => setContactDraft(d => ({ ...d, pincode: v }))} placeholder="e.g. 400001" />
+                                <EditableField label="Country" value={contactDraft.country} onChange={v => setContactDraft(d => ({ ...d, country: v }))} placeholder="e.g. India" />
                             </>
                         ) : (
                             <>

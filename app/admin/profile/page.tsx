@@ -464,7 +464,7 @@ export default function AdminProfilePage() {
           <div className="flex items-start gap-4">
             {/* Logo */}
             <div className="relative shrink-0 cursor-pointer" onClick={() => !logoUploading && logoFileRef.current?.click()}>
-              <div className="w-16 h-16 rounded-2xl bg-muted ring-2 ring-border overflow-hidden flex items-center justify-center">
+              <div className="w-20 h-20 rounded-2xl bg-muted ring-2 ring-border overflow-hidden flex items-center justify-center">
                 {currentLogoUrl && !logoErr ? (
                   <img
                     src={currentLogoUrl}
@@ -534,9 +534,9 @@ export default function AdminProfilePage() {
         <div className="bg-card border border-border/50 rounded-2xl p-5">
           <div className="flex items-start gap-4">
             <div className="relative shrink-0 cursor-pointer" onClick={() => adminAvatarRef.current?.click()}>
-              <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold bg-primary/10 text-primary overflow-hidden select-none">
+              <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-xl font-bold bg-primary/10 text-primary overflow-hidden select-none">
                 {adminAvatarPreview
-                  ? <NextImage src={adminAvatarPreview} alt={adminSaved.adminName} fill sizes="64px" className="object-cover" unoptimized={adminAvatarPreview.startsWith('data:')} />
+                  ? <NextImage src={adminAvatarPreview} alt={adminSaved.adminName} fill sizes="160px" className="object-cover" unoptimized={adminAvatarPreview.startsWith('data:')} />
                   : adminSaved.adminName
                     ? adminSaved.adminName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase()
                     : <UserIcon size={24} />

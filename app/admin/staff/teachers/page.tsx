@@ -180,7 +180,7 @@ function TeacherCard({
             {/* ── Top: Avatar + Name + Status ── */}
             <div className="flex items-start gap-3 p-4 pb-3">
                 {/* Avatar — photo ya initials */}
-                <div className="w-12 h-12 rounded-xl bg-muted ring-2 ring-border shrink-0 overflow-hidden flex items-center justify-center">
+                <div className="relative w-12 h-12 rounded-xl bg-muted ring-2 ring-border shrink-0 overflow-hidden flex items-center justify-center">
                     {teacher.avatarUrl ? (
                         <NextImage src={teacher.avatarUrl} alt={teacher.name} fill sizes="48px" className="object-cover" />
                     ) : (

@@ -170,7 +170,7 @@ export default function TeacherNotepad() {
                         )}
                     </AnimatePresence>
 
-                    <p className="text-[10px] text-muted-foreground mb-1.5">{pending} pending · <span className="text-emerald-500">{done} done</span></p>
+                    <p className="text-[11px] text-muted-foreground mb-1.5">{pending} pending · <span className="text-emerald-500">{done} done</span></p>
 
                     <div className="flex-1 overflow-y-auto space-y-1">
                         {tasks.filter(t => !t.done).map((task, i) => (
@@ -195,7 +195,7 @@ export default function TeacherNotepad() {
                                         </button>
                                     </div>
                                 ) : (
-                                    <p className="text-[11px] flex-1 leading-tight">{task.text}</p>
+                                    <p className="text-[12px] flex-1 leading-tight">{task.text}</p>
                                 )}
                                 {editingTaskId !== task.id && (
                                     <button onClick={() => { setEditingTaskId(task.id); setEditingTaskText(task.text); }}
@@ -224,7 +224,7 @@ export default function TeacherNotepad() {
                                             className="w-4 h-4 rounded border-2 border-emerald-500 bg-emerald-500 flex items-center justify-center shrink-0">
                                             <Check size={9} className="text-white" />
                                         </button>
-                                        <p className="text-[11px] flex-1 line-through text-muted-foreground leading-tight">{task.text}</p>
+                                        <p className="text-[12px] flex-1 line-through text-muted-foreground leading-tight">{task.text}</p>
                                         <button onClick={() => deleteTask(task.id)}
                                             className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500">
                                             <X size={11} />
@@ -245,7 +245,9 @@ export default function TeacherNotepad() {
                         <div className="flex items-center gap-1.5">
                             <StickyNote size={13} className="text-muted-foreground" />
                             <p className="text-xs font-semibold">Notes</p>
-                            <span className="text-[9px] text-muted-foreground/50">{notes.length}</span>
+                            {notes.length > 0 && (
+                                <span className="text-[9px] font-bold bg-primary text-white px-1.5 py-0.5 rounded-full">{notes.length}</span>
+                            )}
                         </div>
                         <button onClick={() => setShowNoteInput(v => !v)}
                             className="w-6 h-6 rounded-lg flex items-center justify-center text-white hover:opacity-90 transition-all"
@@ -330,7 +332,7 @@ export default function TeacherNotepad() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <p className="text-[18px] leading-relaxed pr-8" style={{ color: colorCfg.text, fontFamily: '"Caveat", cursive' }}>{note.text}</p>
+                                    <p className="text-[18px] leading-relaxed pr-8 font-bold" style={{ color: colorCfg.text, fontFamily: '"Caveat", cursive' }}>{note.text}</p>
                                 )}
                                 <p className="text-[9px] mt-1 opacity-50" style={{ color: colorCfg.text }}>{note.createdAt}</p>
                             </motion.div>

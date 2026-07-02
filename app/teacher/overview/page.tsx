@@ -390,7 +390,7 @@ export default function TeacherOverviewPage() {
 
                 {/* Blackboard — left, same size as student */}
                 <div className="lg:col-span-1">
-                    <Blackboard thought={thought} teacherClass={overview?.teacher.classTeacherDivisionName ?? '—'} />
+                    <Blackboard thought={thought} teacherClass={(() => { const v = overview?.teacher.classTeacherDivisionName ?? '—'; const m = v.match(/(\d+[-–]\w+)\s*$/); return m ? m[1] : v; })()} />
                 </div>
 
                 {/* Notepad */}
@@ -502,7 +502,7 @@ export default function TeacherOverviewPage() {
                         <p className="text-xs text-muted-foreground py-4">No recent activity.</p>
                     ) : (
                         <div className="space-y-0.5">
-                            {(overview?.auditLogs ?? []).slice(0, 6).map((log) => {
+                            {(overview?.auditLogs ?? []).slice(0, 3).map((log) => {
                                 const actionCfg = ACTION_CONFIG[log.action] ?? {
                                     label: log.action.replace(/_/g, ' '),
                                     cls: 'bg-muted text-muted-foreground',

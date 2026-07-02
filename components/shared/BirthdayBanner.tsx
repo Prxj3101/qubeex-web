@@ -43,7 +43,7 @@ const ROLE_CONFIG: Record<BirthdayRole, {
     confettiColors: string[];
     greeting: (name: string, years: number) => string;
     subtitle: (name: string, years: number) => string;
-    lines: [string, string, string];
+    lines: [string, string];
 }> = {
     institution: {
         gradient: 'linear-gradient(125deg, rgba(251,191,36,0.72) 0%, rgba(245,158,11,0.82) 40%, rgba(217,119,6,0.88) 75%, rgba(180,83,9,0.92) 100%)',
@@ -56,7 +56,6 @@ const ROLE_CONFIG: Record<BirthdayRole, {
         lines: [
             'Every student who walked through your doors carries a piece of your legacy.',
             'Here\'s to many more years of shaping futures, inspiring minds & lasting impact!',
-            'Thank you for being a beacon of knowledge and growth in your community.',
         ],
     },
     admin: {
@@ -70,7 +69,6 @@ const ROLE_CONFIG: Record<BirthdayRole, {
         lines: [
             'Your dedication and vision keep this institution running brilliantly.',
             'May this year bring new milestones, joy, and well-deserved celebrations!',
-            'Thank you for everything you do — today, we celebrate you!',
         ],
     },
     teacher: {
