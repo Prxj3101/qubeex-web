@@ -82,7 +82,6 @@ const ROLE_CONFIG: Record<BirthdayRole, {
         lines: [
             'Your passion for teaching touches more lives than you\'ll ever know.',
             'The greatest gift you give is knowledge — today, we celebrate you!',
-            'Wishing you a birthday as bright as the futures you help build every day.',
         ],
     },
     student: {
@@ -96,7 +95,6 @@ const ROLE_CONFIG: Record<BirthdayRole, {
         lines: [
             'Take a break from the books and enjoy every moment of your special day!',
             'Another year older, another year wiser, another year closer to your dreams.',
-            'Your journey here is just beginning — here\'s to all the amazing things ahead!',
         ],
     },
 };
