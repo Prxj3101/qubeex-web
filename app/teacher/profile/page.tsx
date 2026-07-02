@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { useUserAvatarStore } from '@/store/userAvatarStore';
+import NextImage from 'next/image';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface TeacherAssignment {
@@ -126,6 +128,7 @@ export default function TeacherProfilePage() {
     const [teacher, setTeacher] = useState<TeacherData | null>(null);
     const [loading, setLoading] = useState(true);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const setUserAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
 
@@ -164,6 +167,7 @@ export default function TeacherProfilePage() {
                 const t: TeacherData = { ...d, assignments };
                 setTeacher(t);
                 setAvatarUrl(d.avatarUrl ?? null);
+                setUserAvatarUrl(d.avatarUrl ?? null);
 
                 const savedPrefix = d.prefix ?? (d.gender === 'MALE' ? 'Mr.' : d.gender === 'FEMALE' ? 'Ms.' : '');
                 setPrefixDraft(savedPrefix); setPrefixSaved(savedPrefix);
@@ -193,6 +197,7 @@ export default function TeacherProfilePage() {
             form.append('photo', file);
             const res = await api.post('/teacher/photo', form, { headers: { 'Content-Type': 'multipart/form-data' } });
             setAvatarUrl(res.data.data.avatarUrl);
+            setUserAvatarUrl(res.data.data.avatarUrl);
             toast.success('Photo updated!');
         } catch {
             toast.error('Failed to upload photo');
@@ -311,7 +316,7 @@ export default function TeacherProfilePage() {
                                 {uploadingPhoto ? (
                                     <div className="w-5 h-5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
                                 ) : avatarUrl ? (
-                                    <img src={avatarUrl} alt={teacher.user.name} className="w-full h-full object-cover" />
+                                    <NextImage src={avatarUrl} alt={teacher.user.name} fill sizes="64px" className="object-cover" />
                                 ) : (
                                     getInitials(teacher.user.name)
                                 )}

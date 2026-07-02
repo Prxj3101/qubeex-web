@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import NextImage from 'next/image';
+import { useStudentStore } from '@/store/studentStore';
 
 interface OverviewData {
     student: { name: string; rollNo: string; divisionName: string; standardName: string };
@@ -72,6 +74,7 @@ export default function StudentOverview() {
     const [loading, setLoading] = useState(true);
     const [announcementVisible, setAnnouncementVisible] = useState(true);
     const thought = getTodaysThought();
+    const studentPhoto = useStudentStore(s => s.photo);
 
     useEffect(() => {
         api.get('/student/overview')
@@ -134,8 +137,10 @@ export default function StudentOverview() {
                 </div>
 
                 <div className="z-10 flex flex-col items-center gap-2">
-                    <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold text-white border-2 border-white/30">
-                        {initials}
+                    <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold text-white border-2 border-white/30 overflow-hidden relative">
+                        {studentPhoto
+                            ? <NextImage src={studentPhoto} alt={studentName} fill sizes="64px" className="object-cover" unoptimized={studentPhoto.startsWith('data:')} />
+                            : initials}
                     </div>
                     <div className="flex gap-1.5 flex-wrap justify-center">
                         <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full">Roll #{rollNo}</span>

@@ -63,6 +63,7 @@ export interface AdminOverview {
         status: InstitutionStatus;
         logoUrl?: string;
     };
+    showWelcomeBanner: boolean;
     stats: {
         totalUsers: number;
         totalStudents: number;

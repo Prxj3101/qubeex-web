@@ -10,8 +10,9 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { toast } from 'sonner';
 import { useMarksheet, UseMarksheetResult } from '@/lib/useMarksheet';
 import { downloadMarksheetPdf, resolveGrade, type MarksheetMeta, type GradeScaleEntry } from '@/lib/marksheetApi';
+import NextImage from 'next/image';
 
-interface Student { id: string; name: string; rollNo: string; }
+interface Student { id: string; name: string; rollNo: string; avatarUrl?: string | null; }
 
 interface Exam {
     id: string;
@@ -1055,9 +1056,11 @@ function MarkSheet({
                                     <td className="sticky left-[60px] z-10 px-3 py-1.5 whitespace-nowrap"
                                         style={{ background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10' }}>
                                         <div className="flex items-center gap-1.5">
-                                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                style={{ background: getAvatarColor(student.name) }}>
-                                                {getInitials(student.name)}
+                                            <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[9px] font-bold text-white shrink-0 relative"
+                                                style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                                {student.avatarUrl
+                                                    ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="20px" className="object-cover" />
+                                                    : getInitials(student.name)}
                                             </div>
                                             <span className="font-medium text-[11px]">{student.name}</span>
                                         </div>
@@ -1366,9 +1369,11 @@ function StudentSummaryPanel({
                     return (
                         <button key={student.id} onClick={() => onSelect(student.id)}
                             className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-colors hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                                style={{ background: getAvatarColor(student.name) }}>
-                                {getInitials(student.name)}
+                            <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white shrink-0 relative"
+                                style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                {student.avatarUrl
+                                    ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="28px" className="object-cover" />
+                                    : getInitials(student.name)}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-semibold truncate">{student.name}</p>
@@ -1507,9 +1512,11 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                             <button key={student.id}
                                 onClick={() => { setSelectedStudentId(prev => prev === student.id ? null : student.id); setRightTab('student'); }}
                                 className={`w-full flex items-center gap-2 px-3 py-3 border-b border-border/20 text-left transition-colors hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                                    style={{ background: getAvatarColor(student.name) }}>
-                                    {getInitials(student.name)}
+                                <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white shrink-0 relative"
+                                    style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                    {student.avatarUrl
+                                        ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="28px" className="object-cover" />
+                                        : getInitials(student.name)}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs font-semibold truncate">{student.name}</p>
@@ -1607,9 +1614,11 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                         const pct = getPct(st);
                                         return (
                                             <div key={st.student.id} className="flex flex-col items-center gap-1.5">
-                                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20"
-                                                    style={{ background: getAvatarColor(st.student.name) }}>
-                                                    {getInitials(st.student.name)}
+                                                <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20 relative"
+                                                    style={{ background: st.student.avatarUrl ? 'transparent' : getAvatarColor(st.student.name) }}>
+                                                    {st.student.avatarUrl
+                                                        ? <NextImage src={st.student.avatarUrl} alt={st.student.name} fill sizes="40px" className="object-cover" />
+                                                        : getInitials(st.student.name)}
                                                 </div>
                                                 <p className="text-[10px] font-bold text-center w-16 truncate">{st.student.name}</p>
                                                 <p className="text-[10px] font-black" style={{ color: scoreColor(pct) }}>{pct}%</p>

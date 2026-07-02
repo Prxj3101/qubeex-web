@@ -22,8 +22,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
+import { LinkifiedText } from "@/components/shared/LinkifiedText";
 import { validateAttachment, ATTACHMENT_ACCEPT } from "@/lib/attachmentValidation";
 import { AttachmentPreview } from "@/components/shared/AttachmentPreview";
+import NextImage from "next/image";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -31,6 +33,7 @@ interface PostAuthor {
   id: string;
   name: string;
   role: "ADMIN" | "TEACHER";
+  avatarUrl?: string | null;
 }
 
 interface PostComment {
@@ -219,9 +222,11 @@ function PostCard({
     >
       {!isMe && (
         <div
-          className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 mt-1 ${avatarColor}`}
+          className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 mt-1 relative ${post.author.avatarUrl ? "" : avatarColor}`}
         >
-          {getInitials(post.author.name)}
+          {post.author.avatarUrl
+            ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="32px" className="object-cover" />
+            : getInitials(post.author.name)}
         </div>
       )}
 
@@ -276,7 +281,10 @@ function PostCard({
           }`}
           style={isMe ? { background: "#7C3AED" } : {}}
         >
-          {post.text}
+          <LinkifiedText
+            text={post.text}
+            className={isMe ? "text-white underline decoration-white/70 hover:opacity-80 break-all" : "text-primary underline hover:opacity-80 break-all"}
+          />
           {post.attachmentUrl && post.attachmentName && post.attachmentType && (
             <div className="mt-2">
               <AttachmentPreview
@@ -337,7 +345,7 @@ function PostCard({
                       <p className="text-[10px] font-semibold text-muted-foreground">
                         {c.author.name}
                       </p>
-                      <p className="text-xs text-foreground">{c.text}</p>
+                      <p className="text-xs text-foreground"><LinkifiedText text={c.text} /></p>
                       {c.author.id === myUserId && (
                         <button
                           onClick={() => onDeleteComment(post.id, c.id)}
@@ -1032,11 +1040,9 @@ export default function StaffroomPage() {
                     >
                       <div className="relative shrink-0">
                         {t.avatarUrl ? (
-                          <img
-                            src={t.avatarUrl}
-                            alt={t.name}
-                            className="w-9 h-9 rounded-full object-cover"
-                          />
+                          <div className="w-9 h-9 rounded-full overflow-hidden relative">
+                            <NextImage src={t.avatarUrl} alt={t.name} fill sizes="36px" className="object-cover" />
+                          </div>
                         ) : (
                           <div
                             className={`w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold ${getAvatarColor(t.teacherUserId)}`}
@@ -1103,11 +1109,9 @@ export default function StaffroomPage() {
                   </button>
                   <div className="relative shrink-0">
                     {activeDm.avatarUrl ? (
-                      <img
-                        src={activeDm.avatarUrl}
-                        alt={activeDm.name}
-                        className="w-8 h-8 rounded-full object-cover"
-                      />
+                      <div className="w-8 h-8 rounded-full overflow-hidden relative">
+                        <NextImage src={activeDm.avatarUrl} alt={activeDm.name} fill sizes="32px" className="object-cover" />
+                      </div>
                     ) : (
                       <div
                         className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${getAvatarColor(activeDm.teacherUserId)}`}
@@ -1171,7 +1175,14 @@ export default function StaffroomPage() {
                               className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.isMe ? "text-white rounded-tr-sm" : "bg-card border border-border/40 text-foreground rounded-tl-sm"}`}
                               style={msg.isMe ? { background: "#7C3AED" } : {}}
                             >
-                              {msg.text && <p>{msg.text}</p>}
+                              {msg.text && (
+                                <p>
+                                  <LinkifiedText
+                                    text={msg.text}
+                                    className={msg.isMe ? "text-white underline decoration-white/70 hover:opacity-80 break-all" : "text-primary underline hover:opacity-80 break-all"}
+                                  />
+                                </p>
+                              )}
                               {msg.attachmentUrl &&
                                 msg.attachmentName &&
                                 msg.attachmentType && (

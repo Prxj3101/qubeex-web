@@ -57,7 +57,7 @@ export default function AdminOverviewPage() {
     }
 
     const adminName = user?.name ?? user?.email?.split('@')[0] ?? 'Admin';
-    const planName = overview.plan.name.toUpperCase() as 'PRO' | 'BASIC';
+    const planName = overview.plan.name.toUpperCase() as 'PRO' | 'BASIC' | 'TRIAL';
 
     return (
         <div className="space-y-3 pb-3">
@@ -66,12 +66,14 @@ export default function AdminOverviewPage() {
                 institutionName={overview.institution.name}
                 institutionType={instType}
             />
-            <WelcomeBanner
-                adminName={adminName}
-                institutionName={overview.institution.name}
-                institutionType={instType}
-                plan={planName}
-            />
+            {overview.showWelcomeBanner && (
+                <WelcomeBanner
+                    adminName={adminName}
+                    institutionName={overview.institution.name}
+                    institutionType={instType}
+                    plan={planName}
+                />
+            )}
             <StatCards
                 stats={overview.stats}
                 institutionType={instType}

@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Topbar } from '@/components/shared/Topbar';
 import { useAuthStore } from '@/store/authStore';
+import { useUserAvatarStore } from '@/store/userAvatarStore';
 import api from '@/lib/api';
 import {
     LayoutDashboard,
@@ -46,6 +47,14 @@ function isPathAccessible(pathname: string, permissions: string[]): boolean {
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const { instType } = useMockInstType();
     const { user, setUser } = useAuthStore();
+    const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
+    useEffect(() => {
+        api.get('/admin/me').then(r => {
+            const d = r.data?.data;
+            if (d?.adminAvatarUrl) setAvatarUrl(d.adminAvatarUrl);
+        }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const pathname = usePathname();
     const router = useRouter();
 
