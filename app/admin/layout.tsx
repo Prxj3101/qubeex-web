@@ -111,7 +111,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             <Topbar
                 navItems={navItems}
             />
-            <main className="flex-1 overflow-y-auto px-2">
+            <main className="flex-1 overflow-y-auto overflow-x-hidden px-2 outline-none bg-background" tabIndex={-1}>
                 {children}
             </main>
         </div>

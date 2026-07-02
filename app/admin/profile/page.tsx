@@ -388,7 +388,7 @@ export default function AdminProfilePage() {
   // ── Loading ────────────────────────────────────────────────────────────────
   if (loading) {
     return (
-      <div className="space-y-2 pt-0 px-1 pb-2 overflow-y-auto h-full">
+      <div className="space-y-2 pt-0 px-1 pb-2 outline-none">
         <div className="sticky top-0 z-20 bg-background pb-0 shrink-0">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <UserIcon size={21} /> My Profile
@@ -411,7 +411,7 @@ export default function AdminProfilePage() {
 
   if (!inst) {
     return (
-      <div className="space-y-2 pt-0 px-1 pb-2 overflow-y-auto h-full">
+      <div className="space-y-2 pt-0 px-1 pb-2 outline-none">
         <div className="sticky top-0 z-20 bg-background pb-0 shrink-0">
           <h1 className="text-xl font-bold flex items-center gap-2">
             <UserIcon size={21} /> My Profile

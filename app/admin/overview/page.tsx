@@ -12,6 +12,7 @@ import { RecentActivityCard } from '@/components/admin/RecentActivityCard';
 import { NotificationsPreviewCard } from '@/components/admin/NotificationsPreviewCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WelcomeBanner } from '@/components/admin/WelcomeBanner';
+import { BirthdayBanner } from '@/components/shared/BirthdayBanner';
 import { Sparkles, AlertCircle } from 'lucide-react';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 
@@ -22,6 +23,8 @@ export default function AdminOverviewPage() {
     const [error, setError] = useState(false);
     const { instType } = useMockInstType();
     const fetchedRef = useRef(false);
+    const [adminDob, setAdminDob] = useState<string | null>(null);
+    const [institutionEstablishedOn, setInstitutionEstablishedOn] = useState<string | null>(null);
 
     useEffect(() => {
         if (fetchedRef.current) return;
@@ -30,6 +33,16 @@ export default function AdminOverviewPage() {
             .then(res => setOverview(res.data.data))
             .catch(() => setError(true))
             .finally(() => setLoading(false));
+        // Fetch profile for birthday data — silent fail (non-critical)
+        api.get('/admin/me')
+            .then(res => {
+                const d = res.data?.data ?? res.data;
+                if (!d) return;
+                const adminUser = d.admin ?? d.users?.find((u: any) => u.role === 'ADMIN');
+                setAdminDob(adminUser?.dob ?? d.adminDob ?? null);
+                setInstitutionEstablishedOn(d.establishedOn ?? null);
+            })
+            .catch(() => {});
     }, []);
 
     if (loading) {
@@ -65,12 +78,24 @@ export default function AdminOverviewPage() {
                 adminName={adminName}
                 institutionName={overview.institution.name}
                 institutionType={instType}
+                adminDob={adminDob ?? undefined}
+                institutionEstablishedOn={institutionEstablishedOn ?? undefined}
             />
             <WelcomeBanner
                 adminName={adminName}
                 institutionName={overview.institution.name}
                 institutionType={instType}
                 plan={planName}
+            />
+            <BirthdayBanner
+                name={overview.institution.name}
+                role="institution"
+                dob={institutionEstablishedOn ?? ''}
+            />
+            <BirthdayBanner
+                name={adminName}
+                role="admin"
+                dob={adminDob ?? ''}
             />
             <StatCards
                 stats={overview.stats}

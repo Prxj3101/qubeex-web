@@ -4,6 +4,8 @@ import type { InstitutionType } from '@/types';
 import { getInstitutionAccent } from '@/lib/getInstitutionAccent';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { isTodayBirthday, FORCE_SHOW_ROLES } from '@/components/shared/BirthdayBanner';
+import { SillyStringOverlay } from '@/components/shared/SillyStringOverlay';
 
 const CHARACTERS = [
     '/images/admin1.png',
@@ -18,9 +20,11 @@ interface OverviewHeroProps {
     adminName: string;
     institutionName: string;
     institutionType: InstitutionType;
+    adminDob?: string;
+    institutionEstablishedOn?: string;
 }
 
-export function OverviewHero({ adminName, institutionName, institutionType }: OverviewHeroProps) {
+export function OverviewHero({ adminName, institutionName, institutionType, adminDob, institutionEstablishedOn }: OverviewHeroProps) {
     const accent = getInstitutionAccent(institutionType);
     const [isDark, setIsDark] = useState(false);
     const [currentChar, setCurrentChar] = useState(0);
@@ -43,6 +47,9 @@ export function OverviewHero({ adminName, institutionName, institutionType }: Ov
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     const dateStr = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
+    const isAdminBday = isTodayBirthday(adminDob ?? '') || FORCE_SHOW_ROLES.includes('admin');
+    const isInstAnniversary = isTodayBirthday(institutionEstablishedOn ?? '') || FORCE_SHOW_ROLES.includes('institution');
+
     return (
         <div
             className="-mx-4 relative overflow-hidden rounded-b-[65px] px-13 py-5 flex items-center justify-between min-h-[160px]"
@@ -60,10 +67,19 @@ export function OverviewHero({ adminName, institutionName, institutionType }: Ov
 
             {/* Text */}
             <div className="space-y-1 z-10">
-                <p className="text-white/70 text-base">{greeting} {accent.emoji}, {adminName}</p>
-                <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
-                    {institutionName}
+                <p className="text-white/70 text-base">
+                    {greeting} {accent.emoji},{' '}
+                    <span className="relative inline-block">
+                        {adminName}
+                        <SillyStringOverlay name={adminName} fontSize={16} active={isAdminBday} />
+                    </span>
                 </p>
+                <div className="relative">
+                    <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
+                        {institutionName}
+                    </p>
+                    <SillyStringOverlay name={institutionName} fontSize={30} active={isInstAnniversary} />
+                </div>
                 <p className="text-white/60 text-sm">Here&apos;s what&apos;s happening at your {accent.label.toLowerCase()} today.</p>
                 <p className="text-white/50 text-xs mt-2">{dateStr}</p>
             </div>
