@@ -34,7 +34,6 @@ function getYearsSince(dob: string): number {
     return y;
 }
 
-export const FORCE_SHOW_ROLES: BirthdayRole[] = ['admin', 'institution']; // DEV ONLY — remove in prod
 
 const ROLE_CONFIG: Record<BirthdayRole, {
     gradient: string;
@@ -57,6 +56,7 @@ const ROLE_CONFIG: Record<BirthdayRole, {
         lines: [
             'Every student who walked through your doors carries a piece of your legacy.',
             'Here\'s to many more years of shaping futures, inspiring minds & lasting impact!',
+            'Thank you for being a beacon of knowledge and growth in your community.',
         ],
     },
     admin: {
@@ -70,6 +70,7 @@ const ROLE_CONFIG: Record<BirthdayRole, {
         lines: [
             'Your dedication and vision keep this institution running brilliantly.',
             'May this year bring new milestones, joy, and well-deserved celebrations!',
+            'Thank you for everything you do — today, we celebrate you!',
         ],
     },
     teacher: {
@@ -181,7 +182,7 @@ function CandleFlame({ delay = 0 }: { delay?: number }) {
 export function BirthdayBanner({ name, role, dob }: BirthdayBannerProps) {
     const [visible, setVisible] = useState(true);
 
-    const isBday = isTodayBirthday(dob) || FORCE_SHOW_ROLES.includes(role);
+    const isBday = isTodayBirthday(dob);
     if (!isBday || !visible) return null;
 
     const cfg = ROLE_CONFIG[role];

@@ -4,7 +4,7 @@ import type { InstitutionType } from '@/types';
 import { getInstitutionAccent } from '@/lib/getInstitutionAccent';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { isTodayBirthday, FORCE_SHOW_ROLES } from '@/components/shared/BirthdayBanner';
+import { isTodayBirthday } from '@/components/shared/BirthdayBanner';
 import { SillyStringOverlay } from '@/components/shared/SillyStringOverlay';
 
 const CHARACTERS = [
@@ -47,8 +47,8 @@ export function OverviewHero({ adminName, institutionName, institutionType, admi
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
     const dateStr = now.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
-    const isAdminBday = isTodayBirthday(adminDob ?? '') || FORCE_SHOW_ROLES.includes('admin');
-    const isInstAnniversary = isTodayBirthday(institutionEstablishedOn ?? '') || FORCE_SHOW_ROLES.includes('institution');
+    const isAdminBday = isTodayBirthday(adminDob ?? '');
+    const isInstAnniversary = isTodayBirthday(institutionEstablishedOn ?? '');
 
     return (
         <div

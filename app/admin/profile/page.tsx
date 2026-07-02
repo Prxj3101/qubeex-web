@@ -641,7 +641,7 @@ export default function AdminProfilePage() {
                 <InfoRow icon={Phone} label="Phone No" value={instSaved.phone || '—'} />
                 <InfoRow icon={BookOpen} label="Board" value={instSaved.board || '—'} />
                 <InfoRow icon={Globe} label="Medium" value={instSaved.medium || '—'} />
-                <InfoRow icon={Calendar} label="Established On" value={instSaved.establishedOn || '—'} />
+                <InfoRow icon={Calendar} label="Established On" value={instSaved.establishedOn ? toIST(instSaved.establishedOn) : '—'} />
                 <InfoRow icon={Calendar} label="Joined (IST)" value={joinDate} />
               </>
             )}
