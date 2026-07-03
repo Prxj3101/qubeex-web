@@ -180,6 +180,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
 }) {
     const avatarColor = getAvatarColor(teacher.id);
     const isActive = teacher.status === 'ACTIVE';
+    const [photoExpanded, setPhotoExpanded] = useState(false);
     const [editingSection, setEditingSection] = useState<string | null>(null);
     const [softLimit, setSoftLimit] = useState(0);
     const [softLimitInput, setSoftLimitInput] = useState('0');
@@ -264,12 +265,44 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
             <div className="bg-card border border-border/50 rounded-2xl p-5">
                 <div className="flex items-start gap-4">
                     {/* Avatar */}
-                    <div className={`w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center text-xl font-bold shrink-0 relative ${teacher.avatarUrl ? '' : `${avatarColor.bg} ${avatarColor.text}`}`}>
+                    <div
+                        className={`relative w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center text-xl font-bold shrink-0 ${teacher.avatarUrl ? 'cursor-pointer' : `${avatarColor.bg} ${avatarColor.text}`}`}
+                        onClick={() => teacher.avatarUrl && setPhotoExpanded(true)}
+                    >
                         {teacher.avatarUrl
-                            ? <NextImage src={teacher.avatarUrl} alt={teacher.name} fill sizes="64px" className="object-cover" />
+                            ? <NextImage src={teacher.avatarUrl} alt={teacher.name} fill sizes="160px" quality={100} className="object-cover" />
                             : getInitials(teacher.name)
                         }
                     </div>
+
+                    {/* Photo expand modal */}
+                    <AnimatePresence>
+                        {photoExpanded && teacher.avatarUrl && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                                onClick={() => setPhotoExpanded(false)}
+                            >
+                                <motion.div
+                                    initial={{ scale: 0.85, opacity: 0 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{ scale: 0.85, opacity: 0 }}
+                                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                                    className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                                    onClick={e => e.stopPropagation()}
+                                >
+                                    <img src={teacher.avatarUrl} alt={teacher.name} className="w-full h-full object-cover" />
+                                    <button
+                                        onClick={() => setPhotoExpanded(false)}
+                                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                        <X size={14} className="text-white" />
+                                    </button>
+                                </motion.div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-3">

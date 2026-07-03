@@ -5,12 +5,12 @@ import NextImage from 'next/image';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useStudentStore } from '@/store/studentStore';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Trophy, Star, BarChart2, Calendar, Flag, IndianRupee,
     Award, ChevronRight, ArrowUpRight, Bell, Settings,
     LogOut, CheckCircle2, Clock, AlertTriangle, User,
-    Mail, Hash, BookOpen, MapPin, Phone, Copy,
+    Mail, Hash, BookOpen, MapPin, Phone, Copy, X,
 } from 'lucide-react';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -153,6 +153,7 @@ export default function StudentProfile() {
     const age = new Date().getFullYear() - dobDate.getFullYear();
     const dobDisplay = dobDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
+    const [photoExpanded, setPhotoExpanded] = useState(false);
     const [marksMode, setMarksMode] = useState<MarksMode>('combined');
     const [copied, setCopied] = useState(false);
 
@@ -256,8 +257,11 @@ export default function StudentProfile() {
                         {/* Avatar */}
                         <div className="shrink-0">
                             <div className="relative w-20 h-20">
-                                <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden"
-                                    style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}>
+                                <div
+                                    className={`relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden${student.photo ? ' cursor-pointer' : ''}`}
+                                    style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}
+                                    onClick={() => student.photo && setPhotoExpanded(true)}
+                                >
                                     {student.photo
                                         ? <NextImage src={student.photo} alt="profile" fill sizes="160px" quality={100} className="object-cover" unoptimized={student.photo.startsWith('data:')} />
                                         : student.name.split(' ').map(n => n[0]).join('').slice(0, 2)
@@ -265,6 +269,31 @@ export default function StudentProfile() {
                                 </div>
                                 <div className="absolute bottom-0 right-0 translate-x-1/3 translate-y-1/3 w-4 h-4 rounded-full bg-emerald-400 border-2 border-card" />
                             </div>
+
+                            <AnimatePresence>
+                                {photoExpanded && student.photo && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                                        onClick={() => setPhotoExpanded(false)}
+                                    >
+                                        <motion.div
+                                            initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+                                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                                            onClick={e => e.stopPropagation()}
+                                        >
+                                            <img src={student.photo} alt="profile" className="w-full h-full object-cover" />
+                                            <button
+                                                onClick={() => setPhotoExpanded(false)}
+                                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all"
+                                            >
+                                                <X size={14} className="text-white" />
+                                            </button>
+                                        </motion.div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                             <div className="mt-2 text-center">
                                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-semibold">
                                     {student.standard}

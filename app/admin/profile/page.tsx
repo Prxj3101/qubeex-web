@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Mail, Calendar, Phone, MapPin, User,
   Hash, Globe, BookOpen, School, GraduationCap,
@@ -264,6 +264,8 @@ export default function AdminProfilePage() {
   const [loading, setLoading] = useState(true);
   const [logoErr, setLogoErr] = useState(false);
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null);
+  const [logoExpanded, setLogoExpanded] = useState(false);
+  const [adminPhotoExpanded, setAdminPhotoExpanded] = useState(false);
   const [logoUploading, setLogoUploading] = useState(false);
   const logoFileRef = useRef<HTMLInputElement>(null);
   const [adminAvatarPreview, setAdminAvatarPreview] = useState<string | null>(null);
@@ -463,33 +465,43 @@ export default function AdminProfilePage() {
         <div className="bg-card border border-border/50 rounded-2xl p-5">
           <div className="flex items-start gap-4">
             {/* Logo */}
-            <div className="relative shrink-0 cursor-pointer" onClick={() => !logoUploading && logoFileRef.current?.click()}>
-              <div className="w-20 h-20 rounded-2xl bg-muted ring-2 ring-border overflow-hidden flex items-center justify-center">
+            <div className="relative shrink-0">
+              <div className="w-20 h-20 rounded-2xl bg-muted ring-2 ring-border overflow-hidden flex items-center justify-center cursor-pointer"
+                onClick={() => currentLogoUrl && !logoErr ? setLogoExpanded(true) : (!logoUploading && logoFileRef.current?.click())}>
                 {currentLogoUrl && !logoErr ? (
-                  <img
-                    src={currentLogoUrl}
-                    alt={inst.name}
-                    className="w-full h-full object-cover"
-                    onError={() => setLogoErr(true)}
-                  />
+                  <img src={currentLogoUrl} alt={inst.name} className="w-full h-full object-cover" onError={() => setLogoErr(true)} />
                 ) : (
                   <span className="text-xl font-bold text-muted-foreground select-none">{initials}</span>
                 )}
               </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                onClick={() => !logoUploading && logoFileRef.current?.click()}>
                 {logoUploading
                   ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                   : <Camera size={11} className="text-white" />
                 }
               </div>
-              <input
-                ref={logoFileRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                className="hidden"
-                onChange={handleLogoUpload}
-              />
+              <input ref={logoFileRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleLogoUpload} />
+
+              <AnimatePresence>
+                {logoExpanded && currentLogoUrl && !logoErr && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                    onClick={() => setLogoExpanded(false)}>
+                    <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                      className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                      onClick={e => e.stopPropagation()}>
+                      <img src={currentLogoUrl} alt={inst.name} className="w-full h-full object-cover" />
+                      <button onClick={() => setLogoExpanded(false)}
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                        <X size={14} className="text-white" />
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
             <div className="flex-1 min-w-0">
@@ -533,8 +545,9 @@ export default function AdminProfilePage() {
         {/* Admin Profile Card */}
         <div className="bg-card border border-border/50 rounded-2xl p-5">
           <div className="flex items-start gap-4">
-            <div className="relative shrink-0 cursor-pointer" onClick={() => adminAvatarRef.current?.click()}>
-              <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-xl font-bold bg-primary/10 text-primary overflow-hidden select-none">
+            <div className="relative shrink-0">
+              <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-xl font-bold bg-primary/10 text-primary overflow-hidden select-none cursor-pointer"
+                onClick={() => adminAvatarPreview && !adminAvatarPreview.startsWith('data:') ? setAdminPhotoExpanded(true) : adminAvatarRef.current?.click()}>
                 {adminAvatarPreview
                   ? <NextImage src={adminAvatarPreview} alt={adminSaved.adminName} fill sizes="160px" className="object-cover" unoptimized={adminAvatarPreview.startsWith('data:')} />
                   : adminSaved.adminName
@@ -542,10 +555,30 @@ export default function AdminProfilePage() {
                     : <UserIcon size={24} />
                 }
               </div>
-              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm cursor-pointer"
+                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                onClick={() => adminAvatarRef.current?.click()}>
                 <Camera size={11} className="text-white" />
               </div>
+
+              <AnimatePresence>
+                {adminPhotoExpanded && adminAvatarPreview && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                    onClick={() => setAdminPhotoExpanded(false)}>
+                    <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                      className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                      onClick={e => e.stopPropagation()}>
+                      <img src={adminAvatarPreview} alt={adminSaved.adminName} className="w-full h-full object-cover" />
+                      <button onClick={() => setAdminPhotoExpanded(false)}
+                        className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                        <X size={14} className="text-white" />
+                      </button>
+                    </motion.div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <input ref={adminAvatarRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
                 onChange={async (e) => {
                   const file = e.target.files?.[0];

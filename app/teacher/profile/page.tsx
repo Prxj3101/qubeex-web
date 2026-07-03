@@ -3,7 +3,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Hash, Mail, Phone, MapPin, Calendar, User,
     GraduationCap, Briefcase, Edit2, Check, X,
@@ -200,6 +200,7 @@ export default function TeacherProfilePage() {
     const [teacher, setTeacher] = useState<TeacherData | null>(null);
     const [loading, setLoading] = useState(true);
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+    const [photoExpanded, setPhotoExpanded] = useState(false);
     const setUserAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -383,8 +384,11 @@ export default function TeacherProfilePage() {
                 {/* Header Card */}
                 <div className="bg-card border border-border/50 rounded-2xl p-5">
                     <div className="flex items-start gap-4">
-                        <div className="relative cursor-pointer" onClick={() => !uploadingPhoto && fileRef.current?.click()}>
-                            <div className={`relative w-20 h-20 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text} overflow-hidden`}>
+                        <div className="relative">
+                            <div
+                                className={`relative w-20 h-20 rounded-2xl flex items-center justify-center text-xl font-bold shrink-0 ${avatarColor.bg} ${avatarColor.text} overflow-hidden ${avatarUrl ? 'cursor-pointer' : 'cursor-pointer'}`}
+                                onClick={() => { if (avatarUrl) setPhotoExpanded(true); else if (!uploadingPhoto) fileRef.current?.click(); }}
+                            >
                                 {uploadingPhoto ? (
                                     <div className="w-5 h-5 border-2 border-current/30 border-t-current rounded-full animate-spin" />
                                 ) : avatarUrl ? (
@@ -393,11 +397,40 @@ export default function TeacherProfilePage() {
                                     getInitials(teacher.user.name)
                                 )}
                             </div>
-                            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm"
-                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm cursor-pointer"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                onClick={() => !uploadingPhoto && fileRef.current?.click()}>
                                 <Camera size={11} className="text-white" />
                             </div>
                         </div>
+
+                        <AnimatePresence>
+                            {photoExpanded && avatarUrl && (
+                                <motion.div
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                                    onClick={() => setPhotoExpanded(false)}
+                                >
+                                    <motion.div
+                                        initial={{ scale: 0.85, opacity: 0 }}
+                                        animate={{ scale: 1, opacity: 1 }}
+                                        exit={{ scale: 0.85, opacity: 0 }}
+                                        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                                        className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                                        onClick={e => e.stopPropagation()}
+                                    >
+                                        <img src={avatarUrl} alt={teacher.user.name} className="w-full h-full object-cover" />
+                                        <button
+                                            onClick={() => setPhotoExpanded(false)}
+                                            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                            <X size={14} className="text-white" />
+                                        </button>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
                         <input ref={fileRef} type="file" accept="image/*" className="hidden"
                             onChange={e => {

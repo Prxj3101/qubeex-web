@@ -4,6 +4,7 @@ import { ArrowLeft, User, BookOpen, Shield, MapPin, Users, Hash, Copy, Heart, Ph
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
 import NextImage from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useStudentStore } from '@/store/studentStore';
 
@@ -260,6 +261,7 @@ function SectionHeader({ icon: Icon, label, editing, saving, onEdit, onSave, onC
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function StudentDetailPage() {
     const router = useRouter();
+    const [photoExpanded, setPhotoExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
@@ -363,8 +365,9 @@ export default function StudentDetailPage() {
                             {/* Avatar */}
                             <div className="relative">
                                 <div
-                                    className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden"
+                                    className={`relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden${store.photo ? ' cursor-pointer' : ''}`}
                                     style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}
+                                    onClick={() => store.photo && setPhotoExpanded(true)}
                                 >
                                     {store.photo
                                         ? <NextImage src={store.photo} alt="profile" fill sizes="160px" quality={100} className="object-cover" unoptimized={store.photo.startsWith('data:')} />
@@ -380,6 +383,31 @@ export default function StudentDetailPage() {
                                 </div>
                                 <input ref={photoInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                             </div>
+
+                            <AnimatePresence>
+                                {photoExpanded && store.photo && (
+                                    <motion.div
+                                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                                        onClick={() => setPhotoExpanded(false)}
+                                    >
+                                        <motion.div
+                                            initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+                                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                                            onClick={e => e.stopPropagation()}
+                                        >
+                                            <img src={store.photo} alt="profile" className="w-full h-full object-cover" />
+                                            <button
+                                                onClick={() => setPhotoExpanded(false)}
+                                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all"
+                                            >
+                                                <X size={14} className="text-white" />
+                                            </button>
+                                        </motion.div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
 
                             {/* Name */}
                             <div className="text-center">
