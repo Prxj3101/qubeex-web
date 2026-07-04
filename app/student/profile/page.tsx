@@ -18,6 +18,7 @@ import {
     AreaChart, Area, ReferenceLine,
 } from 'recharts';
 import { FLAGS } from '@/lib/flags';
+import { Button } from '@/components/ui/button';
 
 type MarksMode = 'offline' | 'online' | 'combined';
 
@@ -390,10 +391,10 @@ export default function StudentProfile() {
                                 </div>
                             }
                             action={
-                                <button onClick={() => router.push('/student/reportcard')} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
+                                <Button onClick={() => router.push('/student/reportcard')} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
                                     <span className="leading-none">View Report Card</span>
                                     <ChevronRight size={12} />
-                                </button>
+                                </Button>
                             }>
                             {chartData.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center h-[200px] text-muted-foreground">
