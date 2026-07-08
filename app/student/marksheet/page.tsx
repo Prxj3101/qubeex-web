@@ -26,8 +26,11 @@ interface GradedResult {
     term1Grade: string | null;
     term2Grade: string | null;
 }
+interface GradeScaleEntry { grade: string; minPct: number }
+
 interface StudentMarksheet {
     academicYear: string;
+    gradeScale: GradeScaleEntry[];
     gradedSectionTitle: string;
     standardName: string;
     divisionName: string;
@@ -40,15 +43,26 @@ interface StudentMarksheet {
     pdfUrl: string | null;
 }
 
-function gradeColor(grade: string): string {
-    switch (grade) {
-        case 'A': return '#16A34A';
-        case 'B': return '#65A30D';
-        case 'C': return '#CA8A04';
-        case 'D': return '#EA580C';
-        case 'F': return '#DC2626';
-        default: return '#94A3B8';
-    }
+const DEFAULT_GRADE_SCALE: GradeScaleEntry[] = [
+    { grade: 'A', minPct: 75 },
+    { grade: 'B', minPct: 60 },
+    { grade: 'C', minPct: 45 },
+    { grade: 'D', minPct: 35 },
+    { grade: 'F', minPct: 0 },
+];
+
+// Best-to-worst color ramp, assigned by rank within the scale — every grade
+// (including custom labels like "B+") gets its own distinct color, and the
+// bottom-ranked grade always reads red/fail.
+const GRADE_COLOR_RAMP = ['#059669', '#16A34A', '#65A30D', '#CA8A04', '#D97706', '#EA580C', '#DC2626', '#B91C1C', '#991B1B'];
+
+function gradeColor(grade: string, scale: GradeScaleEntry[]): string {
+    const sorted = scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE;
+    const rank = sorted.findIndex(e => e.grade.toUpperCase() === grade.toUpperCase());
+    if (rank === -1) return '#94A3B8';
+    if (sorted.length <= 1) return GRADE_COLOR_RAMP[0];
+    const idx = Math.round((rank / (sorted.length - 1)) * (GRADE_COLOR_RAMP.length - 1));
+    return GRADE_COLOR_RAMP[idx];
 }
 
 export default function StudentMarksheetPage() {
@@ -102,7 +116,7 @@ export default function StudentMarksheetPage() {
                     </div>
                     <div className="flex items-center gap-3">
                         <div className="text-right">
-                            <div className="text-2xl font-bold" style={{ color: data.grandPct !== null ? gradeColor(data.grade) : '#94A3B8' }}>
+                            <div className="text-2xl font-bold" style={{ color: data.grandPct !== null ? gradeColor(data.grade, data.gradeScale) : '#94A3B8' }}>
                                 {data.grandPct !== null ? `${data.grandPct}%` : '—'}
                             </div>
                             <div className="text-[11px] text-muted-foreground">Overall · Grade {data.grade}</div>
@@ -129,11 +143,11 @@ export default function StudentMarksheetPage() {
                             </div>
                             <div className="flex items-center gap-3">
                                 <span className="text-xs text-muted-foreground">{sub.total.scored}/{sub.total.max}</span>
-                                <span className="text-sm font-bold" style={{ color: sub.pct !== null ? gradeColor(sub.grade) : '#94A3B8' }}>
+                                <span className="text-sm font-bold" style={{ color: sub.pct !== null ? gradeColor(sub.grade, data.gradeScale) : '#94A3B8' }}>
                                     {sub.pct !== null ? `${sub.pct}%` : '—'}
                                 </span>
                                 <span className="text-[11px] font-semibold px-2 py-0.5 rounded-lg"
-                                    style={{ color: gradeColor(sub.grade), background: `${gradeColor(sub.grade)}1A` }}>
+                                    style={{ color: gradeColor(sub.grade, data.gradeScale), background: `${gradeColor(sub.grade, data.gradeScale)}1A` }}>
                                     {sub.grade}
                                 </span>
                             </div>

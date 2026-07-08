@@ -5,6 +5,9 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AddStudentModal, StudentFormData } from './AddStudentModal';
+import ReportStudentModal, { ReportFormData } from './ReportStudentModal';
+import StudentProfileModal, { ProfileMarksheet, ProfileAttendanceTrend } from './StudentProfileModal';
+import { FlagItem } from '@/lib/flags';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Users, BookOpen, ExternalLink, ChevronDown, Power, Flag, Plus, Trash2,
@@ -258,6 +261,8 @@ export default function ManageTab({ division, isClassTeacher }: {
 
     const [students, setStudents] = useState<Student[]>([]);
     const [loadingStudents, setLoadingStudents] = useState(true);
+    interface LeaderboardEntry { id: string; rank: number; attendancePct: number | null }
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [manageRightTab, setManageRightTab] = useState<'teachers' | 'student'>('student');
 
@@ -280,6 +285,10 @@ export default function ManageTab({ division, isClassTeacher }: {
     const [showResetResult, setShowResetResult] = useState(false);
 
     const [showExportMenu, setShowExportMenu] = useState(false);
+
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [submittingReport, setSubmittingReport] = useState(false);
 
     // Student creation success modal
     const [createdStudent, setCreatedStudent] = useState<{ studentId: string; tempPassword: string; name: string } | null>(null);
@@ -341,7 +350,10 @@ export default function ManageTab({ division, isClassTeacher }: {
         if (fetchedRef.current) return;
         fetchedRef.current = true;
         fetchStudents();
-    }, [fetchStudents]);
+        api.get(`/teacher/classes/${division.id}/leaderboard`)
+            .then(res => setLeaderboard(res.data.data))
+            .catch(() => setLeaderboard([]));
+    }, [fetchStudents, division.id]);
 
     // Reset edit draft when selected student changes
     useEffect(() => {
@@ -394,6 +406,20 @@ export default function ManageTab({ division, isClassTeacher }: {
             toast.error(e?.response?.data?.error ?? 'Failed to add student');
         } finally {
             setAddingStudent(false);
+        }
+    };
+
+    const handleReportStudent = async (data: ReportFormData) => {
+        if (!selectedStudent) return;
+        setSubmittingReport(true);
+        try {
+            await api.post(`/teacher/classes/${division.id}/students/${selectedStudent.id}/remarks`, data);
+            toast.success('Report submitted');
+            setShowReportModal(false);
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Failed to submit report'));
+        } finally {
+            setSubmittingReport(false);
         }
     };
 
@@ -579,6 +605,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                     ) : (
                         sortedStudents.map(student => {
                             const isSelected = selectedStudent?.id === student.id;
+                            const lb = leaderboard.find(e => e.id === student.id);
                             return (
                                 <button key={student.id}
                                     onClick={() => { setSelectedStudent(student); setManageRightTab('student'); }}
@@ -594,17 +621,33 @@ export default function ManageTab({ division, isClassTeacher }: {
                                         <p className="text-xs font-semibold truncate">{student.user.name ?? '—'}</p>
                                         <p className="text-[10px] text-muted-foreground">{student.studentId}{student.rollNo ? ` · Roll ${student.rollNo}` : ''}</p>
                                     </div>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {!student.hasLoggedIn && (
-                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
-                                                First login
-                                            </span>
-                                        )}
-                                        {student.status === 'INACTIVE' && (
-                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
-                                                Inactive
-                                            </span>
-                                        )}
+                                    <div className="flex items-center gap-3 shrink-0">
+                                        <div className="flex flex-col items-end gap-1">
+                                            {!student.hasLoggedIn && (
+                                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+                                                    First login
+                                                </span>
+                                            )}
+                                            {student.status === 'INACTIVE' && (
+                                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
+                                                    Inactive
+                                                </span>
+                                            )}
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-[11px] font-bold" style={{ color: '#7C3AED' }}>{lb ? `#${lb.rank}` : '—'}</p>
+                                            <p className="text-[9px] text-muted-foreground/60">rank</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className={`text-[11px] font-bold ${lb?.attendancePct == null ? 'text-muted-foreground/60'
+                                                : lb.attendancePct >= 75 ? 'text-emerald-600 dark:text-emerald-400'
+                                                    : lb.attendancePct >= 65 ? 'text-amber-600'
+                                                        : 'text-red-500'
+                                                }`}>
+                                                {lb?.attendancePct != null ? `${lb.attendancePct}%` : '—'}
+                                            </div>
+                                            <p className="text-[9px] text-muted-foreground/60">attend.</p>
+                                        </div>
                                     </div>
                                 </button>
                             );
@@ -641,11 +684,12 @@ export default function ManageTab({ division, isClassTeacher }: {
                                     ? <><PowerOff size={11} /> Deactivate</>
                                     : <><Power size={11} /> Activate</>}
                             </button>
-                            <button className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
+                            <button onClick={() => setShowReportModal(true)}
+                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
                                 <Flag size={11} /> Report
                             </button>
                             <button
-                                onClick={() => router.push(`/student/${selectedStudent.id}/profile`)}
+                                onClick={() => setShowProfileModal(true)}
                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
                                 <ExternalLink size={10} /> View Profile
                             </button>
@@ -1104,6 +1148,41 @@ export default function ManageTab({ division, isClassTeacher }: {
                         loading={addingStudent}
                         onSubmit={handleAddStudent}
                     />
+
+                    {selectedStudent && (
+                        <ReportStudentModal
+                            open={showReportModal}
+                            onOpenChange={setShowReportModal}
+                            studentName={selectedStudent.user.name ?? 'Student'}
+                            loading={submittingReport}
+                            onSubmit={handleReportStudent}
+                        />
+                    )}
+
+                    {selectedStudent && (
+                        <StudentProfileModal
+                            open={showProfileModal}
+                            onOpenChange={setShowProfileModal}
+                            student={selectedStudent}
+                            divisionLabel={`${division.standard.name} - ${division.name}`}
+                            fetchMarksheet={async () => {
+                                try {
+                                    const res = await api.get(`/teacher/classes/${division.id}/students/${selectedStudent.id}/marksheet`);
+                                    return res.data.data as ProfileMarksheet;
+                                } catch {
+                                    return null;
+                                }
+                            }}
+                            fetchRemarks={async () => {
+                                const res = await api.get(`/teacher/classes/${division.id}/students/${selectedStudent.id}/remarks`);
+                                return res.data.data as FlagItem[];
+                            }}
+                            fetchAttendanceTrend={async () => {
+                                const res = await api.get(`/teacher/classes/${division.id}/students/${selectedStudent.id}/attendance-trend`);
+                                return res.data.data as ProfileAttendanceTrend;
+                            }}
+                        />
+                    )}
                 </div>
             </div>
         </div>

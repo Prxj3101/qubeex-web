@@ -29,18 +29,25 @@ interface Subject {
     color: string;
 }
 
-type GradeValue = 'A+' | 'A' | 'B' | 'C' | 'D' | null;
+type GradeValue = string | null;
 interface GradedSubject { id: string; name: string; }
 
-const GRADE_OPTIONS: { val: GradeValue; color: string; label: string }[] = [
-    { val: 'A+', color: '#059669', label: 'Outstanding' },
-    { val: 'A', color: '#16a34a', label: 'Excellent' },
-    { val: 'B', color: '#F59E0B', label: 'Good' },
-    { val: 'C', color: '#d97706', label: 'Satisfactory' },
-    { val: 'D', color: '#DC2626', label: 'Needs Improvement' },
-];
-function gradeValColor(g: GradeValue) {
-    return GRADE_OPTIONS.find(o => o.val === g)?.color ?? '#D8C4A0';
+// Best-to-worst color ramp, assigned by each grade's RANK within the actual
+// configured scale — not by matching a fixed label — so every grade the
+// class teacher defines (including custom ones like "B+") gets its own
+// distinct color, and the bottom-ranked grade always reads as red/fail.
+const GRADE_COLOR_RAMP = ['#059669', '#16A34A', '#65A30D', '#CA8A04', '#D97706', '#EA580C', '#DC2626', '#B91C1C', '#991B1B'];
+function colorForGradeRank(rank: number, total: number): string {
+    if (total <= 1) return GRADE_COLOR_RAMP[0];
+    const idx = Math.round((rank / (total - 1)) * (GRADE_COLOR_RAMP.length - 1));
+    return GRADE_COLOR_RAMP[idx];
+}
+function gradeValColor(g: GradeValue, scale: GradeScaleEntry[]) {
+    if (!g) return '#D8C4A0';
+    const sorted = scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE;
+    const rank = sorted.findIndex(e => e.grade.toUpperCase() === g.toUpperCase());
+    if (rank === -1) return '#D8C4A0';
+    return colorForGradeRank(rank, sorted.length);
 }
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
@@ -377,9 +384,21 @@ function GradeScaleEditor({
         }
     }, [scale, open]);
 
-    const update = (idx: number, field: keyof GradeScaleEntry, val: string) => {
+    // Rows are always shown sorted best → worst so the last row visually IS
+    // the fail tier. The lowest-ranked row's minPct is locked to 0 — it can
+    // never be raised (e.g. to 35), because "Min %" means "at least this
+    // much to EARN this grade," and the bottom grade in any scale must mean
+    // "everyone who didn't earn anything higher" (i.e. below 35%, not above
+    // it), or a mis-typed threshold silently flips who gets marked fail.
+    const sortedEntries = [...entries].sort((a, b) => b.minPct - a.minPct);
+    const failIdxInSorted = sortedEntries.length - 1;
+
+    const update = (sortedIdx: number, field: keyof GradeScaleEntry, val: string) => {
+        const target = sortedEntries[sortedIdx];
+        const realIdx = entries.indexOf(target);
+        if (field === 'minPct' && sortedIdx === failIdxInSorted) return; // fail row locked at 0%
         setEntries(prev => prev.map((e, i) => {
-            if (i !== idx) return e;
+            if (i !== realIdx) return e;
             if (field === 'minPct') {
                 const n = parseInt(val, 10);
                 return { ...e, minPct: isNaN(n) ? 0 : Math.min(100, Math.max(0, n)) };
@@ -390,11 +409,15 @@ function GradeScaleEditor({
 
     const handleSave = async () => {
         if (entries.some(e => !e.grade.trim())) { toast.error('Each row needs a grade label.'); return; }
-        const pcts = entries.map(e => e.minPct);
+        // Belt-and-suspenders: whichever row is lowest-ranked is forced to 0%,
+        // regardless of what was typed before the lock above existed.
+        const lowest = [...entries].sort((a, b) => a.minPct - b.minPct)[0];
+        const normalized = entries.map(e => e === lowest ? { ...e, minPct: 0 } : e);
+        const pcts = normalized.map(e => e.minPct);
         if (new Set(pcts).size !== pcts.length) { toast.error('Each grade needs a unique minimum %.'); return; }
         setSaving(true);
         try {
-            await onSave(entries);
+            await onSave(normalized);
             toast.success('Grade scale saved.');
             setOpen(false);
         } catch {
@@ -416,11 +439,16 @@ function GradeScaleEditor({
                     <Trophy size={12} className="text-muted-foreground" />
                     <span>Grade Scale</span>
                     <span className="flex items-center gap-1 ml-1">
-                        {displayScale.map(e => (
-                            <span key={e.grade} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-muted/60">
-                                {e.grade}≥{e.minPct}%
-                            </span>
-                        ))}
+                        {displayScale.map((e, i) => {
+                            const isFail = i === displayScale.length - 1;
+                            const color = colorForGradeRank(i, displayScale.length);
+                            return (
+                                <span key={e.grade} className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
+                                    style={{ background: color + '1A', color }}>
+                                    {e.grade}{isFail ? ' (Fail)' : `≥${e.minPct}%`}
+                                </span>
+                            );
+                        })}
                     </span>
                 </span>
                 <ChevronDown size={13} className={`text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
@@ -433,32 +461,44 @@ function GradeScaleEditor({
                         <span>Min % (≥)</span>
                         <span />
                     </div>
-                    {entries.map((entry, idx) => (
-                        <div key={idx} className="grid grid-cols-[80px_1fr_28px] gap-2 items-center">
+                    {sortedEntries.map((entry, idx) => {
+                        const isFail = idx === failIdxInSorted;
+                        return (
+                        <div key={entries.indexOf(entry)} className={`grid grid-cols-[80px_1fr_28px] gap-2 items-center ${isFail ? 'rounded-lg bg-destructive/5 -mx-1 px-1 py-0.5' : ''}`}>
                             <input
                                 value={entry.grade}
                                 onChange={e => update(idx, 'grade', e.target.value)}
                                 placeholder="e.g. A+"
-                                className="h-8 rounded-lg border border-border bg-background px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-ring"
+                                className={`h-8 rounded-lg border bg-background px-2 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-ring ${isFail ? 'border-destructive/40 text-destructive' : 'border-border'}`}
                             />
                             <div className="relative">
-                                <input
-                                    type="number" min={0} max={100}
-                                    value={entry.minPct}
-                                    onChange={e => update(idx, 'minPct', e.target.value)}
-                                    className="h-8 w-full rounded-lg border border-border bg-background px-2 pr-6 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-                                />
-                                <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">%</span>
+                                {isFail ? (
+                                    <div className="h-8 w-full rounded-lg border border-destructive/40 bg-destructive/10 px-2 flex items-center justify-between">
+                                        <span className="text-[10px] font-semibold text-destructive">FAIL — below all other grades</span>
+                                        <span className="text-[10px] text-destructive">0%</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <input
+                                            type="number" min={0} max={100}
+                                            value={entry.minPct}
+                                            onChange={e => update(idx, 'minPct', e.target.value)}
+                                            className="h-8 w-full rounded-lg border border-border bg-background px-2 pr-6 text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+                                        />
+                                        <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground pointer-events-none">%</span>
+                                    </>
+                                )}
                             </div>
                             <button
-                                onClick={() => setEntries(prev => prev.filter((_, i) => i !== idx))}
+                                onClick={() => setEntries(prev => prev.filter(e => e !== entry))}
                                 disabled={entries.length <= 1}
                                 className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 disabled:opacity-30 transition-colors"
                             >
                                 <X size={12} />
                             </button>
                         </div>
-                    ))}
+                        );
+                    })}
                     <button
                         onClick={() => setEntries(prev => [...prev, { grade: '', minPct: 0 }])}
                         className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
@@ -539,12 +579,12 @@ function MarkSheet({
     const [addGradedOpen, setAddGradedOpen] = useState(false);
     const [editGradedSub, setEditGradedSub] = useState<GradedSubject | null>(null);
 
-    const getGrade = (gsId: string, stId: string, term: 't1' | 't2'): 'A+' | 'A' | 'B' | 'C' | 'D' | null => {
+    const getGrade = (gsId: string, stId: string, term: 't1' | 't2'): GradeValue => {
         const entry = effectiveGradedScores[gsId]?.[stId];
         return term === 't1' ? (entry?.term1Grade ?? null) : (entry?.term2Grade ?? null);
     };
 
-    const setGradeVal = (gsId: string, stId: string, term: 't1' | 't2', val: 'A+' | 'A' | 'B' | 'C' | 'D' | null) => {
+    const setGradeVal = (gsId: string, stId: string, term: 't1' | 't2', val: GradeValue) => {
         if (mode === 'offline' && marksheetHook) {
             const existing = effectiveGradedScores[gsId]?.[stId] ?? { term1Grade: null, term2Grade: null };
             marksheetHook.handleGradedScoreChange(gsId, stId, {
@@ -560,9 +600,10 @@ function MarkSheet({
         setTimeout(() => gradeInputRef.current?.select(), 0);
     };
     const commitGradeEdit = (gsId: string, stId: string, term: 't1' | 't2') => {
-        const upper = gradeDraft.trim().toUpperCase() as GradeValue;
-        const valid: GradeValue[] = ['A+', 'A', 'B', 'C', 'D'];
-        setGradeVal(gsId, stId, term, valid.includes(upper) ? upper : null);
+        const upper = gradeDraft.trim().toUpperCase();
+        const validGrades = gs.length > 0 ? gs.map(e => e.grade.toUpperCase()) : ['A+', 'A', 'B', 'C', 'D', 'F'];
+        const match = gs.find(e => e.grade.toUpperCase() === upper)?.grade ?? (validGrades.includes(upper) ? upper : null);
+        setGradeVal(gsId, stId, term, upper.length > 0 ? match : null);
         setActiveGradeCell(null);
     };
 
@@ -1190,7 +1231,7 @@ function MarkSheet({
                                                         />
                                                     ) : (
                                                         <>
-                                                            <span style={{ fontSize: 12, fontWeight: 700, color: t1 ? gradeValColor(t1) : msColors.hdrBorder }}>
+                                                            <span style={{ fontSize: 12, fontWeight: 700, color: t1 ? gradeValColor(t1, marksheetHook?.gradeScale ?? []) : msColors.hdrBorder }}>
                                                                 {t1 ?? '—'}
                                                             </span>
                                                             {t1 && !readOnly && (
@@ -1221,7 +1262,7 @@ function MarkSheet({
                                                         />
                                                     ) : (
                                                         <>
-                                                            <span style={{ fontSize: 12, fontWeight: 700, color: t2 ? gradeValColor(t2) : msColors.hdrBorder }}>
+                                                            <span style={{ fontSize: 12, fontWeight: 700, color: t2 ? gradeValColor(t2, marksheetHook?.gradeScale ?? []) : msColors.hdrBorder }}>
                                                                 {t2 ?? '—'}
                                                             </span>
                                                             {t2 && !readOnly && (
@@ -1947,11 +1988,11 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                                             <tr key={gs.id}>
                                                                                 <td className="sticky left-0 z-20 bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-semibold text-[#2A1F10] whitespace-nowrap">{gs.name}</td>
                                                                                 <td className="border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold"
-                                                                                    style={{ color: gsScore?.term1Grade ? gradeValColor(gsScore.term1Grade) : '#C8B89A' }}>
+                                                                                    style={{ color: gsScore?.term1Grade ? gradeValColor(gsScore.term1Grade, marksheetHook?.gradeScale ?? []) : '#C8B89A' }}>
                                                                                     {gsScore?.term1Grade ?? '—'}
                                                                                 </td>
                                                                                 <td className="border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold"
-                                                                                    style={{ color: gsScore?.term2Grade ? gradeValColor(gsScore.term2Grade) : '#C8B89A' }}>
+                                                                                    style={{ color: gsScore?.term2Grade ? gradeValColor(gsScore.term2Grade, marksheetHook?.gradeScale ?? []) : '#C8B89A' }}>
                                                                                     {gsScore?.term2Grade ?? '—'}
                                                                                 </td>
                                                                             </tr>

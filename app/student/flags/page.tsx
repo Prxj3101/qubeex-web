@@ -1,9 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, BookOpen, Calendar, User, ShieldAlert, ChevronDown, ChevronUp } from 'lucide-react';
-import { FLAGS, FlagItem, CardType } from '@/lib/flags';
+import { FlagItem, CardType } from '@/lib/flags';
+import api from '@/lib/api';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -140,13 +141,20 @@ const floatStyle: React.CSSProperties = {
 
 export default function FlagsPage() {
     const [activeTab, setActiveTab] = useState<CardType>('yellow');
+    const [flags, setFlags] = useState<FlagItem[]>([]);
     const router = useRouter();
+
+    useEffect(() => {
+        api.get('/student/remarks')
+            .then(res => setFlags(res.data.data))
+            .catch(() => setFlags([]));
+    }, []);
 
     const sortByDateDesc = (arr: FlagItem[]) =>
         [...arr].sort((a, b) => new Date(a.date).getTime() < new Date(b.date).getTime() ? 1 : -1);
 
-    const yellowFlags = sortByDateDesc(FLAGS.filter(f => f.type === 'yellow'));
-    const redFlags = sortByDateDesc(FLAGS.filter(f => f.type === 'red'));
+    const yellowFlags = sortByDateDesc(flags.filter(f => f.type === 'yellow'));
+    const redFlags = sortByDateDesc(flags.filter(f => f.type === 'red'));
     const activeFlags = activeTab === 'yellow' ? yellowFlags : redFlags;
 
     return (

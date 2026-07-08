@@ -29,8 +29,8 @@ export interface GradedSubjectItem {
 }
 
 export interface GradedScoreEntry {
-  term1Grade: 'A+' | 'A' | 'B' | 'C' | 'D' | null;
-  term2Grade: 'A+' | 'A' | 'B' | 'C' | 'D' | null;
+  term1Grade: string | null;
+  term2Grade: string | null;
 }
 
 export interface MarksheetStudent {

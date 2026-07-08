@@ -8,7 +8,7 @@ import {
     ChevronDown, ChevronUp, Send, X, Paperclip, Upload, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Division, Assignment, getInitials, getAvatarColor, AVATAR_COLORS, MOCK_STUDENTS } from './DivisionClassPageClient';
+import { Division, Assignment, getInitials, getAvatarColor, AVATAR_COLORS, LeaderboardEntry } from './DivisionClassPageClient';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -410,10 +410,11 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function ViewTab({ division, classTeacherAssignment, isClassTeacher }: {
+export default function ViewTab({ division, classTeacherAssignment, isClassTeacher, leaderboard }: {
     division: Division;
     classTeacherAssignment: Assignment | undefined;
     isClassTeacher: boolean;
+    leaderboard: LeaderboardEntry[];
 }) {
     const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
     const [postType, setPostType] = useState<PostType>('announcement');
@@ -687,7 +688,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                     </div>
                 </div>
 
-                {/* Leaderboard — mock */}
+                {/* Leaderboard */}
                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -702,43 +703,64 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             ))}
                         </div>
                     </div>
-                    <div className="flex items-end justify-center gap-4 px-4 pt-4 pb-2">
-                        {[MOCK_STUDENTS[1], MOCK_STUDENTS[0], MOCK_STUDENTS[2]].map((student, i) => {
-                            const podiumConfig = [
-                                { height: 'h-16', color: '#C0C0C0', label: '2nd' },
-                                { height: 'h-24', color: '#F59E0B', label: '1st' },
-                                { height: 'h-12', color: '#CD7F32', label: '3rd' },
-                            ];
-                            const cfg = podiumConfig[i];
-                            return (
-                                <div key={student.id} className="flex flex-col items-center gap-1.5">
-                                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20"
-                                        style={{ background: getAvatarColor(student.name) }}>
-                                        {getInitials(student.name)}
-                                    </div>
-                                    <p className="text-[10px] font-bold text-center w-16 truncate">{student.name}</p>
-                                    <p className="text-[10px] text-muted-foreground">{student.attendance}%</p>
-                                    <div className={`${cfg.height} w-14 rounded-t-xl flex items-center justify-center text-white text-xs font-black`}
-                                        style={{ background: cfg.color }}>
-                                        {cfg.label}
-                                    </div>
+
+                    {/* Podium — top 3, re-sorted locally by the active tab's metric */}
+                    {(() => {
+                        const pctFor = (e: LeaderboardEntry) =>
+                            leaderTab === 'offline' ? e.offlinePct : leaderTab === 'online' ? e.onlinePct : e.combinedPct;
+                        const sorted = [...leaderboard]
+                            .filter(e => pctFor(e) !== null)
+                            .sort((a, b) => (pctFor(b) ?? 0) - (pctFor(a) ?? 0));
+                        const top5 = sorted.slice(0, 5);
+                        const podium = [top5[1], top5[0], top5[2]];
+                        return (
+                            <>
+                                <div className="flex items-end justify-center gap-4 px-4 pt-4 pb-2">
+                                    {podium.map((student, i) => {
+                                        const podiumConfig = [
+                                            { height: 'h-16', color: '#C0C0C0', label: '2nd' },
+                                            { height: 'h-24', color: '#F59E0B', label: '1st' },
+                                            { height: 'h-12', color: '#CD7F32', label: '3rd' },
+                                        ];
+                                        const cfg = podiumConfig[i];
+                                        if (!student) return null;
+                                        return (
+                                            <div key={student.id} className="flex flex-col items-center gap-1.5">
+                                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20"
+                                                    style={{ background: getAvatarColor(student.name) }}>
+                                                    {getInitials(student.name)}
+                                                </div>
+                                                <p className="text-[10px] font-bold text-center w-16 truncate">{student.name}</p>
+                                                <p className="text-[10px] text-muted-foreground">{pctFor(student)}%</p>
+                                                <div className={`${cfg.height} w-14 rounded-t-xl flex items-center justify-center text-white text-xs font-black`}
+                                                    style={{ background: cfg.color }}>
+                                                    {cfg.label}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
-                            );
-                        })}
-                    </div>
-                    <div className="px-4 pb-3 space-y-1.5">
-                        {MOCK_STUDENTS.slice(3, 5).map(student => (
-                            <div key={student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
-                                <span className="text-xs font-black text-muted-foreground w-4 text-center">{student.rank}</span>
-                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                    style={{ background: getAvatarColor(student.name) }}>
-                                    {getInitials(student.name)}
+
+                                {/* Rank 4 & 5 */}
+                                <div className="px-4 pb-3 space-y-1.5">
+                                    {top5.slice(3, 5).map((student, i) => (
+                                        <div key={student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
+                                            <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
+                                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                                style={{ background: getAvatarColor(student.name) }}>
+                                                {getInitials(student.name)}
+                                            </div>
+                                            <p className="text-xs font-semibold flex-1 truncate">{student.name}</p>
+                                            <span className="text-[11px] font-bold text-muted-foreground">{pctFor(student)}%</span>
+                                        </div>
+                                    ))}
+                                    {top5.length === 0 && (
+                                        <p className="text-xs text-muted-foreground/60 italic text-center py-3">No published marksheet yet</p>
+                                    )}
                                 </div>
-                                <p className="text-xs font-semibold flex-1 truncate">{student.name}</p>
-                                <span className="text-[11px] font-bold text-muted-foreground">{student.attendance}%</span>
-                            </div>
-                        ))}
-                    </div>
+                            </>
+                        );
+                    })()}
                 </div>
 
                 {/* Timetable — mock */}

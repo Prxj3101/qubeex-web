@@ -19,6 +19,9 @@ import { assignSubjectColor } from '@/lib/subjectColors';
 import { FeesTab } from './fees';
 import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[divisionId]/AttendanceTab';
 import MarksTab, { MarksSubTab, MarksStats } from '@/app/teacher/classes/[divisionId]/MarksTab';
+import ReportStudentModal, { ReportFormData } from '@/app/teacher/classes/[divisionId]/ReportStudentModal';
+import StudentProfileModal, { ProfileMarksheet, ProfileAttendanceTrend } from '@/app/teacher/classes/[divisionId]/StudentProfileModal';
+import { FlagItem } from '@/lib/flags';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -584,18 +587,46 @@ const POST_META = {
     result: { emoji: '✅', label: 'Result', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
 };
 
-const MOCK_STUDENTS = [
-    { id: 'st1', name: 'Aarav Mehta', rollNo: '01', rank: 1, attendance: 92, totalMarks: 487, gender: 'Male', dob: '12 Mar 2009', phone: '+91 98765 43210' },
-    { id: 'st2', name: 'Priya Singh', rollNo: '02', rank: 2, attendance: 61, totalMarks: 471, gender: 'Female', dob: '5 Jul 2009', phone: '+91 87654 32109' },
-    { id: 'st3', name: 'Rohan Gupta', rollNo: '03', rank: 3, attendance: 78, totalMarks: 458, gender: 'Male', dob: '22 Jan 2009', phone: '+91 76543 21098' },
-    { id: 'st4', name: 'Sneha Patel', rollNo: '04', rank: 4, attendance: 55, totalMarks: 445, gender: 'Female', dob: '8 Sep 2009', phone: '+91 65432 10987' },
-    { id: 'st5', name: 'Arjun Kumar', rollNo: '05', rank: 5, attendance: 88, totalMarks: 432, gender: 'Male', dob: '15 Apr 2009', phone: '+91 54321 09876' },
-    { id: 'st6', name: 'Meera Sharma', rollNo: '06', rank: 6, attendance: 70, totalMarks: 419, gender: 'Female', dob: '3 Dec 2009', phone: '+91 43210 98765' },
-    { id: 'st7', name: 'Karan Joshi', rollNo: '07', rank: 7, attendance: 48, totalMarks: 406, gender: 'Male', dob: '19 Feb 2009', phone: '+91 32109 87654' },
-    { id: 'st8', name: 'Ananya Nair', rollNo: '08', rank: 8, attendance: 95, totalMarks: 398, gender: 'Female', dob: '27 Jun 2009', phone: '+91 21098 76543' },
-    { id: 'st9', name: 'Vikram Rao', rollNo: '09', rank: 9, attendance: 67, totalMarks: 385, gender: 'Male', dob: '11 Oct 2009', phone: '+91 10987 65432' },
-    { id: 'st10', name: 'Ishaan Verma', rollNo: '10', rank: 10, attendance: 82, totalMarks: 372, gender: 'Male', dob: '4 Aug 2009', phone: '+91 98765 43211' },
-];
+interface AdminStudent {
+    id: string;
+    studentId: string;
+    userId: string;
+    user: { name: string | null; email: string; mustChangePassword: boolean };
+    hasLoggedIn: boolean;
+    rollNo: string | null;
+    avatarUrl: string | null;
+    phone: string | null;
+    dob: string | null;
+    gender: string | null;
+    address: string | null;
+    city: string | null;
+    state: string | null;
+    pincode: string | null;
+    country: string | null;
+    houseColor: string | null;
+    bloodGroup: string | null;
+    aadharNo: string | null;
+    panNo: string | null;
+    emergencyContact: string | null;
+    religion: string | null;
+    category: string | null;
+    admissionYear: string | null;
+    guardians: { name: string; number: string; relation: string }[] | null;
+    tempPassword: string | null;
+    status: 'ACTIVE' | 'INACTIVE' | 'GRADUATED';
+}
+
+interface LeaderboardEntry {
+    id: string;
+    rank: number;
+    name: string;
+    rollNo: string;
+    avatarUrl: string | null;
+    attendancePct: number | null;
+    combinedPct: number;
+    offlinePct: number | null;
+    onlinePct: number | null;
+}
 
 const MOCK_SUBJECT_POOL = [
     { id: 'sub1', name: 'Mathematics', color: '#7C3AED' },
@@ -732,6 +763,8 @@ export default function DivisionDetailPage() {
     const [division, setDivision] = useState<Division | null>(null);
     const [teachers, setTeachers] = useState<TeacherOption[]>([]);
     const [loading, setLoading] = useState(true);
+    const [students, setStudents] = useState<AdminStudent[]>([]);
+    const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const { user } = useAuthStore();
     const subAdminPermissions = user?.role === 'SUB_ADMIN' ? (user.permissions ?? []) : null;
 
@@ -781,10 +814,10 @@ export default function DivisionDetailPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [showTimetable, setShowTimetable] = useState(false);
     const [postSubject, setPostSubject] = useState('');
-    const [selectedStudent, setSelectedStudent] = useState<typeof MOCK_STUDENTS[0] | null>(null);
+    const [selectedStudent, setSelectedStudent] = useState<AdminStudent | null>(null);
     const [manageRightTab, setManageRightTab] = useState<'teachers' | 'student'>('teachers');
     const [confirmToggle, setConfirmToggle] = useState(false);
-    const [studentActive, setStudentActive] = useState(true);
+    const [togglingStatus, setTogglingStatus] = useState(false);
     const [togglingSubject, setTogglingSubject] = useState<string | null>(null);
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
     const [feesSubTab, setFeesSubTab] = useState<'setup' | 'students'>('students');
@@ -796,7 +829,58 @@ export default function DivisionDetailPage() {
     const [leaderTab, setLeaderTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const timetableInputRef = useRef<HTMLInputElement>(null);
     const [showPassword, setShowPassword] = useState(false);
+    const [showReportModal, setShowReportModal] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
+    const [submittingReport, setSubmittingReport] = useState(false);
 
+    interface StudentStats { attendance: { present: number; total: number; pct: number | null }; score: { pct: number | null }; classRank: number | null }
+    const [studentStats, setStudentStats] = useState<StudentStats | null>(null);
+    const [loadingStats, setLoadingStats] = useState(false);
+
+    useEffect(() => {
+        if (!selectedStudent) { setStudentStats(null); return; }
+        let cancelled = false;
+        setLoadingStats(true);
+        api.get(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}/stats`)
+            .then(res => { if (!cancelled) setStudentStats(res.data.data); })
+            .catch(() => { if (!cancelled) setStudentStats(null); })
+            .finally(() => { if (!cancelled) setLoadingStats(false); });
+        return () => { cancelled = true; };
+    }, [selectedStudent, divisionId]);
+
+    const toggleStudentStatus = async () => {
+        if (!selectedStudent) return;
+        setTogglingStatus(true);
+        try {
+            const newStatus = selectedStudent.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+            const res = await api.patch(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}`, { status: newStatus });
+            const updatedStatus = res.data.data.status as AdminStudent['status'];
+            setStudents(prev => prev.map(s => s.id === selectedStudent.id ? { ...s, status: updatedStatus } : s));
+            setSelectedStudent(prev => prev ? { ...prev, status: updatedStatus } : prev);
+            toast.success(updatedStatus === 'ACTIVE' ? 'Student activated' : 'Student deactivated');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to update status');
+        } finally {
+            setTogglingStatus(false);
+            setConfirmToggle(false);
+        }
+    };
+
+    const handleReportStudent = async (data: ReportFormData) => {
+        if (!selectedStudent) return;
+        setSubmittingReport(true);
+        try {
+            await api.post(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}/remarks`, data);
+            toast.success('Report submitted');
+            setShowReportModal(false);
+        } catch (err: unknown) {
+            const e = err as { response?: { data?: { error?: string } } };
+            toast.error(e?.response?.data?.error ?? 'Failed to submit report');
+        } finally {
+            setSubmittingReport(false);
+        }
+    };
 
     const toggleSubject = async (subId: string) => {
         if (!division || togglingSubject) return;
@@ -895,21 +979,27 @@ export default function DivisionDetailPage() {
 
     const canFetchTeachers = !subAdminPermissions || subAdminPermissions.includes('STAFF_TEACHERS') || subAdminPermissions.includes('CAMPUS_MANAGE');
     const canFetchPosts = !subAdminPermissions || subAdminPermissions.includes('CAMPUS_VIEW');
+    const canFetchStudents = !subAdminPermissions || subAdminPermissions.includes('CAMPUS_MANAGE') || subAdminPermissions.includes('CAMPUS_ATTENDANCE');
+    const canFetchLeaderboard = !subAdminPermissions || subAdminPermissions.includes('CAMPUS_VIEW') || subAdminPermissions.includes('CAMPUS_MANAGE');
 
     const fetchAll = useCallback(async () => {
         try {
-            // Use allSettled so a failed posts/teachers fetch (e.g. 403 during permission sync)
-            // doesn't prevent the division itself from loading.
-            const [divResult, teachersResult, postsResult] = await Promise.allSettled([
+            // Use allSettled so a failed posts/teachers/students/leaderboard fetch (e.g. 403
+            // during permission sync) doesn't prevent the division itself from loading.
+            const [divResult, teachersResult, postsResult, studentsResult, leaderboardResult] = await Promise.allSettled([
                 api.get(`/admin/campus/divisions/${divisionId}`),
                 canFetchTeachers ? api.get('/admin/teachers') : Promise.resolve({ data: { data: [] } }),
                 canFetchPosts ? api.get('/admin/campus/feed/posts', { params: { divisionId, limit: 50 } }) : Promise.resolve({ data: { data: [] } }),
+                canFetchStudents ? api.get(`/admin/campus/divisions/${divisionId}/students`) : Promise.resolve({ data: { data: [] } }),
+                canFetchLeaderboard ? api.get(`/admin/campus/divisions/${divisionId}/leaderboard`) : Promise.resolve({ data: { data: [] } }),
             ]);
             // Division is critical — re-throw so the catch block handles it
             if (divResult.status === 'rejected') throw divResult.reason;
             setDivision(divResult.value.data.data);
             setTeachers(teachersResult.status === 'fulfilled' ? (teachersResult.value.data.data ?? []) : []);
             setAnnouncements(postsResult.status === 'fulfilled' ? (postsResult.value.data.data ?? []) : []);
+            setStudents(studentsResult.status === 'fulfilled' ? (studentsResult.value.data.data ?? []) : []);
+            setLeaderboard(leaderboardResult.status === 'fulfilled' ? (leaderboardResult.value.data.data ?? []) : []);
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error
                 ?? (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -917,7 +1007,7 @@ export default function DivisionDetailPage() {
         } finally {
             setLoading(false);
         }
-    }, [divisionId, canFetchTeachers, canFetchPosts]);
+    }, [divisionId, canFetchTeachers, canFetchPosts, canFetchStudents, canFetchLeaderboard]);
 
     useEffect(() => {
         if (fetchedRef.current) return;
@@ -1394,48 +1484,64 @@ export default function DivisionDetailPage() {
                                         </div>
                                     </div>
 
-                                    {/* Podium — top 3 */}
-                                    <div className="flex items-end justify-center gap-4 px-4 pt-4 pb-2">
-                                        {[MOCK_STUDENTS[1], MOCK_STUDENTS[0], MOCK_STUDENTS[2]].map((student, i) => {
-                                            const podiumConfig = [
-                                                { height: 'h-16', color: '#C0C0C0', label: '2nd', crown: false },
-                                                { height: 'h-24', color: '#F59E0B', label: '1st', crown: true },
-                                                { height: 'h-12', color: '#CD7F32', label: '3rd', crown: false },
-                                            ];
-                                            const cfg = podiumConfig[i];
-                                            if (!student) return null;
-                                            return (
-                                                <div key={student.id} className="flex flex-col items-center gap-1.5">
+                                    {/* Podium — top 3, re-sorted locally by the active tab's metric */}
+                                    {(() => {
+                                        const pctFor = (e: LeaderboardEntry) =>
+                                            leaderTab === 'offline' ? e.offlinePct : leaderTab === 'online' ? e.onlinePct : e.combinedPct;
+                                        const sorted = [...leaderboard]
+                                            .filter(e => pctFor(e) !== null)
+                                            .sort((a, b) => (pctFor(b) ?? 0) - (pctFor(a) ?? 0));
+                                        const top5 = sorted.slice(0, 5);
+                                        const podium = [top5[1], top5[0], top5[2]];
+                                        return (
+                                            <>
+                                                <div className="flex items-end justify-center gap-4 px-4 pt-4 pb-2">
+                                                    {podium.map((student, i) => {
+                                                        const podiumConfig = [
+                                                            { height: 'h-16', color: '#C0C0C0', label: '2nd', crown: false },
+                                                            { height: 'h-24', color: '#F59E0B', label: '1st', crown: true },
+                                                            { height: 'h-12', color: '#CD7F32', label: '3rd', crown: false },
+                                                        ];
+                                                        const cfg = podiumConfig[i];
+                                                        if (!student) return null;
+                                                        return (
+                                                            <div key={student.id} className="flex flex-col items-center gap-1.5">
 
-                                                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20"
-                                                        style={{ background: getAvatarColor(student.name) }}>
-                                                        {getInitials(student.name)}
-                                                    </div>
-                                                    <p className="text-[10px] font-bold text-center w-16 truncate">{student.name}</p>
-                                                    <p className="text-[10px] text-muted-foreground">{student.attendance}%</p>
-                                                    <div className={`${cfg.height} w-14 rounded-t-xl flex items-center justify-center text-white text-xs font-black`}
-                                                        style={{ background: cfg.color }}>
-                                                        {cfg.label}
-                                                    </div>
+                                                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20"
+                                                                    style={{ background: getAvatarColor(student.name) }}>
+                                                                    {getInitials(student.name)}
+                                                                </div>
+                                                                <p className="text-[10px] font-bold text-center w-16 truncate">{student.name}</p>
+                                                                <p className="text-[10px] text-muted-foreground">{pctFor(student)}%</p>
+                                                                <div className={`${cfg.height} w-14 rounded-t-xl flex items-center justify-center text-white text-xs font-black`}
+                                                                    style={{ background: cfg.color }}>
+                                                                    {cfg.label}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
 
-                                    {/* Rank 4 & 5 */}
-                                    <div className="px-4 pb-3 space-y-1.5">
-                                        {MOCK_STUDENTS.slice(3, 5).map(student => (
-                                            <div key={student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
-                                                <span className="text-xs font-black text-muted-foreground w-4 text-center">{student.rank}</span>
-                                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                    style={{ background: getAvatarColor(student.name) }}>
-                                                    {getInitials(student.name)}
+                                                {/* Rank 4 & 5 */}
+                                                <div className="px-4 pb-3 space-y-1.5">
+                                                    {top5.slice(3, 5).map((student, i) => (
+                                                        <div key={student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
+                                                            <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
+                                                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                                                style={{ background: getAvatarColor(student.name) }}>
+                                                                {getInitials(student.name)}
+                                                            </div>
+                                                            <p className="text-xs font-semibold flex-1 truncate">{student.name}</p>
+                                                            <span className="text-[11px] font-bold text-muted-foreground">{pctFor(student)}%</span>
+                                                        </div>
+                                                    ))}
+                                                    {top5.length === 0 && (
+                                                        <p className="text-xs text-muted-foreground/60 italic text-center py-3">No published marksheet yet</p>
+                                                    )}
                                                 </div>
-                                                <p className="text-xs font-semibold flex-1 truncate">{student.name}</p>
-                                                <span className="text-[11px] font-bold text-muted-foreground">{student.attendance}%</span>
-                                            </div>
-                                        ))}
-                                    </div>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
 
                                 {/* Timetable */}
@@ -1499,37 +1605,52 @@ export default function DivisionDetailPage() {
                             <div className="w-[40%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                 <div className="px-4 py-3 border-b border-border/40 shrink-0">
                                     <p className="text-sm font-bold flex items-center gap-2">
-                                        <Users size={15} /> Students ({MOCK_STUDENTS.length})
+                                        <Users size={15} /> Students ({students.length})
                                     </p>
                                 </div>
                                 <div className="flex-1 overflow-y-auto bg-background">
-                                    {[...MOCK_STUDENTS].sort((a, b) => parseInt(a.rollNo) - parseInt(b.rollNo)).map(student => {
+                                    {[...students].sort((a, b) => (a.rollNo ?? '').localeCompare(b.rollNo ?? '', undefined, { numeric: true })).map(student => {
                                         const isSelected = selectedStudent?.id === student.id;
+                                        const lb = leaderboard.find(e => e.id === student.id);
+                                        const name = student.user.name ?? '—';
                                         return (
                                             <button key={student.id}
                                                 onClick={() => { setSelectedStudent(student); setManageRightTab('student'); }}
                                                 className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-all hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''
                                                     }`}>
                                                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                                                    style={{ background: getAvatarColor(student.name) }}>
-                                                    {getInitials(student.name)}
+                                                    style={{ background: getAvatarColor(name) }}>
+                                                    {getInitials(name)}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-semibold truncate">{student.name}</p>
-                                                    <p className="text-[10px] text-muted-foreground">Roll No. {student.rollNo}</p>
+                                                    <p className="text-xs font-semibold truncate">{name}</p>
+                                                    <p className="text-[10px] text-muted-foreground">Roll No. {student.rollNo ?? '—'}</p>
                                                 </div>
                                                 <div className="flex items-center gap-3 shrink-0">
+                                                    <div className="flex flex-col items-end gap-1">
+                                                        {!student.hasLoggedIn && (
+                                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300">
+                                                                First login
+                                                            </span>
+                                                        )}
+                                                        {student.status === 'INACTIVE' && (
+                                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-red-100 dark:bg-red-950 text-red-600 dark:text-red-400">
+                                                                Inactive
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <div className="text-right">
-                                                        <p className="text-[11px] font-bold" style={{ color: '#7C3AED' }}>#{student.rank}</p>
+                                                        <p className="text-[11px] font-bold" style={{ color: '#7C3AED' }}>{lb ? `#${lb.rank}` : '—'}</p>
                                                         <p className="text-[9px] text-muted-foreground/60">rank</p>
                                                     </div>
                                                     <div className="text-right">
 
-                                                        <div className={`text-[11px] font-bold ${student.attendance >= 75 ? 'text-emerald-600 dark:text-emerald-400'
-                                                            : student.attendance >= 65 ? 'text-amber-600'
-                                                                : 'text-red-500'
+                                                        <div className={`text-[11px] font-bold ${lb?.attendancePct == null ? 'text-muted-foreground/60'
+                                                            : lb.attendancePct >= 75 ? 'text-emerald-600 dark:text-emerald-400'
+                                                                : lb.attendancePct >= 65 ? 'text-amber-600'
+                                                                    : 'text-red-500'
                                                             }`}>
-                                                            {student.attendance}%
+                                                            {lb?.attendancePct != null ? `${lb.attendancePct}%` : '—'}
                                                         </div>
                                                         <p className="text-[9px] text-muted-foreground/60">attend.</p>
                                                     </div>
@@ -1563,21 +1684,56 @@ export default function DivisionDetailPage() {
                                     {manageRightTab === 'student' && selectedStudent && (
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => setConfirmToggle(true)}
-                                                className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold transition-all ${studentActive
+                                                disabled={togglingStatus}
+                                                className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-50 ${selectedStudent.status === 'ACTIVE'
                                                     ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
                                                     : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
                                                     }`}>
-                                                {studentActive ? <><PowerOff size={11} /> Deactivate</> : <><Power size={11} /> Activate</>}
+                                                {selectedStudent.status === 'ACTIVE' ? <><PowerOff size={11} /> Deactivate</> : <><Power size={11} /> Activate</>}
                                             </button>
-                                            <button className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
+                                            <button onClick={() => setShowReportModal(true)}
+                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
                                                 <Flag size={11} /> Report
                                             </button>
                                             <button
-                                                onClick={() => router.push(`/student/${selectedStudent.id}/profile`)}
+                                                onClick={() => setShowProfileModal(true)}
                                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
                                                 <ExternalLink size={10} /> View Profile
                                             </button>
                                         </div>
+                                    )}
+                                    {selectedStudent && (
+                                        <ReportStudentModal
+                                            open={showReportModal}
+                                            onOpenChange={setShowReportModal}
+                                            studentName={selectedStudent.user.name ?? 'Student'}
+                                            loading={submittingReport}
+                                            onSubmit={handleReportStudent}
+                                        />
+                                    )}
+                                    {selectedStudent && (
+                                        <StudentProfileModal
+                                            open={showProfileModal}
+                                            onOpenChange={setShowProfileModal}
+                                            student={selectedStudent}
+                                            divisionLabel={division ? `${division.standard.name} - ${division.name}` : ''}
+                                            fetchMarksheet={async () => {
+                                                try {
+                                                    const res = await api.get(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}/marksheet`);
+                                                    return res.data.data as ProfileMarksheet;
+                                                } catch {
+                                                    return null;
+                                                }
+                                            }}
+                                            fetchRemarks={async () => {
+                                                const res = await api.get(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}/remarks`);
+                                                return res.data.data as FlagItem[];
+                                            }}
+                                            fetchAttendanceTrend={async () => {
+                                                const res = await api.get(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}/attendance-trend`);
+                                                return res.data.data as ProfileAttendanceTrend;
+                                            }}
+                                        />
                                     )}
                                 </div>
 
@@ -1721,20 +1877,39 @@ export default function DivisionDetailPage() {
                                                         {/* Stats */}
                                                         <div className="grid grid-cols-3 gap-2">
                                                             <div className="rounded-xl border border-border/40 bg-muted/20 p-3 text-center">
-                                                                <p className="text-lg font-black" style={{ color: '#7C3AED' }}>#{selectedStudent.rank}</p>
+                                                                <p className="text-lg font-black" style={{ color: '#7C3AED' }}>
+                                                                    {loadingStats ? '…' : studentStats?.classRank != null ? `#${studentStats.classRank}` : '—'}
+                                                                </p>
                                                                 <p className="text-[11px] text-muted-foreground">Class Rank</p>
                                                             </div>
                                                             <div className="rounded-xl border border-border/40 bg-muted/20 p-3 text-center">
-                                                                <p className="text-lg font-black">{Math.round((selectedStudent.totalMarks / 500) * 100)}%</p>
+                                                                <p className="text-lg font-black">
+                                                                    {loadingStats ? '…' : studentStats?.score.pct != null ? `${studentStats.score.pct}%` : '—'}
+                                                                </p>
                                                                 <p className="text-[11px] text-muted-foreground">Score %</p>
                                                             </div>
                                                             <div className="rounded-xl border border-border/40 bg-muted/20 p-3 text-center">
-                                                                <p className={`text-lg font-black ${selectedStudent.attendance >= 75 ? 'text-emerald-600' : selectedStudent.attendance >= 65 ? 'text-amber-600' : 'text-red-500'}`}>
-                                                                    {selectedStudent.attendance}%
+                                                                <p className={`text-lg font-black ${studentStats?.attendance.pct == null ? '' : studentStats.attendance.pct >= 75 ? 'text-emerald-600' : studentStats.attendance.pct >= 65 ? 'text-amber-600' : 'text-red-500'}`}>
+                                                                    {loadingStats ? '…' : studentStats?.attendance.pct != null ? `${studentStats.attendance.pct}%` : '—'}
                                                                 </p>
                                                                 <p className="text-[11px] text-muted-foreground">Attendance</p>
                                                             </div>
                                                         </div>
+
+                                                        {/* Account status banner */}
+                                                        {selectedStudent.hasLoggedIn ? (
+                                                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
+                                                                <p className="text-[11px] text-green-700 dark:text-green-300 font-medium">Active — student has logged in</p>
+                                                            </div>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+                                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
+                                                                <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
+                                                                    Awaiting first login — student hasn&apos;t logged in yet
+                                                                </p>
+                                                            </div>
+                                                        )}
 
                                                         {/* ROW 1 — Student Info + Academic */}
                                                         <div className="flex gap-3 border border-border/40 rounded-2xl overflow-hidden bg-background">
@@ -1743,44 +1918,44 @@ export default function DivisionDetailPage() {
                                                                 <SectionViewLabel icon={User} label="Student Info" />
                                                                 <div className="flex items-center gap-3 mb-2">
                                                                     <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                                                                        style={{ background: getAvatarColor(selectedStudent.name) }}>
-                                                                        {getInitials(selectedStudent.name)}
+                                                                        style={{ background: getAvatarColor(selectedStudent.user.name ?? '—') }}>
+                                                                        {getInitials(selectedStudent.user.name ?? '—')}
                                                                     </div>
                                                                     <div>
-                                                                        <p className="text-sm font-bold">{selectedStudent.name}</p>
-                                                                        <p className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo}</p>
+                                                                        <p className="text-sm font-bold">{selectedStudent.user.name ?? '—'}</p>
+                                                                        <p className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo ?? '—'}</p>
                                                                     </div>
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-2">
-                                                                    <ReadField label="Date of Birth" value="12/03/2009" />
-                                                                    <ReadField label="Gender" value={selectedStudent.gender} />
+                                                                    <ReadField label="Date of Birth" value={selectedStudent.dob ?? '—'} />
+                                                                    <ReadField label="Gender" value={selectedStudent.gender ?? '—'} />
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-2">
-                                                                    <ReadField label="Religion" value="Hindu" />
-                                                                    <ReadField label="Category" value="General" />
+                                                                    <ReadField label="Religion" value={selectedStudent.religion ?? '—'} />
+                                                                    <ReadField label="Category" value={selectedStudent.category ?? '—'} />
                                                                 </div>
-                                                                <ReadField label="Admission Date" value="01/06/2023" />
-                                                                <ReadField label="Email" value={`${selectedStudent.name.split(' ')[0].toLowerCase()}@school.in`} />
-                                                                <ReadField label="Contact No" value={selectedStudent.phone} />
+                                                                <ReadField label="Admission Year" value={selectedStudent.admissionYear ?? '—'} />
+                                                                <ReadField label="Email" value={selectedStudent.user.email} />
+                                                                <ReadField label="Contact No" value={selectedStudent.phone ?? '—'} />
                                                             </div>
 
                                                             {/* RIGHT — Academic Details */}
                                                             <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={BookOpen} label="Academic Details" />
                                                                 <div className="grid grid-cols-2 gap-2">
-                                                                    <ReadField label="Class" value="10" />
-                                                                    <ReadField label="Division" value="A" />
+                                                                    <ReadField label="Class" value={division?.standard.name ?? '—'} />
+                                                                    <ReadField label="Division" value={division?.name ?? '—'} />
                                                                 </div>
                                                                 <div className="grid grid-cols-2 gap-2">
-                                                                    <ReadField label="Roll No" value={selectedStudent.rollNo} />
-                                                                    <ReadField label="House Color" value="Red" />
+                                                                    <ReadField label="Roll No" value={selectedStudent.rollNo ?? '—'} />
+                                                                    <ReadField label="House Color" value={selectedStudent.houseColor ?? '—'} />
                                                                 </div>
                                                                 {/* Student ID */}
                                                                 <div>
                                                                     <p className="text-[11px] text-muted-foreground mb-1 font-medium">Student ID</p>
                                                                     <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between">
                                                                         <span className="text-sm font-mono font-semibold" style={{ color: '#DA7756' }}>
-                                                                            STU-2026-0001
+                                                                            {selectedStudent.studentId}
                                                                         </span>
                                                                         <span className="text-[10px] text-muted-foreground/50">Read only</span>
                                                                     </div>
@@ -1791,7 +1966,9 @@ export default function DivisionDetailPage() {
                                                                     <p className="text-[11px] text-muted-foreground mb-1 font-medium">Current Password</p>
                                                                     <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between gap-2">
                                                                         <span className="text-sm font-mono flex-1">
-                                                                            {showPassword ? 'Abc@12345x' : '••••••••••'}
+                                                                            {showPassword
+                                                                                ? (selectedStudent.user.mustChangePassword && selectedStudent.tempPassword ? selectedStudent.tempPassword : '(changed)')
+                                                                                : '••••••••••'}
                                                                         </span>
                                                                         <button type="button" onClick={() => setShowPassword(v => !v)}
                                                                             className="w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors shrink-0">
@@ -1808,21 +1985,21 @@ export default function DivisionDetailPage() {
                                                             {/* LEFT — Medical & Identity */}
                                                             <div className="flex-1 px-4 py-3 border-r border-border/40 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={Shield} label="Medical & Identity" />
-                                                                <ReadField label="Blood Group" value="B+" />
-                                                                <ReadField label="Aadhar No" value="1234 5678 9012" />
-                                                                <ReadField label="PAN No" value="—" />
-                                                                <ReadField label="Emergency Contact" value="+91 98765 00000" />
+                                                                <ReadField label="Blood Group" value={selectedStudent.bloodGroup ?? '—'} />
+                                                                <ReadField label="Aadhar No" value={selectedStudent.aadharNo ?? '—'} />
+                                                                <ReadField label="PAN No" value={selectedStudent.panNo ?? '—'} />
+                                                                <ReadField label="Emergency Contact" value={selectedStudent.emergencyContact ?? '—'} />
                                                             </div>
 
                                                             {/* RIGHT — Address */}
                                                             <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={MapPin} label="Address" />
-                                                                <ReadField label="Address" value="123 MG Road" />
+                                                                <ReadField label="Address" value={selectedStudent.address ?? '—'} />
                                                                 <div className="grid grid-cols-2 gap-2">
-                                                                    <ReadField label="City" value="Mumbai" />
-                                                                    <ReadField label="State" value="Maharashtra" />
-                                                                    <ReadField label="Pincode" value="400001" />
-                                                                    <ReadField label="Country" value="India" />
+                                                                    <ReadField label="City" value={selectedStudent.city ?? '—'} />
+                                                                    <ReadField label="State" value={selectedStudent.state ?? '—'} />
+                                                                    <ReadField label="Pincode" value={selectedStudent.pincode ?? '—'} />
+                                                                    <ReadField label="Country" value={selectedStudent.country ?? '—'} />
                                                                 </div>
                                                             </div>
                                                         </div>
@@ -1830,19 +2007,20 @@ export default function DivisionDetailPage() {
                                                         {/* ROW 3 — Parents/Guardian */}
                                                         <div className="border border-border/40 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
                                                             <SectionViewLabel icon={Users} label="Parents / Guardian" />
-                                                            {[
-                                                                { name: 'Rajesh ' + selectedStudent.name.split(' ')[1], number: '+91 98765 43210', relation: 'Father' },
-                                                                { name: 'Sunita ' + selectedStudent.name.split(' ')[1], number: '+91 87654 32109', relation: 'Mother' },
-                                                            ].map((g, i) => (
-                                                                <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
-                                                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Guardian {i + 1}</p>
-                                                                    <div className="grid grid-cols-3 gap-2">
-                                                                        <ReadField label="Name" value={g.name} />
-                                                                        <ReadField label="Number" value={g.number} />
-                                                                        <ReadField label="Relation" value={g.relation} />
+                                                            {(!selectedStudent.guardians || selectedStudent.guardians.length === 0) ? (
+                                                                <p className="text-xs text-muted-foreground/60 italic py-2 text-center">No guardian details on file</p>
+                                                            ) : (
+                                                                selectedStudent.guardians.map((g, i) => (
+                                                                    <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
+                                                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Guardian {i + 1}</p>
+                                                                        <div className="grid grid-cols-3 gap-2">
+                                                                            <ReadField label="Name" value={g.name} />
+                                                                            <ReadField label="Number" value={g.number} />
+                                                                            <ReadField label="Relation" value={g.relation} />
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            ))}
+                                                                ))
+                                                            )}
                                                         </div>
 
                                                     </div>
@@ -1961,28 +2139,28 @@ export default function DivisionDetailPage() {
                 )}
             </AnimatePresence>
             <AnimatePresence>
-                {confirmToggle && (
+                {confirmToggle && selectedStudent && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                             className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
                             <h3 className="text-base font-bold mb-2">
-                                {studentActive ? '⚠️ Deactivate Student?' : '✅ Activate Student?'}
+                                {selectedStudent.status === 'ACTIVE' ? '⚠️ Deactivate Student?' : '✅ Activate Student?'}
                             </h3>
                             <p className="text-sm text-muted-foreground mb-5">
-                                {studentActive
-                                    ? `${selectedStudent?.name} will lose access immediately.`
-                                    : `${selectedStudent?.name} will regain access to the platform.`
+                                {selectedStudent.status === 'ACTIVE'
+                                    ? `${selectedStudent.user.name ?? 'This student'} will lose access immediately.`
+                                    : `${selectedStudent.user.name ?? 'This student'} will regain access to the platform.`
                                 }
                             </p>
                             <div className="flex gap-2 justify-end">
-                                <button onClick={() => setConfirmToggle(false)}
-                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                <button onClick={() => setConfirmToggle(false)} disabled={togglingStatus}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all disabled:opacity-50">
                                     Cancel
                                 </button>
-                                <button onClick={() => { setStudentActive(v => !v); setConfirmToggle(false); toast.success(studentActive ? 'Student deactivated' : 'Student activated'); }}
-                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
-                                    style={{ background: studentActive ? '#ef4444' : '#10b981' }}>
-                                    {studentActive ? 'Yes, Deactivate' : 'Yes, Activate'}
+                                <button onClick={toggleStudentStatus} disabled={togglingStatus}
+                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50"
+                                    style={{ background: selectedStudent.status === 'ACTIVE' ? '#ef4444' : '#10b981' }}>
+                                    {togglingStatus ? '…' : selectedStudent.status === 'ACTIVE' ? 'Yes, Deactivate' : 'Yes, Activate'}
                                 </button>
                             </div>
                         </motion.div>

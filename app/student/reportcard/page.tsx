@@ -15,8 +15,10 @@ interface MarksheetSubject {
     pct: number | null; grade: string;
 }
 interface GradedSubject { id: string; name: string; term1Grade: string | null; term2Grade: string | null; }
+interface GradeScaleEntry { grade: string; minPct: number }
 interface MarksheetData {
     academicYear: string;
+    gradeScale: GradeScaleEntry[];
     student: { name: string; rollNo: string };
     subjects: MarksheetSubject[];
     grandTotal: { scored: number; max: number };
@@ -38,10 +40,25 @@ function scoreColor(pct: number | null) {
     return '#DC2626';
 }
 
-const gradeColors: Record<string, string> = {
-    'A+': '#059669', 'A': '#10B981', 'B': '#3B82F6', 'C': '#F59E0B', 'D': '#F97316', 'F': '#DC2626',
-};
-function gradeColor(g: string | null) { return g ? (gradeColors[g] ?? '#94A3B8') : '#94A3B8'; }
+const DEFAULT_GRADE_SCALE: GradeScaleEntry[] = [
+    { grade: 'A', minPct: 75 },
+    { grade: 'B', minPct: 60 },
+    { grade: 'C', minPct: 45 },
+    { grade: 'D', minPct: 35 },
+    { grade: 'F', minPct: 0 },
+];
+// Best-to-worst color ramp, assigned by rank within the scale — every grade
+// (including custom labels) gets its own distinct color, bottom always red.
+const GRADE_COLOR_RAMP = ['#059669', '#16A34A', '#65A30D', '#CA8A04', '#D97706', '#EA580C', '#DC2626', '#B91C1C', '#991B1B'];
+function gradeColor(g: string | null, scale: GradeScaleEntry[]) {
+    if (!g) return '#94A3B8';
+    const sorted = scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE;
+    const rank = sorted.findIndex(e => e.grade.toUpperCase() === g.toUpperCase());
+    if (rank === -1) return '#94A3B8';
+    if (sorted.length <= 1) return GRADE_COLOR_RAMP[0];
+    const idx = Math.round((rank / (sorted.length - 1)) * (GRADE_COLOR_RAMP.length - 1));
+    return GRADE_COLOR_RAMP[idx];
+}
 
 export default function ReportCardPage() {
     const router = useRouter();
@@ -258,12 +275,12 @@ export default function ReportCardPage() {
                                                     <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap">{gs.name}</td>
                                                     <td className="border border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold">
                                                         {gs.term1Grade
-                                                            ? <span style={{ color: gradeColor(gs.term1Grade) }}>{gs.term1Grade}</span>
+                                                            ? <span style={{ color: gradeColor(gs.term1Grade, data.gradeScale) }}>{gs.term1Grade}</span>
                                                             : <span style={{ color: '#C8B89A' }}>—</span>}
                                                     </td>
                                                     <td className="border border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold">
                                                         {gs.term2Grade
-                                                            ? <span style={{ color: gradeColor(gs.term2Grade) }}>{gs.term2Grade}</span>
+                                                            ? <span style={{ color: gradeColor(gs.term2Grade, data.gradeScale) }}>{gs.term2Grade}</span>
                                                             : <span style={{ color: '#C8B89A' }}>—</span>}
                                                     </td>
                                                 </tr>

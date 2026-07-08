@@ -17,7 +17,7 @@ import {
     ResponsiveContainer, LineChart, Line, Cell, LabelList,
     AreaChart, Area, ReferenceLine,
 } from 'recharts';
-import { FLAGS } from '@/lib/flags';
+import { FlagItem } from '@/lib/flags';
 import { Button } from '@/components/ui/button';
 
 type MarksMode = 'offline' | 'online' | 'combined';
@@ -211,8 +211,15 @@ export default function StudentProfile() {
         : 0;
     const overallRank: number | null = marksheetData?.classRank ?? null;
 
-    const yellowFlags = FLAGS.filter(f => f.type === 'yellow');
-    const redFlags = FLAGS.filter(f => f.type === 'red');
+    const [flags, setFlags] = useState<FlagItem[]>([]);
+    useEffect(() => {
+        api.get('/student/remarks')
+            .then(res => setFlags(res.data.data))
+            .catch(() => setFlags([]));
+    }, []);
+
+    const yellowFlags = flags.filter(f => f.type === 'yellow');
+    const redFlags = flags.filter(f => f.type === 'red');
 
     const handleCopy = () => {
         navigator.clipboard.writeText(student.studentId);
@@ -670,7 +677,7 @@ export default function StudentProfile() {
                         </div>
 
                         {/* Most recent — one of each type */}
-                        {FLAGS.length === 0 ? (
+                        {flags.length === 0 ? (
                             <div className="text-center py-6">
                                 <p className="text-2xl mb-1">✅</p>
                                 <p className="text-xs text-muted-foreground">No flags! Keep it up.</p>
@@ -678,10 +685,10 @@ export default function StudentProfile() {
                         ) : (
                             <div className="space-y-2">
                                 {[
-                                    [...FLAGS].filter(f => f.type === 'yellow').sort((a, b) => new Date(a.date).getTime() < new Date(b.date).getTime() ? 1 : -1)[0],
-                                    [...FLAGS].filter(f => f.type === 'red').sort((a, b) => new Date(a.date).getTime() < new Date(b.date).getTime() ? 1 : -1)[0],
+                                    [...flags].filter(f => f.type === 'yellow').sort((a, b) => new Date(a.date).getTime() < new Date(b.date).getTime() ? 1 : -1)[0],
+                                    [...flags].filter(f => f.type === 'red').sort((a, b) => new Date(a.date).getTime() < new Date(b.date).getTime() ? 1 : -1)[0],
                                 ]
-                                    .filter((f): f is typeof FLAGS[0] => f !== undefined)
+                                    .filter((f): f is FlagItem => f !== undefined)
                                     .map((flag, i) => (
                                         <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border-l-[3px] ${flag.type === 'yellow' ? 'bg-amber-50 dark:bg-amber-950/20 border-amber-400' : 'bg-red-50 dark:bg-red-950/20 border-red-500'}`}>
                                             <div className="shrink-0 mt-0.5" style={{ width: 17, height: 24, borderRadius: 2, backgroundColor: flag.type === 'yellow' ? '#fcff38' : '#DC2626', transform: 'rotate(-5deg)', boxShadow: '1px 2px 0px rgba(0,0,0,0.35)' }} />
