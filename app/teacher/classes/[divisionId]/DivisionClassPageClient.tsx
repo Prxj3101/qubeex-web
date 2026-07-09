@@ -11,6 +11,7 @@ import FeesTab from './FeesTab';
 import AttendanceTab, { AttendanceSubTab } from './AttendanceTab';
 import MarksTab, { MarksSubTab, MarksStats } from './MarksTab';
 import TasksTab, { TasksSubTab } from './TasksTab';
+import PromotionPanel, { PreviewData, BatchSummary, PromotionOutcomeChoice } from './PromotionPanel';
 
 export interface Subject {
     id: string;
@@ -71,6 +72,7 @@ export default function DivisionClassPageClient() {
         ? [
             { key: 'view' as const, label: 'View' },
             { key: 'manage' as const, label: 'Manage' },
+            { key: 'promotions' as const, label: 'Promotions' },
             { key: 'attendance' as const, label: 'Attendance' },
             { key: 'marks' as const, label: 'Marksheet' },
             { key: 'fees' as const, label: 'Fees' },
@@ -83,7 +85,7 @@ export default function DivisionClassPageClient() {
 
     const [division, setDivision] = useState<Division | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'attendance' | 'marks' | 'fees' | 'tasks'>('view');
+    const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'promotions' | 'attendance' | 'marks' | 'fees' | 'tasks'>('view');
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
     useEffect(() => {
@@ -384,6 +386,18 @@ export default function DivisionClassPageClient() {
                     {activeTab === 'manage' && (
                         <motion.div key="manage" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                             <ManageTab division={division} isClassTeacher={isClassTeacher} />
+                        </motion.div>
+                    )}
+                    {activeTab === 'promotions' && isClassTeacher && (
+                        <motion.div key="promotions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto p-4">
+                            <PromotionPanel
+                                divisionId={divisionId}
+                                fetchPreview={async () => (await api.get<{ data: PreviewData }>(`/teacher/promotions/divisions/${divisionId}/preview`)).data.data}
+                                fetchBatches={async () => (await api.get<{ data: BatchSummary[] }>(`/teacher/promotions/batches?divisionId=${divisionId}`)).data.data}
+                                submitOutcomes={async (outcomes: { studentId: string; outcome: PromotionOutcomeChoice }[], targetDivisionId?: string) =>
+                                    (await api.post<{ data: { batchId: string }; warning?: string }>(`/teacher/promotions/divisions/${divisionId}`, { outcomes, targetDivisionId })).data}
+                                undoBatch={async (batchId: string) => { await api.post(`/teacher/promotions/batches/${batchId}/undo`); }}
+                            />
                         </motion.div>
                     )}
                     {activeTab === 'attendance' && (

@@ -21,6 +21,7 @@ import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[division
 import MarksTab, { MarksSubTab, MarksStats } from '@/app/teacher/classes/[divisionId]/MarksTab';
 import ReportStudentModal, { ReportFormData } from '@/app/teacher/classes/[divisionId]/ReportStudentModal';
 import StudentProfileModal, { ProfileMarksheet, ProfileAttendanceTrend } from '@/app/teacher/classes/[divisionId]/StudentProfileModal';
+import PromotionPanel, { PreviewData, BatchSummary, PromotionOutcomeChoice } from '@/app/teacher/classes/[divisionId]/PromotionPanel';
 import { FlagItem } from '@/lib/flags';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -750,6 +751,7 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
 const TABS = [
     { key: 'overview' as const,    label: 'View' },
     { key: 'manage' as const,      label: 'Manage' },
+    { key: 'promotions' as const,  label: 'Promotions' },
     { key: 'fees' as const,        label: 'Fees' },
     { key: 'attendance' as const,  label: 'Attendance' },
     { key: 'marksheet' as const,   label: 'Marksheet' },
@@ -768,17 +770,18 @@ export default function DivisionDetailPage() {
     const { user } = useAuthStore();
     const subAdminPermissions = user?.role === 'SUB_ADMIN' ? (user.permissions ?? []) : null;
 
-    function isTabLocked(tabKey: 'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'): boolean {
+    function isTabLocked(tabKey: 'overview' | 'manage' | 'promotions' | 'fees' | 'attendance' | 'marksheet'): boolean {
         if (!subAdminPermissions) return false;
         if (tabKey === 'overview')   return !subAdminPermissions.includes('CAMPUS_VIEW');
         if (tabKey === 'manage')     return !subAdminPermissions.includes('CAMPUS_MANAGE');
+        if (tabKey === 'promotions') return !subAdminPermissions.includes('CAMPUS_MANAGE');
         if (tabKey === 'fees')       return !subAdminPermissions.includes('CAMPUS_FEES');
         if (tabKey === 'attendance') return !subAdminPermissions.includes('CAMPUS_ATTENDANCE');
         if (tabKey === 'marksheet')  return !subAdminPermissions.includes('CAMPUS_MARKSHEET');
         return false;
     }
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'>(() => {
+    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'promotions' | 'fees' | 'attendance' | 'marksheet'>(() => {
         if (!subAdminPermissions) return 'overview';
         if (subAdminPermissions.includes('CAMPUS_VIEW'))       return 'overview';
         if (subAdminPermissions.includes('CAMPUS_MANAGE'))     return 'manage';
@@ -792,7 +795,7 @@ export default function DivisionDetailPage() {
     useEffect(() => {
         if (!subAdminPermissions) return;
         if (isTabLocked(activeTab)) {
-            const order: typeof activeTab[] = ['overview', 'manage', 'fees', 'attendance', 'marksheet'];
+            const order: typeof activeTab[] = ['overview', 'manage', 'promotions', 'fees', 'attendance', 'marksheet'];
             const first = order.find(t => !isTabLocked(t));
             if (first) setActiveTab(first);
         }
@@ -2030,6 +2033,21 @@ export default function DivisionDetailPage() {
                                     </AnimatePresence>
                                 </div>
                             </div>
+                        </motion.div>
+                    )}
+
+                    {/* ── TAB 2.5: PROMOTIONS ── */}
+                    {activeTab === 'promotions' && (
+                        <motion.div key="promotions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="h-full pt-3 pb-3 px-1 overflow-y-auto">
+                            <PromotionPanel
+                                divisionId={divisionId}
+                                fetchPreview={async () => (await api.get<{ data: PreviewData }>(`/admin/promotions/divisions/${divisionId}/preview`)).data.data}
+                                fetchBatches={async () => (await api.get<{ data: BatchSummary[] }>(`/admin/promotions/batches?divisionId=${divisionId}`)).data.data}
+                                submitOutcomes={async (outcomes: { studentId: string; outcome: PromotionOutcomeChoice }[], targetDivisionId?: string) =>
+                                    (await api.post<{ data: { batchId: string }; warning?: string }>(`/admin/promotions/divisions/${divisionId}`, { outcomes, targetDivisionId })).data}
+                                undoBatch={async (batchId: string) => { await api.post(`/admin/promotions/batches/${batchId}/undo`); }}
+                            />
                         </motion.div>
                     )}
 
