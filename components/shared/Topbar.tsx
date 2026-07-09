@@ -197,27 +197,27 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
 
     return (
         <div className="flex flex-col gap-2 px-2">
-            <header className="h-17 rounded-4xl bg-card shadow-sm flex items-center justify-between px-5">
-                <div className="flex items-center gap-2.5">
+            <header className="h-17 rounded-4xl bg-card shadow-sm flex items-center justify-between px-3 sm:px-5 gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
                     <Image
                         src="/QubeEx_darkmode_DA7756.png"
                         alt="QubeEx Logo"
                         width={33}
                         height={33}
                         style={{ width: 'auto', height: '40px' }}
-                        className="rounded-md"
+                        className="rounded-md shrink-0"
                     />
-                    <div className="flex items-end gap-1.5 -mt-1">
-                        <span className="text-[25.5px] font-bold text-[#374151] dark:text-[#FAE5D9]" style={{ fontFamily: 'var(--font-poppins)' }}>
+                    <div className="flex items-end gap-1.5 -mt-1 min-w-0">
+                        <span className="text-[19px] sm:text-[25.5px] font-bold text-[#374151] dark:text-[#FAE5D9] truncate" style={{ fontFamily: 'var(--font-poppins)' }}>
                             QubeEx
                         </span>
-                        <span className="mb-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-border/60 text-muted-foreground tracking-wide bg-transparent">
+                        <span className="hidden sm:inline-block mb-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-border/60 text-muted-foreground tracking-wide bg-transparent">
                             BETA
                         </span>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2 shrink-0">
                     {devToggle}  {/* ← add */}
                     <NotificationsBell />
                     <ThemeToggle />
@@ -226,7 +226,7 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
             </header>
 
             {navItems && (
-                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/30 w-fit items-center">
+                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/30 w-fit max-w-full items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {navItems.map((item) => {
                         const activePaths = item.activePath
                             ? (Array.isArray(item.activePath) ? item.activePath : [item.activePath])
