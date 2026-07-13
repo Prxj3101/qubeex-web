@@ -115,17 +115,17 @@ export const PLANS: PlanCard[] = [
         name: 'Basic',
         tagline: 'Everything to run your school digitally.',
         licence: 39999,
-        rate: 20,
-        rateBulk: 17,
+        rate: 29,
+        rateBulk: 24,
         highlight: false,
         points: ['Attendance & class management', 'Fee schedules & tracking', 'Audit logs', 'Standard analytics', 'Email support'],
     },
     {
         name: 'Pro',
         tagline: 'Unlock the full power of AI.',
-        licence: 69999,
-        rate: 25,
-        rateBulk: 22,
+        licence: 59999,
+        rate: 39,
+        rateBulk: 33,
         highlight: true,
         points: ['Everything in Basic', 'AI-driven insights & assessments', 'Higher AI token limits', 'Advanced analytics', 'Priority support'],
     },
@@ -138,14 +138,10 @@ export interface Testimonial {
     role: string;
 }
 
-export const TESTIMONIALS: Testimonial[] = [
-    { quote: 'Attendance that used to take 20 minutes now takes 2. My mornings finally start with teaching.', name: 'Priya Sharma', role: 'Class Teacher, Grade 7' },
-    { quote: 'The AI flagged three students with falling attendance before I would have noticed. That alone is worth it.', name: 'Rahul Verma', role: 'Academic Coordinator' },
-    { quote: 'Fee tracking used to live in four spreadsheets. Now it lives in one place — and parents stopped calling to ask.', name: 'Sunita Rao', role: 'School Administrator' },
-    { quote: 'We rolled out to 1,200 students in a week. The audit logs make my compliance reviews painless.', name: 'Vikram Mehta', role: 'Principal' },
-    { quote: 'The dashboard feels calm. That sounds small, but when you check it 30 times a day, it matters.', name: 'Anjali Desai', role: 'Vice Principal' },
-    { quote: 'My to-do list, notes and attendance in one tab. I closed the other twelve.', name: 'Karan Patel', role: 'Subject Teacher' },
-];
+// NOTE: intentionally empty — previous array held fabricated quotes from institutions
+// that don't exist yet. Re-populate with real quotes once pilot schools go live
+// (see Launch Plan doc, Section 6: "fake testimonials hatao ... pilot se real aane tak").
+export const TESTIMONIALS: Testimonial[] = [];
 
 /* ---------------- FAQ ---------------- */
 export interface Faq { q: string; a: string }
@@ -153,8 +149,8 @@ export interface Faq { q: string; a: string }
 export const FAQS: Faq[] = [
     { q: 'What exactly is QubeEx?', a: 'QubeEx is an AI-powered Student Assessment System (SAS) — a single platform where institutions manage attendance, assessments, fees and analytics, with AI insights layered on top.' },
     { q: 'Is it only for schools?', a: 'Schools are fully live today. College and coaching editions are in active development and launching soon — you can register interest via the demo form.' },
-    { q: 'How does pricing work?', a: 'A one-time licence fee plus a small per-student monthly rate. The rate drops automatically once you cross 1,500 students. No hidden charges.' },
+    { q: 'How does pricing work?', a: 'A one-time licence fee plus a small monthly rate per active user (admins, teachers and students). The rate drops automatically once your institution crosses 1,500 users. No hidden charges.' },
     { q: 'Is there a free trial?', a: 'Yes — every institution gets a 14-day free trial with full access. No payment details needed to start.' },
     { q: 'Does it work on mobile?', a: 'Yes. QubeEx runs in any modern browser, and a dedicated mobile app keeps teachers and students connected on the go.' },
-    { q: 'How is our data protected?', a: 'Role-based access control, full audit trails of every action, and encrypted storage. Your institution’s data stays yours.' },
+    { q: 'How is our data protected?', a: 'Role-based access control, full audit trails of every action, and encrypted storage — built to align with India’s DPDP Act. Since much of the data involves minors, we treat it with extra care: your institution remains the data fiduciary, QubeEx acts only as processor, and data is never shared or sold. On exit, your institution’s data can be exported and deleted on request.' },
 ];

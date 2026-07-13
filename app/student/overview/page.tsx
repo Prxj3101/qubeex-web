@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
-import NextImage from 'next/image';
-import { useStudentStore } from '@/store/studentStore';
 
 interface OverviewData {
     student: { name: string; rollNo: string; divisionName: string; standardName: string };
@@ -38,6 +36,13 @@ function formatDivision(divisionName: string): string {
     const letter = parts.length > 1 ? parts.slice(1).join('-') : divisionName;
     return `Division ${letter}`;
 }
+
+const STUDENT_CHARACTERS = [
+    '/images/school_boy1.png',
+    '/images/school_girl1.png',
+    '/images/school_boy2.png',
+    '/images/school_girl2.png',
+];
 
 const now = new Date();
 const hour = now.getHours();
@@ -74,7 +79,12 @@ export default function StudentOverview() {
     const [loading, setLoading] = useState(true);
     const [announcementVisible, setAnnouncementVisible] = useState(true);
     const thought = getTodaysThought();
-    const studentPhoto = useStudentStore(s => s.photo);
+    const [currentChar, setCurrentChar] = useState(0);
+
+    useEffect(() => {
+        const iv = setInterval(() => setCurrentChar(p => (p + 1) % STUDENT_CHARACTERS.length), 7000);
+        return () => clearInterval(iv);
+    }, []);
 
     useEffect(() => {
         api.get('/student/overview')
@@ -92,9 +102,6 @@ export default function StudentOverview() {
     }
 
     const studentName = data?.student.name || 'Student';
-    const initials = studentName.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase();
-    const rollNo = data?.student.rollNo || '—';
-    const classRank = data?.marks.classRank ?? null;
     const lb = data?.leaderboard ?? [];
     const divisionLabel = formatDivision(data?.student.divisionName ?? '');
 
@@ -118,12 +125,13 @@ export default function StudentOverview() {
         <div className="space-y-5 pb-8">
 
             {/* ── Greeting Banner ── */}
-            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-10 flex items-center justify-between min-h-[200px]">
+            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-5 flex items-center justify-between min-h-[160px]">
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
                 <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-5 left-16 animate-pulse" />
                 <div className="absolute w-1 h-1 rounded-full bg-white/70 top-20 left-36 animate-pulse delay-300" />
                 <div className="absolute w-1 h-1 rounded-full bg-white/70 top-12 left-5 animate-pulse delay-500" />
+                <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-4 left-52 animate-pulse delay-700" />
 
                 <div className="space-y-1 z-10">
                     <p className="text-white/70 text-base">{greeting} 👋</p>
@@ -136,18 +144,26 @@ export default function StudentOverview() {
                     <p className="text-white/50 text-xs mt-2">{dateStr}</p>
                 </div>
 
-                <div className="z-10 flex flex-col items-center gap-2">
-                    <div className="w-16 h-16 rounded-2xl bg-white/20 flex items-center justify-center text-2xl font-bold text-white border-2 border-white/30 overflow-hidden relative">
-                        {studentPhoto
-                            ? <NextImage src={studentPhoto} alt={studentName} fill sizes="64px" className="object-cover" unoptimized={studentPhoto.startsWith('data:')} />
-                            : initials}
-                    </div>
-                    <div className="flex gap-1.5 flex-wrap justify-center">
-                        <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full">Roll #{rollNo}</span>
-                        {classRank && (
-                            <span className="text-[10px] bg-white/20 text-white px-2 py-0.5 rounded-full">Rank #{classRank}</span>
-                        )}
-                    </div>
+                {/* Animated character — matches admin/teacher overview hero */}
+                <div className="z-10 relative w-[250px] h-[200px] hidden sm:block self-end mb-[-40px]">
+                    <motion.div
+                        animate={{ y: [-20, -24, -20] }}
+                        transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                        <AnimatePresence mode="wait">
+                            <motion.img
+                                key={currentChar}
+                                src={STUDENT_CHARACTERS[currentChar]}
+                                alt="student character"
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 1.2 }}
+                                className="w-[300px] h-[230px] object-contain"
+                                style={{ filter: 'drop-shadow(0 8px 16px rgba(0,0,0,0.3))' }}
+                            />
+                        </AnimatePresence>
+                    </motion.div>
                 </div>
             </div>
 

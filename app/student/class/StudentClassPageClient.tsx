@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import PencilLoader from '@/components/student/PencilLoader';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Users, Trophy, Calendar, Loader2, X, FileText, ChevronRight } from 'lucide-react';
+import { BookOpen, Users, Trophy, Calendar, Loader2, X, FileText, ChevronRight, GraduationCap } from 'lucide-react';
 import { SUBJECT_PALETTE } from '@/lib/subjectColors';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '@/lib/api';
@@ -27,7 +27,7 @@ interface FeedFile {
     postedBy: string; createdAt: string;
 }
 interface ClassData {
-    division: { id: string; name: string; standardName: string; classTeacherName: string | null; totalStudents: number; subjects: Subject[] } | null;
+    division: { id: string; name: string; standardName: string; classTeacherName: string | null; classTeacherAvatarUrl: string | null; totalStudents: number; subjects: Subject[] } | null;
     resultFiles: FeedFile[];
     subjectMaterials: Record<string, FeedFile[]>;
     classmates: Classmate[];
@@ -293,10 +293,20 @@ function ViewTab({ data }: { data: ClassData }) {
                         {/* Subject Teachers (col 1, row 2) */}
                         <div className="rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5 min-h-0">
                             <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
-                                <BookOpen size={13} className="text-muted-foreground" />
-                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Subject Teachers</p>
+                                <GraduationCap size={16} className="text-muted-foreground" />
+                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Teachers</p>
                             </div>
                             <div className="overflow-y-auto flex-1 min-h-0" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                {division?.classTeacherName && (
+                                    <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 transition-colors hover:bg-muted/40">
+                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#F59E0B' }} />
+                                        <p className="text-[11px] font-semibold text-foreground flex-1 truncate">Class Teacher</p>
+                                        <div className="flex items-center gap-2 shrink-0">
+                                            <Avatar name={division.classTeacherName} size={22} />
+                                            <p className="text-[10px] text-muted-foreground truncate max-w-[110px]">{division.classTeacherName}</p>
+                                        </div>
+                                    </div>
+                                )}
                                 {subjects.map(sub => (
                                     <div key={sub.id} className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 transition-colors hover:bg-muted/40">
                                         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sub.color }} />
@@ -619,7 +629,9 @@ export default function StudentClassPageClient() {
                             <h1 className="text-2xl font-bold flex items-center gap-2">
                                 <Users size={24} /> {division?.name ?? '—'}
                             </h1>
-                            <p className="text-xs text-muted-foreground">{division?.standardName}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {division?.classTeacherName ? `Class Teacher - ${division.classTeacherName}` : division?.standardName}
+                            </p>
                         </div>
 
                         {/* Tab bar */}

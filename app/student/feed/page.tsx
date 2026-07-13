@@ -99,6 +99,25 @@ function formatDateTime(iso: string) {
     return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${h12}:${m} ${ampm}`;
 }
 
+// ── Verified Badge (same as teacher/admin feed) ────────────────────────────────
+function VerifiedBadge() {
+    return (
+        <svg width="12" height="12" viewBox="0 0 40 40" fill="none" style={{ marginTop: -1 }}>
+            <path d="M20 2
+                L23.5 6.5 L29 5 L31.5 10.5 L37.5 12
+                L36 18 L40 22 L36 26 L37.5 32
+                L31.5 33.5 L29 39 L23.5 37.5
+                L20 42 L16.5 37.5 L11 39
+                L8.5 33.5 L2.5 32 L4 26
+                L0 22 L4 18 L2.5 12
+                L8.5 10.5 L11 5 L16.5 6.5 Z"
+                fill="#DA7756" />
+            <path d="M13 21l5 5 9-10"
+                stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+    );
+}
+
 // ── Academic Calendar ─────────────────────────────────────────────────────────
 function AcademicCalendar() {
     const now = new Date();
@@ -276,8 +295,10 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
                 </div>
                 <div>
                     <p className="text-xs font-semibold">{post.author.name}</p>
-                    <p className="text-[10px] text-muted-foreground capitalize">{post.author.role.toLowerCase()}</p>
-                    <p className="text-[10px] text-muted-foreground/70 mt-0.5">{formatDateTime(post.createdAt)}</p>
+                    <div className="flex items-center gap-1">
+                        <p className="text-[10px] text-muted-foreground capitalize">{post.author.role.toLowerCase()}</p>
+                        <VerifiedBadge />
+                    </div>
                 </div>
             </div>
 
@@ -296,11 +317,14 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
                 />
             )}
 
-            <button onClick={() => setExpanded(v => !v)}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                {expanded ? 'Show less' : 'Read more'}
-            </button>
+            <div className="flex items-center justify-between">
+                <button onClick={() => setExpanded(v => !v)}
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                    {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    {expanded ? 'Show less' : 'Read more'}
+                </button>
+                <span className="text-[11px] text-muted-foreground/70">{formatDateTime(post.createdAt)}</span>
+            </div>
         </motion.div>
     );
 }

@@ -4,18 +4,16 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import dynamic from 'next/dynamic';
 import { useRef } from 'react';
 import { ArrowRight, Sparkles } from 'lucide-react';
-import { EASE, DISPLAY, SplitWords, Counter } from './motion';
+import { EASE, DISPLAY, SplitWords } from './motion';
 
 const Qube3D = dynamic(() => import('./Qube3D'), { ssr: false });
 
 const GRAIN =
     "url(\"data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.3'/%3E%3C/svg%3E\")";
 
-const STATS: { to: number; suffix: string; label: string }[] = [
-    { to: 40, suffix: '+', label: 'institutions onboard' },
-    { to: 25000, suffix: '+', label: 'students tracked daily' },
-    { to: 98, suffix: '%', label: 'attendance accuracy' },
-];
+// NOTE: previously showed fabricated counts (institutions/students/accuracy).
+// Removed until real numbers exist post-pilot (Launch Plan doc, Section 6).
+const HIGHLIGHTS: string[] = ['AI-driven insights', 'Web + mobile, one account', 'Built for Indian schools'];
 
 export default function Hero({ onDemo }: { onDemo: () => void }) {
     const ref = useRef<HTMLDivElement>(null);
@@ -127,20 +125,21 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                     </a>
                 </motion.div>
 
-                {/* stats */}
+                {/* highlights */}
                 <motion.div
                     initial={{ opacity: 0, y: 24 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, ease: EASE, delay: 1.25 }}
-                    className="mt-16 flex flex-wrap gap-x-12 gap-y-6 lg:mt-20"
+                    className="mt-16 flex flex-wrap gap-x-8 gap-y-3 lg:mt-20"
                 >
-                    {STATS.map((s) => (
-                        <div key={s.label}>
-                            <p style={DISPLAY} className="text-3xl font-bold tracking-tight text-[#190D2E] sm:text-4xl">
-                                <Counter to={s.to} suffix={s.suffix} />
-                            </p>
-                            <p className="mt-1 text-xs font-medium uppercase tracking-wider text-[#9A93AC]">{s.label}</p>
-                        </div>
+                    {HIGHLIGHTS.map((h) => (
+                        <span
+                            key={h}
+                            className="inline-flex items-center gap-2 rounded-full border border-[#E0D5F7] bg-white/70 px-4 py-2 text-xs font-semibold text-[#3D3552] backdrop-blur"
+                        >
+                            <span className="h-1.5 w-1.5 rounded-full bg-[#7C3AED]" />
+                            {h}
+                        </span>
                     ))}
                 </motion.div>
             </motion.div>

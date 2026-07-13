@@ -13,7 +13,7 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
             <SectionHead
                 eyebrow="Pricing"
                 title="Simple pricing that scales with you"
-                sub="One licence, a small per-student rate, and a 14-day free trial to make sure it fits. School pricing shown — college & coaching coming soon."
+                sub="One licence, a small per-user rate, and a 14-day free trial to make sure it fits. School pricing shown — college & coaching coming soon."
             />
 
             <div className="mt-14 grid gap-6 md:grid-cols-2">
@@ -49,9 +49,9 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                                     <span className={`text-sm ${p.highlight ? 'text-white/60' : 'text-[#9A93AC]'}`}>one-time licence</span>
                                 </div>
                                 <p className={`mt-2 text-sm font-medium ${p.highlight ? 'text-white/80' : 'text-[#3D3552]'}`}>
-                                    + {inr(p.rate)}/student/month
+                                    + {inr(p.rate)}/user/month
                                     <span className={`ml-1.5 text-xs font-normal ${p.highlight ? 'text-white/55' : 'text-[#9A93AC]'}`}>
-                                        ({inr(p.rateBulk)} beyond 1,500 students)
+                                        ({inr(p.rateBulk)} beyond 1,500 users)
                                     </span>
                                 </p>
 

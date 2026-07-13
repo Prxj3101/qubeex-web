@@ -59,6 +59,15 @@ function formatRelative(iso: string) {
     if (hrs < 24) return `${hrs}h ago`;
     return `${Math.floor(hrs / 24)}d ago`;
 }
+function formatDateTime(iso: string) {
+    const d = new Date(iso);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${h12}:${m} ${ampm}`;
+}
 
 // ── Academic Calendar ─────────────────────────────────────────────────────────
 function AcademicCalendar({ canManage }: { canManage: boolean }) {
@@ -350,11 +359,14 @@ function FeedCard({ post, onDelete, canManage }: { post: FeedPost; onDelete: (id
                     attachment={{ url: post.attachmentUrl, name: post.attachmentName, type: post.attachmentType }}
                 />
             )}
-            <button onClick={() => setExpanded(v => !v)}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                {expanded ? 'Show less' : 'Read more'}
-            </button>
+            <div className="flex items-center justify-between">
+                <button onClick={() => setExpanded(v => !v)}
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                    {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    {expanded ? 'Show less' : 'Read more'}
+                </button>
+                <span className="text-[11px] text-muted-foreground/70">{formatDateTime(post.createdAt)}</span>
+            </div>
             {/* Confirm popup */}
             <AnimatePresence>
                 {confirmDelete && (

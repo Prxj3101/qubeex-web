@@ -7,7 +7,8 @@ import VelocityMarquee from './VelocityMarquee';
 import Features from './Features';
 import Modules from './Modules';
 import Pricing from './Pricing';
-import Testimonials from './Testimonials';
+// Testimonials hidden until real pilot-school quotes are available — see landing-data.ts
+// import Testimonials from './Testimonials';
 import FAQ from './FAQ';
 import CTAFooter from './CTAFooter';
 import DemoModal from './DemoModal';
@@ -24,7 +25,6 @@ export default function LandingPage() {
             <Features />
             <Modules />
             <Pricing onDemo={openDemo} />
-            <Testimonials />
             <FAQ />
             <CTAFooter onDemo={openDemo} />
             <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

@@ -44,8 +44,16 @@ function formatTime(iso: string) {
     const hours = Math.floor(mins / 60);
     if (hours < 24) return `${hours}h ago`;
     const days = Math.floor(hours / 24);
-    if (days < 7) return `${days}d ago`;
-    return new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    return `${days}d ago`;
+}
+function formatDateTime(iso: string) {
+    const d = new Date(iso);
+    const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, '0');
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${h12}:${m} ${ampm}`;
 }
 
 // ── Verified Badge ────────────────────────────────────────────────────────────
@@ -346,6 +354,7 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
     onDelete: (id: string) => void;
 }) {
     const [expanded, setExpanded] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const meta = POST_META[ann.type];
     const initials = ann.author.name.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase();
     const avatarColor = AVATAR_COLORS[ann.author.name.charCodeAt(0) % AVATAR_COLORS.length];
@@ -362,9 +371,9 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
                 <div className="flex items-center gap-2">
                     <span className="text-[11px] text-muted-foreground">{formatTime(ann.createdAt)}</span>
                     {isMe && (
-                        <button onClick={() => onDelete(ann.id)}
-                            className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all">
-                            <Trash2 size={11} />
+                        <button onClick={() => setConfirmDelete(true)}
+                            className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground/40 hover:text-red-500 transition-colors">
+                            <X size={12} />
                         </button>
                     )}
                 </div>
@@ -400,11 +409,37 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
                     />
                 </div>
             )}
-            <button onClick={() => setExpanded(v => !v)}
-                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                {expanded ? 'Show less' : 'Read more'}
-            </button>
+            <div className="flex items-center justify-between">
+                <button onClick={() => setExpanded(v => !v)}
+                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                    {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                    {expanded ? 'Show less' : 'Read more'}
+                </button>
+                <span className="text-[11px] text-muted-foreground/70">{formatDateTime(ann.createdAt)}</span>
+            </div>
+            <AnimatePresence>
+                {confirmDelete && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            <h3 className="text-base font-bold mb-2">Delete Post?</h3>
+                            <p className="text-sm text-muted-foreground mb-5">
+                                This post will be permanently deleted. Are you sure?
+                            </p>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setConfirmDelete(false)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => { onDelete(ann.id); setConfirmDelete(false); }}
+                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white bg-red-500 hover:opacity-90 transition-all">
+                                    Yes, Delete
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
