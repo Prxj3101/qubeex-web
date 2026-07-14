@@ -369,7 +369,7 @@ function AttendanceAccordion() {
                     </ResponsiveContainer>
 
                     {/* Division summary cards */}
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         {chartData.map((d) => {
                             const color = getAttendanceColor(d.attendance);
                             return (
@@ -560,7 +560,7 @@ export default function AdminAnalyticsPage() {
         return (
             <div className="space-y-4 py-4">
                 <Skeleton className="h-8 w-48 rounded-lg" />
-                <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                     {[0, 1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 rounded-2xl" />)}
                 </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">

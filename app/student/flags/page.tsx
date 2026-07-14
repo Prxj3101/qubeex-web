@@ -158,7 +158,7 @@ export default function FlagsPage() {
     const activeFlags = activeTab === 'yellow' ? yellowFlags : redFlags;
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-y-auto lg:overflow-hidden">
             <style>{`
                 @keyframes flagFloat {
                     0%, 100% { transform: translateY(0px); }
@@ -183,14 +183,14 @@ export default function FlagsPage() {
             </div>
 
             {/* Body: left tabs + right content */}
-            <div className="flex-1 overflow-hidden flex gap-4 pb-3">
+            <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-4 pb-3">
 
                 {/* ── Left: Tab buttons ── */}
-                <div className="shrink-0 flex flex-col gap-3 w-44">
+                <div className="lg:shrink-0 flex flex-row flex-wrap lg:flex-col gap-3 w-full lg:w-44">
                     {/* Yellow tab */}
                     <button
                         onClick={() => setActiveTab('yellow')}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
+                        className={`flex-1 lg:flex-none flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
                             activeTab === 'yellow'
                                 ? 'bg-amber-50 dark:bg-[#1C1A00] border-amber-300 dark:border-amber-500 border-b-[3px] border-b-amber-400 dark:border-b-amber-400'
                                 : 'bg-card border-border/50 hover:bg-muted/30'
@@ -218,7 +218,7 @@ export default function FlagsPage() {
                     {/* Red tab */}
                     <button
                         onClick={() => setActiveTab('red')}
-                        className={`flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
+                        className={`flex-1 lg:flex-none flex flex-col items-center gap-2 p-4 rounded-2xl border transition-all ${
                             activeTab === 'red'
                                 ? 'bg-red-50 dark:bg-[#1A0A0A] border-red-300 dark:border-red-500 border-b-[3px] border-b-red-500'
                                 : 'bg-card border-border/50 hover:bg-muted/30'
@@ -244,7 +244,7 @@ export default function FlagsPage() {
                     </button>
 
                     {/* Appeal note */}
-                    <div className="mt-auto p-3 rounded-xl border bg-violet-50 dark:bg-violet-950/20 border-violet-200/50 dark:border-violet-900/50">
+                    <div className="w-full lg:mt-auto p-3 rounded-xl border bg-violet-50 dark:bg-violet-950/20 border-violet-200/50 dark:border-violet-900/50">
                         <div className="flex items-start gap-2">
                             <ShieldAlert size={14} className="text-violet-500 shrink-0 mt-0.5" />
                             <div>
@@ -258,7 +258,7 @@ export default function FlagsPage() {
                 </div>
 
                 {/* ── Right: Flag cards ── */}
-                <div className="flex-1 overflow-y-auto space-y-3 pr-1">
+                <div className="w-full lg:flex-1 overflow-y-auto space-y-3 pr-1">
                     {activeFlags.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full gap-2">
                             <span className="text-4xl">✅</span>

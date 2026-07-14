@@ -380,7 +380,7 @@ export function WelcomeBanner({ adminName, institutionName, institutionType, pla
                         style={{ background: `linear-gradient(90deg, transparent, ${cfg.color} 25%, ${cfg.color}66 75%, transparent)` }} />
 
                     {/* ── Header ── */}
-                    <div className="relative z-10 flex items-center gap-3 px-4 py-3">
+                    <div className="relative z-10 flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-3">
                         {/* Ring */}
                         <div className="relative w-[46px] h-[46px] shrink-0">
                             <ProgressRing pct={pct} color={cfg.color} />
@@ -521,7 +521,7 @@ export function WelcomeBanner({ adminName, institutionName, institutionType, pla
                                                 style={{ border: `1px solid ${cfg.colorBorder}`, background: cfg.colorBg }}>
 
                                                 {/* Plan header */}
-                                                <div className="flex items-center justify-between px-3 py-2"
+                                                <div className="flex flex-wrap items-center justify-between gap-1.5 px-3 py-2"
                                                     style={{ borderBottom: `1px solid ${cfg.colorBorder}` }}>
                                                     <div>
                                                         <p className="text-[12px] font-bold" style={{ color: cfg.color }}>{cfg.label}</p>
@@ -538,7 +538,7 @@ export function WelcomeBanner({ adminName, institutionName, institutionType, pla
 
                                                 <div className="px-3 py-2.5">
                                                     {/* Features — 3 col grid */}
-                                                    <div className="grid grid-cols-3 gap-1.5 mb-2">
+                                                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-2">
                                                         {visibleDefault.map(f => (
                                                             <FeaturePill key={f.key} icon={f.icon} label={f.label}
                                                                 color={cfg.color} colorBgStrong={cfg.colorBgStrong} />
@@ -564,7 +564,7 @@ export function WelcomeBanner({ adminName, institutionName, institutionType, pla
                                                             <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-1.5">
                                                                 Add-ons (free Year 1)
                                                             </p>
-                                                            <div className="grid grid-cols-3 gap-1.5 mb-2">
+                                                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 mb-2">
                                                                 {cfg.addonFeatures.map(f => (
                                                                     <FeaturePill key={f.key} icon={f.icon} label={f.label}
                                                                         isAddon color={cfg.color} colorBgStrong={cfg.colorBgStrong} />

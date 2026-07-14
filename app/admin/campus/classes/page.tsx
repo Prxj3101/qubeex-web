@@ -220,9 +220,9 @@ export default function ClassesPage() {
 
             {/* Header */}
             <div className="shrink-0 pt-0 pb-0 px-1 sticky top-0 z-20 bg-background">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
-                        <h1 className="text-xl font-bold flex items-center gap-2">
+                        <h1 className="text-lg lg:text-xl font-bold flex items-center gap-2">
                             <LayoutGrid size={21} />
                             Classes
                         </h1>
@@ -233,7 +233,7 @@ export default function ClassesPage() {
                     {isAdmin && (
                         <button
                             onClick={() => setAddingStandard(true)}
-                            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
+                            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all w-fit"
                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                             <Plus size={15} /> Add {standardLabel}
                         </button>
@@ -284,7 +284,7 @@ export default function ClassesPage() {
                             {/* Standard header */}
                             <button
                                 onClick={() => setExpandedId(isExpanded ? null : std.id)}
-                                className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/20 transition-colors">
+                                className="w-full flex items-center justify-between px-3 sm:px-5 py-4 hover:bg-muted/20 transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div
                                         className="w-11 h-11 rounded-2xl flex items-center justify-center text-base font-black text-white shrink-0"
@@ -312,9 +312,9 @@ export default function ClassesPage() {
                                         exit={{ height: 0, opacity: 0 }}
                                         transition={{ duration: 0.2 }}
                                         className="overflow-hidden">
-                                        <div className="border-t border-border/40 px-5 py-4 space-y-4">
+                                        <div className="border-t border-border/40 px-3 sm:px-5 py-4 space-y-4">
 
-                                            <div className="border-t border-border/40 px-5 py-4 space-y-4">
+                                            <div className="border-t border-border/40 px-3 sm:px-5 py-4 space-y-4">
 
                                                 {/* Subjects */}
                                                 <div>

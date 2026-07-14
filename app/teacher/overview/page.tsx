@@ -288,7 +288,7 @@ export default function TeacherOverviewPage() {
         <div className="space-y-3 pb-3">
 
             {/* ── Hero — same as OverviewHero ── */}
-            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-5 flex items-center justify-between min-h-[160px]">
+            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-5 lg:px-13 py-5 flex items-center justify-between min-h-[160px]">
                 {/* Orbs */}
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
@@ -301,7 +301,7 @@ export default function TeacherOverviewPage() {
                 {/* Text */}
                 <div className="space-y-1 z-10">
                     <p className="text-white/70 text-base">{greeting}</p>
-                    <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
+                    <p className="text-white text-xl lg:text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
                         {teacherName}
                     </p>
                     <p className="text-white/60 text-sm">{getCasualMessage()}</p>
@@ -386,29 +386,29 @@ export default function TeacherOverviewPage() {
             )}
 
             {/* ── Blackboard + Short Attendance (same as student overview) ── */}
-            <div className="grid grid-cols-2 gap-3" style={{ height: '390px' }}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 h-auto lg:h-[390px]">
 
                 {/* Blackboard — left, same size as student */}
-                <div className="lg:col-span-1">
+                <div className="lg:col-span-1 h-[390px] lg:h-auto">
                     <Blackboard thought={thought} teacherClass={(() => { const v = overview?.teacher.classTeacherDivisionName ?? '—'; const m = v.match(/(\d+[-–]\w+)\s*$/); return m ? m[1] : v; })()} />
                 </div>
 
                 {/* Notepad */}
-                <div className="col-span-1" style={{ height: '390px' }}>
+                <div className="col-span-1 h-[390px]">
                     <TeacherNotepad />
                 </div>
             </div>
 
             {/* ── Graph + AI Token + Short Attendance ── */}
-            <div className="grid grid-cols-6 gap-3 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-6 gap-3 items-stretch">
 
                 {/* Graph — 2 cols */}
-                <div className="col-span-3">
+                <div className="col-span-1 lg:col-span-3">
                     <TeacherAttendanceChart data={overview?.attendanceTrend} />
                 </div>
 
                 {/* AI Token — 2 cols */}
-                <div className="col-span-2 bg-card border border-border/50 rounded-xl p-4">
+                <div className="col-span-1 lg:col-span-2 bg-card border border-border/50 rounded-xl p-4">
                     <div className="flex items-center gap-2 mb-4">
                         <Sparkles size={15} className="text-muted-foreground" />
                         <p className="text-sm font-medium">AI Token Usage</p>
@@ -510,7 +510,7 @@ export default function TeacherOverviewPage() {
                                 };
                                 const { date, time } = toIST(log.createdAt);
                                 return (
-                                    <div key={log.id} className="grid grid-cols-[140px_1fr] items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
+                                    <div key={log.id} className="grid grid-cols-1 lg:grid-cols-[140px_1fr] items-start gap-1.5 lg:gap-3 py-2.5 border-b border-border/40 last:border-none">
                                         {/* Action badge */}
                                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full w-fit mt-0.5 ${actionCfg.cls}`}>
                                             {actionCfg.label}

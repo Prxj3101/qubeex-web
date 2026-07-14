@@ -34,7 +34,7 @@ function Level3Row({
     onDelete: () => void;
 }) {
     return (
-        <div className="flex items-center gap-3 py-2.5 px-4 ml-10 border-l-2 border-border/40 hover:bg-muted/30 transition-colors rounded-r-lg group">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-3 py-2.5 px-3 sm:px-4 ml-4 sm:ml-10 border-l-2 border-border/40 hover:bg-muted/30 transition-colors rounded-r-lg group">
             <div
                 className="w-6 h-6 rounded-md flex items-center justify-center shrink-0"
                 style={{ background: `${accent.bg}12` }}
@@ -99,9 +99,9 @@ function Level2Row({
     const childCount = item.children.length;
 
     return (
-        <div className="ml-5">
+        <div className="ml-2 sm:ml-5">
             <div
-                className="flex items-center gap-3 py-2.5 px-3 hover:bg-muted/30 transition-colors rounded-lg cursor-pointer group"
+                className="flex flex-wrap sm:flex-nowrap items-center gap-3 py-2.5 px-3 hover:bg-muted/30 transition-colors rounded-lg cursor-pointer group"
                 onClick={() => setExpanded((v) => !v)}
             >
                 <motion.div
@@ -222,7 +222,7 @@ export function StructureTree({
                     >
                         {/* Level 1 header */}
                         <div
-                            className="flex items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-muted/20 transition-colors group"
+                            className="flex flex-wrap sm:flex-nowrap items-center gap-3 px-4 py-3.5 cursor-pointer hover:bg-muted/20 transition-colors group"
                             onClick={() => toggleL1(l1.id)}
                         >
                             <motion.div

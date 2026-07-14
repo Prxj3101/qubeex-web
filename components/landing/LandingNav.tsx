@@ -67,16 +67,16 @@ export default function LandingNav({ onDemo }: { onDemo: () => void }) {
                     ))}
                 </div>
 
-                <div className="relative flex items-center gap-2.5">
+                <div className="relative flex items-center gap-1.5 sm:gap-2.5">
                     <Link
                         href="/login"
-                        className="rounded-xl px-4 py-2 text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
+                        className="rounded-xl px-2.5 py-1.5 text-xs font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white sm:px-4 sm:py-2 sm:text-sm"
                     >
                         Login
                     </Link>
                     <button
                         onClick={onDemo}
-                        className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-[#190D2E] shadow-[0_8px_20px_-8px_rgba(255,255,255,0.4)] transition-transform hover:scale-[1.03] active:scale-[0.98]"
+                        className="rounded-xl bg-white px-2.5 py-1.5 text-xs font-bold text-[#190D2E] shadow-[0_8px_20px_-8px_rgba(255,255,255,0.4)] transition-transform hover:scale-[1.03] active:scale-[0.98] sm:px-4 sm:py-2 sm:text-sm"
                     >
                         Request a Demo
                     </button>

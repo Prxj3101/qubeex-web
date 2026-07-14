@@ -125,7 +125,7 @@ export default function StudentOverview() {
         <div className="space-y-5 pb-8">
 
             {/* ── Greeting Banner ── */}
-            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-5 flex items-center justify-between min-h-[160px]">
+            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-5 py-6 sm:px-8 sm:py-8 lg:px-13 lg:py-5 flex items-center justify-between min-h-[160px]">
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
                 <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-5 left-16 animate-pulse" />
@@ -191,7 +191,7 @@ export default function StudentOverview() {
             </div>
 
             {/* ── Blackboard + Leaderboard ── */}
-            <div className="grid grid-cols-2 gap-4 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
 
                 {/* ── Blackboard ── */}
                 <div style={{ display: 'flex', flexDirection: 'column', borderRadius: '10px', boxShadow: '0 6px 24px rgba(0,0,0,0.3)', border: '12px solid #6B3F1F', outline: '2px solid #4A2A0E' }}>

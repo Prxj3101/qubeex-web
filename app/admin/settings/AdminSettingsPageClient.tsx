@@ -523,7 +523,7 @@ export default function AdminSettingsPageClient() {
                                 </div>
                             </div>
                             <div className="p-5">
-                                <div className="flex items-center justify-between gap-4">
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
                                     <div className="min-w-0">
                                         <p className="text-sm font-medium">Sign out from all devices</p>
                                         <p className="text-[11px] text-muted-foreground">Invalidates your session everywhere — you&apos;ll need to sign in again</p>

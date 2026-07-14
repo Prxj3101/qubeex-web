@@ -106,7 +106,7 @@ export default function StudentMarksheetPage() {
     return (
         <div className="max-w-4xl mx-auto px-2 pb-10">
             {/* Header */}
-            <div className="rounded-2xl border border-border bg-card p-5 mb-4">
+            <div className="rounded-2xl border border-border bg-card p-4 mb-4 lg:p-5">
                 <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
                         <h1 className="text-lg font-bold">{data.student.name}</h1>
@@ -114,7 +114,7 @@ export default function StudentMarksheetPage() {
                             {data.standardName} - {data.divisionName} · Roll {data.student.rollNo} · {data.academicYear}
                         </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                         <div className="text-right">
                             <div className="text-2xl font-bold" style={{ color: data.grandPct !== null ? gradeColor(data.grade, data.gradeScale) : '#94A3B8' }}>
                                 {data.grandPct !== null ? `${data.grandPct}%` : '—'}
@@ -136,12 +136,12 @@ export default function StudentMarksheetPage() {
             <div className="space-y-3">
                 {data.subjects.map((sub) => (
                     <div key={sub.id} className="rounded-2xl border border-border bg-card p-4">
-                        <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-bold">{sub.name}</span>
                                 <span className="text-[11px] text-muted-foreground">({sub.code})</span>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-3 flex-wrap">
                                 <span className="text-xs text-muted-foreground">{sub.total.scored}/{sub.total.max}</span>
                                 <span className="text-sm font-bold" style={{ color: sub.pct !== null ? gradeColor(sub.grade, data.gradeScale) : '#94A3B8' }}>
                                     {sub.pct !== null ? `${sub.pct}%` : '—'}
@@ -180,7 +180,7 @@ export default function StudentMarksheetPage() {
                     </div>
                     <div className="space-y-2">
                         {data.gradedSubjects.map((gs) => (
-                            <div key={gs.id} className="flex items-center justify-between text-sm">
+                            <div key={gs.id} className="flex items-center justify-between text-sm flex-wrap gap-2">
                                 <span>{gs.name}</span>
                                 <div className="flex items-center gap-4 text-xs">
                                     <span className="text-muted-foreground">T1: <b className="text-foreground">{gs.term1Grade ?? '—'}</b></span>

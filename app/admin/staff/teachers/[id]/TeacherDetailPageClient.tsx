@@ -263,7 +263,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
 
             {/* Header card */}
             <div className="bg-card border border-border/50 rounded-2xl p-5">
-                <div className="flex items-start gap-4">
+                <div className="flex flex-col sm:flex-row items-start gap-4">
                     {/* Avatar */}
                     <div
                         className={`relative w-20 h-20 rounded-2xl overflow-hidden flex items-center justify-center text-xl font-bold shrink-0 ${teacher.avatarUrl ? 'cursor-pointer' : `${avatarColor.bg} ${avatarColor.text}`}`}
@@ -304,8 +304,8 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         )}
                     </AnimatePresence>
 
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0 w-full">
+                        <div className="flex flex-col sm:flex-row items-start justify-between gap-3">
                             <div>
                                 <h2 className="text-lg font-bold leading-tight">
                                     {prefix && <span className="mr-1" style={{ color: '#DA7756' }}>{prefix}</span>}
@@ -336,7 +336,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         </div>
 
                         {/* Stats row */}
-                        <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
+                        <div className="flex items-center flex-wrap gap-4 mt-3 pt-3 border-t border-border/50">
                             {[
                                 { label: 'Assignments', value: teacher.assignments.length },
                                 { label: 'Joined', value: formatDate(teacher.joinedAt) },
@@ -446,7 +446,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         </div>
 
                         {/* Stats */}
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <div className="bg-muted/40 rounded-xl p-3 text-center">
                                 <p className="text-sm font-bold">1.2M</p>
                                 <p className="text-[10px] text-muted-foreground">Used</p>
@@ -702,7 +702,7 @@ export default function TeacherDetailPage() {
         <div className="space-y-4 animate-pulse">
             <div className="h-8 w-48 bg-muted rounded-xl" />
             <div className="h-36 w-full bg-muted rounded-2xl" />
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="h-48 bg-muted rounded-2xl" />
                 <div className="h-48 bg-muted rounded-2xl" />
             </div>

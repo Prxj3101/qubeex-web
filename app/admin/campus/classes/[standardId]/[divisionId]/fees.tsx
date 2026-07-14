@@ -37,13 +37,8 @@ const STATUS_CFG = {
     PENDING: { label: 'Pending', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
 };
 
-const MOCK_STUDENTS = [
-    { id: 'st1', name: 'Aarav Mehta', rollNo: '01', paid: true },
-    { id: 'st2', name: 'Priya Singh', rollNo: '02', paid: false },
-    { id: 'st3', name: 'Rohan Gupta', rollNo: '03', paid: true },
-    { id: 'st4', name: 'Sneha Patel', rollNo: '04', paid: false },
-    { id: 'st5', name: 'Arjun Kumar', rollNo: '05', paid: true },
-];
+interface FeesStudent { id: string; name: string; rollNo: string; paid: boolean; }
+interface FeePayment { studentId: string; feeMonthId: string; status: 'PAID' | 'PENDING'; paidDate: string | null; }
 const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 function getAvatarColor(n: string) { return AVATAR_COLORS[n.charCodeAt(0) % AVATAR_COLORS.length]; }
 function getInitials(n: string) { return n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
@@ -384,10 +379,46 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
     const [studentCardFlipped, setStudentCardFlipped] = useState(false);
 
     // Students tab
-    const [selectedStudent, setSelectedStudent] = useState<typeof MOCK_STUDENTS[0] | null>(null);
+    const [rosterStudents, setRosterStudents] = useState<{ id: string; name: string; rollNo: string }[]>([]);
+    const [feePayments, setFeePayments] = useState<FeePayment[]>([]);
+    const [selectedStudent, setSelectedStudent] = useState<FeesStudent | null>(null);
     const [studentFilter, setStudentFilter] = useState<'all' | 'paid' | 'pending'>('all');
     const [showListMenu, setShowListMenu] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+
+    const getPayment = useCallback((studentId: string, feeMonthId: string): FeePayment =>
+        feePayments.find(p => p.studentId === studentId && p.feeMonthId === feeMonthId)
+            ?? { studentId, feeMonthId, status: 'PENDING', paidDate: null },
+        [feePayments]);
+
+    const isStudentPaid = useCallback((studentId: string) =>
+        feeMonths.length > 0 && feeMonths.every(m => getPayment(studentId, m.id).status === 'PAID'),
+        [feeMonths, getPayment]);
+
+    const students: FeesStudent[] = rosterStudents.map(s => ({ ...s, paid: isStudentPaid(s.id) }));
+
+    const setPaymentField = async (feeMonthId: string, updates: { status?: 'PAID' | 'PENDING'; paidDate?: string }) => {
+        if (!selectedStudent) return;
+        const current = getPayment(selectedStudent.id, feeMonthId);
+        const next = { status: updates.status ?? current.status, paidDate: updates.paidDate ?? current.paidDate };
+        try {
+            const res = await api.patch(`/admin/campus/divisions/${divisionId}/fee-payments`, {
+                studentId: selectedStudent.id,
+                feeMonthId,
+                status: next.status,
+                paidDate: next.paidDate,
+            });
+            const saved: FeePayment = res.data.data;
+            setFeePayments(prev => {
+                const idx = prev.findIndex(p => p.studentId === saved.studentId && p.feeMonthId === saved.feeMonthId);
+                if (idx === -1) return [...prev, saved];
+                const copy = [...prev]; copy[idx] = saved; return copy;
+            });
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to update payment');
+        }
+    };
 
     // ── Load / Save ─────────────────────────────────────────────────────────
 
@@ -427,6 +458,18 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
             .catch(() => { })
             .finally(() => setLoading(false));
     }, [divisionId, applyData]);
+
+    useEffect(() => {
+        api.get(`/admin/campus/divisions/${divisionId}/students`)
+            .then(res => {
+                const data: { id: string; rollNo: string | null; user: { name: string | null } }[] = res.data.data ?? [];
+                setRosterStudents(data.map(s => ({ id: s.id, name: s.user.name ?? '—', rollNo: s.rollNo ?? '—' })));
+            })
+            .catch(() => { });
+        api.get(`/admin/campus/divisions/${divisionId}/fee-payments`)
+            .then(res => setFeePayments(res.data.data ?? []))
+            .catch(() => { });
+    }, [divisionId]);
 
     useEffect(() => {
         const handler = (e: MouseEvent) => {
@@ -495,8 +538,8 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
         feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
 
     const generatePDF = (type: 'all' | 'pending') => {
-        const students = type === 'all' ? MOCK_STUDENTS : MOCK_STUDENTS.filter(s => !s.paid);
-        const blob = new Blob([`${divisionName} — Fee List\n\n${students.map(s => `${s.rollNo}. ${s.name} — ${s.paid ? 'Paid' : 'Pending'}`).join('\n')}`], { type: 'text/plain' });
+        const list = type === 'all' ? students : students.filter(s => !s.paid);
+        const blob = new Blob([`${divisionName} — Fee List\n\n${list.map(s => `${s.rollNo}. ${s.name} — ${s.paid ? 'Paid' : 'Pending'}`).join('\n')}`], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = `${divisionName}-fees.txt`; a.click();
         URL.revokeObjectURL(url); toast.success('Downloaded');
@@ -538,16 +581,16 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                         </div>
 
                         {/* ROW 1: Fee Structures + Payment Methods */}
-                        <div className="flex gap-3">
+                        <div className="flex flex-col lg:flex-row gap-3">
 
                             {/* LEFT — Fee Structures */}
-                            <div className="w-[55%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0">
-                                    <div className="flex items-center gap-2">
+                            <div className="w-full lg:w-[55%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0 flex-wrap gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                             <Tag size={13} /> Fee Structures
                                         </p>
-                                        <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
                                             {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
                                                 const cfg = FEE_TYPE_CFG[t];
                                                 return (
@@ -587,7 +630,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                             </div>
 
                             {/* RIGHT — Payment Methods */}
-                            <div className="w-[45%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                            <div className="w-full lg:w-[45%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                 <div className="px-4 py-3.5 border-b border-border/50 bg-muted/20 shrink-0">
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                         <Landmark size={14} /> Payment Methods
@@ -741,7 +784,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                     <Plus size={11} /> Add Column
                                                 </button>
                                             </div>
-                                            <div className="rounded-xl border border-border/40 overflow-hidden">
+                                            <div className="rounded-xl border border-border/40 overflow-x-auto">
                                                 <table className="text-xs w-full">
                                                     <thead>
                                                         <tr className="bg-muted/30 border-b border-border/40">
@@ -822,7 +865,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                     const assignedCount = m.assignedStructureIds.length;
                                                     return (
                                                         <div key={m.id} className="rounded-xl border border-border/40 overflow-hidden">
-                                                            <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/20 hover:bg-muted/30 transition-colors">
+                                                            <div className="flex items-center flex-wrap gap-3 px-3 py-2.5 bg-muted/20 hover:bg-muted/30 transition-colors">
                                                                 <div className="w-20 shrink-0">
                                                                     <p className="text-xs font-semibold">{m.month}</p>
                                                                     <p className="text-[10px] text-muted-foreground">{m.dueDate || 'No due date'}</p>
@@ -901,7 +944,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                             </div>
 
                                             {addingMonth && (
-                                                <div className="mt-2 px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 flex items-center gap-2">
+                                                <div className="mt-2 px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 flex items-center flex-wrap gap-2">
                                                     <div ref={monthDropdownRef} className="relative">
                                                         <button type="button" onClick={() => setMonthDropdownOpen(v => !v)}
                                                             className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border/50 bg-card text-xs font-medium text-muted-foreground hover:border-primary/40 transition-all">
@@ -1005,13 +1048,13 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                 {/* ── Student Fees ── */}
                 {feesSubTab === 'students' && (
                     <motion.div key="students" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="flex gap-3 flex-1 min-h-0 overflow-hidden">
+                        className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
 
                         {/* LEFT — Student list */}
-                        <div className="w-[25%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                        <div className="w-full lg:w-[25%] h-[45vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl lg:overflow-hidden shadow-sm shadow-black/5">
                             <div className="px-3.5 py-2.5 border-b border-border/40 shrink-0">
                                 <div className="flex items-center justify-between">
-                                    <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({MOCK_STUDENTS.length})</p>
+                                    <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({students.length})</p>
                                     <div className="relative">
                                         <button onClick={() => setShowListMenu(v => !v)}
                                             className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90"
@@ -1043,7 +1086,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                 ))}
                             </div>
                             <div className="flex-1 overflow-y-auto bg-background">
-                                {MOCK_STUDENTS.filter(s => studentFilter === 'all' ? true : studentFilter === 'paid' ? s.paid : !s.paid).map(student => (
+                                {students.filter(s => studentFilter === 'all' ? true : studentFilter === 'paid' ? s.paid : !s.paid).map(student => (
                                     <button key={student.id} onClick={() => setSelectedStudent(student)}
                                         className={`w-full flex items-center gap-3 px-3.5 py-3 border-b border-border/20 text-left hover:bg-muted/30 transition-all ${selectedStudent?.id === student.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
                                         <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
@@ -1063,7 +1106,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                         </div>
 
                         {/* RIGHT — Student fee card */}
-                        <div className="flex-1 flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                        <div className="flex-1 h-[65vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                             <div className="px-4 py-3 border-b border-border/40 shrink-0">
                                 <p className="text-sm font-bold">Fee Details</p>
                             </div>
@@ -1087,8 +1130,8 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                 <p className="text-sm font-bold">{selectedStudent.name}</p>
                                                 <p className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo} · {divisionName}</p>
                                             </div>
-                                            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${selectedStudent.paid ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>
-                                                {selectedStudent.paid ? '✓ Paid' : '⏳ Pending'}
+                                            <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${isStudentPaid(selectedStudent.id) ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>
+                                                {isStudentPaid(selectedStudent.id) ? '✓ Paid' : '⏳ Pending'}
                                             </span>
                                         </div>
 
@@ -1144,7 +1187,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                         {feeMonths.length > 0 && (
                                                             <div>
                                                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Monthly Payment Schedule</p>
-                                                                <div className="rounded-xl border border-border/40 overflow-hidden">
+                                                                <div className="rounded-xl border border-border/40 overflow-x-auto">
                                                                     <table className="text-xs w-full">
                                                                         <thead>
                                                                             <tr className="bg-muted/10 border-b border-border/30">
@@ -1180,13 +1223,13 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                                                         <td className="px-3 py-2 font-bold">{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
                                                                                         <td className="px-3 py-2 text-muted-foreground">{m.dueDate}</td>
                                                                                         <td className="px-3 py-2">
-                                                                                            <input value={m.paidDate ?? ''} onChange={e => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, paidDate: e.target.value } : x))}
+                                                                                            <input value={getPayment(selectedStudent.id, m.id).paidDate ?? ''} onChange={e => setPaymentField(m.id, { paidDate: e.target.value })}
                                                                                                 placeholder="—" className="w-20 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/40" />
                                                                                         </td>
                                                                                         <td className="px-3 py-2">
-                                                                                            <button onClick={() => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, status: x.status === 'PAID' ? 'PENDING' : 'PAID' } : x))}
-                                                                                                className={`flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-semibold transition-all ${STATUS_CFG[m.status].cls}`}>
-                                                                                                {m.status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[m.status].label}
+                                                                                            <button onClick={() => setPaymentField(m.id, { status: getPayment(selectedStudent.id, m.id).status === 'PAID' ? 'PENDING' : 'PAID' })}
+                                                                                                className={`flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-semibold transition-all ${STATUS_CFG[getPayment(selectedStudent.id, m.id).status].cls}`}>
+                                                                                                {getPayment(selectedStudent.id, m.id).status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[getPayment(selectedStudent.id, m.id).status].label}
                                                                                             </button>
                                                                                         </td>
                                                                                         <td className="px-3 py-2 text-muted-foreground text-[11px]">{m.remark || '—'}</td>

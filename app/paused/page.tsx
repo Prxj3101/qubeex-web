@@ -18,11 +18,11 @@ export default function PausedPage() {
 
     return (
         <main className="min-h-screen flex items-center justify-center bg-background px-4">
-            <div className="w-full max-w-md rounded-2xl border border-border/50 bg-card p-8 text-center shadow-sm">
-                <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center mb-5">
+            <div className="w-full max-w-md mx-4 rounded-2xl border border-border/50 bg-card p-5 lg:p-8 text-center shadow-sm">
+                <div className="mx-auto w-12 h-12 lg:w-14 lg:h-14 rounded-2xl bg-amber-100 dark:bg-amber-950 flex items-center justify-center mb-5">
                     <PauseCircle size={28} className="text-amber-600 dark:text-amber-400" />
                 </div>
-                <h1 className="text-xl font-semibold mb-2" style={{ fontFamily: 'var(--font-poppins)' }}>
+                <h1 className="text-lg lg:text-xl font-semibold mb-2" style={{ fontFamily: 'var(--font-poppins)' }}>
                     Institution paused
                 </h1>
                 <p className="text-sm text-muted-foreground mb-2">

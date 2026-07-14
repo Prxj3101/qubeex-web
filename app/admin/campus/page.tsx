@@ -519,14 +519,14 @@ export default function AdminCampusPage() {
                 <div className="h-px bg-border/60 mt-2" />
             </div>
 
-            <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-2">
+            <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden pb-2">
 
                 {/* Feed panel */}
-                <div className="w-[65%] flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+                <div className="w-full lg:w-[65%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
                             <h2 className="text-sm font-bold">📢 Announcements &amp; Feed</h2>
-                            <div className="flex items-center gap-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                                 {FILTERS.map(tab => {
                                     const isActive = activeFilter === tab.key;
                                     return (
@@ -556,8 +556,8 @@ export default function AdminCampusPage() {
                     {/* Composer — only for admins and subadmins with CAMPUS_MANAGE */}
                     {canManage && <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">
                         {/* Row 1 — Title + Subject + Filters */}
-                        <div className="flex items-center gap-2">
-                            <div className="flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                            <div className="w-full sm:flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
                                 <input value={postInput} onChange={e => setPostInput(e.target.value)}
                                     placeholder="Title..."
                                     className="flex-1 bg-transparent text-sm font-bold placeholder:text-muted-foreground/60 placeholder:font-normal focus:outline-none" />
@@ -622,7 +622,7 @@ export default function AdminCampusPage() {
                 </div>
 
                 {/* Calendar panel */}
-                <div className="w-[35%] min-h-0 shadow-md shadow-black/20 rounded-2xl" style={{ height: '420px', alignSelf: 'flex-start' }}>
+                <div className="w-full lg:w-[35%] min-h-0 shadow-md shadow-black/20 rounded-2xl" style={{ height: '420px', alignSelf: 'flex-start' }}>
                     <AcademicCalendar canManage={canManage} />
                 </div>
             </div>

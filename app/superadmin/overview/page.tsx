@@ -186,7 +186,7 @@ export default function SuperAdminOverview() {
         <div className="space-y-3">
 
             {/* ── Header ── */}
-            <div className="-mx-4 relative overflow-visible rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-5 flex items-center justify-between min-h-[160px]">
+            <div className="-mx-4 relative overflow-visible rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-5 lg:px-13 py-5 flex items-center justify-between min-h-[160px]">
                 {/* Orbs */}
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
@@ -198,7 +198,7 @@ export default function SuperAdminOverview() {
 
                 <div className="space-y-1 z-10">
                     <p className="text-white/70 text-base">{greeting}👋, Boss</p>
-                    <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
+                    <p className="text-white text-xl lg:text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
                         {displayName}
                     </p>
                     <p className="text-white/60 text-sm">Here&apos;s what&apos;s happening across your platform today.</p>

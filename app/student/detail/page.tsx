@@ -349,10 +349,10 @@ export default function StudentDetailPage() {
             <div className="h-px bg-border/60 shrink-0" />
 
             {/* ── Body row: left fixed, right scrollable ── */}
-            <div className="flex gap-3 flex-1 min-h-0 bg-white dark:bg-muted/40 py-4 -mx-2 px-2">
+            <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 bg-white dark:bg-muted/40 py-4 -mx-2 px-2 overflow-y-auto lg:overflow-visible">
 
             {/* ── LEFT — Profile Banner (fixed, no scroll) ── */}
-            <div className="w-[30%] shrink-0">
+            <div className="w-full lg:w-[30%] lg:shrink-0">
                 <div className="space-y-3">
 
                     {/* Profile card */}
@@ -483,14 +483,14 @@ export default function StudentDetailPage() {
             </div>
 
             {/* ── RIGHT — Detail Sections (scrollable) ── */}
-            <div className="w-[70%] min-w-0 space-y-3 overflow-y-auto pb-6 pr-2"
+            <div className="w-full lg:w-[70%] min-w-0 space-y-3 lg:overflow-y-auto pb-6 lg:pr-2"
                 style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
 
                 {/* ROW 1 — Student Info + Academic Details */}
-                <div className="flex gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
 
                     {/* LEFT — Student Info */}
-                    <div className="flex-1 px-4 py-3 border-r border-border/40 min-w-0 space-y-2.5">
+                    <div className="flex-1 px-4 py-3 border-b lg:border-b-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
                         <SectionHeader icon={User} label="Student Info"
                             editing={editingInfo} onEdit={startEdit} onSave={saveEdit} onCancel={cancelEdit} />
                         <div className="flex items-center gap-3 mb-2">
@@ -506,7 +506,7 @@ export default function StudentDetailPage() {
                                 : <p className="text-sm font-bold">{data.name}</p>
                             }
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {editingInfo
                                 ? <EditField label="Date of Birth" value={draft.dob} onChange={v => setDraft(p => ({ ...p, dob: formatDob(v) }))} placeholder="YYYY-MM-DD" />
                                 : <ReadField label="Date of Birth" value={displayDob} />
@@ -516,7 +516,7 @@ export default function StudentDetailPage() {
                                 : <ReadField label="Gender" value={data.gender} />
                             }
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {editingInfo
                                 ? <EditField label="Religion" value={draft.religion} onChange={v => setDraft(p => ({ ...p, religion: v }))} placeholder="e.g. Hindu" />
                                 : <ReadField label="Religion" value={data.religion} />
@@ -526,7 +526,7 @@ export default function StudentDetailPage() {
                                 : <ReadField label="Category" value={data.category} />
                             }
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {editingInfo
                                 ? <EditField label="Nationality" value={draft.nationality} onChange={v => setDraft(p => ({ ...p, nationality: v }))} placeholder="e.g. Indian" />
                                 : <ReadField label="Nationality" value={data.nationality} />
@@ -549,11 +549,11 @@ export default function StudentDetailPage() {
                     {/* RIGHT — Academic Details */}
                     <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                         <SectionHeader icon={BookOpen} label="Academic Details" />
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <ReadField label="Class" value={store.standard.replace(/^Class\s*/i, '')} />
                             <ReadField label="Division" value={store.division.includes('-') ? store.division.split('-').slice(1).join('-') : store.division.replace(/^Division\s*/i, '')} />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <ReadField label="Roll No" value={store.rollNo} />
                             <ReadField label="House Color" value={store.houseColor ?? ''} />
                         </div>
@@ -601,10 +601,10 @@ export default function StudentDetailPage() {
                 </div>
 
                 {/* ROW 2 — Medical & Identity + Address */}
-                <div className="flex gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
 
                     {/* LEFT — Medical & Identity */}
-                    <div className="flex-1 px-4 py-3 border-r border-border/40 min-w-0 space-y-2.5">
+                    <div className="flex-1 px-4 py-3 border-b lg:border-b-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
                         <SectionHeader icon={Shield} label="Medical & Identity"
                             editing={editingMed} onEdit={startMedEdit} onSave={saveMedEdit} onCancel={cancelMedEdit} />
                         {/* Blood group */}
@@ -641,7 +641,7 @@ export default function StudentDetailPage() {
                             ? <EditField label="Address" value={addrDraft.address} onChange={v => setAddrDraft(p => ({ ...p, address: v }))} placeholder="Street / Area" />
                             : <ReadField label="Address" value={addrData.address} multiline />
                         }
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             {editingAddr
                                 ? <EditField label="City" value={addrDraft.city} onChange={v => setAddrDraft(p => ({ ...p, city: v }))} placeholder="Mumbai" />
                                 : <ReadField label="City" value={addrData.city} />
@@ -698,7 +698,7 @@ export default function StudentDetailPage() {
                                     </button>
                                 )}
                             </div>
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 {editingGuardians ? (
                                     <>
                                         <EditField label="Name" value={g.name} onChange={v => {

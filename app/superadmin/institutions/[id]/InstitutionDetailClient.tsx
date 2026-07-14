@@ -366,7 +366,7 @@ function ViewDetailsTab({
             />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
               <div>
                 <h2 className="text-lg font-bold leading-tight">
                   {instSaved.name}
@@ -395,7 +395,7 @@ function ViewDetailsTab({
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-2 shrink-0">
+              <div className="flex items-center gap-2 shrink-0 flex-wrap">
                 <button
                   onClick={onResendInvite}
                   className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
@@ -1336,7 +1336,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       >
         {/* Active Banner */}
         <div className="bg-card border border-border/50 rounded-2xl p-5">
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -1387,7 +1387,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
               {plan === "BASIC" && (
                 <button
                   onClick={() => {
@@ -1510,7 +1510,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
         {/* Billing Summary */}
         <SectionCard title="Billing Summary">
           <div className="space-y-3">
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <InfoBox
                 label="Active Users"
                 value={String(activeUsers)}
@@ -1667,7 +1667,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                   />
                   <span className="text-xs text-muted-foreground">/ GB</span>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <InfoBox
                     label="Add"
                     value={`${storageAddGb} GB`}
@@ -1799,7 +1799,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                     / 1M tokens
                   </span>
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                   <InfoBox
                     label="Add"
                     value={`${tokenAddK}M tokens`}
@@ -2401,7 +2401,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                             Default Features (always on)
                           </p>
-                          <div className="grid grid-cols-2 gap-1.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                             {basicDefaults.map((f) => (
                               <div
                                 key={f.key}
@@ -2427,7 +2427,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                               {basicExpiryDate.toLocaleDateString("en-IN")}
                             </span>
                           </p>
-                          <div className="grid grid-cols-2 gap-1.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                             {basicAddons.map((f) => {
                               const expired = isExpired(basicExpiryDate);
                               const days = daysLeft(basicExpiryDate);
@@ -2480,7 +2480,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                             Add-On Features
                           </p>
-                          <div className="grid grid-cols-2 gap-1.5">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
                             {ALL_FEATURES.filter(
                               (f) => f.inPro && f.addOnPro,
                             ).map((f) => {
@@ -2925,7 +2925,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
         >
           {/* Hero card — matches active view style */}
           <div className="bg-card border border-border/50 rounded-2xl p-5">
-            <div className="flex items-start justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
               <div>
                 <div className="flex items-center gap-2 mb-1">
                   <span className="w-2 h-2 rounded-full bg-amber-500" />
@@ -2973,7 +2973,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
               </button>
             </div>
 
-            <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
               <InfoBox label="Duration" value={`${trialDays} days`} />
               <InfoBox label="Max Users" value="500" />
               <InfoBox label="AI Tokens" value="2 M" sub="shared pool" />
@@ -3022,7 +3022,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       >
         {/* Hero card — mirrors active plan banner exactly */}
         <div className="bg-card border border-border/50 rounded-2xl p-5">
-          <div className="flex items-start justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -3055,7 +3055,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-2 shrink-0 flex-wrap">
               <button
                 onClick={() => { setExtendOpen((v) => !v); setChurnOpen(false); setExtendDays(""); }}
                 className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400 hover:opacity-80 transition-all"
@@ -3072,7 +3072,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
           </div>
 
           {/* Quick stats row */}
-          <div className="grid grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
             <InfoBox
               label="Days Left"
               value={daysRemaining !== null ? String(daysRemaining) : "—"}
@@ -3166,7 +3166,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
               </span>
             }
           >
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="rounded-xl border border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-950/10 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-950/50 flex items-center justify-center">
@@ -3329,7 +3329,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
           </span>
         }
       >
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {PLAN_OPTS.map((p) => {
             const isActive = plan === p.key;
             const price = p.key !== "TRIAL" ? pricing[p.key] : null;
@@ -3419,7 +3419,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
               ))}
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <InfoBox label="Min. Users" value="200" sub="minimum billed" />
             <InfoBox
               label="Base Rate"
@@ -3608,7 +3608,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       {(plan as string) !== "TRIAL" && (
         <div className="mb-4">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Plan Option</p>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {(["FLEXIBLE", "COMMITTED"] as const).map((opt) => {
               const isSelected = planOption === opt;
               const isCommitted = opt === "COMMITTED";
@@ -3797,7 +3797,7 @@ export default function InstitutionDetailPage() {
       <div className="space-y-4 animate-pulse">
         <div className="h-8 w-48 bg-muted rounded-xl" />
         <div className="h-40 w-full bg-muted rounded-2xl" />
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="h-48 bg-muted rounded-2xl" />
           <div className="h-48 bg-muted rounded-2xl" />
         </div>
@@ -3838,15 +3838,15 @@ export default function InstitutionDetailPage() {
   return (
     <div className="space-y-1.5 px-1">
       <div className="sticky top-0 z-20 bg-background pb-1">
-        <div className="flex items-center gap-4 pt-1 pb-2">
+        <div className="flex flex-wrap items-center gap-4 pt-1 pb-2">
           <button
             onClick={() => router.back()}
             className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all shrink-0"
           >
             <ArrowLeft size={16} />
           </button>
-          <div>
-            <h1 className="text-xl font-bold">{institution.name}</h1>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold truncate">{institution.name}</h1>
             <p className="text-xs text-muted-foreground flex items-center gap-1.5">
               Institutions <ChevronRight size={11} /> {institution.name}
             </p>

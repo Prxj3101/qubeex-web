@@ -774,9 +774,9 @@ export default function StaffroomPage() {
       </div>
 
       {/* Body */}
-      <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-3">
+      <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden pb-3">
         {/* LEFT — Feed */}
-        <div className="w-[60%] flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+        <div className="w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
           {/* Feed header */}
           <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
             <div className="flex items-center justify-between">
@@ -959,7 +959,7 @@ export default function StaffroomPage() {
         </div>
 
         {/* RIGHT — DMs */}
-        <div className="w-[40%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20">
+        <div className="w-full lg:w-[40%] h-[70vh] lg:h-auto flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20">
           {/* DMs header */}
           <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
             <div className="flex items-center justify-between">

@@ -117,15 +117,15 @@ function SectionCard({ title, icon: Icon, iconColor, children, action, titleExtr
 }) {
     return (
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden h-full">
-            <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-muted/20">
-                <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50 bg-muted/20 flex-wrap gap-2 lg:px-5">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Icon size={15} style={{ color: iconColor }} />
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
                     {titleExtra}
                 </div>
                 {action}
             </div>
-            <div className="p-5">{children}</div>
+            <div className="p-4 lg:p-5">{children}</div>
         </div>
     );
 }
@@ -244,7 +244,7 @@ export default function StudentProfile() {
                 {/* ── ID Card ── */}
                 <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg">
                     {/* Purple header strip */}
-                    <div className="px-6 py-4 flex items-center justify-between dark:[background:linear-gradient(135deg,#4C1D95,#2D1F50)]"
+                    <div className="px-4 py-4 flex items-center justify-between gap-2 lg:px-6 dark:[background:linear-gradient(135deg,#4C1D95,#2D1F50)]"
                         style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
                         <div>
                             <p className="text-white font-bold text-base" style={{ fontFamily: 'var(--font-poppins)' }}>
@@ -261,7 +261,7 @@ export default function StudentProfile() {
                     </div>
 
                     {/* Card body */}
-                    <div className="bg-card p-5 flex items-start gap-5">
+                    <div className="bg-card p-4 lg:p-5 flex flex-col sm:flex-row items-center sm:items-start gap-5">
                         {/* Avatar */}
                         <div className="shrink-0">
                             <div className="relative w-20 h-20">
@@ -324,7 +324,7 @@ export default function StudentProfile() {
                                 Class {student.standard.replace(/^Class\s*/i, '')} · Division {student.division.includes('-') ? student.division.split('-').slice(1).join('-') : student.division.replace(/^Division\s*/i, '')}
                             </p>
                             <div className="h-px bg-border/50 my-3" />
-                            <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
                                 <InfoRow label="Roll No" value={student.rollNo} />
                                 <InfoRow label="Class" value={student.division} />
                                 <InfoRow label="Admission Year" value={student.admissionYear} />
@@ -347,7 +347,7 @@ export default function StudentProfile() {
                 </div>
 
                 {/* ── Rank + Score + Subject Performance ── */}
-                <div className="grid grid-cols-3 gap-3 items-stretch">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch">
                     {/* ── Rank + Score ── */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="bg-card border border-border/50 rounded-xl p-4">
@@ -377,10 +377,10 @@ export default function StudentProfile() {
                     </div>
 
                     {/* ── Subject Performance ── */}
-                    <div className="col-span-2 h-full">
+                    <div className="col-span-1 lg:col-span-2 h-full">
                         <SectionCard title="Subject Performance" icon={BarChart2} iconColor="#7C3AED"
                             titleExtra={
-                                <div className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50 ml-1">
+                                <div className="flex flex-wrap bg-muted/50 rounded-xl p-0.5 border border-border/50 ml-1">
                                     {([
                                         { key: 'offline' as MarksMode, label: 'Offline' },
                                         { key: 'online' as MarksMode, label: 'Online' },
@@ -449,7 +449,7 @@ export default function StudentProfile() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 items-stretch">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
                     {/* ── Attendance ── */}
                     <SectionCard title="Attendance" icon={Calendar} iconColor="#10B981"
                         action={
@@ -591,26 +591,9 @@ export default function StudentProfile() {
                         </div>
 
                         {/* Monthly payment schedule table */}
-                        <div className="rounded-xl border border-border/40 overflow-hidden">
-                            {/* Fixed header */}
-                            <table className="text-xs w-full" style={{ tableLayout: 'fixed' }}>
-                                <colgroup>
-                                    <col style={{ width: '18%' }} />
-                                    <col style={{ width: '16%' }} />
-                                    <col style={{ width: '22%' }} />
-                                    <col style={{ width: '22%' }} />
-                                    <col style={{ width: '22%' }} />
-                                </colgroup>
-                                <thead>
-                                    <tr className="bg-card border-b border-border/30">
-                                        {['Month', 'Amount', 'Due Date', 'Paid Date', 'Status'].map((col, i) => (
-                                            <th key={i} className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
-                                        ))}
-                                    </tr>
-                                </thead>
-                            </table>
-                            {/* Scrollable body */}
-                            <div className="overflow-y-auto max-h-[344px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent', willChange: 'transform', transform: 'translateZ(0)' }}>
+                        <div className="rounded-xl border border-border/40 overflow-x-auto">
+                            <div className="min-w-[420px] lg:min-w-0">
+                                {/* Fixed header */}
                                 <table className="text-xs w-full" style={{ tableLayout: 'fixed' }}>
                                     <colgroup>
                                         <col style={{ width: '18%' }} />
@@ -619,28 +602,47 @@ export default function StudentProfile() {
                                         <col style={{ width: '22%' }} />
                                         <col style={{ width: '22%' }} />
                                     </colgroup>
-                                    <tbody className="divide-y divide-border/20">
-                                        {FEE_MONTHS_PROFILE.map((m, i) => (
-                                            <tr key={i}>
-                                                <td className="px-3 py-2 font-semibold text-[11px]">{m.month}</td>
-                                                <td className="px-3 py-2 text-[11px]">₹{m.amount.toLocaleString()}</td>
-                                                <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.dueDate}</td>
-                                                <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.paidDate ?? '—'}</td>
-                                                <td className="px-3 py-2">
-                                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${m.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>
-                                                        {m.status === 'PAID' ? '✓ Paid' : '⏳ Pending'}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
+                                    <thead>
+                                        <tr className="bg-card border-b border-border/30">
+                                            {['Month', 'Amount', 'Due Date', 'Paid Date', 'Status'].map((col, i) => (
+                                                <th key={i} className="px-3 py-2 text-left text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
+                                            ))}
+                                        </tr>
+                                    </thead>
                                 </table>
+                                {/* Scrollable body */}
+                                <div className="overflow-y-auto max-h-[344px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent', willChange: 'transform', transform: 'translateZ(0)' }}>
+                                    <table className="text-xs w-full" style={{ tableLayout: 'fixed' }}>
+                                        <colgroup>
+                                            <col style={{ width: '18%' }} />
+                                            <col style={{ width: '16%' }} />
+                                            <col style={{ width: '22%' }} />
+                                            <col style={{ width: '22%' }} />
+                                            <col style={{ width: '22%' }} />
+                                        </colgroup>
+                                        <tbody className="divide-y divide-border/20">
+                                            {FEE_MONTHS_PROFILE.map((m, i) => (
+                                                <tr key={i}>
+                                                    <td className="px-3 py-2 font-semibold text-[11px]">{m.month}</td>
+                                                    <td className="px-3 py-2 text-[11px]">₹{m.amount.toLocaleString()}</td>
+                                                    <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.dueDate}</td>
+                                                    <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.paidDate ?? '—'}</td>
+                                                    <td className="px-3 py-2">
+                                                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${m.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>
+                                                            {m.status === 'PAID' ? '✓ Paid' : '⏳ Pending'}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </SectionCard>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 items-stretch">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
                     {/* ── Flags ── */}
                     <SectionCard title="Remarks: Flags & Warnings" icon={Flag} iconColor="#EF4444"
                         action={

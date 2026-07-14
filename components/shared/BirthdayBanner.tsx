@@ -208,13 +208,13 @@ export function BirthdayBanner({ name, role, dob }: BirthdayBannerProps) {
                     <Lottie animationData={confettiAnimation} loop={true} />
                 </div>
 
-                {/* Lottie confetti — top right (mirrored) */}
-                <div className="absolute top-2 pointer-events-none" style={{ right: role === 'institution' ? 780 : 820, width: 140, height: 140, zIndex: 5, transform: 'scaleX(-1)' }}>
+                {/* Lottie confetti — top right (mirrored); decorative flourish, only fits on very wide desktop banners */}
+                <div className="hidden lg:block absolute top-2 pointer-events-none" style={{ right: role === 'institution' ? 780 : 820, width: 140, height: 140, zIndex: 5, transform: 'scaleX(-1)' }}>
                     <Lottie animationData={confettiAnimation} loop={true} />
                 </div>
 
                 {/* ~QubeEx signature */}
-                <div className="absolute bottom-3 right-4 z-20 pointer-events-none">
+                <div className="hidden sm:block absolute bottom-3 right-4 z-20 pointer-events-none">
                     <p className="text-[14px] font-bold" style={{ color: 'rgba(255,255,255,0.72)', fontFamily: 'var(--font-poppins)' }}>
                         ~ Team QubeEx
                     </p>
@@ -223,15 +223,17 @@ export function BirthdayBanner({ name, role, dob }: BirthdayBannerProps) {
                 {/* Dismiss */}
                 <button
                     onClick={() => setVisible(false)}
-                    className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl transition-all hover:scale-105"
+                    className="absolute top-3 right-3 z-20 flex items-center gap-1.5 px-2 sm:px-2.5 py-1.5 rounded-xl transition-all hover:scale-105"
                     style={{ background: 'rgba(255,255,255,0.18)', color: '#fff' }}
                 >
-                    <span className="text-[11px] font-semibold">Thankyou!</span>
+                    <span className="hidden sm:inline text-[11px] font-semibold">Thankyou!</span>
                     <X size={11} />
                 </button>
 
                 {/* Content */}
-                <div className="relative z-10 flex items-center justify-center gap-2 py-4" style={{ paddingLeft: role === 'institution' ? 40 : 0, paddingRight: 840 }}>
+                <div
+                    className={`relative z-10 flex items-center justify-center gap-2 py-4 pl-4 sm:pl-6 pr-14 sm:pr-24 ${role === 'institution' ? 'lg:pl-10' : 'lg:pl-0'} lg:pr-[840px]`}
+                >
 
                     {/* Emoji */}
                     <div className="shrink-0 flex items-center justify-center">

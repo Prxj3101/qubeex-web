@@ -130,7 +130,7 @@ export default function PromotionPanel({ divisionId, fetchPreview, fetchBatches,
     return (
         <div className="space-y-4">
             <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
-                <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
+                <div className="px-4 py-3 border-b border-border/40 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <p className="text-sm font-bold">{preview.sourceDivision.standardName} - {preview.sourceDivision.name} — {preview.students.length} active students</p>
                     {preview.targets.length > 0 && hasPromoted && (
                         <select value={targetDivisionId} onChange={e => setTargetDivisionId(e.target.value)}
@@ -153,12 +153,12 @@ export default function PromotionPanel({ divisionId, fetchPreview, fetchBatches,
                         )}
                         <div className="divide-y divide-border/30">
                             {preview.students.map(s => (
-                                <div key={s.id} className="flex items-center justify-between px-4 py-2.5">
+                                <div key={s.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-4 py-2.5">
                                     <div>
                                         <p className="text-xs font-semibold">{s.name ?? '—'}</p>
                                         <p className="text-[10px] text-muted-foreground">{s.studentId}{s.rollNo ? ` · Roll ${s.rollNo}` : ''}</p>
                                     </div>
-                                    <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
+                                    <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40 flex-wrap w-fit">
                                         {OUTCOME_OPTIONS.map(opt => {
                                             const isActive = choices[s.id] === opt.key;
                                             return (
@@ -194,7 +194,7 @@ export default function PromotionPanel({ divisionId, fetchPreview, fetchBatches,
                 ) : (
                     <div className="divide-y divide-border/30">
                         {batches.map(b => (
-                            <div key={b.id} className="flex items-center justify-between px-4 py-2.5">
+                            <div key={b.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 px-4 py-2.5">
                                 <div>
                                     <p className="text-xs font-medium">
                                         {b.fromStandard.name} {b.fromDivision.name} → {b.toDivision ? b.toDivision.name : '—'}

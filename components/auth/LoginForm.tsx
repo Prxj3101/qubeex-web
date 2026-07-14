@@ -149,7 +149,7 @@ export function LoginForm() {
                     <div className="h-[2px] w-full"
                         style={{ background: 'linear-gradient(90deg, transparent, #7C3AED, #DA7756, transparent)' }} />
 
-                    <div className="px-8 pt-8 pb-9">
+                    <div className="px-5 sm:px-8 pt-8 pb-9">
 
                         {/* Logo */}
                         <motion.div

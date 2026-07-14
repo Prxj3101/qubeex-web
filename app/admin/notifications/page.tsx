@@ -93,7 +93,7 @@ export default function AdminNotificationsPage() {
 
             {/* ── Header ── */}
             <div className="sticky top-0 z-20 bg-background pb-3 pt-1 space-y-3">
-                <div className="flex items-center justify-between px-1">
+                <div className="flex items-center justify-between flex-wrap gap-2 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Bell size={21} />
@@ -110,7 +110,7 @@ export default function AdminNotificationsPage() {
                                 : 'System alerts and billing reminders from QubeEx'}
                         </p>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                         {unreadCount > 0 && (
                             <Button variant="outline" size="sm" onClick={markAllRead} className="gap-1.5 text-xs h-9">
                                 <CheckCheck size={14} />
@@ -170,11 +170,11 @@ export default function AdminNotificationsPage() {
 
                 {/* ── Pagination ── */}
                 {pagination.pages > 1 && (
-                    <div className="flex items-center justify-between mt-4 px-1">
+                    <div className="flex items-center justify-between flex-wrap gap-2 mt-4 px-1">
                         <p className="text-[11px] text-muted-foreground">
                             Page {pagination.page} of {pagination.pages} · {pagination.total.toLocaleString('en-IN')} total
                         </p>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 flex-wrap">
                             <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                                 className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                                 <ChevronLeft size={14} />

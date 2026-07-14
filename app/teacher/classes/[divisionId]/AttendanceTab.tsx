@@ -250,7 +250,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         : `${year - 1}–${String(year).slice(2)}`;
 
     return (
-        <div className="w-[65%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5">
+        <div className="w-full lg:w-[65%] h-[500px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5">
 
             {/* Header — Month navigator */}
             <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3">
@@ -735,10 +735,10 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
     const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
     return (
-        <div className="flex gap-3 h-full min-h-0">
+        <div className="flex flex-col lg:flex-row gap-3 h-full min-h-0 overflow-y-auto lg:overflow-visible">
 
             {/* LEFT — Students list */}
-            <div className="w-[30%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[30%] h-[380px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                 <div className="px-4 py-3.5 border-b border-border/40 shrink-0">
                     <div className="flex items-center justify-between">
                         <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({summaryStudents.length})</p>
@@ -798,7 +798,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
             </div>
 
             {/* RIGHT — Attendance details */}
-            <div className="flex-1 flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:flex-1 h-[65vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                 <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3">
                     <p className="text-sm font-bold shrink-0 flex items-center gap-1.5">
                         <CalendarDays size={14} /> {divisionName}
@@ -835,7 +835,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                     {overallRightTab === 'class' ? (
                         <div className="space-y-4">
                             {/* Class overall stats */}
-                            <div className="grid grid-cols-2 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
                                     <p className={`text-2xl font-black ${pctColor(classStats?.overallPct ?? null)}`}>
                                         {classStats?.overallPct !== null && classStats?.overallPct !== undefined ? `${classStats.overallPct}%` : '—'}
@@ -942,8 +942,8 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                         selectedStudent ? (
                             <div className="space-y-4">
                                 {/* Top section — stats left, monthwise right */}
-                                <div className="flex gap-3">
-                                    <div className="flex flex-col gap-3 w-[140px] shrink-0">
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <div className="flex flex-row sm:flex-col gap-3 w-full sm:w-[140px] shrink-0">
                                         <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
                                             <p className={`text-2xl font-black ${pctColor(selectedStudent.overallPct)}`}>
                                                 {selectedStudent.overallPct !== null ? `${selectedStudent.overallPct}%` : '—'}
@@ -1307,10 +1307,10 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     const isSelected = (d: number) => d === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear();
 
     return (
-        <div className="flex gap-3 h-full min-h-0">
+        <div className="flex flex-col lg:flex-row gap-3 h-full min-h-0 overflow-y-auto lg:overflow-visible">
 
             {/* ── LEFT (35%) — Date picker + Students list ── */}
-            <div className="w-[35%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[35%] h-[500px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
 
                 {/* Header — Date + Remark + All P */}
                 <div className="px-3 py-2 border-b border-border/40 shrink-0 space-y-1.5">

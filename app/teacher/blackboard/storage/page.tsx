@@ -273,7 +273,7 @@ export default function StoragePage() {
         <div className="flex flex-col h-full overflow-hidden">
             {/* Header */}
             <div className="shrink-0 px-1 pb-3">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <FolderOpen size={21} /> Storage
@@ -298,10 +298,10 @@ export default function StoragePage() {
             </div>
 
             {/* Body */}
-            <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-2">
+            <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden pb-2">
 
                 {/* LEFT — Folder Tree */}
-                <div className="w-[220px] shrink-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
+                <div className="w-full lg:w-[220px] h-[220px] lg:h-auto shrink-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
                     <div className="px-3 py-2.5 border-b border-border/40 shrink-0">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Folders</p>
                     </div>
@@ -322,7 +322,7 @@ export default function StoragePage() {
                 </div>
 
                 {/* RIGHT — Content */}
-                <div className="flex-1 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
+                <div className="w-full lg:flex-1 h-[60vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm">
 
                     {/* Breadcrumb + toolbar */}
                     <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center justify-between">

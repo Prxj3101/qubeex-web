@@ -99,11 +99,11 @@ export function InstitutionDetailsForm({
               : 'Coaching centre';
 
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-5">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5">
             <h2 className="text-sm font-semibold mb-4">Institution details</h2>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 {/* Logo upload */}
-                <div className="flex items-center gap-4">
+                <div className="flex flex-wrap items-center gap-4">
                     <div
                         className="w-16 h-16 rounded-full border-2 border-dashed border-border flex items-center justify-center bg-muted overflow-hidden cursor-pointer shrink-0"
                         onClick={() => fileRef.current?.click()}

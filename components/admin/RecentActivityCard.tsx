@@ -34,7 +34,7 @@ interface RecentAuditLogsCardProps {
 
 export function RecentActivityCard({ auditLogs }: RecentAuditLogsCardProps) {
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-5">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <ScrollText size={15} className="text-muted-foreground" />
@@ -50,7 +50,7 @@ export function RecentActivityCard({ auditLogs }: RecentAuditLogsCardProps) {
             ) : (
                 <div className="space-y-0.5">
                     {auditLogs.map((log) => (
-                        <div key={log.id} className="grid grid-cols-[140px_1fr] items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
+                        <div key={log.id} className="grid grid-cols-[100px_1fr] sm:grid-cols-[120px_1fr] lg:grid-cols-[140px_1fr] items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full w-fit mt-0.5 ${dotBg[log.dot]} ${dotText[log.dot]}`}>
                                 {log.action}
                             </span>

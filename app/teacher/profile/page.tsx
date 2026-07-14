@@ -460,7 +460,7 @@ export default function TeacherProfilePage() {
                                     {teacher.status === 'ACTIVE' ? 'Active' : teacher.status}
                                 </span>
                             </div>
-                            <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
+                            <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50 flex-wrap">
                                 {[
                                     { label: 'Assignments', value: teacher.assignments.length },
                                     { label: 'Joined', value: formatDate(teacher.joinedAt) },

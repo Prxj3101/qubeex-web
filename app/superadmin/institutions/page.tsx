@@ -258,7 +258,7 @@ export default function InstitutionsPage() {
             <div className="sticky top-0 z-20 bg-background space-y-2 pb-2">
 
                 {/* Header row */}
-                <div className="flex items-center justify-between pt-0 px-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Building2 size={21} />
@@ -285,9 +285,9 @@ export default function InstitutionsPage() {
                 <div className="h-px bg-border/60" />
 
                 {/* Tab pills + Search + Filters + Publish — same row */}
-                <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
                     {/* Left — Tabs + Publish */}
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-2 shrink-0 overflow-x-auto">
                         <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                             {tabs.map((tab) => {
                                 const isActive = activeTab === tab.value;
@@ -319,7 +319,7 @@ export default function InstitutionsPage() {
                     </div>
 
                     {/* Right — Search + Filters */}
-                    <div className="flex items-center gap-2 mr-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-2 lg:mr-4">
                         <div className="relative">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             <input
@@ -327,7 +327,7 @@ export default function InstitutionsPage() {
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                                 placeholder="Search institutions..."
-                                className="w-56 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
+                                className="w-full sm:w-56 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
                             />
                             {search && (
                                 <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">

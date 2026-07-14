@@ -21,7 +21,6 @@ import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[division
 import MarksTab, { MarksSubTab, MarksStats } from '@/app/teacher/classes/[divisionId]/MarksTab';
 import ReportStudentModal, { ReportFormData } from '@/app/teacher/classes/[divisionId]/ReportStudentModal';
 import StudentProfileModal, { ProfileMarksheet, ProfileAttendanceTrend } from '@/app/teacher/classes/[divisionId]/StudentProfileModal';
-import PromotionPanel, { PreviewData, BatchSummary, PromotionOutcomeChoice } from '@/app/teacher/classes/[divisionId]/PromotionPanel';
 import { FlagItem } from '@/lib/flags';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -763,7 +762,6 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
 const TABS = [
     { key: 'overview' as const,    label: 'View' },
     { key: 'manage' as const,      label: 'Manage' },
-    { key: 'promotions' as const,  label: 'Promotions' },
     { key: 'fees' as const,        label: 'Fees' },
     { key: 'attendance' as const,  label: 'Attendance' },
     { key: 'marksheet' as const,   label: 'Marksheet' },
@@ -782,18 +780,17 @@ export default function DivisionDetailPage() {
     const { user } = useAuthStore();
     const subAdminPermissions = user?.role === 'SUB_ADMIN' ? (user.permissions ?? []) : null;
 
-    function isTabLocked(tabKey: 'overview' | 'manage' | 'promotions' | 'fees' | 'attendance' | 'marksheet'): boolean {
+    function isTabLocked(tabKey: 'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'): boolean {
         if (!subAdminPermissions) return false;
         if (tabKey === 'overview')   return !subAdminPermissions.includes('CAMPUS_VIEW');
         if (tabKey === 'manage')     return !subAdminPermissions.includes('CAMPUS_MANAGE');
-        if (tabKey === 'promotions') return !subAdminPermissions.includes('CAMPUS_MANAGE');
         if (tabKey === 'fees')       return !subAdminPermissions.includes('CAMPUS_FEES');
         if (tabKey === 'attendance') return !subAdminPermissions.includes('CAMPUS_ATTENDANCE');
         if (tabKey === 'marksheet')  return !subAdminPermissions.includes('CAMPUS_MARKSHEET');
         return false;
     }
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'promotions' | 'fees' | 'attendance' | 'marksheet'>(() => {
+    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'>(() => {
         if (!subAdminPermissions) return 'overview';
         if (subAdminPermissions.includes('CAMPUS_VIEW'))       return 'overview';
         if (subAdminPermissions.includes('CAMPUS_MANAGE'))     return 'manage';
@@ -807,7 +804,7 @@ export default function DivisionDetailPage() {
     useEffect(() => {
         if (!subAdminPermissions) return;
         if (isTabLocked(activeTab)) {
-            const order: typeof activeTab[] = ['overview', 'manage', 'promotions', 'fees', 'attendance', 'marksheet'];
+            const order: typeof activeTab[] = ['overview', 'manage', 'fees', 'attendance', 'marksheet'];
             const first = order.find(t => !isTabLocked(t));
             if (first) setActiveTab(first);
         }
@@ -1134,14 +1131,14 @@ export default function DivisionDetailPage() {
 
             {/* Header */}
             <div className="shrink-0 px-1 pt-1 pb-0">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
                         <button onClick={() => router.back()}
                             className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
                             <ArrowLeft size={16} />
                         </button>
                         <div>
-                            <h1 className="text-2xl font-bold flex items-center gap-2">
+                            <h1 className="text-lg lg:text-2xl font-bold flex items-center gap-2">
                                 <Users size={24} />
                                 {division.name}
                             </h1>
@@ -1151,7 +1148,7 @@ export default function DivisionDetailPage() {
                         </div>
 
                         {/* Tab bar */}
-                        <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 ml-4">
+                        <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 lg:ml-4 overflow-x-auto">
                             {TABS.map(tab => {
                                 const isActive = activeTab === tab.key;
                                 const locked = isTabLocked(tab.key);
@@ -1183,7 +1180,7 @@ export default function DivisionDetailPage() {
                     </div>
 
                     {/* Stats / Sub tabs — conditional */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-wrap overflow-x-auto">
                         {(activeTab === 'overview' || activeTab === 'manage') && (
                             <>
                                 {[
@@ -1199,7 +1196,7 @@ export default function DivisionDetailPage() {
                         )}
 
                         {activeTab === 'fees' && (
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 flex-wrap">
                                 <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
                                     {[
                                         { key: 'students' as const, label: 'Student Fees' },
@@ -1226,7 +1223,7 @@ export default function DivisionDetailPage() {
                         )}
 
                         {activeTab === 'attendance' && (
-                            <div className="flex items-center gap-4">
+                            <div className="flex items-center gap-4 flex-wrap">
                                 <div className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
                                     {([
                                         { key: 'daily' as AttendanceSubTab, label: 'Daily Attendance', Icon: CalendarCheck },
@@ -1311,10 +1308,10 @@ export default function DivisionDetailPage() {
                     {/* ── TAB 1: OVERVIEW ── */}
                     {activeTab === 'overview' && (
                         <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="flex gap-3 h-full pt-3 pb-3 px-1 overflow-hidden">
+                            className="flex flex-col lg:flex-row gap-3 h-full pt-3 pb-3 px-1 overflow-y-auto lg:overflow-hidden">
 
                             {/* LEFT — Class Teacher + Feed */}
-                            <div className="w-[58%] flex flex-col gap-3 min-h-0 overflow-hidden">
+                            <div className="w-full lg:w-[58%] h-[70vh] lg:h-auto flex flex-col gap-3 min-h-0 lg:overflow-hidden">
 
                                 {/* Class Teacher card */}
                                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm shadow-black/5">
@@ -1335,11 +1332,11 @@ export default function DivisionDetailPage() {
                                 {/* Feed */}
                                 <div className="flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
-                                        <div className="flex items-center justify-between">
+                                        <div className="flex items-center justify-between flex-wrap gap-2">
                                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                                 <Megaphone size={14} /> {division.name} Announcements & Feed
                                             </p>
-                                            <div className="flex items-center gap-1.5">
+                                            <div className="flex items-center gap-1.5 flex-wrap">
                                                 {([
                                                     { key: 'all', label: 'All', emoji: '🗂️' },
                                                     { key: 'announcement', label: 'Announcement', emoji: '📢' },
@@ -1373,8 +1370,8 @@ export default function DivisionDetailPage() {
                                     {/* Composer */}
                                     <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">
                                         {/* Row 1 — Title + Filters */}
-                                        <div className="flex items-center gap-2">
-                                            <div className="flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                                        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                                            <div className="w-full sm:flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
                                                 <input value={postInput} onChange={e => setPostInput(e.target.value)}
                                                     placeholder="Title..."
                                                     className="flex-1 bg-transparent text-sm font-bold placeholder:text-muted-foreground/60 placeholder:font-normal focus:outline-none" />
@@ -1441,7 +1438,7 @@ export default function DivisionDetailPage() {
 
 
                             {/* RIGHT — Subject Teachers + Leaderboard + Timetable + Results */}
-                            <div className="w-[42%] flex flex-col gap-3 min-h-0 overflow-y-auto pb-1">
+                            <div className="w-full lg:w-[42%] h-[65vh] lg:h-auto flex flex-col gap-3 min-h-0 overflow-y-auto pb-1">
 
                                 {/* Subject Teachers */}
                                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
@@ -1614,10 +1611,10 @@ export default function DivisionDetailPage() {
                     {/* ── TAB 2: MANAGE ── */}
                     {activeTab === 'manage' && (
                         <motion.div key="manage" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="flex gap-3 h-full pt-3 pb-3 px-1 overflow-hidden">
+                            className="flex flex-col lg:flex-row gap-3 h-full pt-3 pb-3 px-1 overflow-y-auto lg:overflow-hidden">
 
                             {/* LEFT — Students List */}
-                            <div className="w-[40%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                            <div className="w-full lg:w-[40%] h-[50vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl lg:overflow-hidden shadow-sm shadow-black/5">
                                 <div className="px-4 py-3 border-b border-border/40 shrink-0">
                                     <p className="text-sm font-bold flex items-center gap-2">
                                         <Users size={15} /> Students ({students.length})
@@ -1677,10 +1674,10 @@ export default function DivisionDetailPage() {
                             </div>
 
                             {/* RIGHT — 2 tabs */}
-                            <div className="w-[60%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                            <div className="w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
 
                                 {/* Tab bar */}
-                                <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center justify-between">
+                                <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center justify-between flex-wrap gap-2">
                                     <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
                                         {[
                                             { key: 'teachers' as const, label: 'Subjects & Teachers' },
@@ -1890,7 +1887,7 @@ export default function DivisionDetailPage() {
                                                     <div className="space-y-3 pb-6">
 
                                                         {/* Stats */}
-                                                        <div className="grid grid-cols-3 gap-2">
+                                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                                             <div className="rounded-xl border border-border/40 bg-muted/20 p-3 text-center">
                                                                 <p className="text-lg font-black" style={{ color: '#7C3AED' }}>
                                                                     {loadingStats ? '…' : studentStats?.classRank != null ? `#${studentStats.classRank}` : '—'}
@@ -1927,9 +1924,9 @@ export default function DivisionDetailPage() {
                                                         )}
 
                                                         {/* ROW 1 — Student Info + Academic */}
-                                                        <div className="flex gap-3 border border-border/40 rounded-2xl overflow-hidden bg-background">
+                                                        <div className="flex flex-col md:flex-row gap-3 md:gap-0 border border-border/40 rounded-2xl overflow-hidden bg-background">
                                                             {/* LEFT — Student Info */}
-                                                            <div className="flex-1 px-4 py-3 border-r border-border/40 min-w-0 space-y-2.5">
+                                                            <div className="flex-1 px-4 py-3 md:border-r border-border/40 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={User} label="Student Info" />
                                                                 <div className="flex items-center gap-3 mb-2">
                                                                     <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
@@ -1941,11 +1938,11 @@ export default function DivisionDetailPage() {
                                                                         <p className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo ?? '—'}</p>
                                                                     </div>
                                                                 </div>
-                                                                <div className="grid grid-cols-2 gap-2">
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     <ReadField label="Date of Birth" value={selectedStudent.dob ?? '—'} />
                                                                     <ReadField label="Gender" value={selectedStudent.gender ?? '—'} />
                                                                 </div>
-                                                                <div className="grid grid-cols-2 gap-2">
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     <ReadField label="Religion" value={selectedStudent.religion ?? '—'} />
                                                                     <ReadField label="Category" value={selectedStudent.category ?? '—'} />
                                                                 </div>
@@ -1957,11 +1954,11 @@ export default function DivisionDetailPage() {
                                                             {/* RIGHT — Academic Details */}
                                                             <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={BookOpen} label="Academic Details" />
-                                                                <div className="grid grid-cols-2 gap-2">
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     <ReadField label="Class" value={division?.standard.name ?? '—'} />
                                                                     <ReadField label="Division" value={division?.name ?? '—'} />
                                                                 </div>
-                                                                <div className="grid grid-cols-2 gap-2">
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     <ReadField label="Roll No" value={selectedStudent.rollNo ?? '—'} />
                                                                     <ReadField label="House Color" value={selectedStudent.houseColor ?? '—'} />
                                                                 </div>
@@ -1996,9 +1993,9 @@ export default function DivisionDetailPage() {
                                                         </div>
 
                                                         {/* ROW 2 — Medical + Address */}
-                                                        <div className="flex gap-3 border border-border/40 rounded-2xl overflow-hidden bg-background">
+                                                        <div className="flex flex-col md:flex-row gap-3 md:gap-0 border border-border/40 rounded-2xl overflow-hidden bg-background">
                                                             {/* LEFT — Medical & Identity */}
-                                                            <div className="flex-1 px-4 py-3 border-r border-border/40 min-w-0 space-y-2.5">
+                                                            <div className="flex-1 px-4 py-3 md:border-r border-border/40 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={Shield} label="Medical & Identity" />
                                                                 <ReadField label="Blood Group" value={selectedStudent.bloodGroup ?? '—'} />
                                                                 <ReadField label="Aadhar No" value={selectedStudent.aadharNo ?? '—'} />
@@ -2010,7 +2007,7 @@ export default function DivisionDetailPage() {
                                                             <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={MapPin} label="Address" />
                                                                 <ReadField label="Address" value={selectedStudent.address ?? '—'} />
-                                                                <div className="grid grid-cols-2 gap-2">
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     <ReadField label="City" value={selectedStudent.city ?? '—'} />
                                                                     <ReadField label="State" value={selectedStudent.state ?? '—'} />
                                                                     <ReadField label="Pincode" value={selectedStudent.pincode ?? '—'} />
@@ -2028,7 +2025,7 @@ export default function DivisionDetailPage() {
                                                                 selectedStudent.guardians.map((g, i) => (
                                                                     <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
                                                                         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Guardian {i + 1}</p>
-                                                                        <div className="grid grid-cols-3 gap-2">
+                                                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                                                             <ReadField label="Name" value={g.name} />
                                                                             <ReadField label="Number" value={g.number} />
                                                                             <ReadField label="Relation" value={g.relation} />
@@ -2045,21 +2042,6 @@ export default function DivisionDetailPage() {
                                     </AnimatePresence>
                                 </div>
                             </div>
-                        </motion.div>
-                    )}
-
-                    {/* ── TAB 2.5: PROMOTIONS ── */}
-                    {activeTab === 'promotions' && (
-                        <motion.div key="promotions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            className="h-full pt-3 pb-3 px-1 overflow-y-auto">
-                            <PromotionPanel
-                                divisionId={divisionId}
-                                fetchPreview={async () => (await api.get<{ data: PreviewData }>(`/admin/promotions/divisions/${divisionId}/preview`)).data.data}
-                                fetchBatches={async () => (await api.get<{ data: BatchSummary[] }>(`/admin/promotions/batches?divisionId=${divisionId}`)).data.data}
-                                submitOutcomes={async (outcomes: { studentId: string; outcome: PromotionOutcomeChoice }[], targetDivisionId?: string) =>
-                                    (await api.post<{ data: { batchId: string }; warning?: string }>(`/admin/promotions/divisions/${divisionId}`, { outcomes, targetDivisionId })).data}
-                                undoBatch={async (batchId: string) => { await api.post(`/admin/promotions/batches/${batchId}/undo`); }}
-                            />
                         </motion.div>
                     )}
 

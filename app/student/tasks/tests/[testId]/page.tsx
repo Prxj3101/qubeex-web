@@ -195,9 +195,9 @@ export default function TakeTestPage() {
     return (
         <div className="max-w-2xl mx-auto px-2 pb-10" onCopy={preventCopy} onPaste={preventCopy} onCut={preventCopy}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-4 sticky top-0 bg-background py-2 z-10">
-                <h1 className="text-sm font-bold truncate">{session.testTitle}</h1>
-                <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between mb-4 sticky top-0 bg-background py-2 z-10 gap-2">
+                <h1 className="text-sm font-bold truncate min-w-0 flex-1">{session.testTitle}</h1>
+                <div className="flex items-center gap-2 shrink-0">
                     {malpracticeWarned && (
                         <span className="flex items-center gap-1 text-[10px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-1 rounded-full">
                             <ShieldAlert size={11} /> 1 warning

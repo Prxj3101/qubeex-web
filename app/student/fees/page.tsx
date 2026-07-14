@@ -89,7 +89,7 @@ export default function FeesPage() {
         FEE_STRUCTURES.filter(s => m.assignedStructureIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-y-auto lg:overflow-hidden">
 
             {/* Header */}
             <div className="shrink-0 px-1 pb-3">
@@ -109,10 +109,10 @@ export default function FeesPage() {
             </div>
 
             {/* Body */}
-            <div className="flex-1 overflow-hidden flex gap-4 pb-3">
+            <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-4 pb-3">
 
                 {/* ── LEFT: Fee Details (same as teacher fees tab) ── */}
-                <div className="w-[55%] shrink-0 flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="w-full lg:w-[55%] lg:shrink-0 h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                     <div className="px-4 py-3 border-b border-border/40 shrink-0 flex items-center gap-2">
                         <Wallet size={14} className="text-muted-foreground" />
                         <p className="text-sm font-bold">Fee Details</p>
@@ -183,8 +183,8 @@ export default function FeesPage() {
                                             {/* Monthly Payment Schedule */}
                                             <div>
                                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Monthly Payment Schedule</p>
-                                                <div className="rounded-xl border border-border/40 overflow-hidden">
-                                                    <table className="text-xs w-full">
+                                                <div className="rounded-xl border border-border/40 overflow-hidden overflow-x-auto">
+                                                    <table className="text-xs w-full min-w-[640px] lg:min-w-0">
                                                         <thead>
                                                             <tr className="bg-muted/10 border-b border-border/30">
                                                                 {['Month', 'Fee Structures', 'Amount (₹)', 'Due Date', 'Paid Date', 'Status', 'Remark'].map((col, i) => (
@@ -336,7 +336,7 @@ export default function FeesPage() {
                 </div>
 
                 {/* ── RIGHT: Pay Fees (read-only, mirrors admin Payment Methods) ── */}
-                <div className="flex-1 min-w-0 flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="w-full lg:flex-1 lg:min-w-0 h-[500px] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                     <div className="px-4 py-3 border-b border-border/40 shrink-0 flex items-center gap-2">
                         <Landmark size={14} className="text-muted-foreground" />
                         <p className="text-sm font-bold">Pay Fees</p>

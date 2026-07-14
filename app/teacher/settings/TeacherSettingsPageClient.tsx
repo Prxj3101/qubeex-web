@@ -293,7 +293,7 @@ export default function TeacherSettingsPageClient() {
 
             {/* ── STICKY HEADER ── */}
             <div className="sticky top-0 z-20 bg-background shrink-0">
-                <div className="flex items-center justify-between pt-0 px-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Settings size={21} />
@@ -303,7 +303,7 @@ export default function TeacherSettingsPageClient() {
                     </div>
                     <button
                         onClick={() => setShowLogoutConfirm(true)}
-                        className="flex items-center gap-2 h-9 px-4 rounded-xl border border-red-200 dark:border-red-900/50 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all active:scale-95"
+                        className="flex items-center gap-2 h-9 px-4 rounded-xl border border-red-200 dark:border-red-900/50 text-sm font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all active:scale-95 w-fit"
                     >
                         <LogOut size={14} />
                         Log out
@@ -524,14 +524,14 @@ export default function TeacherSettingsPageClient() {
                                 </div>
                             </div>
                             <div className="p-5">
-                                <div className="flex items-center justify-between gap-4">
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                                     <div className="min-w-0">
                                         <p className="text-sm font-medium">Sign out from all devices</p>
                                         <p className="text-[11px] text-muted-foreground">Invalidates your session everywhere — you&apos;ll need to sign in again</p>
                                     </div>
                                     <button
                                         onClick={() => setShowSignOutAllConfirm(true)}
-                                        className="flex items-center gap-1.5 h-9 px-3 rounded-md text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-all active:scale-95 shrink-0"
+                                        className="flex items-center gap-1.5 h-9 px-3 rounded-md text-xs font-semibold text-white bg-red-500 hover:bg-red-600 transition-all active:scale-95 shrink-0 w-fit"
                                     >
                                         <LogOut size={13} />
                                         Sign out everywhere
