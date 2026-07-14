@@ -70,15 +70,15 @@ function AcceptInviteForm() {
     };
 
     if (verifying) return (
-        <div className="flex items-center justify-center min-h-screen">
+        <div className="flex items-center justify-center min-h-screen px-4">
             <Loader2 className="animate-spin" size={32} />
         </div>
     );
 
     if (success) return (
-        <div className="flex items-center justify-center min-h-screen">
-            <Card className="w-full max-w-md text-center">
-                <CardContent className="pt-8 pb-8 space-y-4">
+        <div className="flex items-center justify-center min-h-screen px-4">
+            <Card className="w-full max-w-md mx-4 text-center">
+                <CardContent className="pt-6 pb-6 lg:pt-8 lg:pb-8 space-y-4">
                     <CheckCircle size={48} className="text-green-500 mx-auto" />
                     <p className="text-xl font-bold">Account Activated!</p>
                     <p className="text-muted-foreground text-sm">Redirecting to login...</p>
@@ -88,8 +88,8 @@ function AcceptInviteForm() {
     );
 
     return (
-        <div className="flex items-center justify-center min-h-screen bg-background">
-            <Card className="w-full max-w-md shadow-xl">
+        <div className="flex items-center justify-center min-h-screen bg-background px-4">
+            <Card className="w-full max-w-md mx-4 shadow-xl">
                 <CardHeader className="text-center gap-2">
                     <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground font-bold text-2xl">Q</div>
                     <CardTitle>Accept Invite</CardTitle>

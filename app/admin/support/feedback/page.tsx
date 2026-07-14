@@ -316,7 +316,7 @@ export default function AdminFeedbackPage() {
 
             {/* Header */}
             <div className="shrink-0 pt-0 pb-0 px-1 sticky top-0 z-20 bg-background">
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Star size={21} className="text-amber-400 fill-amber-400" />

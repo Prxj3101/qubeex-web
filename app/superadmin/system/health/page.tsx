@@ -100,7 +100,7 @@ export default function SystemHealthPage() {
 
             {/* ── Page Header ── */}
             <div className="sticky top-0 z-20 bg-background pb-1 space-y-2">
-                <div className="flex items-center justify-between pt-0 px-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Activity size={21} />
@@ -157,7 +157,7 @@ export default function SystemHealthPage() {
                                 initial={{ opacity: 0, x: -8 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: i * 0.05 }}
-                                className="flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors"
+                                className="flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-colors flex-wrap"
                             >
                                 <div className="w-8 h-8 rounded-xl bg-muted/50 flex items-center justify-center shrink-0">
                                     <Icon size={15} className="text-muted-foreground" />
@@ -166,7 +166,7 @@ export default function SystemHealthPage() {
                                     <p className="text-sm font-semibold">{svc.name}</p>
                                     <p className="text-[11px] text-muted-foreground">{svc.region}</p>
                                 </div>
-                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
                                     <span className="flex items-center gap-1"><Clock size={11} />{svc.latency}</span>
                                     <span className="flex items-center gap-1"><TrendingUp size={11} />{svc.uptime}</span>
                                 </div>
@@ -181,7 +181,7 @@ export default function SystemHealthPage() {
             </div>
 
             {/* ── Response Time + Error Rate ── */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="bg-card border border-border/50 rounded-2xl p-5">
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-sm font-semibold">Response Time</p>
@@ -238,7 +238,7 @@ export default function SystemHealthPage() {
                         {QUEUE.reduce((s, q) => s + q.pending, 0)} total pending
                     </span>
                 </div>
-                <div className="p-5 grid grid-cols-2 gap-3">
+                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {QUEUE.map((q, i) => (
                         <motion.div
                             key={q.name}

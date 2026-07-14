@@ -74,7 +74,7 @@ export default function AIUsagePage() {
 
             {/* ── Page Header ── */}
             <div className="sticky top-0 z-20 bg-background pb-1 space-y-2">
-                <div className="flex items-center justify-between pt-0 px-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Brain size={21} />
@@ -99,7 +99,7 @@ export default function AIUsagePage() {
             </div>
 
             {/* ── Summary Stat Cards ── */}
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {SUMMARY.map((s, i) => {
                     const Icon = s.icon;
                     return (
@@ -130,10 +130,10 @@ export default function AIUsagePage() {
             </div>
 
             {/* ── Usage Trend + Model Split ── */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
 
                 {/* Trend Chart */}
-                <div className="col-span-2 bg-card border border-border/50 rounded-2xl p-5">
+                <div className="lg:col-span-2 bg-card border border-border/50 rounded-2xl p-5">
                     <div className="flex items-center justify-between mb-4">
                         <p className="text-sm font-semibold">Usage Trend</p>
                         <div className="flex gap-3 text-[10px] text-muted-foreground">
@@ -223,7 +223,7 @@ export default function AIUsagePage() {
                         return (
                             <div key={inst.abbr}>
                                 <button
-                                    className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-all text-left"
+                                    className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-muted/20 transition-all text-left flex-wrap"
                                     onClick={() => setExpandedInst(expanded ? null : inst.abbr)}
                                 >
                                     <span className="text-sm font-bold text-muted-foreground w-5">#{idx + 1}</span>
@@ -274,7 +274,7 @@ export default function AIUsagePage() {
                                         exit={{ opacity: 0, height: 0 }}
                                         className="px-5 pb-4 bg-muted/10"
                                     >
-                                        <div className="grid grid-cols-4 gap-3 pt-2">
+                                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
                                             {[
                                                 { label: 'Avg tokens/req', value: Math.round(inst.tokens / inst.requests).toLocaleString('en-IN') },
                                                 { label: 'Cost per 1K tokens', value: `₹${(inst.cost / (inst.tokens / 1000)).toFixed(3)}` },

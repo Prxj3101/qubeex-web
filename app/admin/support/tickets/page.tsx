@@ -120,7 +120,7 @@ function CreateTicketModal({ open, onClose, onCreate }: {
                             placeholder="Brief description of the issue..."
                             className="w-full h-9 px-3 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all" />
                     </div>
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="text-xs font-semibold text-muted-foreground mb-1.5 block">Category</label>
                             <div className="grid grid-cols-2 gap-1.5">
@@ -357,7 +357,7 @@ export default function AdminTicketsPage() {
     return (
         <div className="space-y-3">
             <div className="shrink-0 pt-0 pb-0 px-1 sticky top-0 z-20 bg-background">
-                <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <TicketIcon size={21} />

@@ -244,9 +244,9 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                         transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                         className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
                     >
-                        <div className="bg-card border border-border/50 rounded-2xl w-full max-w-2xl h-[75vh] overflow-hidden flex flex-col pointer-events-auto shadow-2xl">
+                        <div className="bg-card border border-border/50 rounded-2xl w-full max-w-2xl h-[75vh] overflow-hidden flex flex-col pointer-events-auto shadow-2xl mx-4">
                             {/* ── Modal Header ── */}
-                            <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-6 py-4 border-b border-border/50">
                                 <div className="flex items-center gap-3">
                                     <div className="w-8 h-8 rounded-xl flex items-center justify-center">
                                         <Megaphone size={25} className="text-muted-foreground" />
@@ -436,7 +436,7 @@ export function PublishNotificationModal({ open, onClose }: PublishNotificationM
                                                         {/* Recipients */}
                                                         <div className="space-y-2">
                                                             <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Send To</label>
-                                                            <div className="grid grid-cols-2 gap-2">
+                                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                 {RECIPIENT_META.map(r => {
                                                                     const Icon = r.icon;
                                                                     const isActive = recipient === r.value;

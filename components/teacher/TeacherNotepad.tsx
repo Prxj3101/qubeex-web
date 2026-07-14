@@ -133,7 +133,7 @@ export default function TeacherNotepad() {
             </div>
 
             {/* Tasks + Notes side by side */}
-            <div className="flex gap-3 flex-1 min-h-0">
+            <div className="flex flex-col sm:flex-row gap-3 flex-1 min-h-0">
                 {/* ── LEFT — Tasks ── */}
                 <div className="flex-1 flex flex-col min-w-0 min-h-0">
                     <div className="flex items-center justify-between mb-2">
@@ -237,7 +237,7 @@ export default function TeacherNotepad() {
                 </div>
 
                 {/* Divider */}
-                <div className="w-px bg-border/40 shrink-0" />
+                <div className="h-px w-full sm:h-auto sm:w-px bg-border/40 shrink-0" />
 
                 {/* ── RIGHT — Notes ── */}
                 <div className="flex-1 flex flex-col min-w-0 min-h-0">

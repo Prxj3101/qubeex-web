@@ -183,10 +183,10 @@ function ViewTab({ data }: { data: ClassData }) {
                 )}
             </AnimatePresence>
 
-            <div className="h-full overflow-hidden flex gap-3 pt-3 pb-3 px-1">
+            <div className="h-full overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-3 pt-3 pb-3 px-1">
 
                 {/* LEFT — Classmates */}
-                <div className="w-[25%] shrink-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5">
+                <div className="w-full lg:w-[25%] shrink-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5 max-h-72 lg:max-h-none">
                     <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center" style={{ height: '46px' }}>
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                             <Users size={13} /> Classmates ({classmates.length})
@@ -219,10 +219,10 @@ function ViewTab({ data }: { data: ClassData }) {
 
                 {/* CENTER + RIGHT — single scroll wrapper, grid layout */}
                 <div className="flex-1 min-w-0 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                    <div className="grid grid-cols-2 gap-3 pb-3" style={{ gridTemplateRows: 'repeat(2, 380px)' }}>
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-3 lg:[grid-template-rows:repeat(2,380px)]">
 
                         {/* Timetable (col 1, row 1) */}
-                        <div className="rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
+                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
                             <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                 <Calendar size={13} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Timetable</p>
@@ -234,7 +234,7 @@ function ViewTab({ data }: { data: ClassData }) {
                         </div>
 
                         {/* Leaderboard (col 2, row 1) */}
-                        <div className="rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
+                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
                             <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                 <Trophy size={13} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex-1">Leaderboard — Top 5</p>
@@ -291,7 +291,7 @@ function ViewTab({ data }: { data: ClassData }) {
                         </div>
 
                         {/* Subject Teachers (col 1, row 2) */}
-                        <div className="rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5 min-h-0">
+                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
                             <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                 <GraduationCap size={16} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Teachers</p>
@@ -321,7 +321,7 @@ function ViewTab({ data }: { data: ClassData }) {
                         </div>
 
                         {/* Results (col 2, row 2) */}
-                        <div className="rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5 min-h-0">
+                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
                             <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                 <FileText size={13} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Results</p>
@@ -374,7 +374,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
     return (
         <>
             {viewFile && <FileViewer file={viewFile} onClose={() => setViewFile(null)} />}
-            <div className="h-full flex flex-col overflow-hidden pt-3 pb-3 px-1">
+            <div className="h-full flex flex-col overflow-y-auto lg:overflow-hidden pt-3 pb-3 px-1">
 
                 {/* Subject chips */}
                 <div className="shrink-0 flex flex-wrap gap-1.5 mb-3">
@@ -400,10 +400,10 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                 </div>
 
                 {subject && (
-                    <div className="flex-1 min-h-0 flex gap-3">
+                    <div className="flex-1 min-h-0 flex flex-col lg:flex-row gap-3">
 
                         {/* LEFT 35% — subject info card + leaderboard (separate cards) */}
-                        <div className="w-[35%] shrink-0 flex flex-col gap-3 min-h-0">
+                        <div className="w-full lg:w-[35%] shrink-0 flex flex-col gap-3 min-h-0">
 
                             {/* Subject info card */}
                             <div className="shrink-0 rounded-2xl bg-card border border-border/50 shadow-sm shadow-black/5 px-4 py-3 flex items-center gap-3">
@@ -422,7 +422,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                             </div>
 
                             {/* Leaderboard card */}
-                            <div className="flex-1 min-h-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5">
+                            <div className="max-h-80 lg:max-h-none lg:flex-1 min-h-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5">
                                 <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                     <span className="text-sm">🏆</span>
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{subject.name} — Top 5</p>
@@ -456,7 +456,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                         </div>
 
                         {/* RIGHT 65% — single panel with 3 tabs */}
-                        <div className="flex-1 min-w-0 min-h-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5">
+                        <div className="w-full min-h-[420px] lg:min-h-0 lg:flex-1 min-w-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5">
 
                             {/* Tab toggle */}
                             <div className="flex-1 min-h-0 flex flex-col">
@@ -483,9 +483,9 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                         }
                                     </div>
                                 ) : (
-                                    <div className="h-full flex gap-0 min-h-0">
+                                    <div className="h-full flex flex-col lg:flex-row gap-0 min-h-0">
                                         {/* Left — Performance Trend */}
-                                        <div className="flex-1 min-h-0 p-4 border-r border-border/40 relative">
+                                        <div className="min-h-[260px] lg:min-h-0 flex-1 p-4 border-b lg:border-b-0 lg:border-r border-border/40 relative">
                                             <p className="text-[12px] font-bold text-foreground absolute" style={{ top: 36, left: 16 }}>Performance Trend</p>
                                             {chartData.length < 2
                                                 ? <div className="h-full flex items-center justify-center"><p className="text-[11px] text-muted-foreground">Need at least 2 exams for trend chart</p></div>
@@ -536,7 +536,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                         </div>
 
                                         {/* Right — My Results */}
-                                        <div className="w-[220px] shrink-0 flex flex-col px-3" style={{ paddingTop: 36, paddingBottom: 16 }}>
+                                        <div className="w-full lg:w-[220px] shrink-0 flex flex-col px-3" style={{ paddingTop: 36, paddingBottom: 16 }}>
                                             <p className="text-[12px] font-bold text-foreground mb-3 shrink-0">My Results</p>
                                             <div className="overflow-y-auto space-y-2.5 border-b border-border/30" style={{ height: 308, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
                                             {!score || score.columns.length === 0
@@ -622,8 +622,8 @@ export default function StudentClassPageClient() {
         <div className="flex flex-col h-full overflow-hidden">
             {/* Header */}
             <div className="shrink-0 px-1 pt-1 pb-0">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 lg:gap-0">
+                    <div className="flex items-center gap-3 flex-wrap">
                         {/* Title */}
                         <div>
                             <h1 className="text-2xl font-bold flex items-center gap-2">
@@ -635,7 +635,7 @@ export default function StudentClassPageClient() {
                         </div>
 
                         {/* Tab bar */}
-                        <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 ml-4">
+                        <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 ml-0 sm:ml-4">
                             {TABS.map(tab => {
                                 const isActive = pendingTab === tab.key;
                                 return (

@@ -283,8 +283,8 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent
-                className="p-0 gap-0 bg-card overflow-hidden"
-                style={{ width: '85vw', maxWidth: '1050px', maxHeight: '85vh' }}
+                className="p-0 gap-0 bg-card overflow-hidden mx-4 w-[calc(100%-2rem)] lg:w-[85vw]"
+                style={{ maxWidth: '1050px', maxHeight: '85vh' }}
             >
                 {/* ── Header ── */}
                 <div className="px-6 pt-5 pb-3.5 border-b border-border/50">
@@ -293,15 +293,15 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                 </div>
 
                 {/* ── Body: two columns side by side ── */}
-                <div className="flex" style={{ height: 'calc(60vh - 130px)', overflow: 'hidden' }}>
+                <div className="flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden max-h-[60vh] lg:max-h-none lg:h-[calc(60vh-130px)]">
 
                     {/* ─ LEFT ─ */}
-                    <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 border-r border-border/40 min-w-0">
+                    <div className="flex-1 lg:overflow-y-auto px-6 py-5 space-y-5 lg:border-r border-b lg:border-b-0 border-border/40 min-w-0">
 
                         {/* Type selector */}
                         <div>
                             <SectionLabel icon={Layers} label="Institution Type" />
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 {INST_TYPES.map(({ value, label, icon: Icon, desc }) => {
                                     const on = form.type === value;
                                     return (
@@ -396,7 +396,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                         onChange={v => set('phone', v)}
                                     />
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <div>
                                         <FL>Board</FL>
                                         <Input placeholder="CBSE / ICSE" value={form.board} onChange={e => set('board', e.target.value)} className="h-8 text-sm" />
@@ -411,7 +411,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                     </div>
 
                     {/* ─ RIGHT ─ */}
-                    <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 min-w-0">
+                    <div className="flex-1 lg:overflow-y-auto px-6 py-5 space-y-5 min-w-0">
 
                         {/* Location */}
                         <div>
@@ -421,11 +421,11 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                     <FL>Address</FL>
                                     <Input placeholder="Street / Building / Area" value={form.address} onChange={e => set('address', e.target.value)} className="h-8 text-sm" />
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <div><FL>City</FL><Input placeholder="Mumbai" value={form.city} onChange={e => set('city', e.target.value)} className="h-8 text-sm" /></div>
                                     <div><FL>State</FL><Input placeholder="Maharashtra" value={form.state} onChange={e => set('state', e.target.value)} className="h-8 text-sm" /></div>
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <div><FL>Country</FL><Input placeholder="India" value={form.country} onChange={e => set('country', e.target.value)} className="h-8 text-sm" /></div>
                                     <div><FL>Pincode</FL><Input placeholder="400001" value={form.pincode} onChange={e => set('pincode', e.target.value)} className="h-8 text-sm" /></div>
                                 </div>
@@ -444,7 +444,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                     <FL>Admin Email *</FL>
                                     <Input placeholder="rahul@school.edu.in" value={form.adminEmail} onChange={e => set('adminEmail', e.target.value)} className="h-8 text-sm" />
                                 </div>
-                                <div className="grid grid-cols-2 gap-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                     <div>
                                         <FL>Admin Phone</FL>
                                         <AdminPhoneField
@@ -482,7 +482,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                         {/* Plan */}
                         <div>
                             <SectionLabel icon={CreditCard} label="Subscription Plan" />
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                 {PLANS.map(({ value, label }) => {
                                     const on = form.plan === value;
                                     const isPro = value === 'PRO';

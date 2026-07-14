@@ -18,8 +18,8 @@ export function EnrollmentGrowthChart({ data, institutionType }: EnrollmentGrowt
     const accent = getInstitutionAccent(institutionType);
 
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-5 h-full">
-            <div className="flex items-center justify-between mb-4">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5 h-full w-full overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
                 <div className="flex items-center gap-2">
                     <TrendingUp size={15} className="text-muted-foreground" />
                     <p className="text-sm font-medium">Enrollment growth</p>

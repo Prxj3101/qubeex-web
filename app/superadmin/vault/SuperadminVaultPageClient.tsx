@@ -289,7 +289,7 @@ function VaultDashboard({ onLock }: { onLock: () => void }) {
             className="space-y-6 pb-10">
 
             {/* ── Banner ── */}
-            <div className="-mx-4 relative overflow-hidden rounded-b-[50px] px-10 py-8 flex items-center justify-between"
+            <div className="-mx-4 relative overflow-hidden rounded-b-[50px] px-5 lg:px-10 py-8 flex flex-col lg:flex-row lg:items-center justify-between gap-4"
                 style={{ background: 'linear-gradient(135deg, #C06040 0%, #DA7756 50%, #E8876A 100%)' }}>
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
@@ -304,7 +304,7 @@ function VaultDashboard({ onLock }: { onLock: () => void }) {
                     <p className="text-white/60 text-sm">Financial overview — confidential</p>
                 </div>
 
-                <div className="z-10 flex flex-col items-end gap-2">
+                <div className="z-10 flex flex-col items-start lg:items-end gap-2">
                     <div className="text-right">
                         <p className="text-white/60 text-xs mb-0.5">Lifetime Revenue</p>
                         <p className="text-white text-3xl font-bold">{fmt(totalRevenue)}</p>
@@ -437,7 +437,7 @@ function VaultDashboard({ onLock }: { onLock: () => void }) {
             {/* ── Revenue by Type ── */}
             <div className="bg-card border border-border/50 rounded-xl p-5">
                 <SectionHeader icon={BarChart3} title="Revenue by Institution Type" sub="Current month breakdown" />
-                <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
                     {TYPE_REVENUE.map(({ type, revenue, color, institutions, icon }) => (
                         <div key={type} className="rounded-xl p-4 border border-border/50 bg-muted/30">
                             <div className="flex items-center gap-2 mb-2">

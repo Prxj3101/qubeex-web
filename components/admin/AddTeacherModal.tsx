@@ -157,11 +157,11 @@ export function AddTeacherModal({
     return (
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent
-                className="p-0 gap-0 bg-card flex flex-col"
-                style={{ width: '75vw', maxWidth: '820px', maxHeight: '85vh' }}
+                className="p-0 gap-0 bg-card flex flex-col w-full sm:w-[calc(100%-2rem)] lg:w-[75vw] max-w-[calc(100%-2rem)] lg:max-w-[820px]"
+                style={{ maxHeight: '85vh' }}
             >
                 {/* Header */}
-                <div className="px-6 pt-5 pb-3.5 border-b border-border/50 shrink-0">
+                <div className="px-4 sm:px-6 pt-5 pb-3.5 border-b border-border/50 shrink-0">
                     <DialogTitle className="text-base font-semibold">
                         {mode === 'create' ? 'Add Teacher' : 'Edit Teacher'}
                     </DialogTitle>
@@ -178,10 +178,10 @@ export function AddTeacherModal({
                     <div className="flex-1 overflow-y-auto min-h-0">
 
                         {/* Two-column section */}
-                        <div className="flex border-b border-border/40">
+                        <div className="flex flex-col lg:flex-row border-b border-border/40">
 
                             {/* LEFT — Personal Info */}
-                            <div className="flex-1 px-6 py-5 space-y-5 border-r border-border/40 min-w-0">
+                            <div className="flex-1 px-4 sm:px-6 py-5 space-y-5 border-b lg:border-b-0 lg:border-r border-border/40 min-w-0">
                                 <div>
                                     <SectionLabel icon={User} label="Teacher Info" />
 
@@ -288,7 +288,7 @@ export function AddTeacherModal({
                             </div>
 
                             {/* RIGHT — Contact */}
-                            <div className="flex-1 px-6 py-5 space-y-5 min-w-0">
+                            <div className="flex-1 px-4 sm:px-6 py-5 space-y-5 min-w-0">
                                 <div>
                                     <SectionLabel icon={Mail} label="Contact Details" />
                                     <div className="space-y-2.5">
@@ -371,7 +371,7 @@ export function AddTeacherModal({
                         </div>
 
                         {/* Professional Details — full width, inside scroll area */}
-                        <div className="px-6 py-4">
+                        <div className="px-4 sm:px-6 py-4">
                             <SectionLabel icon={GraduationCap} label="Professional Details" />
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
@@ -387,7 +387,7 @@ export function AddTeacherModal({
                     </div>
 
                     {/* Footer — fixed */}
-                    <div className="border-t border-border/50 px-6 py-3.5 flex items-center justify-between bg-card shrink-0">
+                    <div className="border-t border-border/50 px-4 sm:px-6 py-3.5 flex items-center justify-between bg-card shrink-0">
                         <Button type="button" variant="outline" size="sm" onClick={() => handleClose(false)} disabled={loading}>
                             Cancel
                         </Button>

@@ -210,7 +210,7 @@ export default function AdminAuditLogsPage() {
 
             {/* ── Sticky Header ── */}
             <div className="sticky top-0 z-20 bg-background pb-2 pt-0 space-y-2">
-                <div className="flex items-center justify-between px-1">
+                <div className="flex items-center justify-between flex-wrap gap-2 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <ScrollText size={21} />
@@ -273,6 +273,8 @@ export default function AdminAuditLogsPage() {
             {/* ── Table ── */}
             <div className="flex-1 flex flex-col min-h-0 pb-6">
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[700px]">
                     <div className="grid grid-cols-[140px_200px_180px_1fr] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30">
                         {['TIMESTAMP (IST)', 'ACTION', 'ACTOR', 'DETAILS'].map(h => (
                             <p key={h} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</p>
@@ -355,16 +357,18 @@ export default function AdminAuditLogsPage() {
                             })
                         )}
                     </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Pagination */}
-                <div className="flex items-center justify-between mt-4 px-1">
+                <div className="flex items-center justify-between flex-wrap gap-2 mt-4 px-1">
                     <p className="text-[11px] text-muted-foreground">
                         {pagination.total > 0
                             ? `Page ${pagination.page} of ${pagination.pages} · ${pagination.total.toLocaleString('en-IN')} total`
                             : 'No logs'}
                     </p>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-wrap">
                         <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                             className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                             <ChevronLeft size={14} />

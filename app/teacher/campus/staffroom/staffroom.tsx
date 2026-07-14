@@ -431,9 +431,9 @@ export default function TeacherStaffroom() {
                 <p className="text-[13px] text-muted-foreground">Staff feed &amp; direct messages</p>
                 <div className="h-px bg-border/60 mt-2" />
             </div>
-            <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-3">
+            <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden pb-3">
                 {/* LEFT — Feed */}
-                <div className="w-[60%] flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+                <div className="w-full lg:w-[60%] h-[520px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
                     <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -518,7 +518,7 @@ export default function TeacherStaffroom() {
                 </div>
 
                 {/* RIGHT — DMs */}
-                <div className="w-[40%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20">
+                <div className="w-full lg:w-[40%] h-[420px] lg:h-auto shrink-0 lg:shrink flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20">
                     <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between">
                             <h2 className="text-base font-bold flex items-center gap-2"><User size={16} /> Direct Messages</h2>

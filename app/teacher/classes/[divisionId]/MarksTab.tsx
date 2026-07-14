@@ -1396,7 +1396,7 @@ function StudentSummaryPanel({
     };
 
     return (
-        <div className="w-[30%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+        <div className="w-full lg:w-[30%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
             <div className="px-4 py-3.5 border-b border-border/40 shrink-0">
                 <p className="text-sm font-bold flex items-center gap-2">
                     <Users size={14} /> Students ({students.length})
@@ -1537,10 +1537,10 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
     }, [studentStats]);
 
     return (
-        <div className="flex gap-3 h-full min-h-0 pt-3 pb-3 px-1">
+        <div className="flex flex-col lg:flex-row gap-3 h-full min-h-0 pt-3 pb-3 px-1 overflow-y-auto lg:overflow-visible">
 
             {/* LEFT — Students list */}
-            <div className="w-[30%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[30%] h-[380px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                 <div className="px-4 py-3.5 border-b border-border/40 shrink-0">
                     <p className="text-sm font-bold flex items-center gap-2">
                         <Users size={14} /> Students ({marksheetHook.students.length})
@@ -1586,7 +1586,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
             </div>
 
             {/* RIGHT — Details panel */}
-            <div className="flex-1 flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:flex-1 h-[75vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                 <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3">
                     <p className="text-sm font-bold shrink-0 flex items-center gap-1.5">
                         <BookOpen size={14} /> {divisionName}
@@ -1620,7 +1620,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                     </AnimatePresence>
                 </div>
                 <div className="flex-1 min-h-0 overflow-hidden bg-background p-3 flex flex-col">
-                    {rightTab === 'class' ? (<div className="flex gap-3 h-full min-h-0">{(() => {
+                    {rightTab === 'class' ? (<div className="flex flex-col lg:flex-row gap-3 h-full min-h-0 overflow-y-auto lg:overflow-hidden">{(() => {
                         const getPct = (s: typeof studentStats[0]) =>
                             rankTab === 'offline' ? (s.offPct ?? 0)
                                 : rankTab === 'online' ? (s.onPct ?? 0)
@@ -1635,7 +1635,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                             { height: 'h-12', color: '#CD7F32', label: '3rd' },
                         ];
                         return (
-                            <div className="w-1/2 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col min-h-0">
+                            <div className="w-full lg:w-1/2 h-[420px] lg:h-auto shrink-0 lg:shrink bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col min-h-0">
                                 <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                         <Trophy size={13} /> Leaderboard
@@ -1691,7 +1691,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                         );
                     })()}
                         {/* Subject Toppers */}
-                        <div className="w-1/2 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col min-h-0">
+                        <div className="w-full lg:w-1/2 h-[420px] lg:h-auto shrink-0 lg:shrink bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col min-h-0">
                             <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between shrink-0">
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                     <Trophy size={13} /> Subject Toppers
@@ -1786,8 +1786,8 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                         </div>
                                     </div>
                                     {/* Body: student info left + chart right */}
-                                    <div className="flex flex-1 min-h-0">
-                                        <div className="w-[22%] shrink-0 border-r border-border/40 px-3 py-3 flex flex-col items-center gap-2">
+                                    <div className="flex flex-col sm:flex-row flex-1 min-h-0">
+                                        <div className="w-full sm:w-[22%] shrink-0 border-r-0 sm:border-r border-b sm:border-b-0 border-border/40 px-3 py-3 flex flex-row sm:flex-col items-center gap-2">
                                             <div className="w-14 h-14 rounded-full flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20"
                                                 style={{ background: getAvatarColor(sel.student.name) }}>
                                                 {getInitials(sel.student.name)}
@@ -1860,7 +1860,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
 
                                 {/* Report Card */}
                                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 grid grid-cols-3 items-center">
+                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:items-center">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider justify-self-start">Report Card</p>
                                         <div className="flex items-baseline gap-2 justify-self-center">
                                             <span className="text-[12px] font-semibold text-foreground">{sel.student.name}</span>

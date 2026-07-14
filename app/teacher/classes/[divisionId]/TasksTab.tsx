@@ -845,7 +845,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     return (
         <div className="flex flex-col h-full overflow-hidden">
             {/* Action buttons */}
-            <div className="shrink-0 px-2 pt-1 pb-1 flex items-center justify-between relative">
+            <div className="shrink-0 px-2 pt-1 pb-1 flex flex-wrap items-center justify-between gap-2 relative">
                 {subTab === 'questions' && selectedContainerId && (
                     <h2 className="text-xl font-bold flex items-center gap-2 shrink-0">
                         <PackageOpen size={21} />
@@ -909,7 +909,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                     </div>
                 )}
                 {subTab === 'questions' && selectedContainerId && (
-                    <div className="absolute left-1/2 -translate-x-1/2 flex bg-muted/50 rounded-xl p-0.5 border border-border/50">
+                    <div className="order-last w-full sm:w-auto sm:order-none sm:absolute sm:left-1/2 sm:-translate-x-1/2 flex justify-center bg-muted/50 rounded-xl p-0.5 border border-border/50">
                         {(['ALL', 'PENDING_REVIEW', 'APPROVED', 'REJECTED'] as const).map(s => (
                             <button key={s} onClick={() => { setStatusFilter(s); setTypeFilter('ALL'); }}
                                 className={`relative px-3 py-1 rounded-lg text-xs font-medium transition-all ${statusFilter === s ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -1685,7 +1685,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -20 }}
                             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                            className="fixed z-50 bg-card border border-border rounded-2xl shadow-2xl w-[420px]"
+                            className="fixed z-50 bg-card border border-border rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-[420px]"
                             style={{ top: '15%', left: '50%', x: '-50%' }}
                         >
                             {/* Drag handle */}
@@ -1780,7 +1780,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: -20 }}
                             transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                            className="fixed z-50 bg-card border border-border rounded-2xl shadow-2xl w-[420px]"
+                            className="fixed z-50 bg-card border border-border rounded-2xl shadow-2xl w-[calc(100%-2rem)] max-w-[420px]"
                             style={{ top: '15%', left: '50%', x: '-50%' }}
                         >
                             {/* Drag handle */}
@@ -2455,7 +2455,7 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
             </div>
 
             {/* Bottom row */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span><span className="text-foreground/50">Created at:</span> {assignment.createdAt ? `${new Date(assignment.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
                     <span className="opacity-40">·</span>
@@ -2913,7 +2913,7 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, onResults, c
             </div>
 
             {/* Bottom row */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1"><Clock size={12} />{test.durationMinutes} min</span>
                     <span className="opacity-40">·</span>
@@ -3231,9 +3231,9 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
             </div>
 
             {/* Body */}
-            <div className="flex-1 flex overflow-hidden">
+            <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
                 {/* Left panel — Modules */}
-                <div className="w-[38%] border-r border-border flex flex-col overflow-hidden">
+                <div className="w-full lg:w-[38%] h-[320px] lg:h-auto shrink-0 lg:shrink border-r-0 lg:border-r border-b lg:border-b-0 border-border flex flex-col overflow-hidden">
                     <div className="shrink-0 px-4 py-3 border-b border-border/50">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Modules</p>
                     </div>
@@ -3290,7 +3290,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 </div>
 
                 {/* Right panel — Paper document */}
-                <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="w-full lg:flex-1 h-[55vh] lg:h-auto flex flex-col min-h-0 overflow-hidden">
                 {/* Metadata bar */}
                 <div className="shrink-0 px-4 py-2.5 border-b border-border/50 flex items-center gap-4 flex-wrap text-sm">
                     {entityType === 'test' && (

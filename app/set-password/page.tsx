@@ -131,11 +131,11 @@ function SetPasswordContent() {
 
                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                     className="relative w-full max-w-md text-center">
-                    <div className="bg-white/5 border border-white/10 rounded-3xl p-10 backdrop-blur-xl">
-                        <div className="w-16 h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-5">
+                    <div className="bg-white/5 border border-white/10 rounded-3xl p-6 lg:p-10 backdrop-blur-xl">
+                        <div className="w-14 h-14 lg:w-16 lg:h-16 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto mb-5">
                             <AlertTriangle size={28} className="text-red-400" />
                         </div>
-                        <h1 className="text-xl font-bold text-white mb-2">Link Expired</h1>
+                        <h1 className="text-lg lg:text-xl font-bold text-white mb-2">Link Expired</h1>
                         <p className="text-sm text-white/50 leading-relaxed">
                             This invite link is no longer valid. Invite links expire after <span className="text-white/70 font-medium">1 hour</span> for security reasons.
                         </p>
@@ -161,10 +161,10 @@ function SetPasswordContent() {
                     <motion.div
                         initial={{ scale: 0 }} animate={{ scale: 1 }}
                         transition={{ type: 'spring', bounce: 0.5, delay: 0.1 }}
-                        className="w-20 h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto mb-6">
+                        className="w-16 h-16 lg:w-20 lg:h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto mb-6">
                         <CheckCircle2 size={36} className="text-emerald-400" />
                     </motion.div>
-                    <h1 className="text-2xl font-bold text-white mb-2">Password Set!</h1>
+                    <h1 className="text-xl lg:text-2xl font-bold text-white mb-2">Password Set!</h1>
                     <p className="text-white/50 text-sm">Redirecting you to login…</p>
                     <div className="mt-6 w-48 h-1 bg-white/10 rounded-full mx-auto overflow-hidden">
                         <motion.div className="h-full bg-emerald-500 rounded-full"
@@ -204,11 +204,11 @@ function SetPasswordContent() {
                             style={{ width: 'auto', height: '52px' }}
                             className="rounded-md"
                         />
-                        <span className="text-[26px] font-bold text-[#FAE5D9]" style={{ fontFamily: 'var(--font-poppins)' }}>
+                        <span className="text-xl lg:text-[26px] font-bold text-[#FAE5D9]" style={{ fontFamily: 'var(--font-poppins)' }}>
                             QubeEx
                         </span>
                     </div>
-                    <h1 className="text-[18px] font-bold text-white">Set Your Password</h1>
+                    <h1 className="text-base lg:text-[18px] font-bold text-white">Set Your Password</h1>
                     <p className="text-xs text-white/50 mt-1">Complete your Admin account setup to get started</p>
                 </div>
 
@@ -218,7 +218,7 @@ function SetPasswordContent() {
 
                 {/* Card — fixed size, inner content scrolls */}
                 <div className="bg-white/[0.04] border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl flex flex-col min-h-0 flex-1 overflow-hidden">
-                    <div className="overflow-y-auto flex-1 px-6 pt-6"
+                    <div className="overflow-y-auto flex-1 px-4 lg:px-6 pt-6"
                         style={{ scrollbarWidth: 'none' }}>
 
                         {/* Institution Info — read only */}
@@ -346,7 +346,7 @@ function SetPasswordContent() {
                         {/* Password rules */}
                         {password.length > 0 && (
                             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                                className="grid grid-cols-2 gap-1.5 mb-5">
+                                className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 mb-5">
                                 {RULES.map(rule => {
                                     const passed = rule.test(password);
                                     return (
@@ -365,7 +365,7 @@ function SetPasswordContent() {
                     </div>
 
                     {/* Fixed bottom — submit + footer */}
-                    <div className="shrink-0 px-6 pb-6 pt-4 border-t border-white/8">
+                    <div className="shrink-0 px-4 lg:px-6 pb-6 pt-4 border-t border-white/8">
                         <button
                             onClick={handleSubmit}
                             disabled={!canSubmit}

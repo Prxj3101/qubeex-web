@@ -224,11 +224,11 @@ export default function TeacherAuditLogsPage() {
 
                 {/* Filters */}
                 <div className="flex items-center gap-2 flex-wrap">
-                    <div className="relative">
+                    <div className="relative w-full sm:w-auto">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                         <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
                             placeholder="Search logs..."
-                            className="w-64 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all" />
+                            className="w-full sm:w-64 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all" />
                         {search && (
                             <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                                 <X size={13} />
@@ -251,6 +251,8 @@ export default function TeacherAuditLogsPage() {
             {/* Table */}
             <div className="flex-1 flex flex-col min-h-0 pb-6">
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[640px]">
                     <div className="grid grid-cols-[140px_200px_1fr_120px] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30">
                         {['TIMESTAMP (IST)', 'ACTION', 'DETAILS', 'IP'].map(h => (
                             <p key={h} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</p>
@@ -311,10 +313,12 @@ export default function TeacherAuditLogsPage() {
                             );
                         })}
                     </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Pagination */}
-                <div className="flex items-center justify-between mt-4 px-1">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4 px-1">
                     <p className="text-[11px] text-muted-foreground">
                         Page {page} of {totalPages} · {filtered.length} total logs
                     </p>

@@ -21,7 +21,7 @@ export function PlanUsageCard({ plan }: PlanUsageCardProps) {
     ];
 
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-5 flex flex-col gap-4 h-full">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5 flex flex-col gap-4 h-full">
             <div className="flex items-center justify-between">
                 <div>
                     <p className="text-xs text-muted-foreground">Current plan</p>

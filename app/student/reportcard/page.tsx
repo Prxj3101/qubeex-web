@@ -142,10 +142,10 @@ export default function ReportCardPage() {
             <div className="h-px bg-border/60 shrink-0" />
 
             {/* ── Body: left name card, right report card ── */}
-            <div className="flex-1 min-h-0 overflow-hidden flex gap-4 py-4">
+            <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-4 py-4">
 
                 {/* ── LEFT — Name card ── */}
-                <div className="w-[200px] shrink-0 bg-card border border-border/50 rounded-2xl p-4 flex flex-col items-center gap-2 h-fit">
+                <div className="w-full lg:w-[200px] shrink-0 bg-card border border-border/50 rounded-2xl p-4 flex flex-row lg:flex-col items-center gap-2 lg:h-fit flex-wrap justify-center">
                     <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20 relative"
                         style={{ background: studentPhoto ? 'transparent' : getAvatarColor(studentName) }}>
                         {studentPhoto
@@ -169,14 +169,14 @@ export default function ReportCardPage() {
                 </div>
 
                 {/* ── RIGHT — Report Card ── */}
-                <div className="flex-1 min-w-0 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 grid grid-cols-3 items-center shrink-0">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider justify-self-start">Report Card</p>
-                        <div className="flex items-baseline gap-2 justify-self-center">
+                <div className="flex-1 min-w-0 min-h-[420px] lg:min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex flex-col gap-2 lg:grid lg:grid-cols-3 items-center shrink-0">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider self-start lg:justify-self-start">Report Card</p>
+                        <div className="flex items-baseline gap-2 lg:justify-self-center">
                             <span className="text-[12px] font-semibold text-foreground">{studentName}</span>
                             <span className="text-[11px] text-muted-foreground">Roll No. {rollNo}</span>
                         </div>
-                        <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40 justify-self-end">
+                        <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40 lg:justify-self-end">
                             {(['offline', 'online'] as const).map(t => (
                                 <button key={t} onClick={() => setTab(t)}
                                     className={`px-2.5 py-0.5 rounded-md text-[10px] font-semibold capitalize transition-all ${tab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -299,7 +299,7 @@ export default function ReportCardPage() {
                     </div>
 
                     {/* Footer legend */}
-                    <div className="border-t border-border/40 bg-muted/20 px-4 py-2 shrink-0 flex items-center gap-5">
+                    <div className="border-t border-border/40 bg-muted/20 px-4 py-2 shrink-0 flex items-center gap-5 flex-wrap">
                         {[
                             { label: '≥75% Pass', color: '#059669', sample: 75 },
                             { label: '35–74% Pass', color: '#F59E0B', sample: 36 },

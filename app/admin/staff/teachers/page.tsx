@@ -481,7 +481,7 @@ export default function TeachersPage() {
             <div className="sticky top-0 z-20 bg-background space-y-2 pt-0 pb-0">
 
                 {/* Header row */}
-                <div className="flex items-center justify-between pt-0 px-1">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 justify-between pt-0 px-1">
                     <div className="flex items-center gap-3">
                         <div>
                             <h1 className="text-xl font-bold flex items-center gap-2">
@@ -496,14 +496,14 @@ export default function TeachersPage() {
 
                     {/* Right — Search + Add */}
                     <div className="flex items-center gap-2">
-                        <div className="relative">
+                        <div className="relative flex-1 sm:flex-initial">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             <input
                                 type="text"
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                                 placeholder="Search teachers..."
-                                className="w-56 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
+                                className="w-full sm:w-56 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
                             />
                             {search && (
                                 <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">

@@ -52,7 +52,7 @@ export function OverviewHero({ adminName, institutionName, institutionType, admi
 
     return (
         <div
-            className="-mx-4 relative overflow-hidden rounded-b-[65px] px-13 py-5 flex items-center justify-between min-h-[160px]"
+            className="-mx-4 relative overflow-hidden rounded-b-[30px] sm:rounded-b-[45px] lg:rounded-b-[65px] px-5 sm:px-8 lg:px-13 py-5 flex items-center justify-between min-h-[160px]"
             style={{ background: isDark ? accent.bgDark : accent.bg }}
         >
             {/* Orbs */}
@@ -66,8 +66,8 @@ export function OverviewHero({ adminName, institutionName, institutionType, admi
             <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-4 left-52 animate-pulse delay-700" />
 
             {/* Text */}
-            <div className="space-y-1 z-10">
-                <p className="text-white/70 text-base">
+            <div className="space-y-1 z-10 min-w-0">
+                <p className="text-white/70 text-sm sm:text-base">
                     {greeting} {accent.emoji},{' '}
                     <span className="relative inline-block">
                         {adminName}
@@ -75,12 +75,12 @@ export function OverviewHero({ adminName, institutionName, institutionType, admi
                     </span>
                 </p>
                 <div className="relative">
-                    <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
+                    <p className="text-white text-xl sm:text-2xl lg:text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
                         {institutionName}
                     </p>
                     <SillyStringOverlay name={institutionName} fontSize={30} active={isInstAnniversary} />
                 </div>
-                <p className="text-white/60 text-sm">Here&apos;s what&apos;s happening at your {accent.label.toLowerCase()} today.</p>
+                <p className="text-white/60 text-xs sm:text-sm">Here&apos;s what&apos;s happening at your {accent.label.toLowerCase()} today.</p>
                 <p className="text-white/50 text-xs mt-2">{dateStr}</p>
             </div>
 

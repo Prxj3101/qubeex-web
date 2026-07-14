@@ -224,7 +224,7 @@ export default function AuditLogsPage() {
             {/* ── Sticky Header ── */}
             <div className="sticky top-0 z-20 bg-background pb-2 space-y-2">
 
-                <div className="flex items-center justify-between pt-0 px-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-0 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <ScrollText size={21} />
@@ -280,7 +280,8 @@ export default function AuditLogsPage() {
             {/* ── Table ── */}
             <div className="flex-1 flex flex-col min-h-0 pb-6">
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
-
+                  <div className="overflow-x-auto">
+                    <div className="min-w-[900px]">
                     {/* Sticky Table header */}
                     <div className="grid grid-cols-[140px_190px_180px_1fr_170px] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30 sticky top-0 z-10">
                         {['TIMESTAMP (IST)', 'ACTION', 'ACTOR', 'CONTEXT / DETAILS', 'INSTITUTION'].map(h => (
@@ -376,10 +377,12 @@ export default function AuditLogsPage() {
                         })
                     )}
                     </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* ── Pagination ── */}
-                <div className="flex items-center justify-between mt-4 px-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 mt-4 px-1">
                     <p className="text-[11px] text-muted-foreground">
                         {pagination.total > 0
                             ? `Page ${pagination.page} of ${pagination.pages} · ${pagination.total.toLocaleString('en-IN')} total logs`

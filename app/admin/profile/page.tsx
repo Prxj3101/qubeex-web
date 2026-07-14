@@ -526,7 +526,7 @@ export default function AdminProfilePage() {
                   </span>
                 )}
               </div>
-              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
+              <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-border/50">
                 {[
                   { label: 'Students', value: studentCount },
                   { label: 'Teachers', value: teacherCount },
@@ -619,7 +619,7 @@ export default function AdminProfilePage() {
                   </p>
                 )}
               </div>
-              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-border/50">
+              <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-border/50">
                 {[
                   { label: 'Role', value: adminUser?.role ?? '—' },
                   { label: 'Joined', value: adminUser ? toIST(adminUser.createdAt) : '—' },

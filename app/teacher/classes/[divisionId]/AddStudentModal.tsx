@@ -260,8 +260,7 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
     return (
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent
-                className="p-0 gap-0 bg-card flex flex-col"
-                style={{ width: '75vw', maxWidth: '820px', maxHeight: '85vh' }}
+                className="p-0 gap-0 bg-card flex flex-col w-[92vw] lg:w-[75vw] max-w-[820px] max-h-[85vh] mx-auto"
             >
                 {/* Header */}
                 <div className="px-6 pt-5 pb-3.5 border-b border-border/50 shrink-0">
@@ -275,10 +274,10 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                     <div className="flex-1 overflow-y-auto min-h-0">
 
                         {/* ── ROW 1: Student Info + Academic Details ── */}
-                        <div className="flex border-b border-border/40">
+                        <div className="flex flex-col lg:flex-row border-b border-border/40">
 
                             {/* LEFT — Student Info */}
-                            <div className="flex-1 px-6 py-5 border-r border-border/40 min-w-0">
+                            <div className="flex-1 px-6 py-5 border-r-0 lg:border-r border-b lg:border-b-0 border-border/40 min-w-0">
                                 <SectionLabel icon={User} label="Student Info" />
 
                                 {/* Avatar + Name */}
@@ -441,10 +440,10 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                         </div>
 
                         {/* ── ROW 2: Medical & Identity + Address ── */}
-                        <div className="flex border-b border-border/40">
+                        <div className="flex flex-col lg:flex-row border-b border-border/40">
 
                             {/* LEFT — Medical & Identity */}
-                            <div className="flex-1 px-6 py-5 border-r border-border/40 min-w-0">
+                            <div className="flex-1 px-6 py-5 border-r-0 lg:border-r border-b lg:border-b-0 border-border/40 min-w-0">
                                 <SectionLabel icon={Shield} label="Medical & Identity" />
                                 <div className="space-y-2.5">
                                     <div>
@@ -507,7 +506,7 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                             </div>
                             <div className="space-y-3">
                                 {guardians.map((g, i) => (
-                                    <div key={i} className="flex items-end gap-3 p-3 rounded-xl border border-border/40 bg-muted/20 relative">
+                                    <div key={i} className="flex flex-col sm:flex-row sm:items-end gap-3 p-3 rounded-xl border border-border/40 bg-muted/20 relative">
                                         <div className="flex-1">
                                             <FL>Name</FL>
                                             <Input value={g.name} onChange={e => updateGuardian(i, 'name', e.target.value)}

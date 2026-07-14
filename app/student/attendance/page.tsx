@@ -111,10 +111,10 @@ export default function AttendanceDetailsPage() {
             <div className="h-px bg-border/60 shrink-0" />
 
             {/* ── Body: left hero+rules, right month-wise + sheet ── */}
-            <div className="flex-1 min-h-0 overflow-hidden flex items-start gap-4 py-4">
+            <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row items-stretch lg:items-start gap-4 py-4">
 
                 {/* ── LEFT — Hero + Attendance Rules (fixed, no scroll) ── */}
-                <div className="w-[34%] shrink-0 flex flex-col gap-4">
+                <div className="w-full lg:w-[34%] shrink-0 flex flex-col gap-4">
 
                     <div className={`rounded-2xl overflow-hidden flex items-center px-4 bg-gradient-to-br ${
                             overallStatus === 'safe'
@@ -140,7 +140,7 @@ export default function AttendanceDetailsPage() {
                         </motion.div>
                         <div className="flex-1 flex flex-col items-center">
                             <p className="text-xs font-semibold text-white/75">Overall Attendance</p>
-                            <p className="text-5xl font-extrabold text-white leading-tight">
+                            <p className="text-4xl lg:text-5xl font-extrabold text-white leading-tight">
                                 {overallPct > 0 ? `${overallPct}%` : '—'}
                             </p>
                             <p className="text-xs text-white/75">{totalPresent} of {totalTotal} classes attended</p>
@@ -172,18 +172,18 @@ export default function AttendanceDetailsPage() {
                 </div>
 
                 {/* ── RIGHT — Month-wise + Attendance Sheet (this side scrolls) ── */}
-                <div className="flex-1 min-w-0 self-stretch flex flex-col gap-3 min-h-0 overflow-y-auto pr-2"
+                <div className="w-full flex-1 min-w-0 self-stretch flex flex-col gap-3 min-h-0 overflow-visible lg:overflow-y-auto pr-0 lg:pr-2"
                     style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
 
-                    <div className="flex gap-3 shrink-0">
-                        <div className="flex flex-col gap-3 w-[140px] shrink-0">
-                            <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
+                    <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+                        <div className="flex flex-row sm:flex-col gap-3 w-full lg:w-[140px] shrink-0">
+                            <div className="flex-1 sm:flex-none rounded-2xl border border-border/50 bg-card p-4 text-center">
                                 <p className={`text-2xl font-black ${pctColor(overallPct > 0 ? overallPct : null)}`}>
                                     {overallPct > 0 ? `${overallPct}%` : '—'}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground mt-1">Overall</p>
                             </div>
-                            <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
+                            <div className="flex-1 sm:flex-none rounded-2xl border border-border/50 bg-card p-4 text-center">
                                 <p className={`text-2xl font-black ${pctColor(currentMonthPct > 0 ? currentMonthPct : null)}`}>
                                     {currentMonthPct > 0 ? `${currentMonthPct}%` : '—'}
                                 </p>
@@ -220,9 +220,9 @@ export default function AttendanceDetailsPage() {
                     </div>
 
                     <div className="rounded-2xl border border-border/50 overflow-hidden shrink-0 flex flex-col">
-                        <div className="px-4 py-2.5 border-b border-border/40 bg-card shrink-0 flex items-center justify-between relative">
+                        <div className="px-4 py-2.5 border-b border-border/40 bg-card shrink-0 flex flex-col lg:flex-row lg:items-center lg:justify-between relative gap-1">
                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Attendance Sheet</p>
-                            <div className="absolute left-1/2 -translate-x-1/2 flex items-baseline gap-2">
+                            <div className="static lg:absolute lg:left-1/2 lg:-translate-x-1/2 flex items-baseline gap-2">
                                 <span className="text-[12px] font-semibold text-foreground">{data?.student.name ?? ''}</span>
                                 <span className="text-[11px] text-muted-foreground">Roll No. {data?.student.rollNo ?? ''}</span>
                             </div>
@@ -283,7 +283,7 @@ export default function AttendanceDetailsPage() {
                                 </tbody>
                             </table>
                         </div>
-                        <div className="px-4 py-2 border-t border-border/40 shrink-0 flex items-center gap-4 bg-card">
+                        <div className="px-4 py-2 border-t border-border/40 shrink-0 flex items-center gap-4 flex-wrap bg-card">
                             {['Present', 'Absent', 'Late'].map(label => (
                                 <div key={label} className="flex items-center gap-1.5">
                                     <span style={{ fontFamily: "'Patrick Hand', cursive", fontSize: '16px', fontWeight: 700, lineHeight: 1, color: label === 'Present' ? '#16a34a' : label === 'Absent' ? '#dc2626' : '#d97706' }}>{label[0]}</span>

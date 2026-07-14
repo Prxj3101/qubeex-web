@@ -55,7 +55,7 @@ export function TeacherTable({
     }
 
     return (
-        <div className="border border-border/50 rounded-xl overflow-hidden">
+        <div className="border border-border/50 rounded-xl overflow-x-auto">
             <Table>
                 <TableHeader>
                     <TableRow>

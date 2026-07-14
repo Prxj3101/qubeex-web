@@ -552,10 +552,10 @@ export default function ManageTab({ division, isClassTeacher }: {
 
     return (
         <>
-        <div className="flex gap-3 h-full pt-3 pb-3 px-1 overflow-hidden">
+        <div className="flex flex-col lg:flex-row gap-3 h-full pt-3 pb-3 px-1 overflow-y-auto lg:overflow-hidden">
 
             {/* LEFT — Students List */}
-            <div className="w-[40%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[40%] h-[420px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                 <div className="px-4 py-3 border-b border-border/40 shrink-0 flex items-center justify-between">
                     <p className="text-sm font-bold flex items-center gap-2">
                         <Users size={15} /> Students ({students.length})
@@ -657,7 +657,7 @@ export default function ManageTab({ division, isClassTeacher }: {
             </div>
 
             {/* RIGHT */}
-            <div className="w-[60%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                 <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center justify-between">
                     <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
                         {[
@@ -758,7 +758,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                     <div className="px-4 py-3 space-y-3 pb-6">
 
                                         {/* Stats strip */}
-                                        <div className="grid grid-cols-3 gap-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                             {[
                                                 {
                                                     label: 'Class Rank',
@@ -800,10 +800,10 @@ export default function ManageTab({ division, isClassTeacher }: {
                                         )}
 
                                         {/* ROW 1 — Student Info + Academic */}
-                                        <div className="flex gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                                        <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
 
                                             {/* LEFT — Student Info */}
-                                            <div className="flex-1 px-4 py-3 border-r border-border/40 min-w-0 space-y-2.5">
+                                            <div className="flex-1 px-4 py-3 border-r-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
                                                 <SectionHeader icon={User} label="Student Info"
                                                     editing={editingSections.studentInfo}
                                                     saving={savingSections.studentInfo}
@@ -961,9 +961,9 @@ export default function ManageTab({ division, isClassTeacher }: {
                                         </div>
 
                                         {/* ROW 2 — Medical + Address */}
-                                        <div className="flex gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                                        <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
                                             {/* LEFT — Medical & Identity */}
-                                            <div className="flex-1 px-4 py-3 border-r border-border/40 min-w-0 space-y-2.5">
+                                            <div className="flex-1 px-4 py-3 border-r-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
                                                 <SectionHeader icon={Shield} label="Medical & Identity"
                                                     editing={editingSections.medical}
                                                     saving={savingSections.medical}
@@ -1074,7 +1074,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        <div className="grid grid-cols-3 gap-2">
+                                                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                                             {editingSections.guardians ? (
                                                                 <>
                                                                     <EditField label="Name" value={g.name} onChange={v => {

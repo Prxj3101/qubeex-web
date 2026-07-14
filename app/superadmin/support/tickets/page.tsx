@@ -481,7 +481,7 @@ export default function TicketsPage() {
 
             {/* ── Pagination ── */}
             {!loading && pagination.pages > 1 && (
-                <div className="flex items-center justify-between pt-2 px-1">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 px-1">
                     <p className="text-[11px] text-muted-foreground">
                         Page {pagination.page} of {pagination.pages} · {pagination.total} total
                     </p>

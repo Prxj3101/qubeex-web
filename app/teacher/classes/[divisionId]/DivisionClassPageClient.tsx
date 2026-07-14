@@ -160,8 +160,8 @@ export default function DivisionClassPageClient() {
     return (
         <div className="flex flex-col h-full overflow-hidden">
             <div className="shrink-0 px-1 pt-1 pb-0">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                         {/* Back button */}
                         <button onClick={() => router.back()}
                             className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
@@ -170,7 +170,7 @@ export default function DivisionClassPageClient() {
 
                         {/* Title */}
                         <div>
-                            <h1 className="text-2xl font-bold flex items-center gap-2">
+                            <h1 className="text-lg lg:text-2xl font-bold flex items-center gap-2">
                                 <Users size={24} /> {division.name}
                             </h1>
                             <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -195,7 +195,7 @@ export default function DivisionClassPageClient() {
                         </div>
 
                         {/* Main tab bar */}
-                        <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 ml-4">
+                        <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 ml-0 lg:ml-4 overflow-x-auto max-w-full">
                             {TABS.map(tab => {
                                 const isActive = activeTab === tab.key;
                                 return (
@@ -216,7 +216,7 @@ export default function DivisionClassPageClient() {
                     </div>
 
                     {/* Right side — attendance sub-tab toggle + Subjects + Students count */}
-                    <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-4 flex-wrap">
 
                         {/* Marks sub-tab toggle */}
                         <AnimatePresence>

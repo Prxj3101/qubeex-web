@@ -581,16 +581,16 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                         </div>
 
                         {/* ROW 1: Fee Structures + Payment Methods */}
-                        <div className="flex gap-3">
+                        <div className="flex flex-col lg:flex-row gap-3">
 
                             {/* LEFT — Fee Structures */}
-                            <div className="w-[55%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0">
-                                    <div className="flex items-center gap-2">
+                            <div className="w-full lg:w-[55%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0 flex-wrap gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                             <Tag size={13} /> Fee Structures
                                         </p>
-                                        <div className="flex items-center gap-1.5">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
                                             {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
                                                 const cfg = FEE_TYPE_CFG[t];
                                                 return (
@@ -630,7 +630,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                             </div>
 
                             {/* RIGHT — Payment Methods */}
-                            <div className="w-[45%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                            <div className="w-full lg:w-[45%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                 <div className="px-4 py-3.5 border-b border-border/50 bg-muted/20 shrink-0">
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                         <Landmark size={14} /> Payment Methods
@@ -784,7 +784,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                     <Plus size={11} /> Add Column
                                                 </button>
                                             </div>
-                                            <div className="rounded-xl border border-border/40 overflow-hidden">
+                                            <div className="rounded-xl border border-border/40 overflow-x-auto">
                                                 <table className="text-xs w-full">
                                                     <thead>
                                                         <tr className="bg-muted/30 border-b border-border/40">
@@ -865,7 +865,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                     const assignedCount = m.assignedStructureIds.length;
                                                     return (
                                                         <div key={m.id} className="rounded-xl border border-border/40 overflow-hidden">
-                                                            <div className="flex items-center gap-3 px-3 py-2.5 bg-muted/20 hover:bg-muted/30 transition-colors">
+                                                            <div className="flex items-center flex-wrap gap-3 px-3 py-2.5 bg-muted/20 hover:bg-muted/30 transition-colors">
                                                                 <div className="w-20 shrink-0">
                                                                     <p className="text-xs font-semibold">{m.month}</p>
                                                                     <p className="text-[10px] text-muted-foreground">{m.dueDate || 'No due date'}</p>
@@ -944,7 +944,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                             </div>
 
                                             {addingMonth && (
-                                                <div className="mt-2 px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 flex items-center gap-2">
+                                                <div className="mt-2 px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 flex items-center flex-wrap gap-2">
                                                     <div ref={monthDropdownRef} className="relative">
                                                         <button type="button" onClick={() => setMonthDropdownOpen(v => !v)}
                                                             className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border/50 bg-card text-xs font-medium text-muted-foreground hover:border-primary/40 transition-all">
@@ -1048,10 +1048,10 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                 {/* ── Student Fees ── */}
                 {feesSubTab === 'students' && (
                     <motion.div key="students" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                        className="flex gap-3 flex-1 min-h-0 overflow-hidden">
+                        className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
 
                         {/* LEFT — Student list */}
-                        <div className="w-[25%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                        <div className="w-full lg:w-[25%] h-[45vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl lg:overflow-hidden shadow-sm shadow-black/5">
                             <div className="px-3.5 py-2.5 border-b border-border/40 shrink-0">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({students.length})</p>
@@ -1106,7 +1106,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                         </div>
 
                         {/* RIGHT — Student fee card */}
-                        <div className="flex-1 flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                        <div className="flex-1 h-[65vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                             <div className="px-4 py-3 border-b border-border/40 shrink-0">
                                 <p className="text-sm font-bold">Fee Details</p>
                             </div>
@@ -1187,7 +1187,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                         {feeMonths.length > 0 && (
                                                             <div>
                                                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Monthly Payment Schedule</p>
-                                                                <div className="rounded-xl border border-border/40 overflow-hidden">
+                                                                <div className="rounded-xl border border-border/40 overflow-x-auto">
                                                                     <table className="text-xs w-full">
                                                                         <thead>
                                                                             <tr className="bg-muted/10 border-b border-border/30">

@@ -273,7 +273,7 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
             animate={{ opacity: 1, y: 0 }}
             className="bg-card border border-border/50 rounded-2xl p-4 space-y-3"
         >
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-y-1">
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${meta.cls}`}>
                     {meta.emoji} {meta.label}
                     {post.subject && <span className="font-normal opacity-75">· {post.subject}</span>}
@@ -417,7 +417,7 @@ export default function StudentFeedPage() {
     const filters = FILTERS.map(f => f.key === 'class' ? { ...f, label: division || 'My Class' } : f);
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-y-auto lg:overflow-hidden">
             <div className="shrink-0 px-1 pb-3">
                 <h1 className="text-xl font-bold flex items-center gap-2">
                     <Rss size={21} /> Feed
@@ -426,13 +426,13 @@ export default function StudentFeedPage() {
                 <div className="h-px bg-border/60 mt-2" />
             </div>
 
-            <div className="flex gap-3 flex-1 min-h-0 overflow-hidden pb-2">
+            <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 lg:overflow-hidden pb-2">
 
                 {/* Feed panel — LEFT */}
-                <div className="w-[65%] flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+                <div className="w-full lg:w-[65%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
 
                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                             <h2 className="text-sm font-bold flex items-center gap-1.5">
                                 📢 Announcements &amp; Feed
                                 {loading && <Loader2 size={12} className="animate-spin text-muted-foreground" />}
@@ -440,7 +440,7 @@ export default function StudentFeedPage() {
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="New updates" />
                                 )}
                             </h2>
-                            <div className="flex items-center gap-1.5 flex-wrap justify-end">
+                            <div className="flex items-center gap-1.5 flex-wrap justify-start lg:justify-end">
                                 {filters.map(tab => (
                                     <button key={tab.key} onClick={() => setActiveFilter(tab.key)}
                                         className={`flex items-center gap-1 px-2.5 py-1 rounded-full border text-[10px] font-semibold whitespace-nowrap transition-all ${
@@ -476,7 +476,7 @@ export default function StudentFeedPage() {
                 </div>
 
                 {/* Calendar — RIGHT */}
-                <div className="w-[35%] shadow-md shadow-black/20 rounded-2xl shrink-0" style={{ height: '440px', alignSelf: 'flex-start' }}>
+                <div className="w-full lg:w-[35%] shadow-md shadow-black/20 rounded-2xl shrink-0 h-[420px] lg:h-[440px] lg:self-start">
                     <AcademicCalendar />
                 </div>
             </div>

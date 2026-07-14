@@ -93,7 +93,7 @@ export default function UsersInsightPage() {
 
             {/* ── Sticky header ── */}
             <div className="sticky top-0 z-20 bg-background pb-0 pt-0">
-                <div className="flex items-center gap-3 px-0">
+                <div className="flex flex-wrap items-center gap-3 px-0">
                     <button
                         onClick={() => router.back()}
                         className="w-8 h-8 rounded-xl border border-border/60 bg-muted/30 flex items-center justify-center hover:bg-muted/60 transition-all shrink-0">
@@ -106,7 +106,7 @@ export default function UsersInsightPage() {
                         </h1>
                         <p className="text-[13px] text-muted-foreground">All billable users on your plan</p>
                     </div>
-                    <div className="ml-auto flex items-center gap-3">
+                    <div className="flex items-center gap-3 sm:ml-auto">
                         <div className="text-center">
                             <p className="text-lg font-bold leading-tight">{total}</p>
                             <p className="text-[11px] text-muted-foreground">Total</p>
@@ -130,9 +130,9 @@ export default function UsersInsightPage() {
             <div className="flex-1 overflow-hidden flex flex-col gap-3 py-3">
 
                 {/* Filters */}
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                     {/* Search */}
-                    <div className="relative shrink-0 w-80">
+                    <div className="relative shrink-0 w-full sm:w-80">
                         <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                         <input
                             value={search}
@@ -183,7 +183,7 @@ export default function UsersInsightPage() {
                         </div>
                     ) : (<>
                         {/* Fixed header */}
-                        <div className="shrink-0">
+                        <div className="shrink-0 overflow-x-auto">
                         <table className="w-full text-xs shrink-0 table-fixed">
                             <colgroup>
                                 <col className="w-10" />

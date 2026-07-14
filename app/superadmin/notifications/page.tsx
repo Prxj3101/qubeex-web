@@ -272,7 +272,7 @@ export default function NotificationsPage() {
 
             {/* ── Sticky Header ── */}
             <div className="sticky top-0 z-20 bg-background pb-2 space-y-2">
-                <div className="flex items-center justify-between pt-1 px-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Bell size={21} />
@@ -383,7 +383,7 @@ export default function NotificationsPage() {
 
                 {/* ── Pagination ── */}
                 {!loading && pagination.pages > 1 && (
-                    <div className="flex items-center justify-between mt-4 px-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mt-4 px-1">
                         <p className="text-[11px] text-muted-foreground">
                             Page {pagination.page} of {pagination.pages} · {pagination.total.toLocaleString('en-IN')} total
                         </p>

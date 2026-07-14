@@ -567,10 +567,10 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
     };
 
     return (
-        <div className="flex gap-3 h-full pt-3 pb-3 px-1 overflow-hidden">
+        <div className="flex flex-col lg:flex-row gap-3 h-full pt-3 pb-3 px-1 overflow-y-auto lg:overflow-hidden">
 
             {/* LEFT — Class Teacher info + Feed */}
-            <div className="w-[60%] flex flex-col gap-3 min-h-0 overflow-hidden">
+            <div className="w-full lg:w-[60%] h-[560px] lg:h-auto shrink-0 lg:shrink flex flex-col gap-3 min-h-0 overflow-hidden">
 
                 {/* Class Teacher card */}
                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm shadow-black/5">
@@ -592,7 +592,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                 {/* Feed */}
                 <div className="flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
-                        <div className="flex items-center justify-between">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                 <Megaphone size={14} /> {division.name} Announcements & Feed
                             </p>
@@ -629,7 +629,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
 
                     {/* Composer */}
                     <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                             <div className="flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
                                 <input value={postInput} onChange={e => setPostInput(e.target.value)}
                                     placeholder="Title..."
@@ -684,7 +684,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
             </div>
 
             {/* RIGHT — Subject Teachers + Leaderboard + Timetable + Calendar + Results */}
-            <div className="w-[40%] flex flex-col gap-3 min-h-0 overflow-y-auto pb-1">
+            <div className="w-full lg:w-[40%] flex flex-col gap-3 min-h-0 overflow-y-auto pb-1">
 
                 {/* Subject Teachers */}
                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">

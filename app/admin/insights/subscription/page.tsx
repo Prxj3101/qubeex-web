@@ -259,7 +259,7 @@ export default function SubscriptionPage() {
 
             {/* Sticky header */}
             <div className="sticky top-0 z-20 bg-background pb-0 pt-0">
-                <div className="flex items-end justify-between px-0">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between px-0">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <CreditCard size={21} />
@@ -319,7 +319,7 @@ export default function SubscriptionPage() {
 
                     {/* ── Active Plan Banner ── */}
                     <div className="bg-card border border-border/50 rounded-2xl p-5 mb-3">
-                        <div className="flex items-start justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -539,7 +539,7 @@ export default function SubscriptionPage() {
                         {/* Billing Summary */}
                         <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 space-y-4">
                             <p className="text-sm font-medium text-foreground">Billing Summary</p>
-                            <div className="grid grid-cols-3 gap-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="bg-white dark:bg-muted/50 rounded-xl p-3 border border-border/50">
                                     <p className="text-xs text-muted-foreground mb-1">Active Users</p>
                                     <p className="text-lg font-bold">{activeUsers}</p>
@@ -601,9 +601,9 @@ export default function SubscriptionPage() {
                                             May 2025 · Generates 31 May
                                         </span>
                                     </p>
-                                    <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2">
+                                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-[11px] text-muted-foreground mb-2">
                                         <span>📅 01 May – 31 May 2025</span>
-                                        <span className="font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                        <span className="font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 w-fit">
                                             Generates on 31 May
                                         </span>
                                     </div>
@@ -637,7 +637,7 @@ export default function SubscriptionPage() {
                                         <div className="h-12 rounded-xl bg-muted/40 animate-pulse" />
                                     ) : latestBill ? (
                                         <div className="divide-y divide-border/40">
-                                            <div className="flex items-center justify-between py-3">
+                                            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between py-3">
                                                 <div>
                                                     <div className="flex items-center gap-2">
                                                         <p className="text-xs font-semibold">{latestBill.billingMonth ?? latestBill.type}</p>
@@ -770,7 +770,7 @@ export default function SubscriptionPage() {
                                                 <p className="text-xs font-medium text-muted-foreground">No bills yet</p>
                                             </div>
                                         ) : bills.map((inv, idx) => (
-                                            <div key={inv.id} className="flex items-center justify-between px-5 py-3">
+                                            <div key={inv.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between px-5 py-3">
                                                 <div>
                                                     <div className="flex items-center gap-2">
                                                         <p className="text-xs font-semibold">{inv.billingMonth ?? inv.type}</p>

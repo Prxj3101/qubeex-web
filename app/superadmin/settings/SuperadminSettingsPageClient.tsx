@@ -305,7 +305,7 @@ export default function SuperAdminProfilePage() {
 
             {/* ── STICKY HEADER ── */}
             <div className="sticky top-0 z-20 bg-background pb-2 space-y-2">
-                <div className="flex items-center justify-between pt-1 px-1">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <User size={21} />
@@ -332,7 +332,7 @@ export default function SuperAdminProfilePage() {
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, ease: 'easeOut' }}
-                    className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-13 py-6 mb-6"
+                    className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-5 lg:px-13 py-6 mb-6"
                 >
                     {/* Decorative orbs */}
                     <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
@@ -340,7 +340,7 @@ export default function SuperAdminProfilePage() {
                     <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-5 left-16 animate-pulse" />
                     <div className="absolute w-1 h-1 rounded-full bg-white/70 top-22 left-40 animate-pulse delay-300" />
 
-                    <div className="relative z-10 flex items-center gap-5">
+                    <div className="relative z-10 flex flex-col sm:flex-row items-center sm:items-center gap-5 text-center sm:text-left">
                         {/* Avatar */}
                         <div className="relative shrink-0">
                             <div
@@ -356,18 +356,18 @@ export default function SuperAdminProfilePage() {
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                                <p className="text-white text-2xl font-semibold truncate" style={{ fontFamily: 'var(--font-poppins)' }}>
+                            <div className="flex items-center justify-center sm:justify-start gap-2 mb-1 flex-wrap">
+                                <p className="text-white text-xl sm:text-2xl font-semibold truncate" style={{ fontFamily: 'var(--font-poppins)' }}>
                                     {name}
                                 </p>
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-sm">
                                     👑 SUPER ADMIN
                                 </span>
                             </div>
-                            <p className="text-white/80 text-sm flex items-center gap-1.5 mb-0.5">
+                            <p className="text-white/80 text-sm flex items-center justify-center sm:justify-start gap-1.5 mb-0.5">
                                 <Mail size={13} />{email}
                             </p>
-                            <p className="text-white/60 text-xs flex items-center gap-1.5">
+                            <p className="text-white/60 text-xs flex items-center justify-center sm:justify-start gap-1.5">
                                 <Calendar size={12} />Member since {toIST(profileCreatedAt, { hour: undefined, minute: undefined })}
                             </p>
                         </div>

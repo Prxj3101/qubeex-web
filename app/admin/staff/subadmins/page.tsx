@@ -611,7 +611,7 @@ export default function SubadminsPage() {
 
             {/* Sticky header */}
             <div className="sticky top-0 z-20 bg-background pb-0">
-                <div className="flex items-center justify-between pt-0 px-1">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 justify-between pt-0 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Shield size={21} /> Subadmins
@@ -621,14 +621,14 @@ export default function SubadminsPage() {
                         </p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="relative">
+                        <div className="relative flex-1 sm:flex-initial">
                             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                             <input
                                 type="text"
                                 value={search}
                                 onChange={e => setSearch(e.target.value)}
                                 placeholder="Search subadmins..."
-                                className="w-56 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
+                                className="w-full sm:w-56 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all"
                             />
                             {search && (
                                 <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -678,7 +678,7 @@ export default function SubadminsPage() {
             {/* Modal */}
             <Dialog open={isModalOpen} onOpenChange={v => !v && closeModal()}>
                 <DialogContent
-                    className="p-0 gap-0 bg-card flex flex-col"
+                    className="p-0 gap-0 bg-card flex flex-col mx-4 lg:mx-0"
                     style={{ width: '80vw', maxWidth: '860px', maxHeight: '88vh' }}
                 >
                     {/* Header */}
@@ -694,9 +694,9 @@ export default function SubadminsPage() {
                         </p>
                     </div>
 
-                    <div className="flex flex-1 min-h-0">
+                    <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-y-auto lg:overflow-visible">
                         {/* LEFT — Profile info */}
-                        <div className="flex-1 px-6 py-5 overflow-y-auto border-r border-border/40 space-y-5 min-w-0">
+                        <div className="flex-1 px-6 py-5 lg:overflow-y-auto border-b lg:border-b-0 border-r-0 lg:border-r border-border/40 space-y-5 min-w-0">
 
                             {/* Identity */}
                             <div>
@@ -749,8 +749,8 @@ export default function SubadminsPage() {
                                             <p className="text-[11px] font-semibold uppercase tracking-wider">Contact & Personal</p>
                                             <div className="flex-1 h-px bg-border/60" />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-3">
-                                            <div className="col-span-2">
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            <div className="col-span-1 sm:col-span-2">
                                                 <SectionLabel label="Phone" />
                                                 <div className="flex gap-1.5">
                                                     <select
@@ -843,7 +843,7 @@ export default function SubadminsPage() {
                                                     className="w-full h-9 px-3 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all"
                                                 />
                                             </div>
-                                            <div className="grid grid-cols-2 gap-3">
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                 <div>
                                                     <SectionLabel label="City" />
                                                     <input value={form.city} onChange={e => setField('city', e.target.value)} placeholder="Mumbai" className="w-full h-9 px-3 rounded-xl border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50 transition-all" />
@@ -866,7 +866,7 @@ export default function SubadminsPage() {
                         </div>
 
                         {/* RIGHT — Permissions */}
-                        <div className="w-80 shrink-0 px-5 py-5 overflow-y-auto">
+                        <div className="w-full lg:w-80 shrink-0 px-5 py-5 lg:overflow-y-auto">
                             <div className="flex items-center gap-2 mb-3">
                                 <div className="w-5 h-5 rounded-md bg-primary/10 flex items-center justify-center">
                                     <Lock size={11} className="text-primary" />

@@ -38,7 +38,7 @@ export function NotificationsPreviewCard({ tickets }: TicketsSummaryCardProps) {
     const inProgressCount = tickets.filter(t => t.status === 'IN_PROGRESS').length;
 
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-5">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <TicketIcon size={15} className="text-muted-foreground" />
@@ -50,7 +50,7 @@ export function NotificationsPreviewCard({ tickets }: TicketsSummaryCardProps) {
             </div>
 
             {/* Summary pills */}
-            <div className="flex items-center gap-2 mb-3">
+            <div className="flex flex-wrap items-center gap-2 mb-3">
                 <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400">
                     {openCount} Open
                 </span>
@@ -82,7 +82,7 @@ export function NotificationsPreviewCard({ tickets }: TicketsSummaryCardProps) {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-xs font-medium text-foreground truncate">{t.title}</p>
-                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                    <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
                                         {/* Status dot */}
                                         <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${status.dot}`} />
                                         <span className="text-[10px] text-muted-foreground">{status.label}</span>
