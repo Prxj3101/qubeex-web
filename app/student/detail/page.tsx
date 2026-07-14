@@ -412,7 +412,9 @@ export default function StudentDetailPage() {
                             {/* Name */}
                             <div className="text-center">
                                 <p className="text-white font-bold text-base leading-tight">{data.name}</p>
-                                <p className="text-white/70 text-xs mt-0.5">{store.standard} · {store.division}</p>
+                                <p className="text-white/70 text-xs mt-0.5">
+                                    Class {store.standard.replace(/^Class\s*/i, '')} · Division {store.division.includes('-') ? store.division.split('-').slice(1).join('-') : store.division.replace(/^Division\s*/i, '')}
+                                </p>
                             </div>
 
                             {/* Chips */}
@@ -549,7 +551,7 @@ export default function StudentDetailPage() {
                         <SectionHeader icon={BookOpen} label="Academic Details" />
                         <div className="grid grid-cols-2 gap-2">
                             <ReadField label="Class" value={store.standard.replace(/^Class\s*/i, '')} />
-                            <ReadField label="Division" value={store.division.replace(/^Division\s*/i, '')} />
+                            <ReadField label="Division" value={store.division.includes('-') ? store.division.split('-').slice(1).join('-') : store.division.replace(/^Division\s*/i, '')} />
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                             <ReadField label="Roll No" value={store.rollNo} />

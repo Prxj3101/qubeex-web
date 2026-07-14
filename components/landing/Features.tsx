@@ -3,7 +3,7 @@
 import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion';
 import { useRef } from 'react';
 import {
-    Brain, CalendarCheck, Wallet, BarChart3,
+    Brain, CalendarCheck, Wallet, BarChart3, Presentation,
     Sparkles, ShieldCheck, FileSpreadsheet, Bell, type LucideIcon,
 } from 'lucide-react';
 import { AUDIENCES } from './landing-data';
@@ -36,7 +36,19 @@ const STACK: StackFeature[] = [
         accent: '#C4B5FD', text: '#FFFFFF', sub: 'rgba(255,255,255,0.72)', chipBg: 'rgba(255,255,255,0.12)',
     },
     {
-        icon: CalendarCheck, no: '02',
+        icon: Presentation, no: '02',
+        title: 'A blackboard that teaches with you',
+        desc: 'SmartBoard puts live teaching material on the class display with an AI assist panel beside it — explanations, questions and full tests generated on demand. Free addon for the first year, on every plan.',
+        chips: [
+            { icon: Presentation, label: 'Live teaching material' },
+            { icon: Sparkles, label: 'AI assist panel' },
+            { icon: Brain, label: 'Question & test gen' },
+        ],
+        bg: 'linear-gradient(135deg, #FFFFFF 0%, #FCE7F3 100%)',
+        accent: '#DB2777', text: '#2D0B1E', sub: '#8A5A74', chipBg: 'rgba(219,39,119,0.08)',
+    },
+    {
+        icon: CalendarCheck, no: '03',
         title: 'Attendance in two minutes flat',
         desc: 'Mark a whole class in seconds. Holidays, short-attendance alerts, month-wise trends and one-click exports — the register, retired for good.',
         chips: [
@@ -48,7 +60,7 @@ const STACK: StackFeature[] = [
         accent: '#7C3AED', text: '#190D2E', sub: '#6B6480', chipBg: 'rgba(124,58,237,0.08)',
     },
     {
-        icon: Wallet, no: '03',
+        icon: Wallet, no: '04',
         title: 'Fees everyone can finally follow',
         desc: 'Payment schedules, breakdowns and rules — visible to admins, teachers and parents alike. No more spreadsheet archaeology at the end of the term.',
         chips: [
@@ -60,7 +72,7 @@ const STACK: StackFeature[] = [
         accent: '#C2410C', text: '#2D1408', sub: '#8A6A5A', chipBg: 'rgba(194,65,12,0.08)',
     },
     {
-        icon: BarChart3, no: '04',
+        icon: BarChart3, no: '05',
         title: 'Analytics with an audit trail',
         desc: 'Enrollment growth, usage and performance — live for every level of the institution. And every action logged, so compliance reviews take minutes, not days.',
         chips: [

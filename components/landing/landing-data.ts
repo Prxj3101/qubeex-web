@@ -80,7 +80,7 @@ export const MODULES: Module[] = [
         tag: 'For Teachers',
         title: 'A classroom command centre',
         desc: 'Everything a teacher touches in a day — one calm dashboard.',
-        points: ['Daily & overall attendance with smart alerts', 'Class and subject views with student profiles', 'Fee visibility per student', 'Personal to-dos and notes'],
+        points: ['SmartBoard — AI-assisted live teaching', 'Daily & overall attendance with smart alerts', 'Tasks, tests, marks & AI question generation', 'Student profiles, fee visibility & personal notes'],
         accent: '#7C3AED',
     },
     {
@@ -94,7 +94,7 @@ export const MODULES: Module[] = [
         tag: 'For Students',
         title: 'Learning, in their pocket',
         desc: 'A companion app that keeps students connected and on track.',
-        points: ['Feed, tasks and course material', 'Assessment results and progress', 'Available on web and mobile'],
+        points: ['Campus feed, tasks, tests & course material', 'Marksheets & report cards with progress tracking', 'Fee visibility for students & parents', 'Available on web and mobile'],
         accent: '#0D9488',
     },
 ];
@@ -118,16 +118,32 @@ export const PLANS: PlanCard[] = [
         rate: 29,
         rateBulk: 24,
         highlight: false,
-        points: ['Attendance & class management', 'Fee schedules & tracking', 'Audit logs', 'Standard analytics', 'Email support'],
+        points: [
+            'Student, teacher & course management',
+            'Attendance & campus feed',
+            'AI question & test generation',
+            'Marksheets & fee tracking',
+            'Student mobile app',
+            'Audit logs',
+            '10M AI tokens included',
+        ],
     },
     {
         name: 'Pro',
-        tagline: 'Unlock the full power of AI.',
+        tagline: 'Everything in Basic, plus the works.',
         licence: 59999,
         rate: 39,
         rateBulk: 33,
         highlight: true,
-        points: ['Everything in Basic', 'AI-driven insights & assessments', 'Higher AI token limits', 'Advanced analytics', 'Priority support'],
+        points: [
+            'Everything in Basic',
+            'Automatic timetable generation',
+            'Parent portal',
+            'Performance insights & analytics',
+            'Student leaderboard',
+            'Whitelabelling',
+            'Priority support',
+        ],
     },
 ];
 
@@ -151,6 +167,8 @@ export const FAQS: Faq[] = [
     { q: 'Is it only for schools?', a: 'Schools are fully live today. College and coaching editions are in active development and launching soon — you can register interest via the demo form.' },
     { q: 'How does pricing work?', a: 'A one-time licence fee plus a small monthly rate per active user (admins, teachers and students). The rate drops automatically once your institution crosses 1,500 users. No hidden charges.' },
     { q: 'Is there a free trial?', a: 'Yes — every institution gets a 14-day free trial with full access. No payment details needed to start.' },
+    { q: 'We have multiple branches — how does that work?', a: 'Each branch runs as its own account with its own licence, since principals, class structures and staff differ per branch. With 2 or more branches, every licence gets a flat 20% discount. Monthly per-user billing stays standard for each branch.' },
+    { q: 'What is SmartBoard AI?', a: 'SmartBoard lets teachers run live teaching material on the class blackboard with an AI assist panel alongside — explanations, questions and material on demand. It ships as an addon that is free for the first year on every plan.' },
     { q: 'Does it work on mobile?', a: 'Yes. QubeEx runs in any modern browser, and a dedicated mobile app keeps teachers and students connected on the go.' },
     { q: 'How is our data protected?', a: 'Role-based access control, full audit trails of every action, and encrypted storage — built to align with India’s DPDP Act. Since much of the data involves minors, we treat it with extra care: your institution remains the data fiduciary, QubeEx acts only as processor, and data is never shared or sold. On exit, your institution’s data can be exported and deleted on request.' },
 ];

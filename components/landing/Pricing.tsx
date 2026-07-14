@@ -92,6 +92,9 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                 <p className="text-sm text-[#9A93AC]">
                     Every plan starts with a <span className="font-semibold text-[#7C3AED]">14-day free trial</span> — full access, no payment details required.
                 </p>
+                <p className="mt-2 text-sm text-[#9A93AC]">
+                    <span className="font-semibold text-[#DB2777]">SmartBoard AI</span> addon included free for the first year on all plans. Multiple branches? Flat 20% off every licence.
+                </p>
             </Reveal>
         </section>
     );

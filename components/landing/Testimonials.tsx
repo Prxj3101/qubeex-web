@@ -47,6 +47,9 @@ function Row({ items, reverse, duration }: { items: typeof TESTIMONIALS; reverse
 }
 
 export default function Testimonials() {
+    // Hidden until real quotes from pilot schools land in TESTIMONIALS.
+    if (TESTIMONIALS.length === 0) return null;
+
     const top = TESTIMONIALS.slice(0, 3);
     const bottom = TESTIMONIALS.slice(3);
 

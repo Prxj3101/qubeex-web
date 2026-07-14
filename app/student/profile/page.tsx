@@ -321,12 +321,12 @@ export default function StudentProfile() {
                                 </div>
                             </div>
                             <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold mt-0.5">
-                                {student.standard} · {student.division}
+                                Class {student.standard.replace(/^Class\s*/i, '')} · Division {student.division.includes('-') ? student.division.split('-').slice(1).join('-') : student.division.replace(/^Division\s*/i, '')}
                             </p>
                             <div className="h-px bg-border/50 my-3" />
                             <div className="grid grid-cols-2 gap-x-6 gap-y-1">
                                 <InfoRow label="Roll No" value={student.rollNo} />
-                                <InfoRow label="Class" value={`${student.standard} · ${student.division}`} />
+                                <InfoRow label="Class" value={student.division} />
                                 <InfoRow label="Admission Year" value={student.admissionYear} />
                                 <InfoRow label="Date of Birth" value={student.dob ? `${dobDisplay} (${age} yrs)` : '—'} />
                                 <InfoRow label="Email" value={student.email} />
@@ -409,18 +409,10 @@ export default function StudentProfile() {
                                     <p className="text-sm font-medium">No results published yet</p>
                                 </div>
                             ) : (() => {
-                                const AngledTick = (props: unknown) => {
-                                    const { x, y, payload } = props as { x: number; y: number; payload: { value: string } };
-                                    return (
-                                        <g transform={`translate(${x},${y})`}>
-                                            <text x={0} y={0} dy={8} textAnchor="end" fill="var(--muted-foreground)" fontSize={10} transform="rotate(-35)">{payload?.value}</text>
-                                        </g>
-                                    );
-                                };
                                 return (
                                     <>
-                                        <ResponsiveContainer width="100%" height={240}>
-                                            <BarChart data={chartData} margin={{ top: 16, bottom: 56, left: 0, right: 8 }}>
+                                        <ResponsiveContainer width="100%" height={190}>
+                                            <BarChart data={chartData} margin={{ top: 16, bottom: 4, left: 0, right: 8 }} barCategoryGap="30%">
                                                 <defs>
                                                     {chartData.map((d, i) => (
                                                         <linearGradient key={i} id={`subjBarGrad-${i}`} x1="0" y1="0" x2="0" y2="1">
@@ -430,7 +422,7 @@ export default function StudentProfile() {
                                                     ))}
                                                 </defs>
                                                 <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
-                                                <XAxis dataKey="name" tick={AngledTick} interval={0} axisLine={false} tickLine={false} height={70} />
+                                                <XAxis dataKey="name" tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} interval={0} axisLine={false} tickLine={false} height={24} />
                                                 <YAxis tick={{ fontSize: 10, fill: 'var(--muted-foreground)' }} axisLine={false} tickLine={false} domain={[0, 100]} width={32} />
                                                 <Tooltip
                                                     cursor={false}
@@ -439,7 +431,7 @@ export default function StudentProfile() {
                                                     itemStyle={{ color: 'var(--card-foreground)' }}
                                                     formatter={(value: unknown) => [`${value}%`, 'Score']}
                                                 />
-                                                <Bar dataKey="pct" radius={[4, 4, 0, 0]}>
+                                                <Bar dataKey="pct" radius={[4, 4, 0, 0]} maxBarSize={44}>
                                                     <LabelList dataKey="pct" position="top" formatter={(v: unknown) => `${v}%`}
                                                         style={{ fontSize: 10, fontWeight: 600, fill: 'var(--foreground)' }} />
                                                     {chartData.map((d, i) => <Cell key={i} fill={`url(#subjBarGrad-${i})`} />)}
@@ -533,8 +525,8 @@ export default function StudentProfile() {
                                                 <circle cx={cx} cy={cy} r={4} fill="#10B981" />
                                                 {(isMax || isMin) && (
                                                     <>
-                                                        <rect x={cx - 14} y={isMin ? cy + 7 : cy - 21} width={28} height={14} rx={3} fill={labelColor} />
-                                                        <text x={cx} y={isMin ? cy + 17 : cy - 10} textAnchor="middle" fill="white" fontSize={9} fontWeight="600">{value}%</text>
+                                                        <rect x={cx - 14} y={cy - 21} width={28} height={14} rx={3} fill={labelColor} />
+                                                        <text x={cx} y={cy - 10} textAnchor="middle" fill="white" fontSize={9} fontWeight="600">{value}%</text>
                                                     </>
                                                 )}
                                             </g>

@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, Box } from 'lucide-react';
+import Image from 'next/image';
+import { ArrowRight } from 'lucide-react';
 import { Reveal, SplitWords, DISPLAY } from './motion';
 
 export default function CTAFooter({ onDemo }: { onDemo: () => void }) {
@@ -51,20 +52,21 @@ export default function CTAFooter({ onDemo }: { onDemo: () => void }) {
             {/* Footer */}
             <footer className="border-t border-[#E9E3F6] bg-white/60 backdrop-blur-sm">
                 <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 py-10 sm:flex-row">
-                    <div className="flex items-center gap-2">
-                        <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-[#7C3AED] to-[#9F67F8] text-white">
-                            <Box size={15} strokeWidth={2.2} />
-                        </span>
+                    <div className="flex items-center gap-2.5">
+                        <Image src="/QubeEx_lightmode_DA7756.png" alt="QubeEx" width={28} height={33} className="h-8 w-7 object-contain" />
                         <span className="font-bold text-[#1D1433]">QubeEx</span>
                         <span className="ml-2 hidden text-xs text-[#9A93AC] sm:inline">AI-Powered Student Assessment System</span>
                     </div>
-                    <div className="flex items-center gap-6 text-sm text-[#6B6480]">
+                    <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-[#6B6480]">
                         <a href="#features" className="transition-colors hover:text-[#1D1433]">Features</a>
                         <a href="#pricing" className="transition-colors hover:text-[#1D1433]">Pricing</a>
                         <a href="#faq" className="transition-colors hover:text-[#1D1433]">FAQ</a>
                         <Link href="/login" className="transition-colors hover:text-[#1D1433]">Login</Link>
+                        {/* TODO: point to real pages once legal docs are ready (Privacy Policy, ToS, DPA) */}
+                        <a href="#" className="transition-colors hover:text-[#1D1433]">Privacy Policy</a>
+                        <a href="#" className="transition-colors hover:text-[#1D1433]">Terms of Service</a>
                     </div>
-                    <p className="text-xs text-[#9A93AC]">© {new Date().getFullYear()} QubeEx. All rights reserved.</p>
+                    <p className="text-xs text-[#9A93AC]">© {new Date().getFullYear()} QubeEx · A Mynus Technologies LLP product</p>
                 </div>
             </footer>
         </>

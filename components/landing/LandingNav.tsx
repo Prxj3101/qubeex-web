@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Box } from 'lucide-react';
 import { EASE } from './motion';
 
 const LINKS = [
@@ -31,41 +31,52 @@ export default function LandingNav({ onDemo }: { onDemo: () => void }) {
             className="fixed inset-x-0 top-0 z-50 flex justify-center px-4 pt-4"
         >
             <nav
-                className={`flex w-full max-w-5xl items-center justify-between rounded-2xl border px-4 py-2.5 transition-all duration-500 sm:px-6 ${
+                className={`relative flex w-full max-w-5xl items-center justify-between overflow-hidden rounded-2xl px-4 py-2.5 ring-1 ring-white/10 backdrop-blur-xl transition-all duration-500 sm:px-5 ${
                     scrolled
-                        ? 'border-[#E4DCF7] bg-white/80 shadow-[0_8px_32px_-12px_rgba(124,58,237,0.18)] backdrop-blur-xl'
-                        : 'border-transparent bg-transparent'
+                        ? 'bg-[#190D2E]/95 shadow-[0_16px_48px_-16px_rgba(25,13,46,0.65)]'
+                        : 'bg-[#190D2E]/85 shadow-[0_12px_36px_-16px_rgba(25,13,46,0.5)]'
                 }`}
             >
-                <a href="#top" className="flex items-center gap-2">
-                    <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-[#7C3AED] to-[#9F67F8] text-white shadow-[0_6px_16px_-6px_rgba(124,58,237,0.6)]">
-                        <Box size={18} strokeWidth={2.2} />
-                    </span>
-                    <span className="text-lg font-bold tracking-tight text-[#1D1433]">QubeEx</span>
+                {/* subtle aurora inside the dark pill */}
+                <div aria-hidden className="pointer-events-none absolute inset-0">
+                    <div className="absolute -left-10 -top-12 h-32 w-32 rounded-full bg-[#7C3AED]/35 blur-2xl" />
+                    <div className="absolute -right-8 -bottom-14 h-32 w-40 rounded-full bg-[#DA7756]/25 blur-2xl" />
+                </div>
+
+                <a href="#top" className="relative flex items-center gap-2.5">
+                    <Image
+                        src="/QubeEx_darkmode_DA7756.png"
+                        alt="QubeEx"
+                        width={30}
+                        height={35}
+                        className="h-9 w-[30px] object-contain drop-shadow-[0_2px_8px_rgba(218,119,86,0.45)]"
+                        priority
+                    />
+                    <span className="text-lg font-bold tracking-tight text-white">QubeEx</span>
                 </a>
 
-                <div className="hidden items-center gap-1 md:flex">
+                <div className="relative hidden items-center gap-1 md:flex">
                     {LINKS.map((l) => (
                         <a
                             key={l.href}
                             href={l.href}
-                            className="rounded-lg px-3.5 py-2 text-sm font-medium text-[#6B6480] transition-colors hover:bg-[#F1EBFD] hover:text-[#1D1433]"
+                            className="rounded-lg px-3.5 py-2 text-sm font-medium text-white/65 transition-colors hover:bg-white/10 hover:text-white"
                         >
                             {l.label}
                         </a>
                     ))}
                 </div>
 
-                <div className="flex items-center gap-2.5">
+                <div className="relative flex items-center gap-2.5">
                     <Link
                         href="/login"
-                        className="rounded-xl px-4 py-2 text-sm font-semibold text-[#1D1433] transition-colors hover:bg-[#F1EBFD]"
+                        className="rounded-xl px-4 py-2 text-sm font-semibold text-white/85 transition-colors hover:bg-white/10 hover:text-white"
                     >
                         Login
                     </Link>
                     <button
                         onClick={onDemo}
-                        className="rounded-xl bg-[#1D1433] px-4 py-2 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgba(29,20,51,0.5)] transition-transform hover:scale-[1.03] active:scale-[0.98]"
+                        className="rounded-xl bg-white px-4 py-2 text-sm font-bold text-[#190D2E] shadow-[0_8px_20px_-8px_rgba(255,255,255,0.4)] transition-transform hover:scale-[1.03] active:scale-[0.98]"
                     >
                         Request a Demo
                     </button>
