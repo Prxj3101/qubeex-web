@@ -18,7 +18,7 @@ export default function LandingPage() {
     const openDemo = () => setDemoOpen(true);
 
     return (
-        <main className="min-h-screen bg-[#FBFAFF] text-[#190D2E] antialiased">
+        <main className="min-h-screen bg-[#FCF8F5] text-[#190D2E] antialiased">
             <LandingNav onDemo={openDemo} />
             <Hero onDemo={openDemo} />
             <VelocityMarquee />

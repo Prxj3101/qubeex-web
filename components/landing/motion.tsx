@@ -85,7 +85,7 @@ export function SectionHead({ eyebrow, title, sub, light }: { eyebrow: string; t
         <Reveal className="mx-auto max-w-3xl text-center">
             <span
                 className={`inline-block rounded-full border px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] ${
-                    light ? 'border-white/25 bg-white/10 text-white/90' : 'border-[#E0D5F7] bg-white/80 text-[#7C3AED]'
+                    light ? 'border-white/25 bg-white/10 text-white/90' : 'border-[#F0DFD4] bg-white/80 text-[#DA7756]'
                 }`}
             >
                 {eyebrow}

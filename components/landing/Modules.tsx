@@ -107,7 +107,7 @@ export default function Modules() {
                 {/* header */}
                 <div className="flex items-end justify-between px-6 pt-24 sm:px-16">
                     <div>
-                        <span className="inline-block rounded-full border border-[#E0D5F7] bg-white/80 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] text-[#7C3AED]">
+                        <span className="inline-block rounded-full border border-[#F0DFD4] bg-white/80 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] text-[#DA7756]">
                             Modules
                         </span>
                         <h2 style={DISPLAY} className="mt-4 text-3xl font-bold tracking-tight text-[#190D2E] sm:text-[2.6rem]">

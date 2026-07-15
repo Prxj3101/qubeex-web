@@ -2,8 +2,8 @@
 
 import { motion, useScroll, useTransform } from 'framer-motion';
 import dynamic from 'next/dynamic';
-import { useRef } from 'react';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { useRef, useState } from 'react';
+import { ArrowRight, Brain, CalendarCheck, MonitorSmartphone, Sparkles, Wallet } from 'lucide-react';
 import { EASE, DISPLAY, SplitWords } from './motion';
 
 const Qube3D = dynamic(() => import('./Qube3D'), { ssr: false });
@@ -13,7 +13,50 @@ const GRAIN =
 
 // NOTE: previously showed fabricated counts (institutions/students/accuracy).
 // Removed until real numbers exist post-pilot (Launch Plan doc, Section 6).
-const HIGHLIGHTS: string[] = ['AI-driven insights', 'Web + mobile, one account', 'Built for Indian schools'];
+const HIGHLIGHTS = [
+    { icon: Brain, label: 'AI-driven insights', accent: '#7C3AED', soft: '#F1EBFD' },
+    { icon: CalendarCheck, label: 'Attendance in minutes', accent: '#0D9488', soft: '#E6F7F5' },
+    { icon: Wallet, label: 'Transparent fee tracking', accent: '#DA7756', soft: '#FBEFEA' },
+    { icon: MonitorSmartphone, label: 'Web + mobile, one account', accent: '#2563EB', soft: '#EAF1FE' },
+];
+
+function HighlightDots() {
+    const [open, setOpen] = useState<number | null>(null);
+    return (
+        <div className="flex flex-wrap items-center gap-3">
+            {HIGHLIGHTS.map((h, i) => {
+                const on = open === i;
+                return (
+                    <button
+                        key={h.label}
+                        type="button"
+                        onMouseEnter={() => setOpen(i)}
+                        onMouseLeave={() => setOpen((p) => (p === i ? null : p))}
+                        onClick={() => setOpen(on ? null : i)}
+                        className="flex h-11 items-center overflow-hidden rounded-full border bg-white/75 px-[10px] backdrop-blur transition-colors duration-300"
+                        style={{ borderColor: on ? h.accent : '#EBDDD3' }}
+                        aria-label={h.label}
+                    >
+                        <span
+                            className="grid h-7 w-7 shrink-0 place-items-center rounded-full"
+                            style={{ background: h.soft, color: h.accent }}
+                        >
+                            <h.icon size={15} />
+                        </span>
+                        <motion.span
+                            initial={false}
+                            animate={{ maxWidth: on ? 220 : 0, opacity: on ? 1 : 0 }}
+                            transition={{ duration: 0.45, ease: EASE }}
+                            className="overflow-hidden whitespace-nowrap text-xs font-semibold text-[#3D3552]"
+                        >
+                            <span className="pl-2 pr-1.5">{h.label}</span>
+                        </motion.span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
 
 export default function Hero({ onDemo }: { onDemo: () => void }) {
     const ref = useRef<HTMLDivElement>(null);
@@ -27,19 +70,19 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
             <div aria-hidden className="absolute inset-0">
                 <motion.div
                     className="absolute -top-[30%] left-[55%] h-[90vh] w-[90vh] rounded-full blur-[120px]"
-                    style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.30), transparent 65%)' }}
+                    style={{ background: 'radial-gradient(circle, rgba(218,119,86,0.30), transparent 65%)' }}
                     animate={{ x: [0, -60, 0], y: [0, 50, 0], scale: [1, 1.12, 1] }}
                     transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 <motion.div
                     className="absolute -left-[15%] top-[15%] h-[70vh] w-[70vh] rounded-full blur-[110px]"
-                    style={{ background: 'radial-gradient(circle, rgba(218,119,86,0.22), transparent 65%)' }}
+                    style={{ background: 'radial-gradient(circle, rgba(194,65,12,0.18), transparent 65%)' }}
                     animate={{ x: [0, 70, 0], y: [0, -40, 0] }}
                     transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 <motion.div
                     className="absolute bottom-[-20%] left-[30%] h-[60vh] w-[60vh] rounded-full blur-[100px]"
-                    style={{ background: 'radial-gradient(circle, rgba(13,148,136,0.16), transparent 65%)' }}
+                    style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.14), transparent 65%)' }}
                     animate={{ x: [0, -50, 0], y: [0, -30, 0] }}
                     transition={{ duration: 26, repeat: Infinity, ease: 'easeInOut' }}
                 />
@@ -48,7 +91,7 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                     className="absolute inset-0 [mask-image:radial-gradient(ellipse_70%_60%_at_40%_40%,black,transparent)]"
                     style={{
                         backgroundImage:
-                            'linear-gradient(to right, rgba(124,58,237,0.07) 1px, transparent 1px), linear-gradient(to bottom, rgba(124,58,237,0.07) 1px, transparent 1px)',
+                            'linear-gradient(to right, rgba(218,119,86,0.09) 1px, transparent 1px), linear-gradient(to bottom, rgba(218,119,86,0.09) 1px, transparent 1px)',
                         backgroundSize: '64px 64px',
                     }}
                 />
@@ -69,11 +112,17 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.7, ease: EASE, delay: 0.15 }}
-                    className="mb-7"
+                    className="mb-3"
                 >
-                    <span className="inline-flex items-center gap-2 rounded-full border border-[#E0D5F7] bg-white/70 px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#7C3AED] backdrop-blur">
+                    <span
+                        className="inline-flex items-center gap-2 rounded-full bg-[#F3EAE2] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#DA7756]"
+                        style={{
+                            boxShadow:
+                                'inset 0 2px 5px rgba(122,62,32,0.22), inset 0 -1px 2px rgba(255,255,255,0.95), 0 1px 0 rgba(255,255,255,0.85)',
+                        }}
+                    >
                         <Sparkles size={13} />
-                        AI-Powered Student Assessment System
+                        An AI-Powered SAS Platform
                     </span>
                 </motion.div>
 
@@ -84,7 +133,7 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                     <SplitWords text="Paperwork out." delay={0.25} />
                     <br />
                     <motion.span
-                        className="inline-block bg-gradient-to-r from-[#7C3AED] via-[#A855F7] to-[#DA7756] bg-clip-text text-transparent"
+                        className="inline-block bg-gradient-to-r from-[#C2410C] via-[#DA7756] to-[#7C3AED] bg-clip-text text-transparent"
                         initial={{ opacity: 0, y: 40, rotate: 3 }}
                         animate={{ opacity: 1, y: 0, rotate: 0 }}
                         transition={{ duration: 1.1, ease: EASE, delay: 0.65 }}
@@ -130,17 +179,9 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                     initial={{ opacity: 0, y: 24 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.8, ease: EASE, delay: 1.25 }}
-                    className="mt-16 flex flex-wrap gap-x-8 gap-y-3 lg:mt-20"
+                    className="mt-16 lg:mt-20"
                 >
-                    {HIGHLIGHTS.map((h) => (
-                        <span
-                            key={h}
-                            className="inline-flex items-center gap-2 rounded-full border border-[#E0D5F7] bg-white/70 px-4 py-2 text-xs font-semibold text-[#3D3552] backdrop-blur"
-                        >
-                            <span className="h-1.5 w-1.5 rounded-full bg-[#7C3AED]" />
-                            {h}
-                        </span>
-                    ))}
+                    <HighlightDots />
                 </motion.div>
             </motion.div>
 
@@ -155,9 +196,9 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                 <motion.div
                     animate={{ y: [0, 8, 0] }}
                     transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-                    className="flex h-10 w-6 items-start justify-center rounded-full border-2 border-[#C9BCEB] p-1.5"
+                    className="flex h-10 w-6 items-start justify-center rounded-full border-2 border-[#EBCDBE] p-1.5"
                 >
-                    <div className="h-2 w-1 rounded-full bg-[#7C3AED]" />
+                    <div className="h-2 w-1 rounded-full bg-[#DA7756]" />
                 </motion.div>
             </motion.div>
         </section>

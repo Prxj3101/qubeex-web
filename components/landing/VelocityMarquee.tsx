@@ -58,7 +58,7 @@ function Line({ baseVelocity, outline }: { baseVelocity: number; outline?: boole
 /** Big dual-line marquee that speeds up & skews with scroll velocity. */
 export default function VelocityMarquee() {
     return (
-        <section className="relative overflow-hidden border-y border-[#E9E0F8] bg-white/60 py-8 backdrop-blur-sm sm:py-10">
+        <section className="relative overflow-hidden border-y border-[#F0DFD4] bg-white/60 py-8 backdrop-blur-sm sm:py-10">
             <Line baseVelocity={-1.6} />
             <div className="h-3 sm:h-4" />
             <Line baseVelocity={1.3} outline />

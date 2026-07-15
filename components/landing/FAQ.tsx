@@ -11,7 +11,7 @@ export default function FAQ() {
 
     return (
         <section id="faq" className="mx-auto max-w-3xl scroll-mt-28 px-6 py-24 sm:py-32">
-            <SectionHead eyebrow="FAQ" title="Questions, answered" />
+            <SectionHead eyebrow="FAQ" title="Questions?? Answered!!" />
 
             <div className="mt-12 space-y-3">
                 {FAQS.map((f, i) => {

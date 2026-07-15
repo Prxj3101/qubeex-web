@@ -52,10 +52,12 @@ export default function CTAFooter({ onDemo }: { onDemo: () => void }) {
             {/* Footer */}
             <footer className="border-t border-[#E9E3F6] bg-white/60 backdrop-blur-sm">
                 <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-6 px-6 py-10 sm:flex-row">
-                    <div className="flex items-center gap-2.5">
-                        <Image src="/QubeEx_lightmode_DA7756.png" alt="QubeEx" width={28} height={33} className="h-8 w-7 object-contain" />
-                        <span className="font-bold text-[#1D1433]">QubeEx</span>
-                        <span className="ml-2 hidden text-xs text-[#9A93AC] sm:inline">AI-Powered Student Assessment System</span>
+                    <div className="flex flex-col items-center sm:items-start">
+                        <div className="flex items-center gap-1.5">
+                            <Image src="/QubeEx_darkmode_DA7756.png" alt="QubeEx" width={28} height={33} className="h-8 w-7 object-contain" />
+                            <span className="-mt-0.5 text-[20px] font-bold leading-tight text-[#374151]" style={{ fontFamily: 'var(--font-poppins)' }}>QubeEx</span>
+                        </div>
+                        <span className="-mt-1 pl-[34px] text-xs text-[#9A93AC] sm:self-start">An AI-Powered SAS Platform</span>
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-[#6B6480]">
                         <a href="#features" className="transition-colors hover:text-[#1D1433]">Features</a>
