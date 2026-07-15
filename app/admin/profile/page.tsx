@@ -29,6 +29,7 @@ type AdminUser = {
   gender?: string | null;
   prefix?: string | null;
   title?: string | null;
+  displayId?: string | null;
 };
 
 type InstData = {
@@ -442,6 +443,8 @@ export default function AdminProfilePage() {
   const teacherCount = inst.teacherCount ?? 0;
   const adminUser = inst.admin ?? inst.users?.find((u) => u.role === 'ADMIN') ?? null;
   const adminName = adminUser?.name ?? adminUser?.email?.split('@')[0] ?? user?.name ?? '—';
+  const myUser = inst.users?.find((u) => u.id === user?.id) ?? null;
+  const myDisplayId = myUser?.displayId ?? null;
 
   return (
     <div className="space-y-2 pt-0 px-1 pb-2 overflow-y-auto h-full">
@@ -662,6 +665,19 @@ export default function AdminProfilePage() {
                     instCode ? (
                       <span className="font-mono text-xs font-semibold tracking-wider" style={{ color: '#DA7756' }}>
                         {instCode}
+                      </span>
+                    ) : (
+                      <span className="italic text-muted-foreground/50 text-[11px]">—</span>
+                    )
+                  }
+                />
+                <InfoRow
+                  icon={Hash}
+                  label="My ID"
+                  value={
+                    myDisplayId ? (
+                      <span className="font-mono text-xs font-semibold tracking-wider" style={{ color: '#DA7756' }}>
+                        {myDisplayId}
                       </span>
                     ) : (
                       <span className="italic text-muted-foreground/50 text-[11px]">—</span>

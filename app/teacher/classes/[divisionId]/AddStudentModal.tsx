@@ -260,7 +260,8 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
     return (
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent
-                className="p-0 gap-0 bg-card flex flex-col w-[92vw] lg:w-[75vw] max-w-[820px] max-h-[85vh] mx-auto"
+                className="p-0 gap-0 bg-card flex flex-col mx-auto"
+                style={{ width: '92vw', maxWidth: '820px', maxHeight: '85vh' }}
             >
                 {/* Header */}
                 <div className="px-6 pt-5 pb-3.5 border-b border-border/50 shrink-0">
@@ -418,7 +419,7 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                                         <FL>Student ID</FL>
                                         <div className="h-8 px-3 rounded-md border border-dashed border-border/60 bg-muted/20 flex items-center justify-between">
                                             <span className="text-xs text-muted-foreground/60 italic">
-                                                Assigned on save (e.g. ABC-2026-0001)
+                                                Assigned on save (e.g. SXHS-01S26-0001)
                                             </span>
                                             <span className="text-[10px] text-muted-foreground/40">Auto generated</span>
                                         </div>

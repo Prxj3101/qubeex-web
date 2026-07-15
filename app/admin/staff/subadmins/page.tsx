@@ -9,7 +9,7 @@ import {
     Shield, Plus, Search, X, Mail, CalendarDays, Edit2,
     PowerOff, Power, MailCheck, ChevronDown, ChevronRight,
     Users, Building2, LineChart, Headset, ScrollText,
-    User, Phone, Lock, Trash2,
+    User, Phone, Lock, Trash2, Hash,
 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { motion } from 'framer-motion';
@@ -71,6 +71,7 @@ interface SubAdminRecord {
     id: string;
     name: string;
     email: string;
+    displayId?: string | null;
     isActive: boolean;
     permissions: string[];
     invitePending?: boolean;
@@ -367,6 +368,12 @@ function SubAdminCard({
             <div className="h-px bg-border/50 mx-4" />
 
             <div className="px-4 py-3 space-y-2 flex-1">
+                <div className="flex items-center gap-2">
+                    <Hash size={13} className="shrink-0 text-muted-foreground/60" />
+                    {subadmin.displayId
+                        ? <span className="font-mono text-[12px] font-semibold tracking-wider" style={{ color: '#DA7756' }}>{subadmin.displayId}</span>
+                        : <span className="italic text-muted-foreground/40 text-[11px]">—</span>}
+                </div>
                 {[
                     { icon: Mail,         value: subadmin.email },
                     { icon: Phone,        value: subadmin.phone ?? '—' },
