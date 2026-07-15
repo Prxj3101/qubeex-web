@@ -8,42 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useStudentStore } from '@/store/studentStore';
 
-// ─── Mock Data ─────────────────────────────────────────────────────────────────
-const STUDENT = {
-    name: 'Prajwal Jagdish Kotian',
-    rollNo: '09',
-    standard: 'Class 10',
-    div: 'Division A',
-    academicYear: '2026-27',
-    dob: '2001-05-31',
-    email: 'prajwal.kotian@gmail.com',
-    uid: 'STU-2026-0009',
-    gender: 'Male',
-    nationality: 'Indian',
-    admissionYear: '2022',
-    religion: 'Hindu',
-    category: 'General',
-    phone: '+91 98765 43210',
-    bloodGroup: 'B+',
-    aadharNo: '1234 5678 9012',
-    panNo: 'ABCPK1234D',
-    emergencyContact: '+91 98765 00003',
-    address: 'Flat 12, Shanti Niwas, Sector 7, Andheri West',
-    city: 'Mumbai',
-    state: 'Maharashtra',
-    pincode: '400058',
-    country: 'India',
-    houseColor: 'Blue',
-    guardians: [
-        { name: 'Jagdish Kotian', number: '+91 98765 00001', relation: 'Father' },
-        { name: 'Poornima Kotian', number: '+91 98765 00002', relation: 'Mother' },
-    ],
-};
-
 // ─── Helpers ───────────────────────────────────────────────────────────────────
-const dobDate = new Date(STUDENT.dob);
-const age = new Date().getFullYear() - dobDate.getFullYear();
-const dobDisplay = dobDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 
 // Auto-format DOB input as YYYY-MM-DD, digits only, capped at 8 digits
 function formatDob(text: string): string {

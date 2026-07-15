@@ -16,6 +16,7 @@ type SheetEntry = Record<string, AttendanceStatus>;
 
 interface AttendanceStudent {
     id: string;
+    studentId: string;
     name: string;
     rollNo: string;
     overallPct: number | null;
@@ -61,9 +62,6 @@ function dateKey(date: Date) {
 }
 function makeDateKey(year: number, month: number, day: number) {
     return `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-}
-function getStudentId(rollNo: string, year: number) {
-    return `STU-${year}-${rollNo.padStart(4, '0')}`;
 }
 // Parse "YYYY-MM" → { short: "Jun", monthIndex: 5 }
 function parseMonthKey(mk: string): { short: string; monthIndex: number } {
@@ -198,7 +196,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
             });
             const total = p + a + l;
             const pct = total > 0 ? `${Math.round(((p + l) / total) * 100)}%` : '—';
-            return [student.rollNo, student.name, getStudentId(student.rollNo, exportYear), ...dateCells, p || '—', a || '—', l || '—', pct, student.overallPct !== null ? `${student.overallPct}%` : '—'];
+            return [student.rollNo, student.name, student.studentId, ...dateCells, p || '—', a || '—', l || '—', pct, student.overallPct !== null ? `${student.overallPct}%` : '—'];
         });
         return { headers, rows, sheetName: MONTHS_S[monthKey], exportYear };
     };
@@ -431,7 +429,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                         </div>
                                     </td>
                                     <td className="border border-[#BACE85]/50 px-2 py-2 font-mono text-[12px] whitespace-nowrap bg-[#F5F8EE]" style={{ color: '#DA7756' }}>
-                                        {getStudentId(student.rollNo, year)}
+                                        {student.studentId}
                                     </td>
                                     {visibleDates.map(d => {
                                         const dk = makeDateKey(year, activeMonth, d);
@@ -1544,9 +1542,10 @@ export default function AttendanceTab({
         ]).then(([studRes, holRes, summaryRes]) => {
             if (cancelled) return;
             const s: AttendanceStudent[] = studRes.data.data.map((st: {
-                id: string; user: { name: string }; rollNo: string | null;
+                id: string; studentId: string; user: { name: string }; rollNo: string | null;
             }) => ({
                 id: st.id,
+                studentId: st.studentId,
                 name: st.user.name,
                 rollNo: st.rollNo ?? '',
                 overallPct: null,

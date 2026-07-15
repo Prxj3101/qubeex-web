@@ -37,7 +37,7 @@ const STATUS_CFG = {
     PENDING: { label: 'Pending', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
 };
 
-interface FeesStudent { id: string; name: string; rollNo: string; paid: boolean; }
+interface FeesStudent { id: string; studentDisplayId: string; name: string; rollNo: string; paid: boolean; }
 interface FeePayment { studentId: string; feeMonthId: string; status: 'PAID' | 'PENDING'; paidDate: string | null; }
 const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 function getAvatarColor(n: string) { return AVATAR_COLORS[n.charCodeAt(0) % AVATAR_COLORS.length]; }
@@ -379,7 +379,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
     const [studentCardFlipped, setStudentCardFlipped] = useState(false);
 
     // Students tab
-    const [rosterStudents, setRosterStudents] = useState<{ id: string; name: string; rollNo: string }[]>([]);
+    const [rosterStudents, setRosterStudents] = useState<{ id: string; studentDisplayId: string; name: string; rollNo: string }[]>([]);
     const [feePayments, setFeePayments] = useState<FeePayment[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<FeesStudent | null>(null);
     const [studentFilter, setStudentFilter] = useState<'all' | 'paid' | 'pending'>('all');
@@ -462,8 +462,8 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
     useEffect(() => {
         api.get(`/admin/campus/divisions/${divisionId}/students`)
             .then(res => {
-                const data: { id: string; rollNo: string | null; user: { name: string | null } }[] = res.data.data ?? [];
-                setRosterStudents(data.map(s => ({ id: s.id, name: s.user.name ?? '—', rollNo: s.rollNo ?? '—' })));
+                const data: { id: string; studentId: string; rollNo: string | null; user: { name: string | null } }[] = res.data.data ?? [];
+                setRosterStudents(data.map(s => ({ id: s.id, studentDisplayId: s.studentId, name: s.user.name ?? '—', rollNo: s.rollNo ?? '—' })));
             })
             .catch(() => { });
         api.get(`/admin/campus/divisions/${divisionId}/fee-payments`)
@@ -539,7 +539,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
 
     const generatePDF = (type: 'all' | 'pending') => {
         const list = type === 'all' ? students : students.filter(s => !s.paid);
-        const blob = new Blob([`${divisionName} — Fee List\n\n${list.map(s => `${s.rollNo}. ${s.name} — ${s.paid ? 'Paid' : 'Pending'}`).join('\n')}`], { type: 'text/plain' });
+        const blob = new Blob([`${divisionName} — Fee List\n\n${list.map(s => `${s.rollNo}. ${s.name} (${s.studentDisplayId}) — ${s.paid ? 'Paid' : 'Pending'}`).join('\n')}`], { type: 'text/plain' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a'); a.href = url; a.download = `${divisionName}-fees.txt`; a.click();
         URL.revokeObjectURL(url); toast.success('Downloaded');
@@ -1095,7 +1095,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs font-semibold truncate">{student.name}</p>
-                                            <p className="text-[10px] text-muted-foreground">Roll No. {student.rollNo}</p>
+                                            <p className="text-[10px] text-muted-foreground">Roll No. {student.rollNo} · <span className="font-mono" style={{ color: '#DA7756' }}>{student.studentDisplayId}</span></p>
                                         </div>
                                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 ${student.paid ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>
                                             {student.paid ? 'Paid' : 'Pending'}
@@ -1128,7 +1128,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                             </div>
                                             <div className="flex-1">
                                                 <p className="text-sm font-bold">{selectedStudent.name}</p>
-                                                <p className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo} · {divisionName}</p>
+                                                <p className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo} · {divisionName} · <span className="font-mono" style={{ color: '#DA7756' }}>{selectedStudent.studentDisplayId}</span></p>
                                             </div>
                                             <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${isStudentPaid(selectedStudent.id) ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>
                                                 {isStudentPaid(selectedStudent.id) ? '✓ Paid' : '⏳ Pending'}
@@ -1168,6 +1168,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                             <div className="rounded-xl border border-border/40 overflow-hidden">
                                                                 {[
                                                                     { label: 'Name', value: selectedStudent.name },
+                                                                    { label: 'Student ID', value: selectedStudent.studentDisplayId },
                                                                     { label: 'Roll No', value: selectedStudent.rollNo },
                                                                     { label: 'Class', value: divisionName.split('-')[0] ?? divisionName },
                                                                     { label: 'Division', value: divisionName.split('-')[1] ?? '' },
