@@ -35,9 +35,9 @@ interface ClassData {
     subjectLeaderboards: Record<string, LbEntry[]>;
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// ── Helper ───────────────────────────────────────────────────────────────────
 type LbMode = 'offline' | 'online' | 'combined';
-const AVATAR_COLORS = ['#7C3AED','#2563EB','#10B981','#F59E0B','#EF4444','#EC4899','#0891B2','#059669'];
+const AVATAR_COLORS = ['#7C3AED', '#2563EB', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#0891B2', '#059669'];
 function getAvatarColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]; }
 function getInitials(name: string) { return name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase(); }
 function formatDivision(n: string) { const p = n.split('-'); return p.length > 1 ? `Division ${p.slice(1).join('-')}` : n; }
@@ -475,100 +475,100 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                     </div>
                                 </div>
                                 <div className="flex-1 min-h-0">
-                                {centerTab === 'materials' ? (
-                                    <div className="h-full p-4 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                                        {materials.length === 0
-                                            ? <div className="flex items-center justify-center h-full"><p className="text-[11px] text-muted-foreground">No materials uploaded yet</p></div>
-                                            : materials.map(m => <FileRow key={m.id} file={m} onView={setViewFile} />)
-                                        }
-                                    </div>
-                                ) : (
-                                    <div className="h-full flex flex-col lg:flex-row gap-0 min-h-0">
-                                        {/* Left — Performance Trend */}
-                                        <div className="min-h-[260px] lg:min-h-0 flex-1 p-4 border-b lg:border-b-0 lg:border-r border-border/40 relative">
-                                            <p className="text-[12px] font-bold text-foreground absolute" style={{ top: 36, left: 16 }}>Performance Trend</p>
-                                            {chartData.length < 2
-                                                ? <div className="h-full flex items-center justify-center"><p className="text-[11px] text-muted-foreground">Need at least 2 exams for trend chart</p></div>
-                                                : <div className="h-full">
-                                                    <ResponsiveContainer width="100%" height="100%">
-                                                        <AreaChart data={chartData} margin={{ top: 55, right: 12, left: -20, bottom: 0 }}>
-                                                            <defs>
-                                                                <linearGradient id={`grad-${subject.id}`} x1="0" y1="0" x2="0" y2="1">
-                                                                    <stop offset="5%" stopColor={activeColor} stopOpacity={0.4} />
-                                                                    <stop offset="95%" stopColor={activeColor} stopOpacity={0.02} />
-                                                                </linearGradient>
-                                                            </defs>
-                                                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" />
-                                                            <XAxis dataKey="name" tick={{ fontSize: 9, fill: 'currentColor', opacity: 0.5 }} />
-                                                            <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: 'currentColor', opacity: 0.5 }} unit="%" />
-                                                            <Tooltip
-                                                                contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
-                                                                labelStyle={{ color: 'var(--foreground)' }}
-                                                                formatter={(val: unknown) => [`${val}%`, 'Score']}
-                                                                itemStyle={{ color: activeColor }}
-                                                            />
-                                                            <Area type="monotone" dataKey="score" stroke={activeColor} strokeWidth={2}
-                                                                fill={`url(#grad-${subject.id})`}
-                                                                dot={(dotProps: unknown) => {
-                                                                    const { cx, cy, payload } = dotProps as { cx: number; cy: number; payload: { score: number } };
-                                                                    const vals = chartData.map(d => d.score);
-                                                                    const isMax = payload.score === Math.max(...vals);
-                                                                    const isMin = payload.score === Math.min(...vals);
-                                                                    const labelColor = isMin ? '#EF4444' : '#10B981';
-                                                                    return (
-                                                                        <g key={`dot-${cx}-${cy}`} style={{ overflow: 'visible' }}>
-                                                                            <circle cx={cx} cy={cy} r={4} fill={activeColor} />
-                                                                            {(isMax || isMin) && (
-                                                                                <>
-                                                                                    <rect x={cx - 14} y={isMin ? cy + 7 : cy - 21} width={28} height={14} rx={3} fill={labelColor} />
-                                                                                    <text x={cx} y={isMin ? cy + 17 : cy - 10} textAnchor="middle" fill="white" fontSize={9} fontWeight="600">{payload.score}%</text>
-                                                                                </>
-                                                                            )}
-                                                                        </g>
-                                                                    );
-                                                                }}
-                                                                activeDot={{ r: 6 }}
-                                                            />
-                                                        </AreaChart>
-                                                    </ResponsiveContainer>
-                                                </div>
+                                    {centerTab === 'materials' ? (
+                                        <div className="h-full p-4 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                            {materials.length === 0
+                                                ? <div className="flex items-center justify-center h-full"><p className="text-[11px] text-muted-foreground">No materials uploaded yet</p></div>
+                                                : materials.map(m => <FileRow key={m.id} file={m} onView={setViewFile} />)
                                             }
                                         </div>
+                                    ) : (
+                                        <div className="h-full flex flex-col lg:flex-row gap-0 min-h-0">
+                                            {/* Left — Performance Trend */}
+                                            <div className="min-h-[260px] lg:min-h-0 flex-1 p-4 border-b lg:border-b-0 lg:border-r border-border/40 relative">
+                                                <p className="text-[12px] font-bold text-foreground absolute" style={{ top: 36, left: 16 }}>Performance Trend</p>
+                                                {chartData.length < 2
+                                                    ? <div className="h-full flex items-center justify-center"><p className="text-[11px] text-muted-foreground">Need at least 2 exams for trend chart</p></div>
+                                                    : <div className="h-full">
+                                                        <ResponsiveContainer width="100%" height="100%">
+                                                            <AreaChart data={chartData} margin={{ top: 55, right: 12, left: -20, bottom: 0 }}>
+                                                                <defs>
+                                                                    <linearGradient id={`grad-${subject.id}`} x1="0" y1="0" x2="0" y2="1">
+                                                                        <stop offset="5%" stopColor={activeColor} stopOpacity={0.4} />
+                                                                        <stop offset="95%" stopColor={activeColor} stopOpacity={0.02} />
+                                                                    </linearGradient>
+                                                                </defs>
+                                                                <CartesianGrid strokeDasharray="3 3" stroke="rgba(128,128,128,0.15)" />
+                                                                <XAxis dataKey="name" tick={{ fontSize: 9, fill: 'currentColor', opacity: 0.5 }} />
+                                                                <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: 'currentColor', opacity: 0.5 }} unit="%" />
+                                                                <Tooltip
+                                                                    contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11 }}
+                                                                    labelStyle={{ color: 'var(--foreground)' }}
+                                                                    formatter={(val: unknown) => [`${val}%`, 'Score']}
+                                                                    itemStyle={{ color: activeColor }}
+                                                                />
+                                                                <Area type="monotone" dataKey="score" stroke={activeColor} strokeWidth={2}
+                                                                    fill={`url(#grad-${subject.id})`}
+                                                                    dot={(dotProps: unknown) => {
+                                                                        const { cx, cy, payload } = dotProps as { cx: number; cy: number; payload: { score: number } };
+                                                                        const vals = chartData.map(d => d.score);
+                                                                        const isMax = payload.score === Math.max(...vals);
+                                                                        const isMin = payload.score === Math.min(...vals);
+                                                                        const labelColor = isMin ? '#EF4444' : '#10B981';
+                                                                        return (
+                                                                            <g key={`dot-${cx}-${cy}`} style={{ overflow: 'visible' }}>
+                                                                                <circle cx={cx} cy={cy} r={4} fill={activeColor} />
+                                                                                {(isMax || isMin) && (
+                                                                                    <>
+                                                                                        <rect x={cx - 14} y={isMin ? cy + 7 : cy - 21} width={28} height={14} rx={3} fill={labelColor} />
+                                                                                        <text x={cx} y={isMin ? cy + 17 : cy - 10} textAnchor="middle" fill="white" fontSize={9} fontWeight="600">{payload.score}%</text>
+                                                                                    </>
+                                                                                )}
+                                                                            </g>
+                                                                        );
+                                                                    }}
+                                                                    activeDot={{ r: 6 }}
+                                                                />
+                                                            </AreaChart>
+                                                        </ResponsiveContainer>
+                                                    </div>
+                                                }
+                                            </div>
 
-                                        {/* Right — My Results */}
-                                        <div className="w-full lg:w-[220px] shrink-0 flex flex-col px-3" style={{ paddingTop: 36, paddingBottom: 16 }}>
-                                            <p className="text-[12px] font-bold text-foreground mb-3 shrink-0">My Results</p>
-                                            <div className="overflow-y-auto space-y-2.5 border-b border-border/30" style={{ height: 308, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                                            {!score || score.columns.length === 0
-                                                ? <p className="text-[10px] text-muted-foreground text-center pt-8">No marks published yet</p>
-                                                : score.columns.map((c, i) => {
-                                                    const pct = !c.isAbsent && c.scored != null ? Math.round((c.scored / c.max) * 100) : null;
-                                                    const barColor = pct == null ? '#64748B' : pct >= 75 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
-                                                    return (
-                                                        <div key={i} className="px-3 py-2.5 rounded-xl border bg-background border-border/40 space-y-1.5">
-                                                            <div className="flex items-center gap-2.5">
-                                                                <p className="text-[11px] font-semibold text-foreground truncate flex-1">{c.name}</p>
-                                                                {c.isAbsent
-                                                                    ? <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 shrink-0">Absent</span>
-                                                                    : <div className="flex items-center gap-1.5 shrink-0">
-                                                                        <span className="text-[10px] font-bold text-muted-foreground">{c.scored}/{c.max}</span>
-                                                                        {pct != null && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: barColor + '25', color: barColor }}>{pct}%</span>}
+                                            {/* Right — My Results */}
+                                            <div className="w-full lg:w-[220px] shrink-0 flex flex-col px-3" style={{ paddingTop: 36, paddingBottom: 16 }}>
+                                                <p className="text-[12px] font-bold text-foreground mb-3 shrink-0">My Results</p>
+                                                <div className="overflow-y-auto space-y-2.5 border-b border-border/30" style={{ height: 308, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                                    {!score || score.columns.length === 0
+                                                        ? <p className="text-[10px] text-muted-foreground text-center pt-8">No marks published yet</p>
+                                                        : score.columns.map((c, i) => {
+                                                            const pct = !c.isAbsent && c.scored != null ? Math.round((c.scored / c.max) * 100) : null;
+                                                            const barColor = pct == null ? '#64748B' : pct >= 75 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
+                                                            return (
+                                                                <div key={i} className="px-3 py-2.5 rounded-xl border bg-background border-border/40 space-y-1.5">
+                                                                    <div className="flex items-center gap-2.5">
+                                                                        <p className="text-[11px] font-semibold text-foreground truncate flex-1">{c.name}</p>
+                                                                        {c.isAbsent
+                                                                            ? <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-red-500/20 text-red-400 shrink-0">Absent</span>
+                                                                            : <div className="flex items-center gap-1.5 shrink-0">
+                                                                                <span className="text-[10px] font-bold text-muted-foreground">{c.scored}/{c.max}</span>
+                                                                                {pct != null && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full shrink-0" style={{ background: barColor + '25', color: barColor }}>{pct}%</span>}
+                                                                            </div>
+                                                                        }
                                                                     </div>
-                                                                }
-                                                            </div>
-                                                            {!c.isAbsent && pct != null && (
-                                                                <div className="h-1 rounded-full overflow-hidden bg-muted/60">
-                                                                    <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColor }} />
+                                                                    {!c.isAbsent && pct != null && (
+                                                                        <div className="h-1 rounded-full overflow-hidden bg-muted/60">
+                                                                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: barColor }} />
+                                                                        </div>
+                                                                    )}
                                                                 </div>
-                                                            )}
-                                                        </div>
-                                                    );
-                                                })
-                                            }
+                                                            );
+                                                        })
+                                                    }
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                )}
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -595,7 +595,7 @@ export default function StudentClassPageClient() {
     useEffect(() => {
         api.get('/student/class')
             .then(r => setData(r.data.data))
-            .catch(() => {})
+            .catch(() => { })
             .finally(() => setLoading(false));
     }, []);
 
