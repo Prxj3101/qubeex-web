@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import api from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    BookOpen, Trophy, Calendar, FileText, Megaphone,
+    BookOpen, Trophy, Calendar, FileText, Megaphone, FolderOpen, ExternalLink, ArrowUp,
     ChevronDown, ChevronUp, Send, X, Paperclip, Upload, ChevronLeft, ChevronRight, Trash2
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -472,6 +473,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
 
     // Derived
     const results = announcements.filter(a => a.type === 'result');
+    const materials = announcements.filter(a => a.type === 'material');
     const filteredAnnouncements = feedFilter === 'all'
         ? announcements
         : announcements.filter(a => a.type === feedFilter);
@@ -490,6 +492,17 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
             .catch(() => toast.error('Failed to load feed'))
             .finally(() => setPostsLoading(false));
     }, [division.id]);
+
+    const [tooltip, setTooltip] = useState<{ x: number; y: number } | null>(null);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+    const feedScrollRef = useRef<HTMLDivElement>(null);
+
+    const scrollToPost = (id: string, type: PostType) => {
+        setFeedFilter('all');
+        setTimeout(() => {
+            document.getElementById(`feed-post-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+    };
 
     const handlePost = async () => {
         if (!postInput.trim() || posting) return;
@@ -590,7 +603,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                 </div>
 
                 {/* Feed */}
-                <div className="flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="relative flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between flex-wrap gap-2">
                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -613,7 +626,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 min-h-0 bg-background">
+                    <div ref={feedScrollRef} onScroll={e => setShowScrollTop(e.currentTarget.scrollTop > 200)} className="flex-1 overflow-y-auto px-4 py-2 space-y-2 min-h-0 bg-background">
                         {postsLoading ? (
                             <div className="flex items-center justify-center py-12">
                                 <span className="w-5 h-5 rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground animate-spin" />
@@ -622,10 +635,28 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             <p className="text-xs text-muted-foreground/60 italic text-center py-8">No posts yet</p>
                         ) : (
                             filteredAnnouncements.map(ann => (
-                                <DivFeedCard key={ann.id} ann={ann} myUserId={myUserId} onDelete={handleDeletePost} />
+                                <div key={ann.id} id={`feed-post-${ann.id}`}>
+                                    <DivFeedCard ann={ann} myUserId={myUserId} onDelete={handleDeletePost} />
+                                </div>
                             ))
                         )}
                     </div>
+
+                    <AnimatePresence>
+                        {showScrollTop && (
+                            <motion.button
+                                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                                whileHover={{ y: -5, transition: { type: 'spring', stiffness: 500, damping: 8 } }}
+                                whileTap={{ scale: 0.9 }}
+                                transition={{ duration: 0.15 }}
+                                onClick={() => feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                                className="absolute bottom-[88px] left-1/2 -translate-x-1/2 w-8 h-8 rounded-full flex items-center justify-center shadow-md border border-border/60 bg-card text-foreground z-10 hover:shadow-lg hover:border-primary/40 hover:text-primary"
+                                title="Back to top"
+                            >
+                                <ArrowUp size={15} />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
 
                     {/* Composer */}
                     <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">
@@ -841,9 +872,72 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                     divisionId={division.id}
                 />
 
+                {/* Materials */}
+                <div className="shrink-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5 flex flex-col" style={{ height: '240px' }}>
+                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between shrink-0 rounded-t-2xl">
+                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                            <FolderOpen size={14} /> Materials
+                        </p>
+                    </div>
+                    <div className="px-4 py-2 space-y-2 flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                        {postsLoading ? (
+                            <div className="flex items-center justify-center py-6">
+                                <span className="w-4 h-4 rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground animate-spin" />
+                            </div>
+                        ) : materials.length === 0 ? (
+                            <p className="text-xs text-muted-foreground/60 italic py-3 text-center">No materials posted yet</p>
+                        ) : (
+                            materials.map(mat => {
+                                const ext = mat.attachmentName?.split('.').pop()?.toUpperCase() ?? null;
+                                const isPdf = ext === 'PDF';
+                                const isImg = ['JPG','JPEG','PNG','GIF','WEBP','SVG'].includes(ext ?? '');
+                                return (
+                                    <div key={mat.id} className="flex items-start gap-2.5 py-1.5 border-b border-border/20 last:border-none">
+                                        {mat.attachmentUrl && ext ? (
+                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[9px] font-bold shrink-0 mt-0.5 ${isPdf ? 'bg-red-500' : isImg ? 'bg-violet-500' : 'bg-blue-500'}`}>
+                                                {ext.slice(0, 4)}
+                                            </div>
+                                        ) : (
+                                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-100 dark:bg-blue-950 shrink-0 mt-0.5">
+                                                <FileText size={13} className="text-blue-600 dark:text-blue-400" />
+                                            </div>
+                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-xs font-semibold truncate">{mat.title}</p>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                {mat.subject && (
+                                                    <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400">{mat.subject}</span>
+                                                )}
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    {new Date(mat.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 self-center shrink-0">
+                                            {mat.attachmentUrl && (
+                                                <a href={mat.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                                                    className="text-[10px] h-6 px-2 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center">
+                                                    View
+                                                </a>
+                                            )}
+                                            <button
+                                                onMouseEnter={e => { const r = e.currentTarget.getBoundingClientRect(); setTooltip({ x: r.left + r.width / 2, y: r.top }); }}
+                                                onMouseLeave={() => setTooltip(null)}
+                                                onClick={() => scrollToPost(mat.id, mat.type)}
+                                                className="w-6 h-6 rounded-lg border border-border/50 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/5 transition-all">
+                                                <ExternalLink size={11} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+                </div>
+
                 {/* Results */}
-                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
+                <div className="shrink-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5 flex flex-col" style={{ height: '240px' }}>
+                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between shrink-0 rounded-t-2xl">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                             <FileText size={14} /> Results
                         </p>
@@ -867,7 +961,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             e.target.value = '';
                         }} />
 
-                    <div className="px-4 py-2 space-y-2">
+                    <div className="px-4 py-2 space-y-2 flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
                         {postsLoading ? (
                             <div className="flex items-center justify-center py-6">
                                 <span className="w-4 h-4 rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground animate-spin" />
@@ -876,25 +970,46 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             <p className="text-xs text-muted-foreground/60 italic py-3 text-center">No results uploaded yet</p>
                         ) : (
                             results.map(result => {
-                                const ext = result.attachmentName?.split('.').pop()?.toUpperCase() ?? 'FILE';
+                                const ext = result.attachmentName?.split('.').pop()?.toUpperCase() ?? null;
                                 const isPdf = ext === 'PDF';
+                                const isImg = ['JPG','JPEG','PNG','GIF','WEBP','SVG'].includes(ext ?? '');
                                 return (
-                                    <div key={result.id} className="flex items-center gap-2.5 py-1.5 border-b border-border/20 last:border-none">
-                                        <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[9px] font-bold shrink-0 ${isPdf ? 'bg-red-500' : 'bg-emerald-600'}`}>
-                                            {isPdf ? 'PDF' : ext.slice(0, 4)}
-                                        </div>
+                                    <div key={result.id} className="flex items-start gap-2.5 py-1.5 border-b border-border/20 last:border-none">
+                                        {result.attachmentUrl && ext ? (
+                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[9px] font-bold shrink-0 mt-0.5 ${isPdf ? 'bg-red-500' : isImg ? 'bg-violet-500' : 'bg-emerald-600'}`}>
+                                                {ext.slice(0, 4)}
+                                            </div>
+                                        ) : (
+                                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-100 dark:bg-emerald-950 shrink-0 mt-0.5">
+                                                <FileText size={13} className="text-emerald-600 dark:text-emerald-400" />
+                                            </div>
+                                        )}
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs font-semibold truncate">{result.title}</p>
-                                            <p className="text-[10px] text-muted-foreground">
-                                                {new Date(result.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                                            </p>
+                                            <div className="flex items-center gap-1.5 flex-wrap">
+                                                {result.subject && (
+                                                    <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400">{result.subject}</span>
+                                                )}
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    {new Date(result.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                                </p>
+                                            </div>
                                         </div>
-                                        {result.attachmentUrl && (
-                                            <a href={result.attachmentUrl} target="_blank" rel="noopener noreferrer"
-                                                className="text-[10px] h-6 px-2 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-all shrink-0 flex items-center">
-                                                View
-                                            </a>
-                                        )}
+                                        <div className="flex items-center gap-1 self-center shrink-0">
+                                            {result.attachmentUrl && (
+                                                <a href={result.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                                                    className="text-[10px] h-6 px-2 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center">
+                                                    View
+                                                </a>
+                                            )}
+                                            <button
+                                                onMouseEnter={e => { const r = e.currentTarget.getBoundingClientRect(); setTooltip({ x: r.left + r.width / 2, y: r.top }); }}
+                                                onMouseLeave={() => setTooltip(null)}
+                                                onClick={() => scrollToPost(result.id, result.type)}
+                                                className="w-6 h-6 rounded-lg border border-border/50 flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary hover:bg-primary/5 transition-all">
+                                                <ExternalLink size={11} />
+                                            </button>
+                                        </div>
                                     </div>
                                 );
                             })
@@ -929,6 +1044,17 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                     </div>
                 )}
             </AnimatePresence>
+
+            {/* Portal tooltip for View Post buttons */}
+            {typeof window !== 'undefined' && tooltip && createPortal(
+                <div
+                    className="px-2 py-1 rounded-md bg-foreground text-background text-[10px] font-medium whitespace-nowrap pointer-events-none"
+                    style={{ position: 'fixed', top: tooltip.y - 30, left: tooltip.x, transform: 'translateX(-50%)', zIndex: 9999 }}
+                >
+                    View post
+                </div>,
+                document.body
+            )}
         </div>
     );
 }

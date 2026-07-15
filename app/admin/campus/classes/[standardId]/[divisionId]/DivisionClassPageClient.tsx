@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, ChevronRight, Users, BookOpen, User, Shield, MapPin,
-    Plus, X, Check, ChevronDown, User as UserIcon,
+    Plus, X, Check, ChevronDown, User as UserIcon, ArrowUp,
     Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink,
     CalendarCheck, BarChart2, NotebookPen, Smartphone
 } from 'lucide-react';
@@ -816,6 +816,8 @@ export default function DivisionDetailPage() {
     const [savingSubject, setSavingSubject] = useState(false);
     const fetchedRef = useRef(false);
     const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
+    const [showScrollTop, setShowScrollTop] = useState(false);
+    const feedScrollRef = useRef<HTMLDivElement>(null);
     const [postType, setPostType] = useState<PostType>('announcement');
     const [postInput, setPostInput] = useState('');
     const [announcements, setAnnouncements] = useState<DivAnnouncement[]>([]);
@@ -1330,7 +1332,7 @@ export default function DivisionDetailPage() {
                                 </div>
 
                                 {/* Feed */}
-                                <div className="flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="relative flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
                                         <div className="flex items-center justify-between flex-wrap gap-2">
                                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -1358,7 +1360,7 @@ export default function DivisionDetailPage() {
                                     </div>
 
                                     {/* Posts */}
-                                    <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2 min-h-0 bg-background">
+                                    <div ref={feedScrollRef} onScroll={e => setShowScrollTop(e.currentTarget.scrollTop > 200)} className="flex-1 overflow-y-auto px-4 py-2 space-y-2 min-h-0 bg-background">
                                         {filteredAnnouncements.length === 0 && (
                                             <p className="text-xs text-muted-foreground/60 italic text-center py-8">No posts yet</p>
                                         )}
@@ -1366,6 +1368,22 @@ export default function DivisionDetailPage() {
                                             <DivFeedCard key={ann.id} ann={ann} onDelete={deletePost} />
                                         ))}
                                     </div>
+
+                                    <AnimatePresence>
+                                        {showScrollTop && (
+                                            <motion.button
+                                                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                                                whileHover={{ y: -5, transition: { type: 'spring', stiffness: 500, damping: 8 } }}
+                                                whileTap={{ scale: 0.9 }}
+                                                transition={{ duration: 0.15 }}
+                                                onClick={() => feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                                                className="absolute bottom-[88px] left-1/2 -translate-x-1/2 w-8 h-8 rounded-full flex items-center justify-center shadow-md border border-border/60 bg-card text-foreground z-10 hover:shadow-lg hover:border-primary/40 hover:text-primary"
+                                                title="Back to top"
+                                            >
+                                                <ArrowUp size={15} />
+                                            </motion.button>
+                                        )}
+                                    </AnimatePresence>
 
                                     {/* Composer */}
                                     <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">

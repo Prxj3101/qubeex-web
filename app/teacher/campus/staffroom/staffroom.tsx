@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Send, Paperclip, User, Users, Search, MoreVertical,
     Image as ImageIcon, FileText, ThumbsUp, MessageCircle,
-    ChevronDown, X, Trash2, Loader2, MessageSquare,
+    ChevronDown, X, Trash2, Loader2, MessageSquare, ArrowDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -58,6 +58,14 @@ function fmtTime(iso: string) {
     if (diffDays === 1) return 'Yesterday';
     return d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
+function fmtDateTime(iso: string) {
+    const d = new Date(iso); const now = new Date();
+    const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+    const time = d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    if (diffDays === 0) return `Today, ${time}`;
+    if (diffDays === 1) return `Yesterday, ${time}`;
+    return `${d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, ${time}`;
+}
 
 // ── Attachment Chip ───────────────────────────────────────────────────────────
 function AttachmentChip({ attachment, dark, onRemove }: {
@@ -107,13 +115,11 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
     return (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
             className={`flex gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-            {!isMe && (
-                <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 mt-1 relative ${post.author.avatarUrl ? '' : avatarColor}`}>
-                    {post.author.avatarUrl
-                        ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="32px" className="object-cover" />
-                        : getInitials(post.author.name)}
-                </div>
-            )}
+            <div className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 mt-1 relative ${post.author.avatarUrl ? '' : avatarColor}`}>
+                {post.author.avatarUrl
+                    ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="32px" className="object-cover" />
+                    : getInitials(post.author.name)}
+            </div>
             <div className={`flex flex-col max-w-[82%] ${isMe ? 'items-end' : 'items-start'}`}>
                 <div className={`flex items-center gap-2 mb-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                     <span className="text-[11px] font-semibold">{post.author.name}</span>
@@ -122,7 +128,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                         : 'bg-muted text-muted-foreground'}`}>
                         {post.author.role === 'ADMIN' ? 'Admin' : 'Teacher'}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">{fmtTime(post.createdAt)}</span>
+                    <span className="text-[10px] text-muted-foreground">{fmtDateTime(post.createdAt)}</span>
                     {isMe && (
                         <div className="relative">
                             <button onClick={() => setShowMenu(v => !v)}
@@ -250,7 +256,14 @@ export default function TeacherStaffroom() {
     const [showDmSearch, setShowDmSearch] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const feedScrollRef = useRef<HTMLDivElement>(null);
+    const dmScrollRef = useRef<HTMLDivElement>(null);
+    const dmObsRef = useRef<IntersectionObserver | null>(null);
+    const [showFeedScrollDown, setShowFeedScrollDown] = useState(false);
+    const [showDmScrollDown, setShowDmScrollDown] = useState(false);
     const feedEndRef = useRef<HTMLDivElement>(null);
+    const feedInitialScrollDone = useRef(false);
+    const messagesInitialScrollDone = useRef(false);
     const postFileRef = useRef<HTMLInputElement>(null);
     const dmFileRef = useRef<HTMLInputElement>(null);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -260,7 +273,7 @@ export default function TeacherStaffroom() {
     useEffect(() => {
         api.get('/teacher/me').then(res => {
             const u = res.data.data;
-            setMyUserId(u?.id ?? '');
+            setMyUserId(u?.userId ?? u?.id ?? '');
             setMyName(u?.name ?? 'Teacher');
         }).catch(() => { });
     }, []);
@@ -320,13 +333,45 @@ export default function TeacherStaffroom() {
     useEffect(() => {
         if (pollRef.current) clearInterval(pollRef.current);
         if (!activeDm) return;
+        messagesInitialScrollDone.current = false;
         fetchMessages(activeDm.teacherUserId);
         pollRef.current = setInterval(() => fetchMessages(activeDm.teacherUserId, true), 4000);
         return () => { if (pollRef.current) clearInterval(pollRef.current); };
     }, [activeDm, fetchMessages]);
 
-    useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages.length]);
-    useEffect(() => { feedEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [posts.length]);
+    // Feed scroll-down button via IntersectionObserver (flex-col-reverse safe)
+    useEffect(() => {
+        if (!feedEndRef.current || !feedScrollRef.current) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => setShowFeedScrollDown(!entry.isIntersecting),
+            { root: feedScrollRef.current, threshold: 0 }
+        );
+        observer.observe(feedEndRef.current);
+        return () => observer.disconnect();
+    }, [posts]);
+
+    // DM scroll-down button — ref callback on scroll container fires AFTER child refs are set
+    const dmScrollCallbackRef = useCallback((node: HTMLDivElement | null) => {
+        dmObsRef.current?.disconnect();
+        dmObsRef.current = null;
+        dmScrollRef.current = node;
+        if (!node || !messagesEndRef.current) return;
+        dmObsRef.current = new IntersectionObserver(
+            ([entry]) => setShowDmScrollDown(!entry.isIntersecting),
+            { root: node, threshold: 0 }
+        );
+        dmObsRef.current.observe(messagesEndRef.current);
+    }, []);
+
+    useEffect(() => {
+        if (!activeDm) {
+            setShowDmScrollDown(false);
+            dmObsRef.current?.disconnect();
+            dmObsRef.current = null;
+        }
+    }, [activeDm]);
+
+
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>, context: 'post' | 'dm') => {
         const file = e.target.files?.[0]; if (!file) return; e.target.value = '';
@@ -433,7 +478,7 @@ export default function TeacherStaffroom() {
             </div>
             <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden pb-3">
                 {/* LEFT — Feed */}
-                <div className="w-full lg:w-[60%] h-[520px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+                <div className="relative w-full lg:w-[60%] h-[520px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
                     <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -467,7 +512,8 @@ export default function TeacherStaffroom() {
                         </AnimatePresence>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0 bg-background">
+                    <div ref={feedScrollRef} className="flex-1 overflow-y-auto min-h-0 bg-background flex flex-col-reverse">
+                        <div className="px-4 py-3 space-y-4">
                         {feedLoading
                             ? <div className="flex items-center justify-center py-16"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                             : filteredPosts.length === 0
@@ -482,7 +528,23 @@ export default function TeacherStaffroom() {
                                 ))
                         }
                         <div ref={feedEndRef} />
+                        </div>
                     </div>
+
+                    <AnimatePresence>
+                        {showFeedScrollDown && (
+                            <motion.button
+                                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                                whileHover={{ y: 5, transition: { type: 'spring', stiffness: 500, damping: 8 } }}
+                                whileTap={{ scale: 0.9 }}
+                                transition={{ duration: 0.15 }}
+                                onClick={() => { if (feedScrollRef.current) feedScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                className="absolute bottom-[72px] left-1/2 -translate-x-1/2 w-8 h-8 rounded-full flex items-center justify-center shadow-md border border-border/60 bg-card text-foreground z-10 hover:shadow-lg hover:border-primary/40 hover:text-primary"
+                                title="Scroll to bottom">
+                                <ArrowDown size={15} />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
 
                     {postAttachment && <div className="px-4 pb-1 shrink-0"><AttachmentChip attachment={postAttachment} onRemove={() => setPostAttachment(null)} /></div>}
 
@@ -579,7 +641,7 @@ export default function TeacherStaffroom() {
                                 }
                             </motion.div>
                         ) : (
-                            <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex-1 flex flex-col min-h-0">
+                            <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="relative flex-1 flex flex-col min-h-0">
                                 <div className="flex items-center gap-3 px-3 py-2.5 border-b border-border/40 shrink-0">
                                     <button onClick={() => { setActiveDm(null); if (pollRef.current) clearInterval(pollRef.current); }}
                                         className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all shrink-0">
@@ -597,7 +659,8 @@ export default function TeacherStaffroom() {
                                     </div>
                                 </div>
 
-                                <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0 bg-background">
+                                <div ref={dmScrollCallbackRef} className="flex-1 overflow-y-auto min-h-0 bg-background flex flex-col-reverse">
+                                    <div className="px-3 py-3 space-y-3">
                                     {messagesLoading
                                         ? <div className="flex items-center justify-center py-12"><Loader2 size={18} className="animate-spin text-muted-foreground" /></div>
                                         : messages.length === 0
@@ -628,14 +691,30 @@ export default function TeacherStaffroom() {
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <p className="text-[10px] text-muted-foreground mt-0.5 px-1">{fmtTime(msg.createdAt)}</p>
+                                                            <p className="text-[10px] text-muted-foreground mt-0.5 px-1">{fmtDateTime(msg.createdAt)}</p>
                                                         </div>
                                                     </div>
                                                 );
                                             })
                                     }
                                     <div ref={messagesEndRef} />
+                                    </div>
                                 </div>
+
+                                <AnimatePresence>
+                                    {showDmScrollDown && (
+                                        <motion.button
+                                            initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                                            whileHover={{ y: 5, transition: { type: 'spring', stiffness: 500, damping: 8 } }}
+                                            whileTap={{ scale: 0.9 }}
+                                            transition={{ duration: 0.15 }}
+                                            onClick={() => { if (dmScrollRef.current) dmScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                                            className="absolute bottom-[72px] left-1/2 -translate-x-1/2 w-8 h-8 rounded-full flex items-center justify-center shadow-md border border-border/60 bg-card text-foreground z-10 hover:shadow-lg hover:border-primary/40 hover:text-primary"
+                                            title="Scroll to bottom">
+                                            <ArrowDown size={15} />
+                                        </motion.button>
+                                    )}
+                                </AnimatePresence>
 
                                 {dmAttachment && <div className="px-3 pb-1 shrink-0"><AttachmentChip attachment={dmAttachment} onRemove={() => setDmAttachment(null)} /></div>}
 

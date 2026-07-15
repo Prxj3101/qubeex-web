@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, Rss, X, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ArrowUp, Rss, X, Loader2 } from 'lucide-react';
 import api from '@/lib/api';
 import { LinkifiedText } from '@/components/shared/LinkifiedText';
 import { useStudentStore } from '@/store/studentStore';
@@ -363,6 +363,8 @@ export default function StudentFeedPage() {
     const { setFeedHasNew } = useFeedBadge();
     const [activeFilter, setActiveFilter] = useState<FilterKey>('all');
     const [posts, setPosts] = useState<FeedPost[]>([]);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+    const feedScrollRef = useRef<HTMLDivElement>(null);
     const [loading, setLoading] = useState(true);
     const [inScreenHasNew, setInScreenHasNew] = useState(false);
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -429,7 +431,7 @@ export default function StudentFeedPage() {
             <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 lg:overflow-hidden pb-2">
 
                 {/* Feed panel — LEFT */}
-                <div className="w-full lg:w-[65%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+                <div className="relative w-full lg:w-[65%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
 
                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
                         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
@@ -455,7 +457,7 @@ export default function StudentFeedPage() {
                         </div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-0 bg-background">
+                    <div ref={feedScrollRef} onScroll={e => setShowScrollTop(e.currentTarget.scrollTop > 200)} className="flex-1 overflow-y-auto px-4 py-3 space-y-2 min-h-0 bg-background">
                         {loading ? (
                             <FeedSkeleton />
                         ) : (
@@ -473,6 +475,22 @@ export default function StudentFeedPage() {
                             </AnimatePresence>
                         )}
                     </div>
+
+                    <AnimatePresence>
+                        {showScrollTop && (
+                            <motion.button
+                                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                                whileHover={{ y: -5, transition: { type: 'spring', stiffness: 500, damping: 8 } }}
+                                whileTap={{ scale: 0.9 }}
+                                transition={{ duration: 0.15 }}
+                                onClick={() => feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' })}
+                                className="absolute bottom-6 left-1/2 -translate-x-1/2 w-8 h-8 rounded-full flex items-center justify-center shadow-md border border-border/60 bg-card text-foreground z-10 hover:shadow-lg hover:border-primary/40 hover:text-primary"
+                                title="Back to top"
+                            >
+                                <ArrowUp size={15} />
+                            </motion.button>
+                        )}
+                    </AnimatePresence>
                 </div>
 
                 {/* Calendar — RIGHT */}

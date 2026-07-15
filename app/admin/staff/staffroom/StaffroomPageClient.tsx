@@ -19,6 +19,7 @@ import {
   AtSign,
   Trash2,
   Loader2,
+  ArrowDown,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -122,6 +123,15 @@ function fmtTime(iso: string) {
   if (diffDays === 1) return "Yesterday";
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
+function fmtDateTime(iso: string) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffDays = Math.floor((now.getTime() - d.getTime()) / 86400000);
+  const time = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  if (diffDays === 0) return `Today, ${time}`;
+  if (diffDays === 1) return `Yesterday, ${time}`;
+  return `${d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}, ${time}`;
+}
 
 // ── Attachment preview chip ───────────────────────────────────────────────────
 
@@ -220,15 +230,13 @@ function PostCard({
       animate={{ opacity: 1, y: 0 }}
       className={`flex gap-2 ${isMe ? "flex-row-reverse" : "flex-row"}`}
     >
-      {!isMe && (
-        <div
-          className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 mt-1 relative ${post.author.avatarUrl ? "" : avatarColor}`}
-        >
-          {post.author.avatarUrl
-            ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="32px" className="object-cover" />
-            : getInitials(post.author.name)}
-        </div>
-      )}
+      <div
+        className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 mt-1 relative ${post.author.avatarUrl ? "" : avatarColor}`}
+      >
+        {post.author.avatarUrl
+          ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="32px" className="object-cover" />
+          : getInitials(post.author.name)}
+      </div>
 
       <div
         className={`flex flex-col max-w-[82%] ${isMe ? "items-end" : "items-start"}`}
@@ -248,7 +256,7 @@ function PostCard({
             {post.author.role === "ADMIN" ? "Admin" : "Teacher"}
           </span>
           <span className="text-[10px] text-muted-foreground">
-            {fmtTime(post.createdAt)}
+            {fmtDateTime(post.createdAt)}
           </span>
           {canDelete && (
             <div className="relative">
@@ -452,6 +460,13 @@ export default function StaffroomPage() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const feedEndRef = useRef<HTMLDivElement>(null);
+  const feedInitialScrollDone = useRef(false);
+  const messagesInitialScrollDone = useRef(false);
+  const feedScrollRef = useRef<HTMLDivElement>(null);
+  const dmScrollRef = useRef<HTMLDivElement>(null);
+  const dmObsRef = useRef<IntersectionObserver | null>(null);
+  const [showFeedScrollDown, setShowFeedScrollDown] = useState(false);
+  const [showDmScrollDown, setShowDmScrollDown] = useState(false);
   const postFileRef = useRef<HTMLInputElement>(null);
   const dmFileRef = useRef<HTMLInputElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -552,6 +567,7 @@ export default function StaffroomPage() {
     if (pollRef.current) clearInterval(pollRef.current);
     if (!activeDm) return;
 
+    messagesInitialScrollDone.current = false;
     fetchMessages(activeDm.teacherUserId);
 
     pollRef.current = setInterval(() => {
@@ -563,13 +579,38 @@ export default function StaffroomPage() {
     };
   }, [activeDm, fetchMessages]);
 
+  // Feed scroll-down button via IntersectionObserver (flex-col-reverse safe)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+    if (!feedEndRef.current || !feedScrollRef.current) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowFeedScrollDown(!entry.isIntersecting),
+      { root: feedScrollRef.current, threshold: 0 }
+    );
+    observer.observe(feedEndRef.current);
+    return () => observer.disconnect();
+  }, [posts]);
+
+  // DM scroll-down button — ref callback on scroll container fires AFTER child refs are set
+  const dmScrollCallbackRef = useCallback((node: HTMLDivElement | null) => {
+    dmObsRef.current?.disconnect();
+    dmObsRef.current = null;
+    dmScrollRef.current = node;
+    if (!node || !messagesEndRef.current) return;
+    dmObsRef.current = new IntersectionObserver(
+      ([entry]) => setShowDmScrollDown(!entry.isIntersecting),
+      { root: node, threshold: 0 }
+    );
+    dmObsRef.current.observe(messagesEndRef.current);
+  }, []);
 
   useEffect(() => {
-    feedEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [posts.length]);
+    if (!activeDm) {
+      setShowDmScrollDown(false);
+      dmObsRef.current?.disconnect();
+      dmObsRef.current = null;
+    }
+  }, [activeDm]);
+
 
   // ── File upload ──
   const handleFileSelect = async (
@@ -776,7 +817,7 @@ export default function StaffroomPage() {
       {/* Body */}
       <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden pb-3">
         {/* LEFT — Feed */}
-        <div className="w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+        <div className="relative w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
           {/* Feed header */}
           <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
             <div className="flex items-center justify-between">
@@ -834,7 +875,8 @@ export default function StaffroomPage() {
           </div>
 
           {/* Feed messages */}
-          <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4 min-h-0 bg-background">
+          <div ref={feedScrollRef} className="flex-1 overflow-y-auto min-h-0 bg-background flex flex-col-reverse">
+            <div className="px-4 py-3 space-y-4">
             {feedLoading ? (
               <div className="flex items-center justify-center py-16">
                 <Loader2
@@ -868,7 +910,24 @@ export default function StaffroomPage() {
               ))
             )}
             <div ref={feedEndRef} />
+            </div>
           </div>
+
+          <AnimatePresence>
+            {showFeedScrollDown && (
+              <motion.button
+                initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                whileHover={{ y: 5, transition: { type: 'spring', stiffness: 500, damping: 8 } }}
+                whileTap={{ scale: 0.9 }}
+                transition={{ duration: 0.15 }}
+                onClick={() => { if (feedScrollRef.current) feedScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                className="absolute bottom-[72px] left-1/2 -translate-x-1/2 w-8 h-8 rounded-full flex items-center justify-center shadow-md border border-border/60 bg-card text-foreground z-10 hover:shadow-lg hover:border-primary/40 hover:text-primary"
+                title="Scroll to bottom"
+              >
+                <ArrowDown size={15} />
+              </motion.button>
+            )}
+          </AnimatePresence>
 
           {/* Pending attachment preview */}
           {postAttachment && (
@@ -959,7 +1018,7 @@ export default function StaffroomPage() {
         </div>
 
         {/* RIGHT — DMs */}
-        <div className="w-full lg:w-[40%] h-[70vh] lg:h-auto flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20">
+        <div className="relative w-full lg:w-[40%] h-[70vh] lg:h-auto flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20">
           {/* DMs header */}
           <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
             <div className="flex items-center justify-between">
@@ -1132,7 +1191,8 @@ export default function StaffroomPage() {
                 </div>
 
                 {/* Messages */}
-                <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3 min-h-0 bg-background">
+                <div ref={dmScrollCallbackRef} className="flex-1 overflow-y-auto min-h-0 bg-background flex flex-col-reverse">
+                  <div className="px-3 py-3 space-y-3">
                   {messagesLoading ? (
                     <div className="flex items-center justify-center py-12">
                       <Loader2
@@ -1196,7 +1256,7 @@ export default function StaffroomPage() {
                                 )}
                             </div>
                             <p className="text-[10px] text-muted-foreground mt-0.5 px-1">
-                              {fmtTime(msg.createdAt)}
+                              {fmtDateTime(msg.createdAt)}
                             </p>
                           </div>
                         </div>
@@ -1204,7 +1264,24 @@ export default function StaffroomPage() {
                     })
                   )}
                   <div ref={messagesEndRef} />
+                  </div>
                 </div>
+
+                <AnimatePresence>
+                  {showDmScrollDown && (
+                    <motion.button
+                      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }}
+                      whileHover={{ y: 5, transition: { type: 'spring', stiffness: 500, damping: 8 } }}
+                      whileTap={{ scale: 0.9 }}
+                      transition={{ duration: 0.15 }}
+                      onClick={() => { if (dmScrollRef.current) dmScrollRef.current.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                      className="absolute bottom-[72px] left-1/2 -translate-x-1/2 w-8 h-8 rounded-full flex items-center justify-center shadow-md border border-border/60 bg-card text-foreground z-10 hover:shadow-lg hover:border-primary/40 hover:text-primary"
+                      title="Scroll to bottom"
+                    >
+                      <ArrowDown size={15} />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
 
                 {/* DM attachment preview */}
                 {dmAttachment && (
