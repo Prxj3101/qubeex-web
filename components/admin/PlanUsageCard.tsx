@@ -28,7 +28,7 @@ export function PlanUsageCard({ plan }: PlanUsageCardProps) {
                     <p className="text-lg font-semibold">{plan.name}</p>
                 </div>
                 <Link
-                    href="/admin/insights/analytics"
+                    href="/admin/insights/subscription"
                     className="text-xs text-primary hover:underline flex items-center gap-0.5"
                 >
                     Request upgrade <ArrowUpRight size={12} />

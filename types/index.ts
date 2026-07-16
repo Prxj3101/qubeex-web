@@ -62,17 +62,24 @@ export interface AdminOverview {
         type: InstitutionType;
         status: InstitutionStatus;
         logoUrl?: string;
+        createdAt: string;
     };
     showWelcomeBanner: boolean;
     stats: {
         totalUsers: number;
         totalStudents: number;
         totalTeachers: number;
+        totalAdmins: number;
         totalClasses: number;
     };
     enrollmentGrowth: { month: string; students: number; teachers: number }[];
     plan: {
         name: string;
+        isTrial: boolean;
+        activationDate: string | null;
+        perUserRate: number;
+        billedUsers: number;
+        estMonthlyBill: number;
         usage: {
             users: { used: number; limit: number };
             storage: { used: number; limit: number };

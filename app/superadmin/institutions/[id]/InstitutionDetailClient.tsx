@@ -64,6 +64,7 @@ import type {
   Bill,
   ApiBill,
   InstData,
+  AdminUser,
   TrialUsage,
   PlanDashboardResponse,
 } from "./institution-detail.types";
@@ -202,11 +203,13 @@ function ViewDetailsTab({
   onStatusToggle,
   onResendInvite,
   onDelete,
+  onInstitutionPatch,
 }: {
   inst: InstData;
   onStatusToggle: () => void;
   onResendInvite: () => void;
   onDelete: () => Promise<void>;
+  onInstitutionPatch: (patch: Omit<Partial<InstData>, "admin"> & { admin?: Partial<AdminUser> }) => void;
 }) {
   const status = statusCfg[inst.status] ?? statusCfg["PENDING"];
   const TypeIcon =
@@ -292,13 +295,17 @@ function ViewDetailsTab({
   const [locSaved, setLocSaved] = useState({ ...locDraft });
   const [adminDraft, setAdminDraft] = useState({
     adminName,
+    adminEmail: adminUser?.email ?? "",
     adminPrefix: adminUser?.prefix ?? inst.adminPrefix ?? "Mr.",
-    adminTitle: adminUser?.title ?? inst.adminTitle ?? "Principal",
+    adminTitle: adminUser?.title ?? inst.adminTitle ?? "Admin",
     adminPhone: adminUser?.phone ?? inst.adminPhone ?? "",
     adminDob: adminUser?.dob ?? inst.adminDob ?? "",
-    adminGender: adminUser?.gender ?? inst.adminGender ?? "Male",
+    adminGender: adminUser?.gender ?? inst.adminGender ?? "",
   });
   const [adminSaved, setAdminSaved] = useState({ ...adminDraft });
+  const [savingAdmin, setSavingAdmin] = useState(false);
+  const [savingInst, setSavingInst] = useState(false);
+  const [savingLoc, setSavingLoc] = useState(false);
 
   const cancelEdit = (s: string) => {
     if (s === "inst") setInstDraft({ ...instSaved });
@@ -306,12 +313,88 @@ function ViewDetailsTab({
     if (s === "admin") setAdminDraft({ ...adminSaved });
     setEditingSection(null);
   };
-  const saveEdit = (s: string) => {
-    if (s === "inst") setInstSaved({ ...instDraft });
-    if (s === "loc") setLocSaved({ ...locDraft });
-    if (s === "admin") setAdminSaved({ ...adminDraft });
-    setEditingSection(null);
-    toast.success("Changes saved");
+  const saveEdit = async (s: string) => {
+    if (s === "inst") {
+      if (savingInst) return;
+      setSavingInst(true);
+      try {
+        const res = await api.put(`/superadmin/institutions/${inst.id}`, instDraft);
+        const saved = res.data.data;
+        const next = {
+          name: saved.name,
+          email: saved.email,
+          phone: saved.phone ?? "",
+          board: saved.board ?? "",
+          medium: saved.medium ?? "",
+          establishedOn: saved.establishedOn ?? "",
+        };
+        setInstDraft(next);
+        setInstSaved(next);
+        onInstitutionPatch(next);
+        setEditingSection(null);
+        toast.success("Institution details updated");
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data?.message
+          ?? (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        toast.error(msg ?? "Failed to update institution details");
+      } finally {
+        setSavingInst(false);
+      }
+      return;
+    }
+    if (s === "loc") {
+      if (savingLoc) return;
+      setSavingLoc(true);
+      try {
+        const res = await api.put(`/superadmin/institutions/${inst.id}`, locDraft);
+        const saved = res.data.data;
+        const next = {
+          address: saved.address ?? "",
+          city: saved.city ?? "",
+          state: saved.state ?? "",
+          country: saved.country ?? "",
+          pincode: saved.pincode ?? "",
+        };
+        setLocDraft(next);
+        setLocSaved(next);
+        onInstitutionPatch(next);
+        setEditingSection(null);
+        toast.success("Location details updated");
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data?.message
+          ?? (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        toast.error(msg ?? "Failed to update location details");
+      } finally {
+        setSavingLoc(false);
+      }
+      return;
+    }
+    if (s === "admin") {
+      if (savingAdmin) return;
+      setSavingAdmin(true);
+      try {
+        const res = await api.patch(`/superadmin/institutions/${inst.id}/admin`, adminDraft);
+        const saved = res.data.data;
+        setAdminDraft((d) => ({ ...d, ...saved }));
+        setAdminSaved((d) => ({ ...d, ...saved }));
+        onInstitutionPatch({
+          adminPhone: saved.adminPhone,
+          adminDob: saved.adminDob,
+          adminGender: saved.adminGender,
+          adminPrefix: saved.adminPrefix,
+          adminTitle: saved.adminTitle,
+          admin: { name: saved.adminName, email: saved.adminEmail },
+        });
+        setEditingSection(null);
+        toast.success("Admin details updated");
+      } catch (err: unknown) {
+        const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data?.message
+          ?? (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
+        toast.error(msg ?? "Failed to update admin details");
+      } finally {
+        setSavingAdmin(false);
+      }
+    }
   };
   const editBtns = (s: string) =>
     editingSection === s ? (
@@ -481,7 +564,7 @@ function ViewDetailsTab({
               </div>
               {adminUser && (
                 <p className="text-[12px] font-semibold mt-1.5" style={{ color: "#DA7756" }}>
-                  {adminUser.email}
+                  {adminSaved.adminEmail}
                 </p>
               )}
             </div>
@@ -627,6 +710,27 @@ function ViewDetailsTab({
                       </div>
                     </div>
                   </div>
+                  {/* Admin Email — this is the admin's login email */}
+                  <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
+                    <span className="text-xs text-muted-foreground w-28 shrink-0 mt-2 flex items-center gap-1">
+                      Admin Email
+                      <div className="relative group/tip">
+                        <Info size={11} className="text-muted-foreground/50 cursor-pointer hover:text-primary transition-colors" />
+                        <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/tip:block z-50 pointer-events-none">
+                          <div className="bg-gray-900 dark:bg-gray-800 text-[11px] text-white rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap">
+                            Changes the admin's login email
+                          </div>
+                        </div>
+                      </div>
+                    </span>
+                    <input
+                      type="email"
+                      value={adminDraft.adminEmail}
+                      onChange={(e) => setAdminDraft((d) => ({ ...d, adminEmail: e.target.value }))}
+                      placeholder="admin@school.edu.in"
+                      className="flex-1 h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-xs font-medium focus:outline-none focus:border-primary transition-all placeholder:text-muted-foreground/50 placeholder:font-normal"
+                    />
+                  </div>
                   {/* Display Title */}
                   <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
                     <span className="text-xs text-muted-foreground w-28 shrink-0 mt-0.5">Display Title</span>
@@ -701,7 +805,7 @@ function ViewDetailsTab({
                         </div>
                       </div>
                     </span>
-                    <span className="text-xs font-medium text-foreground flex-1">{adminUser.email}</span>
+                    <span className="text-xs font-medium text-foreground flex-1">{adminSaved.adminEmail}</span>
                   </div>
                   <InfoRow icon={Phone} label="Admin Phone" value={adminSaved.adminPhone || "—"} />
                   <InfoRow icon={Calendar} label="Admin DOB" value={adminSaved.adminDob ? toIST(adminSaved.adminDob) : "—"} />
@@ -949,8 +1053,6 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
   const [churnOpen, setChurnOpen] = useState(false);
   const [churnConfirm, setChurnConfirm] = useState(false);
   const [churning, setChurning] = useState(false);
-  const [trialActivated, setTrialActivated] = useState(!!inst.subscription?.startDate);
-  const [activatingTrial, setActivatingTrial] = useState(false);
   const [trialUsage, setTrialUsage] = useState<TrialUsage | null>(null);
   const [loadingTrialUsage, setLoadingTrialUsage] = useState(false);
 
@@ -1035,8 +1137,8 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
   }, [fetchPlanDashboard, fetchBills]);
 
   useEffect(() => {
-    if (plan === "TRIAL" && trialActivated) void fetchTrialUsage();
-  }, [plan, trialActivated, fetchTrialUsage]);
+    if (plan === "TRIAL") void fetchTrialUsage();
+  }, [plan, fetchTrialUsage]);
   useEffect(() => {
     if (!planActive) {
       setFeatures(getDefaultFeatures(plan));
@@ -2881,6 +2983,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       total,
       unitLabel,
       formatter,
+      pending,
     }: {
       label: string;
       icon: React.ElementType;
@@ -2888,6 +2991,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       total: number;
       unitLabel: string;
       formatter?: (v: number) => string;
+      pending?: boolean;
     }) => {
       const f = formatter ?? ((v: number) => v.toLocaleString("en-IN"));
       const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
@@ -2901,116 +3005,25 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
               <Icon size={13} className="text-muted-foreground" />
               <p className="text-xs font-medium">{label}</p>
             </div>
-            <div className="flex items-center gap-2">
-              <p className={`text-xs font-bold ${danger ? "text-red-500" : warn ? "text-amber-500" : "text-foreground"}`}>
-                {f(used)} {unitLabel}
-              </p>
-              <span className="text-[10px] text-muted-foreground">/ {f(total)} {unitLabel}</span>
-            </div>
+            {pending ? (
+              <span className="text-[10px] font-medium text-muted-foreground italic">Not tracked yet</span>
+            ) : (
+              <div className="flex items-center gap-2">
+                <p className={`text-xs font-bold ${danger ? "text-red-500" : warn ? "text-amber-500" : "text-foreground"}`}>
+                  {f(used)} {unitLabel}
+                </p>
+                <span className="text-[10px] text-muted-foreground">/ {f(total)} {unitLabel}</span>
+              </div>
+            )}
           </div>
           <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: barColor }} />
+            {!pending && (
+              <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: barColor }} />
+            )}
           </div>
         </div>
       );
     };
-
-    if (!trialActivated) {
-      return (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.25 }}
-          className="space-y-4"
-        >
-          {/* Hero card — matches active view style */}
-          <div className="bg-card border border-border/50 rounded-2xl p-5">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-500" />
-                  <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">
-                    Not Yet Started
-                  </span>
-                </div>
-                <h2 className="text-2xl font-black" style={{ color: "#F59E0B" }}>
-                  TRIAL
-                </h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Free trial period · {trialDays} days · Up to 500 users
-                </p>
-                <div className="flex items-center gap-1.5 mt-1.5">
-                  <CalendarIcon size={11} className="text-muted-foreground" />
-                  <span className="text-[11px] text-muted-foreground">
-                    Activate to start the {trialDays}-day countdown
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={async () => {
-                  setActivatingTrial(true);
-                  try {
-                    await api.post(`/superadmin/institutions/${inst.id}/trial/activate`);
-                    setTrialActivated(true);
-                    await fetchTrialUsage();
-                    toast.success("Trial activated successfully");
-                  } catch (err: unknown) {
-                    const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to activate trial";
-                    toast.error(msg);
-                  } finally {
-                    setActivatingTrial(false);
-                  }
-                }}
-                disabled={activatingTrial}
-                className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)" }}
-              >
-                {activatingTrial ? (
-                  <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Starting...</>
-                ) : (
-                  <><Zap size={13} /> Activate Trial</>
-                )}
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
-              <InfoBox label="Duration" value={`${trialDays} days`} />
-              <InfoBox label="Max Users" value="500" />
-              <InfoBox label="AI Tokens" value="2 M" sub="shared pool" />
-              <InfoBox label="Storage" value="10 GB" highlight />
-            </div>
-          </div>
-
-          {/* What's included */}
-          <SectionCard
-            title={
-              <span className="flex items-center gap-2">
-                <CheckCircle size={13} />
-                What&apos;s Included
-              </span>
-            }
-          >
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-              {[
-                { icon: Users, text: "Up to 500 users (admin + teachers + students)" },
-                { icon: Sparkles, text: "2,000,000 AI tokens — shared across teachers" },
-                { icon: HardDrive, text: "10 GB cloud storage" },
-                { icon: Zap, text: "All core platform features enabled" },
-                { icon: ShieldCheck, text: "Smart Board AI — first year free" },
-                { icon: BarChart2, text: "Performance Insights & Analytics" },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-center gap-2.5 p-2.5 rounded-xl bg-muted/40">
-                  <div className="w-6 h-6 rounded-lg bg-violet-100 dark:bg-violet-950/50 flex items-center justify-center shrink-0">
-                    <Icon size={12} className="text-violet-600 dark:text-violet-400" />
-                  </div>
-                  <p className="text-xs font-medium">{text}</p>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        </motion.div>
-      );
-    }
 
     // Active trial dashboard
     return (
@@ -3086,13 +3099,13 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
             />
             <InfoBox
               label="AI Tokens Used"
-              value={trialUsage?.aiTokens.used ? `${(trialUsage.aiTokens.used / 1_000_000).toFixed(1)}M` : "0"}
-              sub="/ 2M total"
+              value="—"
+              sub="Not tracked yet"
             />
             <InfoBox
               label="Storage Used"
-              value={`${(trialUsage?.storageGb.used ?? 0).toFixed(1)} GB`}
-              sub="/ 10 GB"
+              value="—"
+              sub="Not tracked yet"
             />
           </div>
         </div>
@@ -3285,6 +3298,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 total={trialUsage?.aiTokens.limit ?? 2_000_000}
                 unitLabel="tokens"
                 formatter={(v) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(2)}M` : v.toLocaleString("en-IN")}
+                pending
               />
               <TrialUsageBar
                 label="Storage"
@@ -3293,6 +3307,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 total={trialUsage?.storageGb.limit ?? 10}
                 unitLabel="GB"
                 formatter={(v) => v.toFixed(2)}
+                pending
               />
             </div>
           )}
@@ -3751,6 +3766,23 @@ export default function InstitutionDetailPage() {
     fetchInstitution();
   }, [fetchInstitution]);
 
+  // Applied after a successful save in ViewDetailsTab so the parent's
+  // `institution` state (the source of truth ViewDetailsTab re-derives its
+  // local drafts from on every mount) reflects the change immediately —
+  // without this, switching tabs and back remounts ViewDetailsTab with the
+  // stale pre-save data, making a successful save look like it "reset".
+  const handleInstitutionPatch = (patch: Omit<Partial<InstData>, "admin"> & { admin?: Partial<AdminUser> }) => {
+    setInstitution((prev) => {
+      if (!prev) return prev;
+      const { admin: adminPatch, ...rest } = patch;
+      const mergedAdmin = adminPatch ? (prev.admin ? { ...prev.admin, ...adminPatch } : prev.admin) : prev.admin;
+      const mergedUsers = prev.users?.map((u) =>
+        u.role === "ADMIN" && adminPatch ? { ...u, ...adminPatch } : u
+      );
+      return { ...prev, ...rest, admin: mergedAdmin, users: mergedUsers ?? prev.users };
+    });
+  };
+
   const handleStatusToggle = async () => {
     if (!institution) return;
     const newStatus = institution.status === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
@@ -3887,6 +3919,7 @@ export default function InstitutionDetailPage() {
             onStatusToggle={handleStatusToggle}
             onResendInvite={handleResendInvite}
             onDelete={handleDelete}
+            onInstitutionPatch={handleInstitutionPatch}
           />
         ) : (
           <ManagePlanTab key="plan" inst={institution} />

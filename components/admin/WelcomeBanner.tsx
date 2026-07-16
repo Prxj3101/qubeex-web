@@ -508,7 +508,7 @@ export function WelcomeBanner({ adminName, institutionName, institutionType, pla
                                                 </p>
                                                 {plan !== 'PRO' && (
                                                     <button
-                                                        onClick={() => router.push('/admin/support/notifications')}
+                                                        onClick={() => router.push('/admin/insights/subscription')}
                                                         className="flex items-center gap-0.5 text-[10px] font-semibold hover:opacity-75 transition-opacity"
                                                         style={{ color: cfg.color }}
                                                     >
@@ -584,7 +584,7 @@ export function WelcomeBanner({ adminName, institutionName, institutionType, pla
                                                     {/* Upgrade CTA */}
                                                     {plan !== 'PRO' && (
                                                         <button
-                                                            onClick={() => router.push('/admin/support/notifications')}
+                                                            onClick={() => router.push('/admin/insights/subscription')}
                                                             className="w-full flex items-center justify-center gap-1 text-[11px] font-semibold py-1.5 rounded-lg mt-2 transition-opacity hover:opacity-80"
                                                             style={{ background: cfg.colorBgStrong, color: cfg.color }}
                                                         >

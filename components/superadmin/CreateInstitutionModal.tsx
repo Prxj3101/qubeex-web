@@ -186,6 +186,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     const [form, setForm] = useState({
         name: '', email: '', phone: '',
         type: 'SCHOOL' as 'SCHOOL' | 'COLLEGE' | 'COACHING',
+        abbreviation: '',
         address: '', city: '', state: '', country: 'India', pincode: '',
         adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '',
         establishedOn: '',
@@ -226,6 +227,10 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     const handleCreate = async () => {
         if (!form.name || !form.email || !form.adminEmail || !form.adminName) {
             toast.error('Please fill in all required fields');
+            return;
+        }
+        if (!/^[A-Z0-9]{4}$/.test(form.abbreviation)) {
+            toast.error('Abbreviation must be exactly 4 letters/digits');
             return;
         }
         const trialDays = Number(form.trialDays);
@@ -274,7 +279,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     };
 
     const resetForm = () => {
-        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '', establishedOn: '', plan: 'BASIC', trialDays: '14', board: '', medium: '' });
+        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', abbreviation: '', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '', establishedOn: '', plan: 'BASIC', trialDays: '14', board: '', medium: '' });
         setLogoPreview(null);
         setLogoFile(null);
         if (fileRef.current) fileRef.current.value = '';
@@ -372,6 +377,16 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                 <div>
                                     <FL>Institution Name *</FL>
                                     <Input placeholder="e.g. Delhi Public School" value={form.name} onChange={e => set('name', e.target.value)} className="h-8 text-sm" />
+                                </div>
+                                <div>
+                                    <FL>Abbreviation * <span className="text-muted-foreground/60 font-normal normal-case">(exactly 4 letters/digits — used in the institution code and every user ID)</span></FL>
+                                    <Input
+                                        placeholder="e.g. SKPS"
+                                        value={form.abbreviation}
+                                        onChange={e => set('abbreviation', e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4))}
+                                        className="h-8 text-sm font-mono tracking-wider uppercase"
+                                        maxLength={4}
+                                    />
                                 </div>
                                 <div>
                                     <FL>Institute Email *</FL>
