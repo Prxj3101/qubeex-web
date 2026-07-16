@@ -39,7 +39,7 @@ type TokenData = {
     institutionCode: string;
     adminName: string;
     email: string;
-    userId?: string;
+    adminDisplayId?: string;
     valid: boolean;
 };
 
@@ -253,7 +253,7 @@ function SetPasswordContent() {
                             <div className="mt-3 pt-3 border-t border-white/8">
                                 <p className="text-[10px] text-white/30 uppercase tracking-wider mb-1">Admin ID</p>
                                 <p className="text-lg font-bold tracking-widest font-mono" style={{ color: '#DA7756' }}>
-                                    {tokenData.userId ?? ''}
+                                    {tokenData.adminDisplayId ?? ''}
                                 </p>
                                 <p className="text-[10px] text-white/30 mt-1">This has been pre-filled below. Keep it safe for future logins.</p>
                             </div>
@@ -268,7 +268,7 @@ function SetPasswordContent() {
                                 <Hash size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
                                 <input
                                     type="text"
-                                    value={tokenData.userId ?? ''}
+                                    value={tokenData.adminDisplayId ?? ''}
                                     readOnly
                                     className="w-full h-11 pl-10 pr-4 rounded-xl bg-[#DA7756]/8 border border-[#DA7756]/30 text-sm font-mono font-semibold tracking-wider text-[#DA7756] focus:outline-none cursor-default select-all"
                                 />

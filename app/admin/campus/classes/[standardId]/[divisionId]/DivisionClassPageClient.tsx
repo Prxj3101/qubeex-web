@@ -19,9 +19,6 @@ import { assignSubjectColor } from '@/lib/subjectColors';
 import { FeesTab } from './fees';
 import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[divisionId]/AttendanceTab';
 import MarksTab, { MarksSubTab, MarksStats } from '@/app/teacher/classes/[divisionId]/MarksTab';
-import ReportStudentModal, { ReportFormData } from '@/app/teacher/classes/[divisionId]/ReportStudentModal';
-import StudentProfileModal, { ProfileMarksheet, ProfileAttendanceTrend } from '@/app/teacher/classes/[divisionId]/StudentProfileModal';
-import { FlagItem } from '@/lib/flags';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -843,9 +840,6 @@ export default function DivisionDetailPage() {
     const [leaderTab, setLeaderTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const timetableInputRef = useRef<HTMLInputElement>(null);
     const [showPassword, setShowPassword] = useState(false);
-    const [showReportModal, setShowReportModal] = useState(false);
-    const [showProfileModal, setShowProfileModal] = useState(false);
-    const [submittingReport, setSubmittingReport] = useState(false);
 
     interface StudentStats { attendance: { present: number; total: number; pct: number | null }; score: { pct: number | null }; classRank: number | null }
     const [studentStats, setStudentStats] = useState<StudentStats | null>(null);
@@ -878,21 +872,6 @@ export default function DivisionDetailPage() {
         } finally {
             setTogglingStatus(false);
             setConfirmToggle(false);
-        }
-    };
-
-    const handleReportStudent = async (data: ReportFormData) => {
-        if (!selectedStudent) return;
-        setSubmittingReport(true);
-        try {
-            await api.post(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}/remarks`, data);
-            toast.success('Report submitted');
-            setShowReportModal(false);
-        } catch (err: unknown) {
-            const e = err as { response?: { data?: { error?: string } } };
-            toast.error(e?.response?.data?.error ?? 'Failed to submit report');
-        } finally {
-            setSubmittingReport(false);
         }
     };
 
@@ -1721,49 +1700,16 @@ export default function DivisionDetailPage() {
                                                     }`}>
                                                 {selectedStudent.status === 'ACTIVE' ? <><PowerOff size={11} /> Deactivate</> : <><Power size={11} /> Activate</>}
                                             </button>
-                                            <button onClick={() => setShowReportModal(true)}
+                                            <button onClick={() => router.push(`/admin/campus/classes/${division?.standard.id}/${divisionId}/students/${selectedStudent.id}/reports?name=${encodeURIComponent(selectedStudent.user.name ?? 'Student')}`)}
                                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
                                                 <Flag size={11} /> Report
                                             </button>
                                             <button
-                                                onClick={() => setShowProfileModal(true)}
+                                                onClick={() => router.push(`/admin/campus/classes/${division?.standard.id}/${divisionId}/students/${selectedStudent.id}/profile`)}
                                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
                                                 <ExternalLink size={10} /> View Profile
                                             </button>
                                         </div>
-                                    )}
-                                    {selectedStudent && (
-                                        <ReportStudentModal
-                                            open={showReportModal}
-                                            onOpenChange={setShowReportModal}
-                                            studentName={selectedStudent.user.name ?? 'Student'}
-                                            loading={submittingReport}
-                                            onSubmit={handleReportStudent}
-                                        />
-                                    )}
-                                    {selectedStudent && (
-                                        <StudentProfileModal
-                                            open={showProfileModal}
-                                            onOpenChange={setShowProfileModal}
-                                            student={selectedStudent}
-                                            divisionLabel={division ? `${division.standard.name} - ${division.name}` : ''}
-                                            fetchMarksheet={async () => {
-                                                try {
-                                                    const res = await api.get(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}/marksheet`);
-                                                    return res.data.data as ProfileMarksheet;
-                                                } catch {
-                                                    return null;
-                                                }
-                                            }}
-                                            fetchRemarks={async () => {
-                                                const res = await api.get(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}/remarks`);
-                                                return res.data.data as FlagItem[];
-                                            }}
-                                            fetchAttendanceTrend={async () => {
-                                                const res = await api.get(`/admin/campus/divisions/${divisionId}/students/${selectedStudent.id}/attendance-trend`);
-                                                return res.data.data as ProfileAttendanceTrend;
-                                            }}
-                                        />
                                     )}
                                 </div>
 

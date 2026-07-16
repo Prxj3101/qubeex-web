@@ -66,6 +66,7 @@ type InstData = {
     activationDate?: string | null;
     planOption?: string | null;
   } | null;
+  isTrial?: boolean;
 };
 
 // ── Verified Badge ────────────────────────────────────────────────────────────
@@ -294,12 +295,29 @@ export default function AdminProfilePage() {
 
   // ── Edit state ────────────────────────────────────────────────────────────
   const [editingSection, setEditingSection] = useState<string | null>(null);
+  const editingSectionRef = useRef<string | null>(null);
+  editingSectionRef.current = editingSection;
+
+  // Background poll — surfaces superadmin-side institution/admin-detail changes without a
+  // manual reload. Skipped while a section is being edited so it can't clobber in-progress input.
+  useEffect(() => {
+    const poll = setInterval(() => {
+      if (editingSectionRef.current) return;
+      api.get('/admin/me')
+        .then((res) => {
+          const d = res.data?.data ?? res.data;
+          if (d) setInst(d as InstData);
+        })
+        .catch(() => {});
+    }, 30_000);
+    return () => clearInterval(poll);
+  }, []);
   const [instDraft, setInstDraft] = useState({ name: '', email: '', phone: '', board: '', medium: '', establishedOn: '' });
   const [instSaved, setInstSaved] = useState({ name: '', email: '', phone: '', board: '', medium: '', establishedOn: '' });
   const [locDraft, setLocDraft] = useState({ address: '', city: '', state: '', country: '', pincode: '' });
   const [locSaved, setLocSaved] = useState({ address: '', city: '', state: '', country: '', pincode: '' });
-  const [adminDraft, setAdminDraft] = useState({ adminName: '', adminPrefix: 'Mr.', adminTitle: 'Principal', adminPhone: '', adminDob: '', adminGender: 'Male' });
-  const [adminSaved, setAdminSaved] = useState({ adminName: '', adminPrefix: 'Mr.', adminTitle: 'Principal', adminPhone: '', adminDob: '', adminGender: 'Male' });
+  const [adminDraft, setAdminDraft] = useState({ adminName: '', adminPrefix: 'Mr.', adminTitle: 'Admin', adminPhone: '', adminDob: '', adminGender: 'Male' });
+  const [adminSaved, setAdminSaved] = useState({ adminName: '', adminPrefix: 'Mr.', adminTitle: 'Admin', adminPhone: '', adminDob: '', adminGender: 'Male' });
 
   useEffect(() => {
     if (!inst) return;
@@ -309,7 +327,7 @@ export default function AdminProfilePage() {
     const a = {
       adminName: adminUser_?.name ?? adminUser_?.email?.split('@')[0] ?? '',
       adminPrefix: adminUser_?.prefix ?? inst.adminPrefix ?? 'Mr.',
-      adminTitle: adminUser_?.title ?? inst.adminTitle ?? 'Principal',
+      adminTitle: adminUser_?.title ?? inst.adminTitle ?? 'Admin',
       adminPhone: adminUser_?.phone ?? inst.adminPhone ?? '',
       adminDob: adminUser_?.dob ?? inst.adminDob ?? '',
       adminGender: adminUser_?.gender ?? inst.adminGender ?? 'Male',
@@ -437,7 +455,7 @@ export default function AdminProfilePage() {
   const TypeIcon = inst.type === 'SCHOOL' ? School : inst.type === 'COLLEGE' ? GraduationCap : BookOpen;
   const initials = inst.name.split(' ').slice(0, 2).map((w) => w[0]).join('').toUpperCase();
   const joinDate = toIST(inst.createdAt);
-  const planName = inst.subscription?.plan?.name ?? inst.subscription?.planOption ?? 'BASIC';
+  const planName = inst.isTrial ? 'Trial' : (inst.subscription?.plan?.name ?? inst.subscription?.planOption ?? 'BASIC');
   const instCode = inst.institutionCode ?? null;
   const studentCount = inst.studentCount ?? 0;
   const teacherCount = inst.teacherCount ?? 0;
@@ -671,19 +689,6 @@ export default function AdminProfilePage() {
                     )
                   }
                 />
-                <InfoRow
-                  icon={Hash}
-                  label="My ID"
-                  value={
-                    myDisplayId ? (
-                      <span className="font-mono text-xs font-semibold tracking-wider" style={{ color: '#DA7756' }}>
-                        {myDisplayId}
-                      </span>
-                    ) : (
-                      <span className="italic text-muted-foreground/50 text-[11px]">—</span>
-                    )
-                  }
-                />
                 <InfoRow icon={Building2} label="Name" value={instSaved.name} />
                 <InfoRow icon={TypeIcon} label="Type" value={inst.type} />
                 <InfoRow icon={Mail} label="Email" value={instSaved.email} />
@@ -801,6 +806,29 @@ export default function AdminProfilePage() {
                         </div>
                       </span>
                       <span className="text-xs font-medium text-foreground flex-1">{adminUser.email}</span>
+                    </div>
+                    <div className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-none">
+                      <Hash size={14} className="text-muted-foreground shrink-0" />
+                      <span className="text-xs text-muted-foreground w-28 shrink-0 flex items-center gap-1">
+                        Admin ID
+                        <div className="relative group/tip">
+                          <Info size={11} className="text-muted-foreground/50 cursor-pointer hover:text-primary transition-colors" />
+                          <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/tip:block z-50 pointer-events-none">
+                            <div className="bg-gray-900 dark:bg-gray-800 text-[11px] text-white rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap">
+                              This is your unique login ID
+                            </div>
+                          </div>
+                        </div>
+                      </span>
+                      <span className="text-xs font-medium text-foreground flex-1">
+                        {myDisplayId ? (
+                          <span className="font-mono text-xs font-semibold tracking-wider" style={{ color: '#DA7756' }}>
+                            {myDisplayId}
+                          </span>
+                        ) : (
+                          <span className="italic text-muted-foreground/50 text-[11px]">—</span>
+                        )}
+                      </span>
                     </div>
                     <InfoRow icon={Phone} label="Admin Phone" value={adminSaved.adminPhone || '—'} />
                     <InfoRow icon={Calendar} label="Admin DOB" value={adminSaved.adminDob ? toIST(adminSaved.adminDob) : '—'} />

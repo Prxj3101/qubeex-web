@@ -5,9 +5,6 @@ import { createPortal } from 'react-dom';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AddStudentModal, StudentFormData } from './AddStudentModal';
-import ReportStudentModal, { ReportFormData } from './ReportStudentModal';
-import StudentProfileModal, { ProfileMarksheet, ProfileAttendanceTrend } from './StudentProfileModal';
-import { FlagItem } from '@/lib/flags';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Users, BookOpen, ExternalLink, ChevronDown, Power, Flag, Plus, Trash2,
@@ -286,9 +283,6 @@ export default function ManageTab({ division, isClassTeacher }: {
 
     const [showExportMenu, setShowExportMenu] = useState(false);
 
-    const [showReportModal, setShowReportModal] = useState(false);
-    const [showProfileModal, setShowProfileModal] = useState(false);
-    const [submittingReport, setSubmittingReport] = useState(false);
 
     // Student creation success modal
     const [createdStudent, setCreatedStudent] = useState<{ studentId: string; tempPassword: string; name: string } | null>(null);
@@ -406,20 +400,6 @@ export default function ManageTab({ division, isClassTeacher }: {
             toast.error(e?.response?.data?.error ?? 'Failed to add student');
         } finally {
             setAddingStudent(false);
-        }
-    };
-
-    const handleReportStudent = async (data: ReportFormData) => {
-        if (!selectedStudent) return;
-        setSubmittingReport(true);
-        try {
-            await api.post(`/teacher/classes/${division.id}/students/${selectedStudent.id}/remarks`, data);
-            toast.success('Report submitted');
-            setShowReportModal(false);
-        } catch (err: unknown) {
-            toast.error(getErrorMessage(err, 'Failed to submit report'));
-        } finally {
-            setSubmittingReport(false);
         }
     };
 
@@ -684,12 +664,12 @@ export default function ManageTab({ division, isClassTeacher }: {
                                     ? <><PowerOff size={11} /> Deactivate</>
                                     : <><Power size={11} /> Activate</>}
                             </button>
-                            <button onClick={() => setShowReportModal(true)}
+                            <button onClick={() => router.push(`/teacher/classes/${division.id}/students/${selectedStudent.id}/reports?name=${encodeURIComponent(selectedStudent.user.name ?? 'Student')}`)}
                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
                                 <Flag size={11} /> Report
                             </button>
                             <button
-                                onClick={() => setShowProfileModal(true)}
+                                onClick={() => router.push(`/teacher/classes/${division.id}/students/${selectedStudent.id}/profile`)}
                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
                                 <ExternalLink size={10} /> View Profile
                             </button>
@@ -1149,40 +1129,6 @@ export default function ManageTab({ division, isClassTeacher }: {
                         onSubmit={handleAddStudent}
                     />
 
-                    {selectedStudent && (
-                        <ReportStudentModal
-                            open={showReportModal}
-                            onOpenChange={setShowReportModal}
-                            studentName={selectedStudent.user.name ?? 'Student'}
-                            loading={submittingReport}
-                            onSubmit={handleReportStudent}
-                        />
-                    )}
-
-                    {selectedStudent && (
-                        <StudentProfileModal
-                            open={showProfileModal}
-                            onOpenChange={setShowProfileModal}
-                            student={selectedStudent}
-                            divisionLabel={`${division.standard.name} - ${division.name}`}
-                            fetchMarksheet={async () => {
-                                try {
-                                    const res = await api.get(`/teacher/classes/${division.id}/students/${selectedStudent.id}/marksheet`);
-                                    return res.data.data as ProfileMarksheet;
-                                } catch {
-                                    return null;
-                                }
-                            }}
-                            fetchRemarks={async () => {
-                                const res = await api.get(`/teacher/classes/${division.id}/students/${selectedStudent.id}/remarks`);
-                                return res.data.data as FlagItem[];
-                            }}
-                            fetchAttendanceTrend={async () => {
-                                const res = await api.get(`/teacher/classes/${division.id}/students/${selectedStudent.id}/attendance-trend`);
-                                return res.data.data as ProfileAttendanceTrend;
-                            }}
-                        />
-                    )}
                 </div>
             </div>
         </div>

@@ -178,6 +178,14 @@ export default function SubscriptionPage() {
             .finally(() => setOverviewLoading(false));
     }, []);
 
+    // Background poll — surfaces superadmin-side plan/pause/feature changes without a manual reload.
+    useEffect(() => {
+        const poll = setInterval(() => {
+            api.get('/admin/overview').then(res => setOverview(res.data.data)).catch(() => {});
+        }, 30_000);
+        return () => clearInterval(poll);
+    }, []);
+
     const isTrial = overview?.plan.isTrial ?? false;
     const currentPlan: 'BASIC' | 'PRO' = overview?.plan.name === 'PRO' ? 'PRO' : 'BASIC';
     const config = PLAN_CONFIG[currentPlan];
@@ -220,6 +228,16 @@ export default function SubscriptionPage() {
             .then(res => setBills(res.data.data?.bills ?? []))
             .catch(() => {})
             .finally(() => setBillsLoading(false));
+    }, []);
+
+    // Background poll — surfaces new bills (generated/paid status changes) without a manual reload.
+    useEffect(() => {
+        const poll = setInterval(() => {
+            api.get('/admin/bills', { params: { limit: 10 } })
+                .then(res => setBills(res.data.data?.bills ?? []))
+                .catch(() => {});
+        }, 30_000);
+        return () => clearInterval(poll);
     }, []);
 
     const latestBill = bills[0] ?? null;

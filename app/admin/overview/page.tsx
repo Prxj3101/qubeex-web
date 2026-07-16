@@ -45,6 +45,14 @@ export default function AdminOverviewPage() {
             .catch(() => {});
     }, []);
 
+    // Background poll — surfaces superadmin-side plan/pause/feature/status changes without a manual reload.
+    useEffect(() => {
+        const poll = setInterval(() => {
+            api.get('/admin/overview').then(res => setOverview(res.data.data)).catch(() => {});
+        }, 30_000);
+        return () => clearInterval(poll);
+    }, []);
+
     if (loading) {
         return (
             <div className="space-y-6">
