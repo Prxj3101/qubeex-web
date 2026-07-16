@@ -779,6 +779,27 @@ function ViewDetailsTab({
                 </>
               ) : (
                 <>
+                  <div className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-none">
+                    <Hash size={14} className="text-muted-foreground shrink-0" />
+                    <span className="text-xs text-muted-foreground w-28 shrink-0 flex items-center gap-1">
+                      Admin ID
+                      <div className="relative group/tip">
+                        <Info size={11} className="text-muted-foreground/50 cursor-pointer hover:text-primary transition-colors" />
+                        <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/tip:block z-50 pointer-events-none">
+                          <div className="bg-gray-900 dark:bg-gray-800 text-[11px] text-white rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap">
+                            This ID is used for admin login
+                          </div>
+                        </div>
+                      </div>
+                    </span>
+                    {adminUser?.displayId ? (
+                      <span className="font-mono text-xs font-semibold tracking-wider" style={{ color: '#DA7756' }}>
+                        {adminUser.displayId}
+                      </span>
+                    ) : (
+                      <span className="italic text-muted-foreground/50 text-[11px]">—</span>
+                    )}
+                  </div>
                   <InfoRow icon={User} label="Admin Name" value={
                     <span>
                       {adminSaved.adminPrefix && <span className="font-semibold mr-1" style={{ color: "#DA7756" }}>{adminSaved.adminPrefix}</span>}
@@ -3280,9 +3301,10 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
               <TrialUsageBar
                 label="Days Remaining"
                 icon={CalendarIcon}
-                used={daysRemaining ?? 0}
+                used={trialDays - (daysRemaining ?? 0)}
                 total={trialDays}
                 unitLabel="days"
+                formatter={() => String(daysRemaining ?? 0)}
               />
               <TrialUsageBar
                 label="Users"

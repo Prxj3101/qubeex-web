@@ -39,6 +39,7 @@ export type AdminUser = {
   gender?: string | null;
   prefix?: string | null;
   title?: string | null;
+  displayId?: string | null;
 };
 
 export type InstData = {

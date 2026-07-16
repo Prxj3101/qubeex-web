@@ -28,9 +28,9 @@ const INST_TYPES = [
 ] as const;
 
 const PLANS = [
+    { value: 'TRIAL', label: 'Trial' },
     { value: 'BASIC', label: 'Basic' },
     { value: 'PRO', label: 'Pro' },
-    { value: 'TRIAL', label: 'Trial' },
 ] as const;
 
 const COUNTRY_CODES = [
@@ -190,7 +190,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
         address: '', city: '', state: '', country: 'India', pincode: '',
         adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '',
         establishedOn: '',
-        plan: 'BASIC' as 'BASIC' | 'PRO' | 'TRIAL',
+        plan: 'TRIAL' as 'BASIC' | 'PRO' | 'TRIAL',
         trialDays: '14',
         board: '', medium: '',
     });
@@ -279,7 +279,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     };
 
     const resetForm = () => {
-        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', abbreviation: '', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '', establishedOn: '', plan: 'BASIC', trialDays: '14', board: '', medium: '' });
+        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', abbreviation: '', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '', establishedOn: '', plan: 'TRIAL', trialDays: '14', board: '', medium: '' });
         setLogoPreview(null);
         setLogoFile(null);
         if (fileRef.current) fileRef.current.value = '';
