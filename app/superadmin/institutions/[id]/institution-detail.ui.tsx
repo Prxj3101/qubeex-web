@@ -1,4 +1,4 @@
-import { X, Check } from "lucide-react";
+import { X, Check, ArrowUpRight } from "lucide-react";
 
 export function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
   return (
@@ -20,16 +20,28 @@ export function InfoBox({
   value,
   sub,
   highlight,
+  onAction,
 }: {
   label: string;
   value: string;
   sub?: string;
   highlight?: boolean;
+  onAction?: () => void;
 }) {
   return (
     <div
-      className={`rounded-xl p-3 ${highlight ? "bg-[#DA7756]/10 border border-[#DA7756]/20" : "bg-muted/40"}`}
+      className={`relative rounded-xl p-3 ${highlight ? "bg-[#DA7756]/10 border border-[#DA7756]/20" : "bg-muted/40"}`}
     >
+      {onAction && (
+        <button
+          onClick={onAction}
+          className="absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center text-white shadow-sm hover:scale-105 active:scale-95 transition-all"
+          style={{ background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" }}
+          title="View users"
+        >
+          <ArrowUpRight size={13} />
+        </button>
+      )}
       <p className="text-[11px] text-muted-foreground">{label}</p>
       <p className={`text-sm font-bold mt-0.5 ${highlight ? "text-[#DA7756]" : ""}`}>
         {value}

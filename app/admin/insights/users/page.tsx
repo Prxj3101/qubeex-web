@@ -2,7 +2,9 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Users, Search, Shield, BookOpen, GraduationCap, Crown } from 'lucide-react';
+import { ArrowLeft, Users, Search, Shield, BookOpen, GraduationCap, Crown, ChevronLeft, ChevronRight, History } from 'lucide-react';
+
+const MONTHS_S = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 // ── Mock data ─────────────────────────────────────────────────────────────────
 const MOCK_USERS = [
@@ -57,8 +59,31 @@ export default function UsersInsightPage() {
     const [roleFilter, setRoleFilter] = useState<Role>('ALL');
     const [statusFilter, setStatusFilter] = useState<Status>('ALL');
 
+    // ── Billing month snapshot — shows which users existed as of that month ──
+    const now = new Date();
+    const BILL_MONTHS = useMemo(() => {
+        const arr: { key: number; short: string; year: number; monthIdx: number; isFuture: boolean }[] = [];
+        for (let i = 11; i >= -1; i--) {
+            const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+            arr.push({ key: 11 - i, short: MONTHS_S[d.getMonth()], year: d.getFullYear(), monthIdx: d.getMonth(), isFuture: i < 0 });
+        }
+        return arr;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+    const currentBillKey = BILL_MONTHS.length - 2; // last non-future month
+    const [activeBillMonth, setActiveBillMonth] = useState(currentBillKey);
+    const [billMonthOffset, setBillMonthOffset] = useState(Math.max(0, currentBillKey - 1));
+    const billSel = BILL_MONTHS[activeBillMonth];
+    const billLabel = `${billSel.short} ${String(billSel.year).slice(-2)}`;
+    const isCurrentMonth = activeBillMonth === currentBillKey;
+    const billEndOfMonth = new Date(billSel.year, billSel.monthIdx + 1, 0, 23, 59, 59);
+
+    const usersAsOfMonth = useMemo(() => {
+        return MOCK_USERS.filter(u => new Date(u.joinedAt) <= billEndOfMonth);
+    }, [billEndOfMonth]);
+
     const filtered = useMemo(() => {
-        return MOCK_USERS.filter(u => {
+        return usersAsOfMonth.filter(u => {
             if (roleFilter !== 'ALL' && u.role !== roleFilter) return false;
             if (statusFilter !== 'ALL' && u.status !== statusFilter) return false;
             if (search.trim()) {
@@ -67,21 +92,21 @@ export default function UsersInsightPage() {
             }
             return true;
         });
-    }, [search, roleFilter, statusFilter]);
+    }, [usersAsOfMonth, search, roleFilter, statusFilter]);
 
-    const total = MOCK_USERS.length;
-    const active = MOCK_USERS.filter(u => u.status === 'ACTIVE').length;
-    const inactive = MOCK_USERS.filter(u => u.status === 'INACTIVE').length;
+    const total = usersAsOfMonth.length;
+    const active = usersAsOfMonth.filter(u => u.status === 'ACTIVE').length;
+    const inactive = usersAsOfMonth.filter(u => u.status === 'INACTIVE').length;
 
     const roleCounts = {
-        ADMIN:     MOCK_USERS.filter(u => u.role === 'ADMIN').length,
-        SUB_ADMIN: MOCK_USERS.filter(u => u.role === 'SUB_ADMIN').length,
-        TEACHER:   MOCK_USERS.filter(u => u.role === 'TEACHER').length,
-        STUDENT:   MOCK_USERS.filter(u => u.role === 'STUDENT').length,
+        ADMIN:     usersAsOfMonth.filter(u => u.role === 'ADMIN').length,
+        SUB_ADMIN: usersAsOfMonth.filter(u => u.role === 'SUB_ADMIN').length,
+        TEACHER:   usersAsOfMonth.filter(u => u.role === 'TEACHER').length,
+        STUDENT:   usersAsOfMonth.filter(u => u.role === 'STUDENT').length,
     };
 
     const ROLE_FILTERS: { value: Role; label: string }[] = [
-        { value: 'ALL',       label: 'All' },
+        { value: 'ALL',       label: `All (${total})` },
         { value: 'ADMIN',     label: `Admin (${roleCounts.ADMIN})` },
         { value: 'SUB_ADMIN', label: `Sub-Admin (${roleCounts.SUB_ADMIN})` },
         { value: 'TEACHER',   label: `Teacher (${roleCounts.TEACHER})` },
@@ -103,6 +128,14 @@ export default function UsersInsightPage() {
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <Users size={21} />
                             Users
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10.5px] font-semibold border ${
+                                isCurrentMonth
+                                    ? 'border-border/60 text-muted-foreground bg-muted/30'
+                                    : 'border-[#DA7756]/30 text-[#DA7756] bg-[#DA7756]/10'
+                            }`}>
+                                {!isCurrentMonth && <History size={10} />}
+                                {billSel.short} {billSel.year}
+                            </span>
                         </h1>
                         <p className="text-[13px] text-muted-foreground">All billable users on your plan</p>
                     </div>
@@ -168,9 +201,37 @@ export default function UsersInsightPage() {
                                         : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground'
                                 }`}
                                 style={statusFilter === s && s === 'ALL' ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
-                                {s === 'ALL' ? 'All' : s === 'ACTIVE' ? 'Active' : 'Inactive'}
+                                {s === 'ALL' ? `All (${total})` : s === 'ACTIVE' ? `Active (${active})` : `Inactive (${inactive})`}
                             </button>
                         ))}
+                    </div>
+
+                    {/* Billing month selector — same navigator as Attendance Sheet */}
+                    <div className="flex items-center gap-1 sm:ml-auto">
+                        <button onClick={() => setBillMonthOffset(v => Math.max(0, v - 1))} disabled={billMonthOffset === 0}
+                            className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-30 transition-all">
+                            <ChevronLeft size={13} />
+                        </button>
+                        <div className="flex items-center gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border/40">
+                            {BILL_MONTHS.slice(billMonthOffset, billMonthOffset + 3).map(m => {
+                                const isActive = activeBillMonth === m.key;
+                                return (
+                                    <button key={m.key} onClick={() => !m.isFuture && setActiveBillMonth(m.key)}
+                                        disabled={m.isFuture}
+                                        className={`px-2.5 py-1 rounded-md text-[11px] font-semibold transition-all ${
+                                            m.isFuture
+                                                ? 'text-muted-foreground/30 cursor-not-allowed'
+                                                : isActive ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                                        }`}>
+                                        {m.short} {String(m.year).slice(-2)}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        <button onClick={() => setBillMonthOffset(v => Math.min(BILL_MONTHS.length - 3, v + 1))} disabled={billMonthOffset >= BILL_MONTHS.length - 3}
+                            className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted disabled:opacity-30 transition-all">
+                            <ChevronRight size={13} />
+                        </button>
                     </div>
                 </div>
 

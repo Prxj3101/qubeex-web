@@ -52,6 +52,7 @@ import {
   Calendar as CalendarIcon,
   Cpu,
   FlaskConical,
+  ArrowUpRight,
 } from "lucide-react";
 import { Institution } from "@/types";
 import api from "@/lib/api";
@@ -1638,6 +1639,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 label="Active Users"
                 value={String(activeUsers)}
                 sub="billed this month"
+                onAction={() => router.push(`/superadmin/institutions/${inst.id}/users`)}
               />
               <InfoBox
                 label="Current Rate"
@@ -2997,6 +2999,42 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
     const daysRemaining = trialUsage?.daysRemaining ?? null;
     const trialStartDate = inst.subscription?.startDate ? new Date(inst.subscription.startDate) : null;
 
+    const TrialPieTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number }> }) => {
+      if (!active || !payload?.length) return null;
+      const { name, value } = payload[0];
+      const colorMap: Record<string, string> = {
+        Admin: "#7C3AED",
+        Teachers: "#F59E0B",
+        Students: "#10B981",
+      };
+      return (
+        <div
+          className="px-3 py-2 rounded-xl shadow-xl"
+          style={{ background: "#1A1030", border: "1px solid #2D1F50" }}
+        >
+          <div className="flex items-center gap-2">
+            <div
+              className="w-2 h-2 rounded-full"
+              style={{ background: colorMap[name] }}
+            />
+            <span style={{ color: "#F1F5F9", fontSize: 12, fontWeight: 600 }}>
+              {name}
+            </span>
+          </div>
+          <p
+            style={{
+              color: "#F1F5F9",
+              fontSize: 13,
+              fontWeight: 800,
+              marginTop: 2,
+            }}
+          >
+            {value}
+          </p>
+        </div>
+      );
+    };
+
     const TrialUsageBar = ({
       label,
       icon: Icon,
@@ -3005,6 +3043,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       unitLabel,
       formatter,
       pending,
+      onAction,
     }: {
       label: string;
       icon: React.ElementType;
@@ -3013,6 +3052,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
       unitLabel: string;
       formatter?: (v: number) => string;
       pending?: boolean;
+      onAction?: () => void;
     }) => {
       const f = formatter ?? ((v: number) => v.toLocaleString("en-IN"));
       const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
@@ -3025,6 +3065,16 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
             <div className="flex items-center gap-1.5">
               <Icon size={13} className="text-muted-foreground" />
               <p className="text-xs font-medium">{label}</p>
+              {onAction && (
+                <button
+                  onClick={onAction}
+                  className="w-5 h-5 rounded-md flex items-center justify-center text-white shadow-sm hover:scale-105 active:scale-95 transition-all"
+                  style={{ background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" }}
+                  title="View users"
+                >
+                  <ArrowUpRight size={11} />
+                </button>
+              )}
             </div>
             {pending ? (
               <span className="text-[10px] font-medium text-muted-foreground italic">Not tracked yet</span>
@@ -3105,6 +3155,56 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
             </div>
           </div>
 
+          {/* Users breakdown pie — same as BASIC/PRO active banner */}
+          <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border/50">
+            <div className="relative w-[90px] h-[90px] shrink-0" style={{ overflow: "visible" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: "Admin", value: 1 },
+                      { name: "Teachers", value: inst.teacherCount ?? 0 },
+                      { name: "Students", value: inst.studentCount ?? 0 },
+                    ]}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={28}
+                    outerRadius={42}
+                    dataKey="value"
+                    strokeWidth={2}
+                    stroke="hsl(var(--card))"
+                    paddingAngle={3}
+                    minAngle={8}
+                  >
+                    <Cell fill="#7C3AED" />
+                    <Cell fill="#F59E0B" />
+                    <Cell fill="#10B981" />
+                  </Pie>
+                  <Tooltip content={<TrialPieTooltip />} position={{ x: 95, y: 0 }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                <p className="text-sm font-black leading-none">{activeUsers}</p>
+                <p className="text-[9px] text-muted-foreground mt-0.5">Total</p>
+              </div>
+            </div>
+            <div className="space-y-2 shrink-0">
+              {[
+                { label: "Admin", value: 1, color: "text-violet-600 dark:text-violet-400", dot: "bg-violet-500" },
+                { label: "Teachers", value: inst.teacherCount ?? 0, color: "text-amber-600 dark:text-amber-400", dot: "bg-amber-500" },
+                { label: "Students", value: inst.studentCount ?? 0, color: "text-emerald-600 dark:text-emerald-400", dot: "bg-emerald-500" },
+              ].map(({ label, value, color, dot }) => (
+                <div key={label} className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full shrink-0 ${dot}`} />
+                  <div>
+                    <p className={`text-sm font-black leading-none ${color}`}>{value}</p>
+                    <p className="text-[10px] text-muted-foreground">{label}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* Quick stats row */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-border/50">
             <InfoBox
@@ -3117,6 +3217,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
               label="Users"
               value={String(trialUsage?.users.used ?? 0)}
               sub={`/ ${trialUsage?.users.limit ?? 500} max`}
+              onAction={() => router.push(`/superadmin/institutions/${inst.id}/users`)}
             />
             <InfoBox
               label="AI Tokens Used"
@@ -3179,8 +3280,8 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                       setExtending(false);
                     }
                   }}
-                  className="h-10 px-4 rounded-xl text-sm font-semibold text-white transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
-                  style={{ background: "linear-gradient(135deg, #7C3AED, #9D5AFF)" }}
+                  className="h-10 px-4 rounded-xl text-sm font-semibold text-white transition-all duration-150 hover:opacity-90 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1.5"
+                  style={{ background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" }}
                 >
                   {extending && <span className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
                   Confirm Extension
@@ -3198,6 +3299,14 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 <XCircle size={13} />
                 Stop Trial Early
               </span>
+            }
+            editBtn={
+              <button
+                onClick={() => { setChurnOpen(false); setChurnConfirm(false); }}
+                className="h-7 px-3 rounded-lg border border-border/60 text-xs font-semibold text-muted-foreground hover:bg-muted/40 transition-all"
+              >
+                Cancel
+              </button>
             }
           >
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -3266,12 +3375,6 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 </button>
               </div>
             </div>
-            <button
-              onClick={() => { setChurnOpen(false); setChurnConfirm(false); }}
-              className="mt-3 text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              <ChevronRight size={11} className="rotate-180" /> Cancel
-            </button>
           </SectionCard>
         )}
 
@@ -3285,7 +3388,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
           }
         >
           {loadingTrialUsage ? (
-            <div className="space-y-4 animate-pulse">
+            <div className="space-y-4 animate-pulse mt-3">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="space-y-2">
                   <div className="flex justify-between">
@@ -3297,7 +3400,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
               ))}
             </div>
           ) : (
-            <div className="space-y-5">
+            <div className="space-y-5 mt-3">
               <TrialUsageBar
                 label="Days Remaining"
                 icon={CalendarIcon}
@@ -3312,6 +3415,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 used={trialUsage?.users.used ?? 0}
                 total={trialUsage?.users.limit ?? 500}
                 unitLabel="users"
+                onAction={() => router.push(`/superadmin/institutions/${inst.id}/users`)}
               />
               <TrialUsageBar
                 label="AI Tokens"
@@ -3334,6 +3438,84 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
             </div>
           )}
         </SectionCard>
+
+        {/* Feature Controls — trial gets full PRO feature set, same UI as active PRO plan */}
+        {(() => {
+          const { defaults: trialDefFeatures, addons: trialAddonFeatures } = getPlanFeatures("PRO");
+          return (
+            <SectionCard title="Feature Controls">
+              <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                Default Features
+                <span className="text-[10px] text-emerald-600 dark:text-emerald-400 normal-case font-normal ml-2">
+                  Included free during trial
+                </span>
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-5">
+                {trialDefFeatures.map(({ key, label, desc, icon: Icon }) => (
+                  <div
+                    key={key}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ?? true ? "border-[#DA7756]/30 bg-[#DA7756]/5" : "border-border/50 bg-muted/20"}`}
+                  >
+                    <div className="flex items-center gap-2 min-w-0 mr-3">
+                      <Icon size={13} className="text-muted-foreground shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">{label}</p>
+                        <p className="text-[11px] text-muted-foreground">{desc}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                        Default
+                      </span>
+                      <Toggle
+                        on={features[key] ?? true}
+                        onToggle={() => setFeatures((p) => ({ ...p, [key]: !(p[key] ?? true) }))}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {trialAddonFeatures.length > 0 && (
+                <>
+                  <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
+                    Add-On Features
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 normal-case font-normal ml-2">
+                      Included free during trial
+                    </span>
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {trialAddonFeatures.map(({ key, label, desc, icon: Icon }) => {
+                      const enabled = features[key] ?? true;
+                      return (
+                        <div
+                          key={key}
+                          className={`flex items-center justify-between p-3 rounded-xl border transition-all ${enabled ? "border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/20" : "border-border/50 bg-muted/20"}`}
+                        >
+                          <div className="flex items-center gap-2 min-w-0 mr-3">
+                            <Icon size={13} className="text-muted-foreground shrink-0" />
+                            <div className="min-w-0">
+                              <p className="text-xs font-medium truncate">{label}</p>
+                              <p className="text-[11px] text-muted-foreground">{desc}</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                              Add-On
+                            </span>
+                            <Toggle
+                              on={enabled}
+                              onToggle={() => setFeatures((p) => ({ ...p, [key]: !enabled }))}
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </SectionCard>
+          );
+        })()}
       </motion.div>
     );
   }
