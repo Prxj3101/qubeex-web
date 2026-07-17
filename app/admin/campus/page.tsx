@@ -308,6 +308,7 @@ function VerifiedBadge() {
 function FeedCard({ post, onDelete, canManage }: { post: FeedPost; onDelete: (id: string) => void; canManage: boolean }) {
     const [expanded, setExpanded] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const isLongBody = (post.body?.length ?? 0) > 100;
     const meta = POST_META[post.type];
     const name = post.author.name;
     const initials = name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
@@ -351,7 +352,7 @@ function FeedCard({ post, onDelete, canManage }: { post: FeedPost; onDelete: (id
             <div>
                 <p className="text-sm font-bold mb-1">{post.title}</p>
                 {post.body && (
-                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>{post.body}</p>
+                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded && isLongBody ? 'line-clamp-2' : ''}`}>{post.body}</p>
                 )}
             </div>
             {post.attachmentUrl && post.attachmentName && post.attachmentType && (
@@ -360,11 +361,13 @@ function FeedCard({ post, onDelete, canManage }: { post: FeedPost; onDelete: (id
                 />
             )}
             <div className="flex items-center justify-between">
-                <button onClick={() => setExpanded(v => !v)}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                    {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                    {expanded ? 'Show less' : 'Read more'}
-                </button>
+                {isLongBody ? (
+                    <button onClick={() => setExpanded(v => !v)}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        {expanded ? 'Show less' : 'Read more'}
+                    </button>
+                ) : <span />}
                 <span className="text-[11px] text-muted-foreground/70">{formatDateTime(post.createdAt)}</span>
             </div>
             {/* Confirm popup */}

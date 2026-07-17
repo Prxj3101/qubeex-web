@@ -258,6 +258,7 @@ function AcademicCalendar() {
 // ── Feed Card ─────────────────────────────────────────────────────────────────
 function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string }) {
     const [expanded, setExpanded] = useState(false);
+    const isLongBody = (post.body?.length ?? 0) > 100;
     const meta = POST_META[post.type];
     const avatarColor = getAvatarColor(post.author.name);
     const initials = getInitials(post.author.name);
@@ -305,7 +306,7 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
             <div>
                 <p className="text-sm font-bold mb-1">{post.title}</p>
                 {post.body && (
-                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>
+                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded && isLongBody ? 'line-clamp-2' : ''}`}>
                         <LinkifiedText text={post.body} />
                     </p>
                 )}
@@ -318,11 +319,13 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
             )}
 
             <div className="flex items-center justify-between">
-                <button onClick={() => setExpanded(v => !v)}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                    {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                    {expanded ? 'Show less' : 'Read more'}
-                </button>
+                {isLongBody ? (
+                    <button onClick={() => setExpanded(v => !v)}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        {expanded ? 'Show less' : 'Read more'}
+                    </button>
+                ) : <span />}
                 <span className="text-[11px] text-muted-foreground/70">{formatDateTime(post.createdAt)}</span>
             </div>
         </motion.div>

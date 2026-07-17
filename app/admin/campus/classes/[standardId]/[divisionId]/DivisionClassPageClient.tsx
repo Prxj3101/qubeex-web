@@ -657,6 +657,7 @@ function VerifiedBadge() {
 function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: string) => void }) {
     const [expanded, setExpanded] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const isLongBody = (ann.body?.length ?? 0) > 100;
     const meta = POST_META[ann.type];
     const authorName = ann.author.name;
     const initials = authorName.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase();
@@ -713,7 +714,7 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
             <div>
                 <p className="text-sm font-bold mb-1">{ann.title}</p>
                 {ann.body && (
-                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded ? 'line-clamp-2' : ''}`}>
+                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded && isLongBody ? 'line-clamp-2' : ''}`}>
                         {ann.body}
                     </p>
                 )}
@@ -724,11 +725,13 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
                 />
             )}
             <div className="flex items-center justify-between">
-                <button onClick={() => setExpanded(v => !v)}
-                    className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
-                    {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                    {expanded ? 'Show less' : 'Read more'}
-                </button>
+                {isLongBody ? (
+                    <button onClick={() => setExpanded(v => !v)}
+                        className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+                        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                        {expanded ? 'Show less' : 'Read more'}
+                    </button>
+                ) : <span />}
                 <span className="text-[11px] text-muted-foreground/70">{exactDateTime}</span>
             </div>
             {confirmDelete && (

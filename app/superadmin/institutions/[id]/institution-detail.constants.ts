@@ -12,13 +12,14 @@ import {
   ShieldCheck,
   Cpu,
   Sparkles,
+  MessageSquare,
 } from "lucide-react";
 
 // Pricing is uniform across all institution types.
 // Volume tier is MARGINAL — only users beyond 1500 pay the lower rate.
 // Committed plan option gives 15% off monthly bill; Flexible is full rate.
 // During pause (Flexible only): 50% billing, limited access, max 2 months/year.
-// AI tokens: BASIC/PRO = 10M/month, TRIAL = 2M.
+// AI tokens: BASIC = 10M/month, PRO = 15M/month, TRIAL = 2M.
 export const PLAN_BASE = {
   BASIC: {
     licence: 39999,
@@ -31,7 +32,7 @@ export const PLAN_BASE = {
     licence: 59999,
     baseRate: 39,
     marginalRate: 33,
-    aiTokens: 10,
+    aiTokens: 15,
     storage: "1TB",
   },
   TRIAL: {
@@ -80,26 +81,28 @@ export const ALL_FEATURES: {
   inPro: boolean;
   addOnBasic: boolean;
   addOnPro: boolean;
+  comingSoon?: boolean;
 }[] = [
   { key: "student_mgmt", label: "Student Management", desc: "Enroll & manage students", icon: Users, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "teacher_mgmt", label: "Teacher Management", desc: "Add & assign teachers", icon: User, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "course_mgmt", label: "Course Management", desc: "Manage subjects & courses", icon: BookMarked, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "attendance", label: "Attendance Tracking", desc: "Student attendance management", icon: ClipboardList, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
-  { key: "tests", label: "Question & Test Generation", desc: "Create & conduct assessments", icon: FileText, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+  { key: "tests", label: "AI Question & Test Generation", desc: "Create & conduct assessments", icon: FileText, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "results", label: "Results & Marksheet", desc: "Generate result reports", icon: BarChart2, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "calendar", label: "Academic Calendar", desc: "Schedule academic events", icon: CalendarIcon, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "announcements", label: "Announcements & Feed", desc: "Post notices & updates", icon: Bell, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "submissions", label: "Submissions & Resource Sharing", desc: "Homework & material sharing", icon: BookMarked, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "flags", label: "Remarks: Flags & Warning", desc: "Student disciplinary tracking", icon: Flag, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "fees", label: "Fees Management", desc: "Track fee payments", icon: Wallet, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
-  { key: "timetable_manual", label: "Timetable Scheduling (Manual)", desc: "Manual timetable management", icon: CalendarIcon, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+  { key: "staffroom", label: "Staffroom & Direct Messaging", desc: "Staff feed and 1-on-1 chats", icon: MessageSquare, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+  { key: "timetable_manual", label: "Timetable Publishing", desc: "Manual timetable management", icon: CalendarIcon, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "student_app", label: "Student's App", desc: "Mobile app for students", icon: Users, inBasic: true, inPro: false, addOnBasic: false, addOnPro: false },
   { key: "student_app_pro", label: "Student App with Parent Portal", desc: "Mobile app + parent access", icon: Users, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "leaderboard", label: "Leaderboard System", desc: "Student ranking & gamification", icon: Users, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
   { key: "whitelabeling", label: "Whitelabelling (logo+brandname)", desc: "Custom logo & brand name", icon: ShieldCheck, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
-  { key: "timetable_auto", label: "Timetable Scheduling (Auto)", desc: "AI-powered auto scheduling", icon: Cpu, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
-  { key: "analytics", label: "Performance Insights & Analytics", desc: "Advanced insights & reports", icon: BarChart2, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
-  { key: "smart_board", label: "Smart Board Screen with AI", desc: "Interactive AI smart board", icon: Sparkles, inBasic: true, inPro: true, addOnBasic: true, addOnPro: true },
+  { key: "analytics", label: "AI Performance Insights & Analytics", desc: "Advanced insights & reports", icon: BarChart2, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
+  { key: "timetable_auto", label: "AI Timetable Scheduling", desc: "AI-powered auto scheduling", icon: Cpu, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false, comingSoon: true },
+  { key: "smart_board", label: "AI Smart Board", desc: "Interactive AI smart board", icon: Sparkles, inBasic: true, inPro: true, addOnBasic: true, addOnPro: true },
 ];
 
 export const statusCfg: Record<string, { label: string; cls: string }> = {

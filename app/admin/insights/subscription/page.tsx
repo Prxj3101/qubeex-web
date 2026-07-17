@@ -26,7 +26,14 @@ import {
     Landmark,
     QrCode,
     Pause,
+    Database,
 } from 'lucide-react';
+
+function formatStorage(mb: number): string {
+    if (mb >= 1024 * 1024) return `${(mb / (1024 * 1024)).toFixed(mb % (1024 * 1024) === 0 ? 0 : 1)} TB`;
+    if (mb >= 1024) return `${(mb / 1024).toFixed(1)} GB`;
+    return `${Math.round(mb)} MB`;
+}
 
 export const ALL_FEATURES: {
     key: string;
@@ -42,7 +49,7 @@ export const ALL_FEATURES: {
         { key: "teacher_mgmt", label: "Teacher Management", desc: "Add & assign teachers", icon: User, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "course_mgmt", label: "Course Management", desc: "Manage subjects & courses", icon: BookMarked, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "attendance", label: "Attendance Tracking", desc: "Student attendance management", icon: ClipboardList, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
-        { key: "tests", label: "Question & Test Generation", desc: "Create & conduct assessments", icon: FileText, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
+        { key: "tests", label: "AI Question & Test Generation", desc: "Create & conduct assessments", icon: FileText, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "results", label: "Results & Marksheet", desc: "Generate result reports", icon: BarChart2, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "calendar", label: "Academic Calendar", desc: "Schedule academic events", icon: CalendarIcon, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "announcements", label: "Announcements & Feed", desc: "Post notices & updates", icon: Bell, inBasic: true, inPro: true, addOnBasic: false, addOnPro: false },
@@ -55,8 +62,8 @@ export const ALL_FEATURES: {
         { key: "student_app_pro", label: "Student App with Parent Portal", desc: "Mobile app + parent access", icon: Users, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "leaderboard", label: "Leaderboard System", desc: "Student ranking & gamification", icon: Users, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
         { key: "whitelabeling", label: "Whitelabelling (logo+brandname)", desc: "Custom logo & brand name", icon: ShieldCheck, inBasic: false, inPro: true, addOnBasic: false, addOnPro: false },
-        { key: "analytics", label: "Performance Insights & Analytics", desc: "Advanced insights & reports", icon: BarChart2, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
-        { key: "smart_board", label: "Smart Board Screen with AI", desc: "Interactive AI smart board", icon: Sparkles, inBasic: true, inPro: true, addOnBasic: true, addOnPro: true },
+        { key: "analytics", label: "AI Performance Insights & Analytics", desc: "Advanced insights & reports", icon: BarChart2, inBasic: true, inPro: true, addOnBasic: true, addOnPro: false },
+        { key: "smart_board", label: "AI Smart Board", desc: "Interactive AI smart board", icon: Sparkles, inBasic: true, inPro: true, addOnBasic: true, addOnPro: true },
     ];
 
 // ─── Plan Config ──────────────────────────────────────────────────────────────
@@ -66,7 +73,7 @@ const PLAN_CONFIG = {
         userMin: 200,
         storageLimit: 1024,
         storageUnit: ' GB',
-        aiTokenLimit: 10,
+        aiTokenLimit: 15,
         aiTokenUnit: ' M',
         ticketLimit: 10,
         upgradeLabel: 'Upgrade to Enterprise',
@@ -188,21 +195,46 @@ export default function SubscriptionPage() {
 
     const isTrial = overview?.plan.isTrial ?? false;
     const currentPlan: 'BASIC' | 'PRO' = overview?.plan.name === 'PRO' ? 'PRO' : 'BASIC';
+    // Trials include the full PRO feature set for free, regardless of the plan they'll convert to.
+    const featurePlan: 'BASIC' | 'PRO' = isTrial ? 'PRO' : currentPlan;
     const config = PLAN_CONFIG[currentPlan];
     const BadgeIcon = config.badgeIcon;
+
+    // Fallback to activationDate as trial start + a 14-day default window until the backend sends
+    // explicit trialStartDate/trialEndDate/trialDaysTotal fields.
+    const trialDaysTotal = overview?.plan.trialDaysTotal ?? 14;
+    const trialStartDate = overview?.plan.trialStartDate
+        ? new Date(overview.plan.trialStartDate)
+        : overview?.plan.activationDate
+            ? new Date(overview.plan.activationDate)
+            : overview?.institution.createdAt
+                ? new Date(overview.institution.createdAt)
+                : null;
+    const trialEndDate = overview?.plan.trialEndDate
+        ? new Date(overview.plan.trialEndDate)
+        : trialStartDate
+            ? new Date(trialStartDate.getTime() + trialDaysTotal * 24 * 60 * 60 * 1000)
+            : null;
+    const trialDaysRemaining = trialEndDate
+        ? Math.max(0, Math.ceil((trialEndDate.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+        : null;
 
     const usedUsers = overview?.plan.usage.users.used ?? 0;
     const userLimit = overview?.plan.usage.users.limit ?? 0;
     const userPct = userLimit ? Math.min(100, (usedUsers / userLimit) * 100) : 0;
 
     const aiTokensUsedRaw = overview?.plan.usage.aiTokens.used ?? 0;
-    const aiTokensLimitRaw = overview?.plan.usage.aiTokens.limit ?? 0;
+    const aiTokensLimitRaw = overview?.plan.usage.aiTokens.limit ?? (isTrial ? 2_000_000 : config.aiTokenLimit * 1_000_000);
     const usedAiTokens = Number((aiTokensUsedRaw / 1_000_000).toFixed(1));
     const aiTokenLimitDisplay = Number((aiTokensLimitRaw / 1_000_000).toFixed(1));
 
     const handleAddon = () => router.push('/admin/support/tickets');
 
     const aiTokenPct = aiTokensLimitRaw ? (aiTokensUsedRaw / aiTokensLimitRaw) * 100 : 0;
+
+    const usedStorage = overview?.plan.usage.storage.used ?? 0;
+    const storageLimit = overview?.plan.usage.storage.limit ?? (config.storageLimit * 1024);
+    const storagePct = storageLimit ? Math.min(100, (usedStorage / storageLimit) * 100) : 0;
 
     const tiers = PRICING_TIERS[currentPlan];
     const billedUsers = overview?.plan.billedUsers ?? 200;
@@ -306,7 +338,7 @@ export default function SubscriptionPage() {
                                 Upgrade to Pro <ArrowUpRight size={12} />
                             </button>
                         )}
-                        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${currentPlan === 'PRO' ? 'bg-[#DA7756]/15 text-[#DA7756]' : 'bg-violet-500/15 text-violet-500'}`}>
+                        <div className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold ${isTrial ? 'bg-[#F59E0B]/15 text-[#F59E0B]' : currentPlan === 'PRO' ? 'bg-[#DA7756]/15 text-[#DA7756]' : 'bg-violet-500/15 text-violet-500'}`}>
                             {isTrial ? 'TRIAL' : currentPlan}
                         </div>
                     </div>
@@ -347,19 +379,40 @@ export default function SubscriptionPage() {
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                                     <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Plan Active</span>
                                 </div>
-                                <h2 className="text-2xl font-black" style={{ color: currentPlan === 'PRO' ? '#DA7756' : '#7C3AED' }}>
+                                <h2 className="text-2xl font-black" style={{ color: isTrial ? '#F59E0B' : currentPlan === 'PRO' ? '#DA7756' : '#7C3AED' }}>
                                     {isTrial ? 'TRIAL' : currentPlan}
                                 </h2>
                                 <p className="text-sm text-muted-foreground mt-0.5">
-                                    School · Monthly Billing{!isTrial && ` · ₹${currentRate}/user`}
+                                    {isTrial ? `School · Free trial · ${trialDaysTotal} days total` : `School · Monthly Billing · ₹${currentRate}/user`}
                                 </p>
-                                <div className="flex items-center gap-3 mt-1.5">
-                                    <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                        <CalendarIcon size={11} /> Activated:
-                                        <span className="font-medium text-foreground ml-1">
-                                            {overview?.plan.activationDate ? formatBillDate(overview.plan.activationDate) : 'Not yet activated'}
+                                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                    {isTrial ? (
+                                        <>
+                                            {trialStartDate && (
+                                                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                                    <CalendarIcon size={11} /> Started:{' '}
+                                                    <span className="font-medium text-foreground ml-1">
+                                                        {trialStartDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    </span>
+                                                </span>
+                                            )}
+                                            {trialEndDate && (
+                                                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                                    <Flag size={11} className="text-amber-500" /> Ends:{' '}
+                                                    <span className="font-medium text-amber-600 dark:text-amber-400 ml-1">
+                                                        {trialEndDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}
+                                                    </span>
+                                                </span>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                            <CalendarIcon size={11} /> Activated:
+                                            <span className="font-medium text-foreground ml-1">
+                                                {overview?.plan.activationDate ? formatBillDate(overview.plan.activationDate) : 'Not yet activated'}
+                                            </span>
                                         </span>
-                                    </span>
+                                    )}
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
@@ -427,9 +480,11 @@ export default function SubscriptionPage() {
                                         <div className="flex items-center gap-2">
                                             <Users className="w-3.5 h-3.5 text-muted-foreground" />
                                             <span className="text-muted-foreground">Users</span>
-                                            <span className="text-[11px] font-medium text-violet-500 dark:text-violet-400">
-                                                (min. {config.userMin} | 200–1499 Users: ₹{currentPlan === 'PRO' ? 25 : 20}/user | 1500+ Users: ₹{currentPlan === 'PRO' ? 22 : 17}/user)
-                                            </span>
+                                            {!isTrial && (
+                                                <span className="text-[11px] font-medium text-violet-500 dark:text-violet-400">
+                                                    (min. {config.userMin} | 200–1499 Users: ₹{currentPlan === 'PRO' ? 25 : 20}/user | 1500+ Users: ₹{currentPlan === 'PRO' ? 22 : 17}/user)
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="font-semibold text-foreground">
@@ -447,6 +502,42 @@ export default function SubscriptionPage() {
                                         <div className="h-full rounded-full transition-all duration-700"
                                             style={{ width: `${userPct}%`, background: currentPlan === 'PRO' ? 'linear-gradient(90deg, #DA7756, #C06040)' : 'linear-gradient(90deg, #7C3AED, #9D5CF6)' }} />
                                     </div>
+                                </div>
+
+                                {/* Storage */}
+                                <div className="space-y-1.5">
+                                    <div className="flex items-center justify-between text-xs">
+                                        <div className="flex items-center gap-2">
+                                            <Database className="w-3.5 h-3.5 text-muted-foreground" />
+                                            <span className="text-muted-foreground">Storage</span>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`font-semibold ${storagePct >= 90 ? 'text-red-400' : storagePct >= 70 ? 'text-[#DA7756]' : 'text-foreground'}`}>
+                                                {formatStorage(usedStorage)} <span className="font-normal text-muted-foreground">/ {formatStorage(storageLimit)}</span>
+                                            </span>
+                                            <button onClick={handleAddon}
+                                                className="flex items-center gap-1 text-[10.5px] font-semibold px-2 py-0.5 rounded-lg text-white hover:opacity-90 transition-all"
+                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                <Plus size={13} /> Add-on
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                        <div className="h-full rounded-full transition-all duration-700"
+                                            style={{
+                                                width: `${storagePct}%`,
+                                                background: storagePct >= 90
+                                                    ? '#EF4444'
+                                                    : currentPlan === 'PRO'
+                                                        ? 'linear-gradient(90deg, #DA7756, #C06040)'
+                                                        : 'linear-gradient(90deg, #7C3AED, #9D5CF6)',
+                                            }} />
+                                    </div>
+                                    {storagePct >= 90 && (
+                                        <p className="text-[11px] text-red-400 flex items-center gap-1">
+                                            <AlertTriangle className="w-3 h-3" /> Storage nearing limit
+                                        </p>
+                                    )}
                                 </div>
 
                                 {/* AI Tokens */}
@@ -505,7 +596,7 @@ export default function SubscriptionPage() {
 
                             {featureTab === 'default' && (
                                 <div className="overflow-y-auto max-h-[190px] min-h-[190px] space-y-2">
-                                    {ALL_FEATURES.filter(f => currentPlan === 'PRO' ? f.inPro && !f.addOnPro : f.inBasic && !f.addOnBasic).map((f, i) => (
+                                    {ALL_FEATURES.filter(f => (featurePlan === 'PRO' ? f.inPro && !f.addOnPro : f.inBasic && !f.addOnBasic) && !(isTrial && f.key === 'whitelabeling')).map((f, i) => (
                                     <div key={f.key} className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-semibold text-muted-foreground/50 w-4 shrink-0">{i + 1}.</span>
@@ -520,7 +611,7 @@ export default function SubscriptionPage() {
 
                             {featureTab === 'addon' && (
                                 <div className="overflow-y-auto max-h-[190px] min-h-[190px] space-y-2">
-                                    {ALL_FEATURES.filter(f => currentPlan === 'PRO' ? f.addOnPro : f.addOnBasic).map((f, i) => (
+                                    {ALL_FEATURES.filter(f => (featurePlan === 'PRO' ? f.addOnPro : f.addOnBasic) && !(isTrial && f.key === 'whitelabeling')).map((f, i) => (
                                     <div key={f.key} className="flex items-center justify-between">
                                         <div className="flex items-center gap-2">
                                             <span className="text-[10px] font-semibold text-muted-foreground/50 w-4 shrink-0">{i + 1}.</span>
@@ -570,34 +661,38 @@ export default function SubscriptionPage() {
                                 </div>
                             </div>
 
-                            {/* Pricing Tiers */}
-                            <div className="rounded-xl border border-border/50 overflow-hidden">
-                                <div className="px-3 py-2 bg-muted/30 border-b border-border/40">
-                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Pricing Tiers</p>
-                                </div>
-                                <div className="divide-y divide-border/30">
-                                    {tiers.map((tier: { min: number; max: number; rate: number }, i: number) => {
-                                        const isActive = usedUsers >= tier.min && usedUsers <= tier.max;
-                                        return (
-                                            <div key={i} className={`flex items-center justify-between px-3 py-2 ${isActive ? 'bg-[#DA7756]/5' : ''}`}>
-                                                <div className="flex items-center gap-2">
-                                                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#DA7756]" />}
-                                                    <span className={`text-xs ${isActive ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
-                                                        {tier.max === Infinity ? `${tier.min}+ users` : `${tier.min}–${tier.max} users`}
-                                                    </span>
-                                                    {isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#DA7756]/15 text-[#DA7756] font-semibold">Current</span>}
-                                                </div>
-                                                <span className={`text-xs font-bold ${isActive ? 'text-[#DA7756]' : 'text-muted-foreground'}`}>
-                                                    ₹{tier.rate}/user
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                            <p className="text-[11px] text-muted-foreground">
-                                💡 Minimum 200 users billed. Current active: {usedUsers} users — billed as {billedUsers} users. ₹{monthlyBill.toLocaleString('en-IN')} est. next bill.
-                            </p>
+                            {!isTrial && (
+                                <>
+                                    {/* Pricing Tiers */}
+                                    <div className="rounded-xl border border-border/50 overflow-hidden">
+                                        <div className="px-3 py-2 bg-muted/30 border-b border-border/40">
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Pricing Tiers</p>
+                                        </div>
+                                        <div className="divide-y divide-border/30">
+                                            {tiers.map((tier: { min: number; max: number; rate: number }, i: number) => {
+                                                const isActive = usedUsers >= tier.min && usedUsers <= tier.max;
+                                                return (
+                                                    <div key={i} className={`flex items-center justify-between px-3 py-2 ${isActive ? 'bg-[#DA7756]/5' : ''}`}>
+                                                        <div className="flex items-center gap-2">
+                                                            {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#DA7756]" />}
+                                                            <span className={`text-xs ${isActive ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+                                                                {tier.max === Infinity ? `${tier.min}+ users` : `${tier.min}–${tier.max} users`}
+                                                            </span>
+                                                            {isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#DA7756]/15 text-[#DA7756] font-semibold">Current</span>}
+                                                        </div>
+                                                        <span className={`text-xs font-bold ${isActive ? 'text-[#DA7756]' : 'text-muted-foreground'}`}>
+                                                            ₹{tier.rate}/user
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        💡 Minimum 200 users billed. Current active: {usedUsers} users — billed as {billedUsers} users. ₹{monthlyBill.toLocaleString('en-IN')} est. next bill.
+                                    </p>
+                                </>
+                            )}
                         </div>
 
                         {/* ── Plan History ── */}

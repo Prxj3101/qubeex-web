@@ -1387,7 +1387,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
     const storagePriceNum =
       typeof storagePricePerGb === "number" ? storagePricePerGb : 0;
     const storageAddTotal = storageAddGb * storagePriceNum;
-    const tokenBase = dashboardData?.usageMeters?.aiTokens?.total ?? 10_000_000;
+    const tokenBase = dashboardData?.usageMeters?.aiTokens?.total ?? (PLAN_BASE[plan as "BASIC" | "PRO"].aiTokens * 1_000_000);
     const tokenUsed = 0;
     const tokenUsedPct = Math.min(
       100,
@@ -2320,10 +2320,10 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
             Default Features
           </p>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-5">
-            {defFeatures.map(({ key, label, desc, icon: Icon }) => (
+            {defFeatures.map(({ key, label, desc, icon: Icon, comingSoon }) => (
               <div
                 key={key}
-                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? "border-[#DA7756]/30 bg-[#DA7756]/5" : "border-border/50 bg-muted/20"}`}
+                className={`flex items-center justify-between p-3 rounded-xl border transition-all ${comingSoon ? "border-border/50 bg-muted/20 opacity-60" : features[key] ? "border-[#DA7756]/30 bg-[#DA7756]/5" : "border-border/50 bg-muted/20"}`}
               >
                 <div className="flex items-center gap-2 min-w-0 mr-3">
                   <Icon size={13} className="text-muted-foreground shrink-0" />
@@ -2333,15 +2333,23 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                    Default
-                  </span>
-                  <Toggle
-                    on={features[key] ?? true}
-                    onToggle={() =>
-                      setFeatures((p) => ({ ...p, [key]: !p[key] }))
-                    }
-                  />
+                  {comingSoon ? (
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                      Coming Soon
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                        Default
+                      </span>
+                      <Toggle
+                        on={features[key] ?? true}
+                        onToggle={() =>
+                          setFeatures((p) => ({ ...p, [key]: !p[key] }))
+                        }
+                      />
+                    </>
+                  )}
                 </div>
               </div>
             ))}
@@ -2355,7 +2363,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 </span>
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                {addonFeatures.map(({ key, label, desc, icon: Icon }) => {
+                {addonFeatures.map(({ key, label, desc, icon: Icon, comingSoon }) => {
                   const featureExpiry =
                     addonExpiries[key] ?? getFeatureExpiry(key);
                   const expired = isExpired(featureExpiry);
@@ -2364,7 +2372,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                   return (
                     <div
                       key={key}
-                      className={`flex items-start justify-between p-3 rounded-xl border transition-all ${expired && !enabled ? "border-red-200/50 bg-red-50/30 dark:bg-red-950/10 opacity-70" : enabled ? "border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/20" : "border-border/50 bg-muted/20"}`}
+                      className={`flex items-start justify-between p-3 rounded-xl border transition-all ${comingSoon ? "border-border/50 bg-muted/20 opacity-60" : expired && !enabled ? "border-red-200/50 bg-red-50/30 dark:bg-red-950/10 opacity-70" : enabled ? "border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/20" : "border-border/50 bg-muted/20"}`}
                     >
                       <div className="flex items-start gap-2 min-w-0 mr-3">
                         <Icon
@@ -2378,7 +2386,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                           <p className="text-[11px] text-muted-foreground">
                             {desc}
                           </p>
-                          {expired ? (
+                          {comingSoon ? null : expired ? (
                             <p className="text-[10px] text-red-500 font-semibold mt-0.5">
                               ⚠ Expired — ₹10,000/yr to enable
                             </p>
@@ -2392,21 +2400,29 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                          Add-On
-                        </span>
-                        <Toggle
-                          on={enabled}
-                          onToggle={() => {
-                            const newVal = !enabled;
-                            if (newVal && expired) {
-                              setPendingEnableKey(key);
-                              setConfirmDialog("enable_addon");
-                            } else {
-                              setFeatures((p) => ({ ...p, [key]: newVal }));
-                            }
-                          }}
-                        />
+                        {comingSoon ? (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                            Coming Soon
+                          </span>
+                        ) : (
+                          <>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                              Add-On
+                            </span>
+                            <Toggle
+                              on={enabled}
+                              onToggle={() => {
+                                const newVal = !enabled;
+                                if (newVal && expired) {
+                                  setPendingEnableKey(key);
+                                  setConfirmDialog("enable_addon");
+                                } else {
+                                  setFeatures((p) => ({ ...p, [key]: newVal }));
+                                }
+                              }}
+                            />
+                          </>
+                        )}
                       </div>
                     </div>
                   );
@@ -3421,7 +3437,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 label="AI Tokens"
                 icon={Cpu}
                 used={trialUsage?.aiTokens.used ?? 0}
-                total={trialUsage?.aiTokens.limit ?? 2_000_000}
+                total={trialUsage?.aiTokens.limit ?? PLAN_BASE.TRIAL.aiTokens * 1_000_000}
                 unitLabel="tokens"
                 formatter={(v) => v >= 1_000_000 ? `${(v / 1_000_000).toFixed(2)}M` : v.toLocaleString("en-IN")}
                 pending
@@ -3441,7 +3457,10 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
 
         {/* Feature Controls — trial gets full PRO feature set, same UI as active PRO plan */}
         {(() => {
-          const { defaults: trialDefFeatures, addons: trialAddonFeatures } = getPlanFeatures("PRO");
+          const { defaults: allTrialDefFeatures, addons: allTrialAddonFeatures } = getPlanFeatures("PRO");
+          // Whitelabelling is a paid-PRO-only perk — not included free during trial.
+          const trialDefFeatures = allTrialDefFeatures.filter((f) => f.key !== "whitelabeling");
+          const trialAddonFeatures = allTrialAddonFeatures.filter((f) => f.key !== "whitelabeling");
           return (
             <SectionCard title="Feature Controls">
               <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">
@@ -3451,10 +3470,10 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 </span>
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-5">
-                {trialDefFeatures.map(({ key, label, desc, icon: Icon }) => (
+                {trialDefFeatures.map(({ key, label, desc, icon: Icon, comingSoon }) => (
                   <div
                     key={key}
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ?? true ? "border-[#DA7756]/30 bg-[#DA7756]/5" : "border-border/50 bg-muted/20"}`}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${comingSoon ? "border-border/50 bg-muted/20 opacity-60" : features[key] ?? true ? "border-[#DA7756]/30 bg-[#DA7756]/5" : "border-border/50 bg-muted/20"}`}
                   >
                     <div className="flex items-center gap-2 min-w-0 mr-3">
                       <Icon size={13} className="text-muted-foreground shrink-0" />
@@ -3464,13 +3483,21 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                        Default
-                      </span>
-                      <Toggle
-                        on={features[key] ?? true}
-                        onToggle={() => setFeatures((p) => ({ ...p, [key]: !(p[key] ?? true) }))}
-                      />
+                      {comingSoon ? (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          Coming Soon
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                            Default
+                          </span>
+                          <Toggle
+                            on={features[key] ?? true}
+                            onToggle={() => setFeatures((p) => ({ ...p, [key]: !(p[key] ?? true) }))}
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -3743,10 +3770,10 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 </span>
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mb-5">
-                {defFeatures.map(({ key, label, desc, icon: Icon }) => (
+                {defFeatures.map(({ key, label, desc, icon: Icon, comingSoon }) => (
                   <div
                     key={key}
-                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? "border-[#DA7756]/30 bg-[#DA7756]/5" : "border-border/50 bg-muted/20"}`}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${comingSoon ? "border-border/50 bg-muted/20 opacity-60" : features[key] ? "border-[#DA7756]/30 bg-[#DA7756]/5" : "border-border/50 bg-muted/20"}`}
                   >
                     <div className="flex items-center gap-2 min-w-0 mr-3">
                       <Icon
@@ -3761,15 +3788,23 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                       </div>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                        Default
-                      </span>
-                      <Toggle
-                        on={features[key] ?? true}
-                        onToggle={() =>
-                          setFeatures((p) => ({ ...p, [key]: !p[key] }))
-                        }
-                      />
+                      {comingSoon ? (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                          Coming Soon
+                        </span>
+                      ) : (
+                        <>
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                            Default
+                          </span>
+                          <Toggle
+                            on={features[key] ?? true}
+                            onToggle={() =>
+                              setFeatures((p) => ({ ...p, [key]: !p[key] }))
+                            }
+                          />
+                        </>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -3783,10 +3818,10 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                     </span>
                   </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {addonFeatures.map(({ key, label, desc, icon: Icon }) => (
+                    {addonFeatures.map(({ key, label, desc, icon: Icon, comingSoon }) => (
                       <div
                         key={key}
-                        className={`flex items-center justify-between p-3 rounded-xl border transition-all ${features[key] ? "border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/20" : "border-border/50 bg-muted/20"}`}
+                        className={`flex items-center justify-between p-3 rounded-xl border transition-all ${comingSoon ? "border-border/50 bg-muted/20 opacity-60" : features[key] ? "border-amber-400/30 bg-amber-50/50 dark:bg-amber-950/20" : "border-border/50 bg-muted/20"}`}
                       >
                         <div className="flex items-center gap-2 min-w-0 mr-3">
                           <Icon
@@ -3803,6 +3838,12 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                           </div>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
+                          {comingSoon ? (
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                              Coming Soon
+                            </span>
+                          ) : (
+                          <>
                           <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
                             Add-On
                           </span>
@@ -3812,6 +3853,8 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                               setFeatures((p) => ({ ...p, [key]: !p[key] }))
                             }
                           />
+                          </>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -3900,7 +3943,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 ? "Mark licence payment as received"
                 : canActivate
                   ? (plan as string) === "TRIAL"
-                    ? "14-day free trial · 2M AI tokens"
+                    ? `14-day free trial · ${PLAN_BASE.TRIAL.aiTokens}M AI tokens`
                     : `${plan} · ${planOption} · ${fmt(monthlyBill)}/mo${planOption === "COMMITTED" ? ` (${Math.round(COMMITTED_DISCOUNT * 100)}% off)` : ""}`
                   : ""}
             </p>

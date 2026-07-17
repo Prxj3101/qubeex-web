@@ -77,6 +77,9 @@ export interface AdminOverview {
         name: string;
         isTrial: boolean;
         activationDate: string | null;
+        trialStartDate?: string | null;
+        trialEndDate?: string | null;
+        trialDaysTotal?: number;
         perUserRate: number;
         billedUsers: number;
         estMonthlyBill: number;

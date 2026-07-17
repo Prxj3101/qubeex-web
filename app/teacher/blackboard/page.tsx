@@ -7,11 +7,12 @@ import {
     Maximize2, Minimize2, X, Sparkles, MessageSquare,
     HelpCircle, Scan, Send, ZoomIn, ZoomOut,
     FolderOpen, ChevronDown, RotateCw, GripVertical, Pencil, Pen, Highlighter, Eraser, Undo2, Redo2,
-    Loader2, RefreshCw,
+    Loader2, RefreshCw, Check, ScanLine, Layers, CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import api from '@/lib/api';
+import { useTheme } from 'next-themes';
 
 import dynamic from 'next/dynamic';
 
@@ -51,14 +52,35 @@ function stripExtension(name: string) {
 }
 
 // ── AI Scan Panel ─────────────────────────────────────────────────────────────
-function AIScanPanel({ onClose, docName }: { onClose: () => void; docName?: string }) {
+function AIScanPanel({
+    onClose, docName, doc, totalPages, selectedPages, onTogglePage,
+    onScanStart, onScanEnd,
+}: {
+    onClose: () => void;
+    docName?: string;
+    doc: { url: string; type: string } | null;
+    totalPages: number;
+    selectedPages: number[];
+    onTogglePage: (page: number) => void;
+    onScanStart: () => void;
+    onScanEnd: () => void;
+}) {
     const [phase, setPhase] = useState<'input' | 'loading' | 'result'>('input');
-    const [topic, setTopic] = useState(docName ? stripExtension(docName) : '');
+    const [instructions, setInstructions] = useState('');
     const [result, setResult] = useState<ScanResult | null>(null);
+    const isPdf = doc?.type === 'application/pdf';
+    const canScan = !doc ? false : isPdf ? selectedPages.length > 0 : true;
 
     const handleScan = async () => {
+        if (!canScan) return;
+        const sorted = [...selectedPages].sort((a, b) => a - b);
+        const pagesLabel = sorted.length > 0 ? `Pages ${sorted.join(', ')}` : (docName ? stripExtension(docName) : '');
+        // TODO: backend still expects a plain `topic` string — once a page-aware
+        // scan endpoint exists, send { pages: sorted, instructions } instead.
+        const topic = [pagesLabel, instructions.trim()].filter(Boolean).join(' — ');
         if (!topic.trim()) return;
         setPhase('loading');
+        onScanStart();
         try {
             const res = await api.post('/teacher/blackboard/ai/scan', { topic: topic.trim() });
             setResult(res.data.data);
@@ -68,73 +90,132 @@ function AIScanPanel({ onClose, docName }: { onClose: () => void; docName?: stri
                 ? 'Monthly AI token limit reached'
                 : 'Scan failed. Please try again.');
             setPhase('input');
+        } finally {
+            onScanEnd();
         }
     };
 
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
-            className="w-full h-full bg-black flex flex-col overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
-                <p className="text-sm font-bold flex items-center gap-2">
-                    <Scan size={14} className="text-primary" /> AI Scan
+            className="w-full h-full flex flex-col overflow-hidden" style={{ background: '#000' }}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10" style={{ background: '#000' }}>
+                <p className="text-sm font-bold flex items-center gap-2 text-white">
+                    <ScanLine size={14} style={{ color: '#DA7756' }} /> AI Scan
                 </p>
-                <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
+                <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all">
                     <X size={13} />
                 </button>
             </div>
 
             {phase === 'input' && (
-                <div className="flex-1 flex flex-col px-4 py-4 gap-3">
-                    <p className="text-[11px] text-muted-foreground">Enter the topic you want to scan for teaching insights and relevant images.</p>
-                    <input
-                        autoFocus
-                        value={topic}
-                        onChange={e => setTopic(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleScan(); }}
-                        placeholder="e.g. Photosynthesis, Pythagoras theorem..."
-                        className="w-full px-3 py-2 rounded-xl bg-muted/40 border border-border/40 text-xs focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/50"
-                    />
-                    <button
-                        onClick={handleScan}
-                        disabled={!topic.trim()}
-                        className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
-                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                        <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
-                        Scan Topic
-                    </button>
+                <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#000' }}>
+                    {isPdf && totalPages > 0 && (
+                        <div className="shrink-0 px-4 pt-2 pb-2" style={{ background: '#000' }}>
+                            <p className="text-xs font-bold mb-1 text-white flex items-center gap-1.5">
+                                <CheckCircle2 size={12} style={{ color: '#DA7756' }} /> Selected Pages
+                            </p>
+                            <p className="text-[11px] text-white/60">
+                                Use the page nav on the left to select the pages, they&apos;ll show up here.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Scrollable page picker */}
+                    <div className="flex-1 overflow-hidden pr-1" style={{ background: '#000' }}>
+                        <div className="h-full overflow-y-auto pl-4 pr-2 pt-1 pb-4" style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                            {isPdf && totalPages > 0 ? (
+                                selectedPages.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-white/20 py-6 flex flex-col items-center gap-1.5">
+                                        <Scan size={16} className="text-white/30" />
+                                        <p className="text-[11px] text-white/40">No pages selected yet</p>
+                                    </div>
+                                ) : (
+                                    <Document file={doc!.url} loading={null}>
+                                        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, 220px)' }}>
+                                            {[...selectedPages].sort((a, b) => a - b).map(pageNum => (
+                                                <div key={pageNum} className="relative rounded-lg overflow-hidden border-2 w-fit leading-[0]" style={{ borderColor: '#DA7756' }}>
+                                                    <Page pageNumber={pageNum} width={220} renderTextLayer={false} renderAnnotationLayer={false} />
+                                                    <span className="absolute bottom-0 inset-x-0 text-[10px] text-center py-1 text-white"
+                                                        style={{ background: '#DA7756' }}>
+                                                        {pageNum}
+                                                    </span>
+                                                    <button onClick={() => onTogglePage(pageNum)}
+                                                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-black transition-all">
+                                                        <X size={11} className="text-white" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </Document>
+                                )
+                            ) : !doc ? (
+                                <div className="rounded-xl border border-dashed border-white/20 py-6 flex flex-col items-center gap-1.5">
+                                    <ScanLine size={16} className="text-white/30" />
+                                    <p className="text-[11px] text-white/40 text-center px-4">Load a document on the blackboard to start scanning</p>
+                                </div>
+                            ) : (
+                                <p className="text-[11px] text-white/50 pt-4">
+                                    Page selection isn&apos;t available for this document type — the whole document will be scanned.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Sticky footer — instructions + scan button never scroll */}
+                    <div className="shrink-0 px-4 pt-3 pb-4 border-t border-white/10 flex flex-col gap-3 mb-7" style={{ background: '#000' }}>
+                        <div>
+                            <p className="text-[11px] text-white/50 mb-1.5">Instructions (optional)</p>
+                            <textarea
+                                value={instructions}
+                                onChange={e => setInstructions(e.target.value)}
+                                placeholder="e.g. Show diagrams of the water cycle stages"
+                                rows={1}
+                                className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-primary/50 placeholder:text-white/30 resize-none"
+                            />
+                        </div>
+
+                        <button
+                            onClick={handleScan}
+                            disabled={!canScan}
+                            className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
+                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                            <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
+                            {!doc ? 'Load a Document First' : isPdf && totalPages > 0 ? 'Scan Selected Pages' : 'Scan Document'}
+                        </button>
+                    </div>
                 </div>
             )}
 
             {phase === 'loading' && (
-                <div className="flex-1 flex flex-col items-center justify-center gap-3">
+                <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ background: '#000' }}>
                     <Loader2 size={22} className="animate-spin text-primary" />
-                    <p className="text-xs text-muted-foreground">Scanning topic...</p>
+                    <p className="text-xs text-white/50">Scanning selected pages...</p>
                 </div>
             )}
 
             {phase === 'result' && result && (
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3" style={{ background: '#000' }}>
                     {/* Topic */}
-                    <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
+                    <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
                         <p className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">Detected Topic</p>
-                        <p className="text-sm font-bold">{result.topic}</p>
+                        <p className="text-sm font-bold text-white">{result.topic}</p>
                     </div>
 
                     {/* Overview */}
                     <div>
-                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Overview</p>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{result.overview}</p>
+                        <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">Overview</p>
+                        <p className="text-xs text-white/70 leading-relaxed">{result.overview}</p>
                     </div>
 
                     {/* Key Points */}
                     {result.keyPoints.length > 0 && (
                         <div>
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Key Points</p>
+                            <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">Key Points</p>
                             <div className="space-y-1">
                                 {result.keyPoints.map((point, i) => (
                                     <div key={i} className="flex items-start gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
-                                        <p className="text-xs text-foreground">{point}</p>
+                                        <p className="text-xs text-white/80">{point}</p>
                                     </div>
                                 ))}
                             </div>
@@ -144,12 +225,12 @@ function AIScanPanel({ onClose, docName }: { onClose: () => void; docName?: stri
                     {/* Images */}
                     {result.images.length > 0 && (
                         <div>
-                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Related Images</p>
+                            <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">Related Images</p>
                             <div className="space-y-2">
                                 {result.images.map((img, i) => (
-                                    <div key={i} className="rounded-xl overflow-hidden border border-border/40">
+                                    <div key={i} className="rounded-xl overflow-hidden border border-white/10">
                                         <img src={img.url} alt={img.caption} className="w-full object-cover" />
-                                        <p className="text-[10px] text-muted-foreground text-center py-1.5 bg-muted/30">{img.caption}</p>
+                                        <p className="text-[10px] text-white/60 text-center py-1.5 bg-white/5">{img.caption}</p>
                                     </div>
                                 ))}
                             </div>
@@ -159,7 +240,7 @@ function AIScanPanel({ onClose, docName }: { onClose: () => void; docName?: stri
                     {/* Scan again */}
                     <button
                         onClick={() => setPhase('input')}
-                        className="w-full h-8 rounded-xl text-xs font-medium text-muted-foreground border border-border/50 hover:bg-muted/40 transition-all flex items-center justify-center gap-1.5">
+                        className="w-full h-8 rounded-xl text-xs font-medium text-white/60 border border-white/15 hover:bg-white/10 transition-all flex items-center justify-center gap-1.5">
                         <RefreshCw size={11} /> Scan Again
                     </button>
                 </div>
@@ -515,9 +596,11 @@ function FloatingAIButton({ activeMode, onSelect, showControls }: {
     showControls: boolean;
 }) {
     const [open, setOpen] = useState(false);
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === 'dark';
 
     const options = [
-        { key: 'scan' as AIMode, icon: Scan, label: 'AI Scan', color: '#7C3AED' },
+        { key: 'scan' as AIMode, icon: ScanLine, label: 'AI Scan', color: '#7C3AED' },
         { key: 'prompt' as AIMode, icon: MessageSquare, label: 'AI Prompt', color: '#DA7756' },
         { key: 'quiz' as AIMode, icon: HelpCircle, label: 'Quiz', color: '#059669' },
     ];
@@ -580,6 +663,11 @@ export default function BlackboardPage() {
     const router = useRouter();
     const [totalPages, setTotalPages] = useState(0);
 
+    // Pages selected in the AI Scan panel — also shown as a badge on the main
+    // blackboard viewer when browsing that page, and used to drive the scan animation.
+    const [selectedScanPages, setSelectedScanPages] = useState<number[]>([]);
+    const [isScanningPages, setIsScanningPages] = useState(false);
+
     // Load file passed from the Storage page via sessionStorage
     useEffect(() => {
         const stored = sessionStorage.getItem('blackboard_file');
@@ -588,6 +676,7 @@ export default function BlackboardPage() {
                 const { url, name, type } = JSON.parse(stored);
                 setDoc({ name, url, type });
                 setCurrentPage(1);
+                setSelectedScanPages([]);
                 initialScaleSet.current = false;
             } catch {}
             sessionStorage.removeItem('blackboard_file');
@@ -600,6 +689,7 @@ export default function BlackboardPage() {
         const url = URL.createObjectURL(file);
         setDoc({ name: file.name, url, type: file.type });
         setCurrentPage(1);
+        setSelectedScanPages([]);
         setScale(1);
         setRotation(0);
         initialScaleSet.current = false;
@@ -903,12 +993,12 @@ export default function BlackboardPage() {
 
                     {!doc ? (
                         <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center">
-                            <div className="w-20 h-20 rounded-3xl bg-muted/50 flex items-center justify-center">
-                                <Monitor size={36} className="text-muted-foreground/40" />
+                            <div className="w-20 h-20 rounded-3xl bg-white/10 flex items-center justify-center">
+                                <Monitor size={36} className="text-white/40" />
                             </div>
                             <div>
-                                <p className="text-sm font-semibold text-muted-foreground">No document loaded</p>
-                                <p className="text-xs text-muted-foreground/60 mt-1">Upload a PDF, PPT, or Word document to start</p>
+                                <p className="text-sm font-semibold text-white/70">No document loaded</p>
+                                <p className="text-xs text-white/40 mt-1">Upload a PDF, PPT, or Word document to start</p>
                             </div>
                         </div>
                     ) : (
@@ -917,6 +1007,37 @@ export default function BlackboardPage() {
                                 const renderer = getRenderer(doc);
                                 return (
                                     <div ref={viewerRef} className="flex-1 bg-zinc-900 flex items-center justify-center overflow-hidden relative">
+                                        {activeMode === 'scan' && selectedScanPages.includes(currentPage) && (
+                                            <div className="absolute top-20 right-6 z-20 w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                                title="Selected for AI Scan">
+                                                <Check size={11} className="text-white" strokeWidth={3} />
+                                            </div>
+                                        )}
+                                        {/* AI Scan animation overlay — placeholder until a final animation asset is provided */}
+                                        <AnimatePresence>
+                                            {isScanningPages && (
+                                                <motion.div
+                                                    initial={{ opacity: 0 }}
+                                                    animate={{ opacity: 1 }}
+                                                    exit={{ opacity: 0 }}
+                                                    className="absolute inset-0 z-30 pointer-events-none overflow-hidden">
+                                                    <div className="absolute inset-0 bg-black/30" />
+                                                    <motion.div
+                                                        initial={{ top: '0%' }}
+                                                        animate={{ top: ['0%', '100%', '0%'] }}
+                                                        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
+                                                        className="absolute left-0 right-0 h-24"
+                                                        style={{ background: 'linear-gradient(180deg, transparent, rgba(218,119,86,0.35), transparent)' }} />
+                                                    <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-center">
+                                                        <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/70 border border-[#DA7756]/40">
+                                                            <Loader2 size={12} className="animate-spin text-[#DA7756]" />
+                                                            <span className="text-[11px] font-semibold text-white">Scanning selected pages…</span>
+                                                        </div>
+                                                    </div>
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                         {renderer === 'pdf' && (
                                             <>
                                                 <Document
@@ -1083,11 +1204,30 @@ export default function BlackboardPage() {
                                                     className="w-6 h-6 flex items-center justify-center text-white/50 hover:text-white disabled:opacity-20 transition-all">
                                                     <ChevronLeft size={14} />
                                                 </button>
-                                                <span className="text-xs text-white/60 text-center shrink-0">{currentPage} / {totalPages}</span>
+                                                <span className="text-xs text-white/60 text-center shrink-0">
+                                                    {currentPage} / {totalPages}
+                                                </span>
                                                 <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
                                                     className="w-6 h-6 flex items-center justify-center text-white/50 hover:text-white disabled:opacity-20 transition-all">
                                                     <ChevronRight size={14} />
                                                 </button>
+
+                                                {activeMode === 'scan' && (
+                                                    <>
+                                                        <div className="w-px h-4 bg-white/10 shrink-0" />
+                                                        <button
+                                                            onClick={() => setSelectedScanPages(prev =>
+                                                                prev.includes(currentPage) ? prev.filter(p => p !== currentPage) : [...prev, currentPage]
+                                                            )}
+                                                            className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all shrink-0"
+                                                            style={selectedScanPages.includes(currentPage)
+                                                                ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)', color: '#fff' }
+                                                                : { background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
+                                                            {selectedScanPages.includes(currentPage) ? <Check size={11} /> : null}
+                                                            {selectedScanPages.includes(currentPage) ? 'Selected' : 'Select page'}
+                                                        </button>
+                                                    </>
+                                                )}
 
                                                 <div className="w-px h-4 bg-white/10 shrink-0" />
                                                 <button
@@ -1186,7 +1326,18 @@ export default function BlackboardPage() {
                                 className="flex flex-col overflow-hidden z-10 min-w-0"
                                 style={{ flex: 1, background: '#000' }}>
                                 {activeMode === 'scan' && (
-                                    <AIScanPanel onClose={() => setActiveMode(null)} docName={doc?.name} />
+                                    <AIScanPanel
+                                        onClose={() => setActiveMode(null)}
+                                        docName={doc?.name}
+                                        doc={doc ? { url: doc.url, type: doc.type } : null}
+                                        totalPages={totalPages}
+                                        selectedPages={selectedScanPages}
+                                        onTogglePage={(page) => setSelectedScanPages(prev =>
+                                            prev.includes(page) ? prev.filter(p => p !== page) : [...prev, page]
+                                        )}
+                                        onScanStart={() => setIsScanningPages(true)}
+                                        onScanEnd={() => setIsScanningPages(false)}
+                                    />
                                 )}
                                 {activeMode === 'prompt' && (
                                     <AIPromptPanel onClose={() => setActiveMode(null)} context={doc?.name} />
