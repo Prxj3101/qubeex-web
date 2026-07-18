@@ -6,11 +6,13 @@ import {
     TicketIcon, Search, X, ChevronDown, ChevronUp,
     Send, Clock, CheckCircle2, AlertCircle, Loader2,
     Bug, Sparkles, CreditCard, HelpCircle, Building2,
-    RefreshCw, ChevronLeft, ChevronRight,
+    RefreshCw, ChevronLeft, ChevronRight, Paperclip,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
+import { PendingAttachmentChip } from '@/components/shared/PendingAttachmentChip';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -18,12 +20,20 @@ type TicketStatus   = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 type TicketCategory = 'BUG' | 'FEATURE' | 'BILLING' | 'OTHER';
 type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
 
+interface TicketAttachment {
+    url: string;
+    name: string;
+    type: 'image' | 'video' | 'file';
+    size: number;
+}
+
 interface TicketReply {
     id: string;
     author: string;
     role: string;
     message: string;
     createdAt: string;
+    attachments?: TicketAttachment[] | null;
 }
 
 interface Ticket {
@@ -38,6 +48,17 @@ interface Ticket {
     createdAt: string;
     updatedAt: string;
     replies: TicketReply[];
+    attachments?: TicketAttachment[] | null;
+}
+
+// ─── Attachment upload helper ─────────────────────────────────────────────────
+async function uploadTicketFile(ticketId: string, file: File): Promise<TicketAttachment> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.post(`/superadmin/support/tickets/${ticketId}/attachments`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data.data;
 }
 
 type Pagination = { total: number; page: number; limit: number; pages: number };
@@ -103,15 +124,17 @@ const CATEGORY_FILTERS = [
 function TicketCard({ ticket, index, onReply, onStatusChange }: {
     ticket: Ticket;
     index: number;
-    onReply: (id: string, message: string) => Promise<TicketReply>;
+    onReply: (id: string, message: string, attachments: TicketAttachment[]) => Promise<TicketReply>;
     onStatusChange: (id: string, status: TicketStatus) => Promise<void>;
 }) {
     const [expanded, setExpanded] = useState(false);
     const [replyText, setReplyText] = useState('');
+    const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
     const [status, setStatus] = useState<TicketStatus>(ticket.status);
     const [replies, setReplies] = useState<TicketReply[]>(ticket.replies);
     const [sending, setSending] = useState(false);
     const [updatingStatus, setUpdatingStatus] = useState(false);
+    const replyFileInputRef = useRef<HTMLInputElement>(null);
 
     const statusCfg  = STATUS_CFG[status];
     const categoryCfg = CATEGORY_CFG[ticket.category as TicketCategory] ?? CATEGORY_CFG.OTHER;
@@ -122,9 +145,13 @@ function TicketCard({ ticket, index, onReply, onStatusChange }: {
         if (!replyText.trim()) return;
         setSending(true);
         try {
-            const newReply = await onReply(ticket.id, replyText.trim());
+            const uploaded = replyAttachments.length > 0
+                ? await Promise.all(replyAttachments.map(f => uploadTicketFile(ticket.id, f)))
+                : [];
+            const newReply = await onReply(ticket.id, replyText.trim(), uploaded);
             setReplies(prev => [...prev, newReply]);
             setReplyText('');
+            setReplyAttachments([]);
             // Auto status update mirroring backend behaviour
             if (status === 'OPEN') setStatus('IN_PROGRESS');
         } catch {
@@ -223,6 +250,13 @@ function TicketCard({ ticket, index, onReply, onStatusChange }: {
                             <div className="p-3 bg-muted/30 rounded-xl">
                                 <p className="text-[11px] font-semibold text-muted-foreground mb-1">Description</p>
                                 <p className="text-sm text-foreground leading-relaxed">{ticket.description}</p>
+                                {ticket.attachments && ticket.attachments.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-2.5">
+                                        {ticket.attachments.map((a, i) => (
+                                            <AttachmentPreview key={i} attachment={a} compact />
+                                        ))}
+                                    </div>
+                                )}
                                 <p className="text-[11px] text-muted-foreground mt-2">from {ticket.adminEmail}</p>
                             </div>
 
@@ -245,6 +279,13 @@ function TicketCard({ ticket, index, onReply, onStatusChange }: {
                                                         : 'bg-muted text-foreground'}`}>
                                                         {r.message}
                                                     </div>
+                                                    {r.attachments && r.attachments.length > 0 && (
+                                                        <div className={`flex flex-wrap gap-1.5 mt-1.5 max-w-[85%] ${isSA ? 'justify-end' : 'justify-start'}`}>
+                                                            {r.attachments.map((a, i) => (
+                                                                <AttachmentPreview key={i} attachment={a} compact />
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                     <p className="text-[10px] text-muted-foreground mt-1 px-1">
                                                         {r.author} · {relativeTime(r.createdAt)}
                                                     </p>
@@ -260,13 +301,27 @@ function TicketCard({ ticket, index, onReply, onStatusChange }: {
                                 <div className="space-y-2">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Reply</p>
                                     <div className="flex gap-2">
-                                        <textarea
-                                            value={replyText}
-                                            onChange={e => setReplyText(e.target.value)}
-                                            placeholder="Type your reply..."
-                                            rows={2}
-                                            className="flex-1 px-3 py-2 rounded-xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-none"
-                                        />
+                                        <div className="flex-1 relative">
+                                            <textarea
+                                                value={replyText}
+                                                onChange={e => setReplyText(e.target.value)}
+                                                placeholder="Type your reply..."
+                                                rows={2}
+                                                className="w-full px-3 py-2 pr-9 rounded-xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-none"
+                                            />
+                                            <button type="button" onClick={() => replyFileInputRef.current?.click()}
+                                                className="absolute bottom-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                                                title="Add attachment">
+                                                <Paperclip size={13} />
+                                            </button>
+                                            <input ref={replyFileInputRef} type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                                className="hidden"
+                                                onChange={e => {
+                                                    const files = Array.from(e.target.files ?? []);
+                                                    setReplyAttachments(prev => [...prev, ...files].slice(0, 5));
+                                                    e.target.value = '';
+                                                }} />
+                                        </div>
                                         <button
                                             onClick={handleSendReply}
                                             disabled={!replyText.trim() || sending}
@@ -277,6 +332,13 @@ function TicketCard({ ticket, index, onReply, onStatusChange }: {
                                             Send
                                         </button>
                                     </div>
+                                    {replyAttachments.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {replyAttachments.map((f, i) => (
+                                                <PendingAttachmentChip key={i} file={f} onRemove={() => setReplyAttachments(prev => prev.filter((_, j) => j !== i))} />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -359,8 +421,8 @@ export default function TicketsPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [page, activeStatus, activeCategories, debouncedSearch]);
 
-    const handleReply = async (id: string, message: string): Promise<TicketReply> => {
-        const res = await api.post(`/superadmin/support/tickets/${id}/reply`, { message });
+    const handleReply = async (id: string, message: string, attachments: TicketAttachment[]): Promise<TicketReply> => {
+        const res = await api.post(`/superadmin/support/tickets/${id}/reply`, { message, attachments });
         return res.data.data as TicketReply;
     };
 
