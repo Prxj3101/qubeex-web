@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, X, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import api from '@/lib/api';
+import { BirthdayBanner, isTodayBirthday } from '@/components/shared/BirthdayBanner';
+import { SillyStringOverlay } from '@/components/shared/SillyStringOverlay';
 
 interface OverviewData {
     student: { name: string; rollNo: string; divisionName: string; standardName: string };
@@ -80,6 +82,7 @@ export default function StudentOverview() {
     const [announcementVisible, setAnnouncementVisible] = useState(true);
     const thought = getTodaysThought();
     const [currentChar, setCurrentChar] = useState(0);
+    const [studentDob, setStudentDob] = useState<string | null>(null);
 
     useEffect(() => {
         const iv = setInterval(() => setCurrentChar(p => (p + 1) % STUDENT_CHARACTERS.length), 7000);
@@ -91,6 +94,13 @@ export default function StudentOverview() {
             .then(r => setData(r.data.data))
             .catch(() => {})
             .finally(() => setLoading(false));
+        // Fetch profile for birthday data — silent fail (non-critical)
+        api.get('/student/me')
+            .then(res => {
+                const d = res.data?.data ?? res.data;
+                setStudentDob(d?.dob ?? null);
+            })
+            .catch(() => {});
     }, []);
 
     if (loading) {
@@ -135,9 +145,12 @@ export default function StudentOverview() {
 
                 <div className="space-y-1 z-10">
                     <p className="text-white/70 text-base">{greeting} 👋</p>
-                    <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
-                        {studentName}
-                    </p>
+                    <div className="relative">
+                        <p className="text-white text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
+                            {studentName}
+                        </p>
+                        <SillyStringOverlay name={studentName} fontSize={30} active={isTodayBirthday(studentDob ?? '')} />
+                    </div>
                     <p className="text-white/60 text-sm">
                         {data?.student.standardName}{divisionLabel ? ` · ${divisionLabel}` : ''}
                     </p>
@@ -167,24 +180,34 @@ export default function StudentOverview() {
                 </div>
             </div>
 
+            <div className="-mt-2">
+                <BirthdayBanner
+                    name={studentName}
+                    role="student"
+                    dob={studentDob ?? ''}
+                />
+            </div>
+
             {/* ── Announcement Strip ── */}
-            <AnimatePresence>
-                {announcementVisible && data?.latestPost && (
-                    <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
-                        className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50">
-                        <Bell size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                        <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex-1 truncate">
-                            📢 {data.latestPost.title}
-                        </p>
-                        <button onClick={() => setAnnouncementVisible(false)} className="text-amber-500 hover:text-amber-700 transition-colors shrink-0">
-                            <X size={13} />
-                        </button>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            <div className="-mt-2">
+                <AnimatePresence>
+                    {announcementVisible && data?.latestPost && (
+                        <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0 }}
+                            className="flex items-center gap-3 px-4 py-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900/50">
+                            <Bell size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                            <p className="text-xs font-medium text-amber-700 dark:text-amber-400 flex-1 truncate">
+                                📢 {data.latestPost.title}
+                            </p>
+                            <button onClick={() => setAnnouncementVisible(false)} className="text-amber-500 hover:text-amber-700 transition-colors shrink-0">
+                                <X size={13} />
+                            </button>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+            </div>
 
             {/* ── Quick Stats ── */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 -mt-2">
                 {quickStats.map((s) => (
                     <StatCard key={s.label} {...s} />
                 ))}

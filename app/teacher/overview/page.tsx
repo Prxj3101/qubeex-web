@@ -9,6 +9,8 @@ import TeacherNotepad from '@/components/teacher/TeacherNotepad';
 import { AlertCircle, Users, LayoutGrid, BookOpen, ScrollText, ClipboardList, Sparkles, AlertTriangle, TrendingUp, ArrowUpRight, ArrowDownRight, Bell, X, CalendarDays } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { BirthdayBanner, isTodayBirthday } from '@/components/shared/BirthdayBanner';
+import { SillyStringOverlay } from '@/components/shared/SillyStringOverlay';
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
 
@@ -254,6 +256,7 @@ export default function TeacherOverviewPage() {
     };
     const [overview, setOverview] = useState<OverviewData | null>(null);
     const [overviewLoading, setOverviewLoading] = useState(true);
+    const [teacherDob, setTeacherDob] = useState<string | null>(null);
     const fetchedRef = useRef(false);
     useEffect(() => {
         if (fetchedRef.current) return;
@@ -262,6 +265,13 @@ export default function TeacherOverviewPage() {
             .then(res => setOverview(res.data.data))
             .catch(() => setOverview(null))
             .finally(() => setOverviewLoading(false));
+        // Fetch profile for birthday data — silent fail (non-critical)
+        api.get('/teacher/me')
+            .then(res => {
+                const d = res.data?.data ?? res.data;
+                setTeacherDob(d?.dob ?? null);
+            })
+            .catch(() => {});
     }, []);
 
     const [announcementVisible, setAnnouncementVisible] = useState(true);
@@ -301,9 +311,12 @@ export default function TeacherOverviewPage() {
                 {/* Text */}
                 <div className="space-y-1 z-10">
                     <p className="text-white/70 text-base">{greeting}</p>
-                    <p className="text-white text-xl lg:text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
-                        {teacherName}
-                    </p>
+                    <div className="relative">
+                        <p className="text-white text-xl lg:text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
+                            {teacherName}
+                        </p>
+                        <SillyStringOverlay name={teacherName} fontSize={30} active={isTodayBirthday(teacherDob ?? '')} />
+                    </div>
                     <p className="text-white/60 text-sm">{getCasualMessage()}</p>
                     <p className="text-white/50 text-xs mt-2">{dateStr}{currentTime && <span className="ml-2">·&nbsp; {currentTime}</span>}</p>
                 </div>
@@ -330,6 +343,12 @@ export default function TeacherOverviewPage() {
                     </motion.div>
                 </div>
             </div>
+
+            <BirthdayBanner
+                name={teacherName}
+                role="teacher"
+                dob={teacherDob ?? ''}
+            />
 
             {/* ── WelcomeBanner equivalent ── */}
             <AnimatePresence>
@@ -386,7 +405,7 @@ export default function TeacherOverviewPage() {
             )}
 
             {/* ── Blackboard + Short Attendance (same as student overview) ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 h-auto lg:h-[390px]">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 h-auto lg:h-[390px]" style={{ marginTop: '1.25rem' }}>
 
                 {/* Blackboard — left, same size as student */}
                 <div className="lg:col-span-1 h-[390px] lg:h-auto">
@@ -400,7 +419,7 @@ export default function TeacherOverviewPage() {
             </div>
 
             {/* ── Graph + AI Token + Short Attendance ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-6 gap-3 items-stretch">
+            <div className="grid grid-cols-1 lg:grid-cols-6 gap-3 items-stretch" style={{ marginTop: '1.25rem' }}>
 
                 {/* Graph — 2 cols */}
                 <div className="col-span-1 lg:col-span-3">
@@ -485,7 +504,7 @@ export default function TeacherOverviewPage() {
             </div>
 
             {/* ── RecentActivityCard + NotificationsPreviewCard equivalent ── */}
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3" style={{ marginTop: '1.25rem' }}>
 
                 {/* Recent Audit Logs */}
                 <div className="bg-card border border-border/50 rounded-xl p-5">

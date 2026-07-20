@@ -72,12 +72,12 @@ const ROLE_CONFIG: Record<BirthdayRole, {
         ],
     },
     teacher: {
-        gradient: 'linear-gradient(125deg, rgba(52,211,153,0.72) 0%, rgba(16,185,129,0.82) 40%, rgba(5,150,105,0.88) 75%, rgba(4,120,87,0.92) 100%)',
+        gradient: 'linear-gradient(125deg, rgba(251,146,60,0.72) 0%, rgba(249,115,22,0.82) 40%, rgba(234,88,12,0.88) 75%, rgba(194,65,12,0.92) 100%)',
         shimmer: 'rgba(255,255,255,0.10)',
-        emoji: '🎉',
+        emoji: '🎂',
         tag: 'Happy Birthday',
-        confettiColors: ['#FFF', '#A7F3D0', '#6EE7B7', '#ECFDF5', '#34D399'],
-        greeting: (name) => `Happy Birthday, ${name}!`,
+        confettiColors: ['#FFF', '#FED7AA', '#FDBA74', '#FFF7ED', '#FB923C'],
+        greeting: (name) => `Happy Birthday 🥳, ${name}!`,
         subtitle: () => 'A very special day for a very special educator',
         lines: [
             'Your passion for teaching touches more lives than you\'ll ever know.',
@@ -87,10 +87,10 @@ const ROLE_CONFIG: Record<BirthdayRole, {
     student: {
         gradient: 'linear-gradient(125deg, rgba(251,113,133,0.72) 0%, rgba(244,63,94,0.82) 40%, rgba(225,29,72,0.88) 75%, rgba(190,18,60,0.92) 100%)',
         shimmer: 'rgba(255,255,255,0.10)',
-        emoji: '🎊',
+        emoji: '🎂',
         tag: 'Happy Birthday',
         confettiColors: ['#FFF', '#FECDD3', '#FDA4AF', '#FFF1F2', '#FB7185'],
-        greeting: (name) => `Happy Birthday, ${name}!`,
+        greeting: (name) => `Happy Birthday 🥳, ${name}!`,
         subtitle: () => 'Today is all about you — make it count!',
         lines: [
             'Take a break from the books and enjoy every moment of your special day!',
