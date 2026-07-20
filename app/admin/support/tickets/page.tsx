@@ -9,11 +9,20 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
+import { PendingAttachmentChip } from '@/components/shared/PendingAttachmentChip';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type TicketStatus = 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
 type TicketCategory = 'BUG' | 'FEATURE' | 'BILLING' | 'ADDON' | 'SUGGESTION' | 'OTHER';
 type TicketPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+
+interface TicketAttachment {
+    url: string;
+    name: string;
+    type: 'image' | 'video' | 'file';
+    size: number;
+}
 
 interface TicketReply {
     id: string;
@@ -21,6 +30,7 @@ interface TicketReply {
     role: 'ADMIN' | 'SUPPORT';
     message: string;
     createdAt: string;
+    attachments?: TicketAttachment[] | null;
 }
 
 interface Ticket {
@@ -33,6 +43,17 @@ interface Ticket {
     createdAt: string;
     updatedAt: string;
     replies: TicketReply[];
+    attachments?: TicketAttachment[] | null;
+}
+
+// ── Attachment upload helper ──────────────────────────────────────────────────
+async function uploadTicketFile(file: File): Promise<TicketAttachment> {
+    const form = new FormData();
+    form.append('file', file);
+    const res = await api.post('/admin/support/tickets/attachments', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return res.data.data;
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -85,14 +106,18 @@ function CreateTicketModal({ open, onClose, onCreate }: {
         if (!title.trim() || !description.trim()) return;
         setSaving(true);
         try {
+            const uploaded = attachments.length > 0
+                ? await Promise.all(attachments.map(uploadTicketFile))
+                : [];
             const res = await api.post('/admin/support/tickets', {
                 title: title.trim(),
                 description: description.trim(),
                 category,
                 priority,
+                attachments: uploaded,
             });
             onCreate(res.data.data);
-            setTitle(''); setCategory('BUG'); setPriority('MEDIUM'); setDescription('');
+            setTitle(''); setCategory('BUG'); setPriority('MEDIUM'); setDescription(''); setAttachments([]);
             onClose();
             toast.success('Ticket raised successfully!');
         } catch (err: unknown) {
@@ -162,21 +187,14 @@ function CreateTicketModal({ open, onClose, onCreate }: {
                                 className="hidden"
                                 onChange={e => {
                                     const files = Array.from(e.target.files ?? []);
-                                    setAttachments(prev => [...prev, ...files]);
+                                    setAttachments(prev => [...prev, ...files].slice(0, 5));
                                     e.target.value = '';
                                 }} />
                         </div>
                         {attachments.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
                                 {attachments.map((f, i) => (
-                                    <div key={i} className="flex items-center gap-1 text-[11px] bg-muted/50 border border-border/50 rounded-lg px-2 py-0.5">
-                                        <Paperclip size={10} className="text-muted-foreground" />
-                                        <span className="text-foreground max-w-[120px] truncate">{f.name}</span>
-                                        <button type="button" onClick={() => setAttachments(prev => prev.filter((_, j) => j !== i))}
-                                            className="text-muted-foreground hover:text-foreground ml-0.5">
-                                            <X size={10} />
-                                        </button>
-                                    </div>
+                                    <PendingAttachmentChip key={i} file={f} onRemove={() => setAttachments(prev => prev.filter((_, j) => j !== i))} />
                                 ))}
                             </div>
                         )}
@@ -187,7 +205,7 @@ function CreateTicketModal({ open, onClose, onCreate }: {
                     <button onClick={handleCreate} disabled={!title.trim() || !description.trim() || saving}
                         className="h-9 px-5 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                        {saving ? 'Submitting...' : 'Submit Ticket'}
+                        {saving ? (attachments.length > 0 ? 'Uploading...' : 'Submitting...') : 'Submit Ticket'}
                     </button>
                 </div>
             </motion.div>
@@ -199,8 +217,10 @@ function CreateTicketModal({ open, onClose, onCreate }: {
 function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
     const [expanded, setExpanded] = useState(false);
     const [replyInput, setReplyInput] = useState('');
+    const [replyAttachments, setReplyAttachments] = useState<File[]>([]);
     const [replies, setReplies] = useState<TicketReply[]>(ticket.replies);
     const [sending, setSending] = useState(false);
+    const replyFileInputRef = useRef<HTMLInputElement>(null);
 
     const statusCfg = STATUS_CFG[ticket.status];
     const categoryCfg = CATEGORY_CFG[ticket.category];
@@ -211,11 +231,16 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
         if (!replyInput.trim()) return;
         setSending(true);
         try {
+            const uploaded = replyAttachments.length > 0
+                ? await Promise.all(replyAttachments.map(uploadTicketFile))
+                : [];
             const res = await api.post(`/admin/support/tickets/${ticket.id}/replies`, {
                 message: replyInput.trim(),
+                attachments: uploaded,
             });
             setReplies(prev => [...prev, res.data.data]);
             setReplyInput('');
+            setReplyAttachments([]);
             toast.success('Message sent!');
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -270,6 +295,13 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                             <div className="p-3 bg-muted/30 rounded-xl">
                                 <p className="text-[11px] font-semibold text-muted-foreground mb-1">Description</p>
                                 <p className="text-sm text-foreground leading-relaxed">{ticket.description}</p>
+                                {ticket.attachments && ticket.attachments.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-2.5">
+                                        {ticket.attachments.map((a, i) => (
+                                            <AttachmentPreview key={i} attachment={a} compact />
+                                        ))}
+                                    </div>
+                                )}
                             </div>
 
                             {replies.length > 0 && (
@@ -288,6 +320,13 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                                         style={isAdmin ? { background: '#7C3AED' } : {}}>
                                                         {r.message}
                                                     </div>
+                                                    {r.attachments && r.attachments.length > 0 && (
+                                                        <div className={`flex flex-wrap gap-1.5 mt-1.5 max-w-[85%] ${isAdmin ? 'justify-end' : 'justify-start'}`}>
+                                                            {r.attachments.map((a, i) => (
+                                                                <AttachmentPreview key={i} attachment={a} compact />
+                                                            ))}
+                                                        </div>
+                                                    )}
                                                     <p className="text-[10px] text-muted-foreground mt-1 px-1">{r.author} · {formatRelative(r.createdAt)}</p>
                                                 </div>
                                             </div>
@@ -300,9 +339,23 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                 <div className="space-y-2">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Reply</p>
                                     <div className="flex gap-2">
-                                        <textarea value={replyInput} onChange={e => setReplyInput(e.target.value)}
-                                            placeholder="Add a message..." rows={2}
-                                            className="flex-1 px-3 py-2 rounded-xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-none" />
+                                        <div className="flex-1 relative">
+                                            <textarea value={replyInput} onChange={e => setReplyInput(e.target.value)}
+                                                placeholder="Add a message..." rows={2}
+                                                className="w-full px-3 py-2 pr-9 rounded-xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-none" />
+                                            <button type="button" onClick={() => replyFileInputRef.current?.click()}
+                                                className="absolute bottom-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                                                title="Add attachment">
+                                                <Paperclip size={13} />
+                                            </button>
+                                            <input ref={replyFileInputRef} type="file" multiple accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                                className="hidden"
+                                                onChange={e => {
+                                                    const files = Array.from(e.target.files ?? []);
+                                                    setReplyAttachments(prev => [...prev, ...files].slice(0, 5));
+                                                    e.target.value = '';
+                                                }} />
+                                        </div>
                                         <button onClick={handleReply} disabled={!replyInput.trim() || sending}
                                             className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold self-end disabled:opacity-50 transition-all hover:opacity-90"
                                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
@@ -310,6 +363,13 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                             Send
                                         </button>
                                     </div>
+                                    {replyAttachments.length > 0 && (
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {replyAttachments.map((f, i) => (
+                                                <PendingAttachmentChip key={i} file={f} onRemove={() => setReplyAttachments(prev => prev.filter((_, j) => j !== i))} />
+                                            ))}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>

@@ -44,8 +44,6 @@ import {
   Trophy,
   Upload,
   Camera,
-  Play,
-  Pause,
   Flag,
   Wallet,
   BarChart2,
@@ -69,7 +67,7 @@ import type {
   TrialUsage,
   PlanDashboardResponse,
 } from "./institution-detail.types";
-import { PRICING, ALL_FEATURES, statusCfg, PLAN_BASE, COMMITTED_DISCOUNT, PAUSE_BILLING_FACTOR } from "./institution-detail.constants";
+import { PRICING, ALL_FEATURES, statusCfg, PLAN_BASE, COMMITTED_DISCOUNT } from "./institution-detail.constants";
 import {
   toIST,
   mapApiBillToUiBill,
@@ -1016,8 +1014,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
   const initialPlan =
     (inst.subscription?.plan?.name as "BASIC" | "PRO" | "TRIAL") ?? "BASIC";
   const [planActive, setPlanActive] = useState(
-    (inst.subscription?.status ?? "") === "ACTIVE" ||
-    (inst.subscription?.status ?? "") === "PAUSED",
+    (inst.subscription?.status ?? "") === "ACTIVE",
   );
   const [plan, setPlan] = useState<"BASIC" | "PRO" | "TRIAL">(initialPlan);
   const [planOption, setPlanOption] = useState<"FLEXIBLE" | "COMMITTED">(
@@ -1030,6 +1027,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
     (inst.subscription?.paymentStatus ?? "") === "PAID",
   );
   const [activating, setActivating] = useState(false);
+  const [showTrialConfirm, setShowTrialConfirm] = useState(false);
   const [features, setFeatures] = useState<Record<string, boolean>>(
     getDefaultFeatures("BASIC"),
   );
@@ -1041,12 +1039,8 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
   const [tokenAddInput, setTokenAddInput] = useState("0");
   const [tokenPricePer10k, setTokenPricePer10k] = useState<number | "">("");
   const [tokenAdded, setTokenAdded] = useState(false);
-  const [planPaused, setPlanPaused] = useState(
-    (inst.subscription?.status ?? "") === "PAUSED",
-  );
-  const [pauseResumeLoading, setPauseResumeLoading] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<
-    "deactivate" | "pause" | "resume" | "upgrade" | "downgrade" | "enable_addon" | null
+    "deactivate" | "upgrade" | "downgrade" | "enable_addon" | null
   >(null);
   const [upgradePaid, setUpgradePaid] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
@@ -1505,11 +1499,6 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 )}
               </div>
 
-              {planPaused && (
-                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-950/50 px-2 py-0.5 rounded-full mt-1">
-                  <Pause size={10} /> Operations Paused
-                </span>
-              )}
             </div>
             <div className="flex items-center gap-2 shrink-0 flex-wrap">
               {plan === "BASIC" && (
@@ -1535,22 +1524,6 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                   <ChevronRight size={13} className="rotate-180" /> Downgrade to Basic
                 </button>
               )}
-              <button
-                onClick={() =>
-                  setConfirmDialog(planPaused ? "resume" : "pause")
-                }
-                className={`flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold transition-all ${planPaused ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"}`}
-              >
-                {planPaused ? (
-                  <>
-                    <Play size={13} /> Resume
-                  </>
-                ) : (
-                  <>
-                    <Pause size={13} /> Pause
-                  </>
-                )}
-              </button>
               <button
                 onClick={() => setConfirmDialog("deactivate")}
                 className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 text-xs font-semibold hover:opacity-80 transition-all"
@@ -2142,7 +2115,6 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                             );
                             if (res.data?.data?.reactivated) {
                               setPlanActive(true);
-                              setPlanPaused(false);
                               toast.success("Payment recorded and institution reactivated");
                             } else {
                               toast.success(`Bill marked as ${nextStatus === "PAID" ? "Paid" : "Pending"}`);
@@ -2927,18 +2899,10 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
               ) : (
                 <div className="p-6">
                   <h3 className="text-base font-bold mb-2">
-                    {confirmDialog === "deactivate"
-                      ? "⚠️ Deactivate Plan?"
-                      : confirmDialog === "pause"
-                        ? "⏸ Pause Operations?"
-                        : "▶️ Resume Operations?"}
+                    ⚠️ Deactivate Plan?
                   </h3>
                   <p className="text-sm text-muted-foreground mb-5">
-                    {confirmDialog === "deactivate"
-                      ? "This will permanently deactivate the plan. Institution will lose access immediately."
-                      : confirmDialog === "pause"
-                        ? "Institution access will be temporarily suspended. All data will be preserved. You can resume anytime."
-                        : "Institution access will be restored immediately."}
+                    This will permanently deactivate the plan. Institution will lose access immediately.
                   </p>
                   <div className="flex gap-2 justify-end">
                     <button
@@ -2948,55 +2912,15 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                       Cancel
                     </button>
                     <button
-                      disabled={pauseResumeLoading}
-                      onClick={async () => {
-                        if (confirmDialog === "deactivate") {
-                          setPlanActive(false);
-                          toast.success("Plan deactivated");
-                          setConfirmDialog(null);
-                        } else if (confirmDialog === "pause") {
-                          try {
-                            setPauseResumeLoading(true);
-                            await api.post(`/superadmin/institutions/${inst.id}/pause`);
-                            setPlanPaused(true);
-                            await fetchPlanDashboard();
-                            toast.success("Institution paused — student access restricted, billing at 50%");
-                          } catch (err: unknown) {
-                            toast.error(getErrorMessage(err, "Failed to pause institution"));
-                          } finally {
-                            setPauseResumeLoading(false);
-                            setConfirmDialog(null);
-                          }
-                        } else {
-                          try {
-                            setPauseResumeLoading(true);
-                            await api.post(`/superadmin/institutions/${inst.id}/resume`);
-                            setPlanPaused(false);
-                            await fetchPlanDashboard();
-                            toast.success("Institution resumed — full access restored");
-                          } catch (err: unknown) {
-                            toast.error(getErrorMessage(err, "Failed to resume institution"));
-                          } finally {
-                            setPauseResumeLoading(false);
-                            setConfirmDialog(null);
-                          }
-                        }
+                      onClick={() => {
+                        setPlanActive(false);
+                        toast.success("Plan deactivated");
+                        setConfirmDialog(null);
                       }}
                       className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-                      style={{
-                        background:
-                          confirmDialog === "deactivate"
-                            ? "#ef4444"
-                            : confirmDialog === "pause"
-                              ? "#f59e0b"
-                              : "#10b981",
-                      }}
+                      style={{ background: "#ef4444" }}
                     >
-                      {confirmDialog === "deactivate"
-                        ? "Yes, Deactivate"
-                        : confirmDialog === "pause"
-                          ? "Yes, Pause"
-                          : "Yes, Resume"}
+                      Yes, Deactivate
                     </button>
                   </div>
                 </div>
@@ -3582,7 +3506,13 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
             return (
               <button
                 key={p.key}
-                onClick={() => setPlan(p.key)}
+                onClick={() => {
+                  if (p.key === "TRIAL") {
+                    setShowTrialConfirm(true);
+                  } else {
+                    setPlan(p.key);
+                  }
+                }}
                 className={`flex flex-col gap-2 p-4 rounded-xl border-2 text-left transition-all ${isActive ? p.border : "border-border/50 bg-muted/30 hover:border-border"}`}
               >
                 <div className="flex items-center justify-between w-full">
@@ -3889,12 +3819,12 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                   {isCommitted ? (
                     <>
                       <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">15% off monthly bill</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Academic year commitment · No pause · Early-exit clawback applies</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Academic year commitment · Early-exit clawback applies</p>
                     </>
                   ) : (
                     <>
                       <p className="text-[11px] text-muted-foreground font-semibold">Full rate</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Pause up to 2 months/year · 50% billing during pause · Limited access</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">No commitment · Cancel anytime · Full monthly rate</p>
                     </>
                   )}
                   {isCommitted && (
@@ -3971,6 +3901,47 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
           </button>
         </div>
       </div>
+
+      {/* Trial start confirmation */}
+      {showTrialConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-card border border-border rounded-2xl overflow-hidden max-w-md w-full mx-4 shadow-2xl"
+          >
+            <div className="p-6">
+              <h3 className="text-base font-bold mb-2">
+                🚀 Start Free Trial?
+              </h3>
+              <p className="text-sm text-muted-foreground mb-5">
+                This will start a 14-day free trial for{" "}
+                <span className="font-semibold text-foreground">{inst.name}</span>{" "}
+                with {PLAN_BASE.TRIAL.aiTokens}M AI tokens and up to 500 users.
+                You can extend or end the trial later.
+              </p>
+              <div className="flex gap-2 justify-end">
+                <button
+                  onClick={() => setShowTrialConfirm(false)}
+                  className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setPlan("TRIAL");
+                    setShowTrialConfirm(false);
+                  }}
+                  className="flex items-center gap-1.5 h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 active:scale-95"
+                  style={{ background: "linear-gradient(135deg, #F59E0B 0%, #D97706 100%)" }}
+                >
+                  <Zap size={13} /> Yes, Start Trial
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </motion.div>
   );
 }

@@ -25,7 +25,6 @@ import {
     MessageSquare,
     Landmark,
     QrCode,
-    Pause,
     Database,
 } from 'lucide-react';
 
@@ -185,7 +184,7 @@ export default function SubscriptionPage() {
             .finally(() => setOverviewLoading(false));
     }, []);
 
-    // Background poll — surfaces superadmin-side plan/pause/feature changes without a manual reload.
+    // Background poll — surfaces superadmin-side plan/feature changes without a manual reload.
     useEffect(() => {
         const poll = setInterval(() => {
             api.get('/admin/overview').then(res => setOverview(res.data.data)).catch(() => {});
@@ -416,11 +415,6 @@ export default function SubscriptionPage() {
                                 </div>
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                    onClick={() => router.push('/admin/support/tickets')}
-                                    className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 hover:opacity-80 transition-all">
-                                    <Pause size={13} /> Request Pause
-                                </button>
                                 <button
                                     onClick={() => router.push('/admin/support/tickets')}
                                     className="flex items-center gap-1.5 h-8 px-3 rounded-lg bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 text-xs font-semibold hover:opacity-80 transition-all">

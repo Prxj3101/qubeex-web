@@ -40,6 +40,9 @@ const ACTION_CONFIG: Record<string, { label: string; cls: string; dot: string }>
     STUDENT_UPDATED: { label: 'Student Updated', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400', dot: 'bg-blue-500' },
     STUDENT_DEACTIVATED: { label: 'Student Deactivated', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
     STUDENT_ACTIVATED: { label: 'Student Activated', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
+    // Sub-admins
+    SUBADMIN_DEACTIVATED: { label: 'Sub-admin Deactivated', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
+    SUBADMIN_ACTIVATED: { label: 'Sub-admin Activated', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
     // Campus
     CLASS_CREATED: { label: 'Class Created', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', dot: 'bg-amber-500' },
     CLASS_UPDATED: { label: 'Class Updated', cls: 'bg-amber-100 text-amber-600 dark:bg-amber-950 dark:text-amber-500', dot: 'bg-amber-400' },
