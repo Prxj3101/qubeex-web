@@ -37,6 +37,7 @@ export function SillyStringOverlay({ name, fontSize = 30, active = true }: Silly
         async function buildLogo() {
             // Wait for fonts so measureText is accurate
             await document.fonts.ready;
+            if (W === 0 || H === 0) return; // canvas not laid out yet — bail, resize() will retry
 
             const font = `600 ${fontSize}px Poppins, sans-serif`;
             const offscreen = document.createElement('canvas');
@@ -69,6 +70,7 @@ export function SillyStringOverlay({ name, fontSize = 30, active = true }: Silly
             if (!C) return;
             W = C.width = C.offsetWidth;
             H = C.height = C.offsetHeight;
+            if (W === 0 || H === 0) { ready = false; return; } // not laid out yet — ResizeObserver will retrigger
             buildLogo();
         }
 
