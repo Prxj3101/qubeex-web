@@ -563,15 +563,16 @@ export default function SubadminsPage() {
     }, [modal, form.permissions]);
 
     const handleToggleStatus = useCallback(async (subadmin: SubAdminRecord) => {
+        const nextActive = !subadmin.isActive;
         try {
-            await api.patch(`/admin/subadmins/${subadmin.id}/deactivate`);
+            await api.patch(`/admin/subadmins/${subadmin.id}/${nextActive ? 'activate' : 'deactivate'}`);
             setSubadmins(prev => prev.map(s =>
-                s.id === subadmin.id ? { ...s, isActive: false } : s
+                s.id === subadmin.id ? { ...s, isActive: nextActive } : s
             ));
-            toast.success('Subadmin deactivated');
+            toast.success(nextActive ? 'Subadmin activated' : 'Subadmin deactivated');
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-            toast.error(msg ?? 'Failed to deactivate');
+            toast.error(msg ?? `Failed to ${nextActive ? 'activate' : 'deactivate'}`);
         }
     }, []);
 

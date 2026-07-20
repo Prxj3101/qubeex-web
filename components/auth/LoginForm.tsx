@@ -79,11 +79,6 @@ export function LoginForm() {
                 return;
             }
 
-            if (subStatus === 'PAUSED' && user.role === 'STUDENT') {
-                router.push('/paused');
-                return;
-            }
-
             if (user.role === 'STUDENT' && user.mustChangePassword) {
                 toast.success(`Welcome, ${user.name || 'Student'}! Please set your password to continue.`);
                 router.push('/student/set-password');

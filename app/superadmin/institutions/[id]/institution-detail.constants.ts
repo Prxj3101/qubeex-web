@@ -18,7 +18,6 @@ import {
 // Pricing is uniform across all institution types.
 // Volume tier is MARGINAL — only users beyond 1500 pay the lower rate.
 // Committed plan option gives 15% off monthly bill; Flexible is full rate.
-// During pause (Flexible only): 50% billing, limited access, max 2 months/year.
 // AI tokens: BASIC = 10M/month, PRO = 15M/month, TRIAL = 2M.
 export const PLAN_BASE = {
   BASIC: {
@@ -45,7 +44,6 @@ export const PLAN_BASE = {
 } as const;
 
 export const COMMITTED_DISCOUNT = 0.15; // 15% off monthly bill
-export const PAUSE_BILLING_FACTOR = 0.5; // 50% billing during pause
 export const VOLUME_THRESHOLD = 1500;    // marginal rate kicks in beyond this
 
 // Legacy tiers shape kept for backward compat with getRate() calls

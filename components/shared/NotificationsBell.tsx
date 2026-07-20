@@ -16,6 +16,7 @@ import api from '@/lib/api';
 
 interface BellNotif {
     id: string;
+    recipientId: string;
     title: string;
     subtitle: string;
     time: string;
@@ -28,6 +29,11 @@ interface ApiNotif {
     message: string;
     createdAt: string;
     tag?: string;
+}
+// Institution-scoped feed (admin/teacher/student) carries a per-recipient id + read state.
+interface InstApiNotif extends ApiNotif {
+    recipientId: string;
+    isRead: boolean;
 }
 
 // ─── Icon configs ─────────────────────────────────────────────────────────────
@@ -87,26 +93,7 @@ function relativeTime(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 }
 
-// ─── Mock data for non-superadmin roles ───────────────────────────────────────
-
-
-const TEACHER_MOCK: BellNotif[] = [
-    { id: 'tc1', iconKey: 'ASSIGNMENT_SUBMITTED', read: false, title: '24 assignments submitted', subtitle: 'DS Unit 3 Assignment — Class 10-A',              time: '5 min ago' },
-    { id: 'tc2', iconKey: 'TEST_SCHEDULED',       read: false, title: 'New test scheduled',       subtitle: 'DBMS Mid-term on 25 Apr 2026',                   time: '30 min ago' },
-    { id: 'tc3', iconKey: 'STUDENT_FLAGGED',      read: false, title: 'Student flagged',          subtitle: 'Rahul Sharma — Tab switch during online test',   time: '2 hr ago' },
-    { id: 'tc4', iconKey: 'RESULT_PUBLISHED',     read: true,  title: 'Results published',        subtitle: 'OS Quiz 2 results are now visible to students',  time: '4 hr ago' },
-];
-
-const STUDENT_MOCK: BellNotif[] = [
-    { id: 'st1', iconKey: 'EXAM_REMINDER',       read: false, title: 'Exam in 2 days',       subtitle: 'DBMS Mid-term on 25 Apr 2026 at 10:00 AM',       time: '1 hr ago' },
-    { id: 'st2', iconKey: 'RESULT_PUBLISHED',    read: false, title: 'Result published',     subtitle: 'OS Quiz 2 — Your score: 85/100',                 time: '2 hr ago' },
-    { id: 'st3', iconKey: 'ATTENDANCE_WARNING',  read: false, title: 'Attendance warning',   subtitle: 'CN theory attendance below 75% — 63%',           time: '3 hr ago' },
-    { id: 'st4', iconKey: 'FEE_DUE',             read: false, title: 'Fee payment due',      subtitle: 'Year 3 pending — ₹30,000 due by 30 Jun 2025',    time: '5 hr ago' },
-    { id: 'st5', iconKey: 'ANNOUNCEMENT_ADMIN',  read: true,  title: 'New announcement',     subtitle: 'Exam schedule updated — Check calendar',         time: '1 day ago' },
-];
-
 const SA_LAST_SEEN_KEY = 'sa-notifs-last-seen';
-const ADMIN_LAST_SEEN_KEY = 'admin-notifs-last-seen';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
@@ -115,39 +102,44 @@ export function NotificationsBell() {
     const router = useRouter();
     const [open, setOpen] = useState(false);
     const [notifs, setNotifs] = useState<BellNotif[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(false);
+
     const isSuperAdmin = pathname.startsWith('/superadmin');
-    const isAdmin = pathname.startsWith('/admin');
+    // Teachers don't get notifications — the bell is hidden for them entirely.
+    const isTeacher = pathname.startsWith('/teacher');
+    // Admin and student share one institution-scoped notification API, with real
+    // per-recipient read state on the backend.
+    const roleBase =
+        pathname.startsWith('/admin')   ? '/admin'   :
+        pathname.startsWith('/student') ? '/student' :
+        null;
 
-    const role =
-        pathname.startsWith('/superadmin') ? 'SUPER_ADMIN' :
-        pathname.startsWith('/admin')      ? 'ADMIN' :
-        pathname.startsWith('/teacher')    ? 'TEACHER' :
-        'STUDENT';
-
-    const lastSeenKey = isSuperAdmin ? SA_LAST_SEEN_KEY : ADMIN_LAST_SEEN_KEY;
-
+    // Superadmin's feed has no per-recipient read state, so unread is tracked
+    // against a "last seen" timestamp instead.
     const [lastSeen, setLastSeen] = useState<Date | null>(() => {
         if (typeof window === 'undefined') return null;
-        const raw = localStorage.getItem(isSuperAdmin ? SA_LAST_SEEN_KEY : ADMIN_LAST_SEEN_KEY);
+        const raw = localStorage.getItem(SA_LAST_SEEN_KEY);
         return raw ? new Date(raw) : null;
     });
 
     const fetchSANotifs = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await api.get('/superadmin/notifications', { params: { page: 1, limit: 10 } });
+            const res = await api.get('/superadmin/notifications/feed', { params: { limit: 15 } });
             const raw: ApiNotif[] = res.data?.notifications ?? [];
             const seen = lastSeen;
             const mapped: BellNotif[] = raw.map(n => ({
                 id: n.id,
+                recipientId: n.id,
                 title: n.title,
-                subtitle: n.message.length > 80 ? n.message.slice(0, 80) + '…' : n.message,
+                subtitle: n.message,
                 time: relativeTime(n.createdAt),
                 read: seen ? new Date(n.createdAt) <= seen : false,
                 iconKey: n.tag ?? 'SYSTEM',
             }));
             setNotifs(mapped);
+            setUnreadCount(mapped.filter(n => !n.read).length);
         } catch {
             // fail silently — bell just shows empty
         } finally {
@@ -155,78 +147,94 @@ export function NotificationsBell() {
         }
     }, [lastSeen]);
 
-    const fetchAdminNotifs = useCallback(async () => {
+    const fetchInstitutionNotifs = useCallback(async () => {
+        if (!roleBase) return;
         setLoading(true);
         try {
-            const res = await api.get('/admin/notifications', { params: { page: 1, limit: 10 } });
-            const raw: ApiNotif[] = res.data?.notifications ?? [];
-            const seen = lastSeen;
+            const res = await api.get(`${roleBase}/notifications`, { params: { page: 1, limit: 10 } });
+            const raw: InstApiNotif[] = res.data?.notifications ?? [];
             const mapped: BellNotif[] = raw.map(n => ({
                 id: n.id,
+                recipientId: n.recipientId,
                 title: n.title,
-                subtitle: n.message.length > 80 ? n.message.slice(0, 80) + '…' : n.message,
+                subtitle: n.message,
                 time: relativeTime(n.createdAt),
-                read: seen ? new Date(n.createdAt) <= seen : false,
+                read: n.isRead,
                 iconKey: n.tag ?? 'SYSTEM',
             }));
             setNotifs(mapped);
+            setUnreadCount(res.data?.unreadCount ?? mapped.filter(n => !n.read).length);
         } catch {
             // fail silently — bell just shows empty
         } finally {
             setLoading(false);
         }
-    }, [lastSeen]);
+    }, [roleBase]);
 
-    // Fetch on mount for superadmin / admin; use mock for teacher and student
+    const refresh = useCallback(() => {
+        if (isSuperAdmin) return fetchSANotifs();
+        if (roleBase) return fetchInstitutionNotifs();
+    }, [isSuperAdmin, roleBase, fetchSANotifs, fetchInstitutionNotifs]);
+
+    // Initial fetch + poll so the unread dot surfaces everywhere when a new
+    // notification arrives, without needing a page navigation/reload.
     useEffect(() => {
-        if (isSuperAdmin) {
-            void fetchSANotifs();
-        } else if (isAdmin) {
-            void fetchAdminNotifs();
-        } else {
-            const mockMap: Record<string, BellNotif[]> = {
-                TEACHER: TEACHER_MOCK,
-                STUDENT: STUDENT_MOCK,
-            };
-            setNotifs(mockMap[role] ?? []);
-        }
-    }, [isSuperAdmin, isAdmin, role, fetchSANotifs, fetchAdminNotifs]);
-
-    const unreadCount = notifs.filter(n => !n.read).length;
+        void refresh();
+        const interval = setInterval(() => { void refresh(); }, 30000);
+        return () => clearInterval(interval);
+    }, [refresh]);
 
     const handleOpen = () => {
         setOpen(true);
-        if (isSuperAdmin) void fetchSANotifs();
-        else if (isAdmin) void fetchAdminNotifs();
+        void refresh();
     };
 
     const handleClose = () => {
         setOpen(false);
-        if (isSuperAdmin || isAdmin) {
+        if (isSuperAdmin) {
             const now = new Date();
-            localStorage.setItem(lastSeenKey, now.toISOString());
+            localStorage.setItem(SA_LAST_SEEN_KEY, now.toISOString());
             setLastSeen(now);
             setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+            setUnreadCount(0);
         }
     };
 
-    const markAllRead = () => {
-        if (isSuperAdmin || isAdmin) {
-            const now = new Date();
-            localStorage.setItem(lastSeenKey, now.toISOString());
-            setLastSeen(now);
-        }
+    const markAllRead = async () => {
         setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+        setUnreadCount(0);
+        if (isSuperAdmin) {
+            const now = new Date();
+            localStorage.setItem(SA_LAST_SEEN_KEY, now.toISOString());
+            setLastSeen(now);
+            return;
+        }
+        if (roleBase) {
+            try { await api.patch(`${roleBase}/notifications/read-all`); } catch { void refresh(); }
+        }
     };
 
-    const markRead = (id: string) =>
-        setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    const markRead = async (recipientId: string) => {
+        let wasUnread = false;
+        setNotifs(prev => prev.map(n => {
+            if (n.recipientId === recipientId && !n.read) { wasUnread = true; return { ...n, read: true }; }
+            return n;
+        }));
+        if (wasUnread) setUnreadCount(c => Math.max(0, c - 1));
+        if (isSuperAdmin || !roleBase) return;
+        try { await api.patch(`${roleBase}/notifications/${recipientId}/read`); } catch { void refresh(); }
+    };
 
     const handleViewAll = () => {
         handleClose();
         if (isSuperAdmin) router.push('/superadmin/notifications');
-        else if (isAdmin) router.push('/admin/notifications');
+        else if (roleBase === '/admin') router.push('/admin/notifications');
     };
+
+    const hasViewAllPage = isSuperAdmin || roleBase === '/admin';
+
+    // Teachers have no notifications — don't render the bell at all.
+    if (isTeacher) return null;
 
     return (
         <div className="relative">
@@ -312,7 +320,7 @@ export function NotificationsBell() {
                                             key={notif.id}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            onClick={() => markRead(notif.id)}
+                                            onClick={() => markRead(notif.recipientId)}
                                             className={`w-full flex items-start gap-3 px-4 py-3.5 text-left hover:bg-muted/30 transition-colors ${!notif.read ? 'bg-primary/5' : ''}`}
                                         >
                                             <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${cfg.iconBg}`}>
@@ -322,7 +330,7 @@ export function NotificationsBell() {
                                                 <p className={`text-xs leading-snug ${!notif.read ? 'font-semibold' : 'font-medium'}`}>
                                                     {notif.title}
                                                 </p>
-                                                <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">
+                                                <p className="text-[11px] text-muted-foreground mt-0.5 whitespace-pre-wrap break-words">
                                                     {notif.subtitle}
                                                 </p>
                                                 <p className="text-[10px] text-muted-foreground/70 mt-1">{notif.time}</p>
@@ -337,15 +345,17 @@ export function NotificationsBell() {
                         </div>
 
                         {/* Footer */}
-                        <div className="border-t border-border/50 px-4 py-3">
-                            <button
-                                onClick={handleViewAll}
-                                className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
-                            >
-                                View all notifications
-                                <ChevronRight size={13} />
-                            </button>
-                        </div>
+                        {hasViewAllPage && (
+                            <div className="border-t border-border/50 px-4 py-3">
+                                <button
+                                    onClick={handleViewAll}
+                                    className="w-full flex items-center justify-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+                                >
+                                    View all notifications
+                                    <ChevronRight size={13} />
+                                </button>
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
