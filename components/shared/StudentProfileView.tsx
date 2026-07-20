@@ -106,12 +106,17 @@ export interface StudentProfileViewProps {
     onViewAllFlags?: () => void;
     /** When false, renders just the section cards (no page header / scroll wrapper) so a caller can embed them inside its own layout alongside more sections. Defaults to true. */
     standalone?: boolean;
+    /** Rendered side-by-side with Attendance (right column). */
+    feesSlot?: React.ReactNode;
+    /** Rendered side-by-side with Remarks (right column). */
+    projectsSlot?: React.ReactNode;
 }
 
 export default function StudentProfileView({
     institutionName, studentName, studentIdCode, standard, division, rollNo, admissionYear,
     dob, email, photo, status = 'ACTIVE', marksheetData, attendanceApiData, flags,
     onBack, onViewDetail, onViewReportCard, onViewAttendanceDetails, onViewAllFlags, standalone = true,
+    feesSlot, projectsSlot,
 }: StudentProfileViewProps) {
     const [photoExpanded, setPhotoExpanded] = useState(false);
     const [marksMode, setMarksMode] = useState<MarksMode>('combined');
@@ -360,6 +365,7 @@ export default function StudentProfileView({
                     </div>
                 </div>
 
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* ── Attendance ── */}
                 <SectionCard title="Attendance" icon={Calendar} iconColor="#10B981"
                     action={onViewAttendanceDetails && (
@@ -457,7 +463,10 @@ export default function StudentProfileView({
                         ))}
                     </div>
                 </SectionCard>
+                {feesSlot}
+                </div>
 
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {/* ── Flags ── */}
                 <SectionCard title="Remarks: Flags & Warnings" icon={Flag} iconColor="#EF4444"
                     action={onViewAllFlags && (
@@ -508,6 +517,8 @@ export default function StudentProfileView({
                         </div>
                     )}
                 </SectionCard>
+                {projectsSlot}
+                </div>
         </>
     );
 

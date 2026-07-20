@@ -88,7 +88,7 @@ export default function TeacherStudentProfilePage() {
             marksheetData={marksheetData}
             attendanceApiData={attendanceApiData}
             flags={flags}
-            onBack={() => router.back()}
+            onBack={() => router.push(`/teacher/classes/${divisionId}?tab=manage&student=${studentId}`)}
             onViewAllFlags={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/reports?name=${encodeURIComponent(student.user.name ?? 'Student')}`)}
         />
     );

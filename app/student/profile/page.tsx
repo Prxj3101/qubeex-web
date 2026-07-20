@@ -83,40 +83,7 @@ export default function StudentProfile() {
             .catch(() => setFlags([]));
     }, []);
 
-    return (
-        <div className="flex flex-col h-full overflow-hidden">
-            {/* Page Header */}
-            <div className="shrink-0 px-1 pb-3">
-                <h1 className="text-xl font-bold flex items-center gap-2">
-                    <User size={21} /> Profile
-                </h1>
-                <p className="text-[13px] text-muted-foreground">Your personal &amp; academic details</p>
-                <div className="h-px bg-border/60 mt-2" />
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-5 pb-8 px-1">
-                <StudentProfileView
-                    standalone={false}
-                    institutionName={student.institutionName}
-                    studentName={student.name}
-                    studentIdCode={student.studentId}
-                    standard={student.standard}
-                    division={student.division}
-                    rollNo={student.rollNo}
-                    admissionYear={student.admissionYear}
-                    dob={student.dob}
-                    email={student.email}
-                    photo={student.photo}
-                    marksheetData={marksheetData}
-                    attendanceApiData={attendanceApiData}
-                    flags={flags}
-                    onViewDetail={() => router.push('/student/detail')}
-                    onViewReportCard={() => router.push('/student/reportcard')}
-                    onViewAttendanceDetails={() => router.push('/student/attendance')}
-                    onViewAllFlags={() => router.push('/student/flags')}
-                />
-
-                {/* ── Fees ── */}
+    const feesElement = (
                 <SectionCard title="Fees" icon={IndianRupee} iconColor="#10B981"
                     action={
                         <button onClick={() => router.push('/student/fees')} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
@@ -198,8 +165,9 @@ export default function StudentProfile() {
                         </div>
                     </div>
                 </SectionCard>
+    );
 
-                {/* ── Achievements ─ */}
+    const projectsElement = (
                 <SectionCard title="Projects & Achievements" icon={Award} iconColor="#F59E0B"
                     action={
                         <span className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted text-muted-foreground cursor-default select-none">
@@ -223,6 +191,42 @@ export default function StudentProfile() {
                         <p className="text-[11px] text-violet-600 dark:text-violet-400">Share your projects & certificates to build your academic profile</p>
                     </div>
                 </SectionCard>
+    );
+
+    return (
+        <div className="flex flex-col h-full overflow-hidden">
+            {/* Page Header */}
+            <div className="shrink-0 px-1 pb-3">
+                <h1 className="text-xl font-bold flex items-center gap-2">
+                    <User size={21} /> Profile
+                </h1>
+                <p className="text-[13px] text-muted-foreground">Your personal &amp; academic details</p>
+                <div className="h-px bg-border/60 mt-2" />
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-5 pb-8 px-1">
+                <StudentProfileView
+                    standalone={false}
+                    institutionName={student.institutionName}
+                    studentName={student.name}
+                    studentIdCode={student.studentId}
+                    standard={student.standard}
+                    division={student.division}
+                    rollNo={student.rollNo}
+                    admissionYear={student.admissionYear}
+                    dob={student.dob}
+                    email={student.email}
+                    photo={student.photo}
+                    marksheetData={marksheetData}
+                    attendanceApiData={attendanceApiData}
+                    flags={flags}
+                    onViewDetail={() => router.push('/student/detail')}
+                    onViewReportCard={() => router.push('/student/reportcard')}
+                    onViewAttendanceDetails={() => router.push('/student/attendance')}
+                    onViewAllFlags={() => router.push('/student/flags')}
+                    feesSlot={feesElement}
+                    projectsSlot={projectsElement}
+                />
 
                 {/* ── Settings ── */}
                 <div className="space-y-1">

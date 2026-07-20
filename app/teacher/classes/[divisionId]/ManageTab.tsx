@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { AddStudentModal, StudentFormData } from './AddStudentModal';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -255,6 +255,7 @@ export default function ManageTab({ division, isClassTeacher }: {
     isClassTeacher: boolean;
 }) {
     const router = useRouter();
+    const searchParams = useSearchParams();
 
     const [students, setStudents] = useState<Student[]>([]);
     const [loadingStudents, setLoadingStudents] = useState(true);
@@ -280,6 +281,7 @@ export default function ManageTab({ division, isClassTeacher }: {
     const [resettingPassword, setResettingPassword] = useState(false);
     const [resetResult, setResetResult] = useState<string | null>(null);
     const [showResetResult, setShowResetResult] = useState(false);
+    const [confirmResetPassword, setConfirmResetPassword] = useState(false);
 
     const [showExportMenu, setShowExportMenu] = useState(false);
 
@@ -330,7 +332,15 @@ export default function ManageTab({ division, isClassTeacher }: {
             list.forEach(s => { if (s.avatarUrl) setPhoto(s.id, s.avatarUrl); });
             setStudents(list);
             setSelectedStudent(prev => {
-                if (!prev) return list[0] ?? null;
+                if (!prev) {
+                    // Restore the student selected before navigating away (Report / View Profile), if present in the URL
+                    const wantedId = searchParams.get('student');
+                    if (wantedId) {
+                        const wanted = list.find(s => s.id === wantedId);
+                        if (wanted) return wanted;
+                    }
+                    return list[0] ?? null;
+                }
                 return list.find(s => s.id === prev.id) ?? list[0] ?? null;
             });
         } catch {
@@ -485,6 +495,7 @@ export default function ManageTab({ division, isClassTeacher }: {
 
     const handleResetPassword = async () => {
         if (!selectedStudent) return;
+        setConfirmResetPassword(false);
         setResettingPassword(true);
         try {
             const res = await api.post(
@@ -928,7 +939,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     {isClassTeacher && (
                                                         <button
                                                             type="button"
-                                                            onClick={handleResetPassword}
+                                                            onClick={() => setConfirmResetPassword(true)}
                                                             disabled={resettingPassword}
                                                             className="mt-2 flex items-center gap-1.5 text-xs font-medium text-amber-500 hover:text-amber-400 disabled:opacity-50 transition-colors"
                                                         >
@@ -1122,6 +1133,31 @@ export default function ManageTab({ division, isClassTeacher }: {
                         )}
                     </AnimatePresence>
 
+                    {/* Confirm reset password dialog */}
+                    <AnimatePresence>
+                        {confirmResetPassword && selectedStudent && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                                <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                                    className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                                    <h3 className="text-base font-bold mb-2">Reset Password?</h3>
+                                    <p className="text-sm text-muted-foreground mb-5">
+                                        {`This will generate a new temporary password for ${selectedStudent.user.name ?? 'this student'}. They'll need to use it to log in and set a new password.`}
+                                    </p>
+                                    <div className="flex gap-2 justify-end">
+                                        <button onClick={() => setConfirmResetPassword(false)} disabled={resettingPassword}
+                                            className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                            Cancel
+                                        </button>
+                                        <button onClick={handleResetPassword} disabled={resettingPassword}
+                                            className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 bg-amber-500">
+                                            {resettingPassword ? '…' : 'Yes, Reset'}
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            </div>
+                        )}
+                    </AnimatePresence>
+
                     <AddStudentModal
                         open={showAddStudent}
                         onOpenChange={setShowAddStudent}
@@ -1218,7 +1254,8 @@ export default function ManageTab({ division, isClassTeacher }: {
                     <button
                         type="button"
                         onClick={() => { setShowResetResult(false); setResetResult(null); }}
-                        className="w-full h-10 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 transition-opacity"
+                        className="w-full h-10 rounded-xl text-white text-sm font-medium hover:opacity-90 transition-opacity"
+                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
                     >
                         Done
                     </button>

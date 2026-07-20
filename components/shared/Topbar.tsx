@@ -34,6 +34,7 @@ interface NavItem {
 interface TopbarProps {
     navItems?: NavItem[];
     devToggle?: React.ReactNode; // ← add
+    restrictNav?: boolean;
 }
 
 type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'SUB_ADMIN' | 'TEACHER' | 'STUDENT';
@@ -99,7 +100,7 @@ function RoleBadge() {
     );
 }
 
-function AvatarMenu() {
+function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
     const { user, clearAuth } = useAuthStore();
     const router = useRouter();
     const pathname = usePathname();
@@ -162,8 +163,11 @@ function AvatarMenu() {
                 <div className="h-px bg-border/50 mx-1 mb-1" />
 
                 <DropdownMenuItem
-                    onClick={() => router.push(profileHref)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted/50 transition-colors">
+                    onClick={() => restrictNav ? toast.error('Set your password to continue') : router.push(profileHref)}
+                    className={cn(
+                        "flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors",
+                        restrictNav ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"
+                    )}>
                     <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-[#7C3AED]/25 flex items-center justify-center shrink-0">
                         <User size={13} className="text-violet-600 dark:text-violet-400" />
                     </div>
@@ -171,8 +175,11 @@ function AvatarMenu() {
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                    onClick={() => router.push(settingsHref)}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-muted/50 transition-colors">
+                    onClick={() => restrictNav ? toast.error('Set your password to continue') : router.push(settingsHref)}
+                    className={cn(
+                        "flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors",
+                        restrictNav ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"
+                    )}>
                     <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
                         <Settings size={13} className="text-slate-600 dark:text-slate-400" />
                     </div>
@@ -192,7 +199,7 @@ function AvatarMenu() {
     );
 }
 
-export function Topbar({ navItems, devToggle }: TopbarProps) {
+export function Topbar({ navItems, devToggle, restrictNav }: TopbarProps) {
     const pathname = usePathname();
 
     return (
@@ -221,12 +228,13 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
                     {devToggle}  {/* ← add */}
                     <NotificationsBell />
                     <ThemeToggle />
-                    <AvatarMenu />
+                    <AvatarMenu restrictNav={restrictNav} />
                 </div>
             </header>
 
             {navItems && (
-                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/30 w-fit max-w-full items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/30 w-fit max-w-full items-center">
+                <div className="flex gap-1 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {navItems.map((item) => {
                         const activePaths = item.activePath
                             ? (Array.isArray(item.activePath) ? item.activePath : [item.activePath])
@@ -276,9 +284,10 @@ export function Topbar({ navItems, devToggle }: TopbarProps) {
                             </Link>
                         );
                     })}
+                </div>
 
-                    <div className="h-5 w-px bg-border mx-1.5" />
-                    <div className="ml-1">
+                    <div className="h-5 w-px bg-border mx-1.5 shrink-0" />
+                    <div className="ml-1 shrink-0">
                         <RoleBadge />
                     </div>
                 </div>

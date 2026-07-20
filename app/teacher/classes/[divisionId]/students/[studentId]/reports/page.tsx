@@ -50,7 +50,7 @@ export default function TeacherStudentReportsPage() {
                 flags={flags}
                 title={`${studentName} — Reports`}
                 subtitle="Yellow & red card history for this student"
-                onBack={() => router.back()}
+                onBack={() => router.push(`/teacher/classes/${divisionId}?tab=manage&student=${studentId}`)}
                 headerAction={
                     <button
                         onClick={() => setShowAddModal(true)}

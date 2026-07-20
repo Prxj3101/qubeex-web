@@ -94,23 +94,23 @@ export default function StudentSetPasswordPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-4 py-12" style={{ background: '#0F0A1E' }}>
+        <div className="h-full flex items-center justify-center px-4 py-4" style={{ background: '#0F0A1E' }}>
             <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 8 }}>
                 <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full opacity-20"
                     style={{ background: 'radial-gradient(circle, #7C3AED, transparent 70%)' }} />
                 <div className="absolute -bottom-40 -right-40 w-[400px] h-[400px] rounded-full opacity-15"
-                    style={{ background: 'radial-gradient(circle, #6EE7B7, transparent 70%)' }} />
+                    style={{ background: 'radial-gradient(circle, #DA7756, transparent 70%)' }} />
             </div>
 
             <motion.div
                 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.4, ease: 'easeOut' }}
-                className="relative w-full max-w-md"
+                className="relative w-full max-w-md flex flex-col"
                 style={{ zIndex: 20 }}
             >
-                <div className="text-center mb-8">
-                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mx-auto mb-4">
-                        <ShieldCheck size={28} className="text-emerald-400" />
+                <div className="text-center mb-5 shrink-0">
+                    <div className="w-14 h-14 rounded-2xl bg-[#7C3AED]/10 border border-[#7C3AED]/30 flex items-center justify-center mx-auto mb-4">
+                        <ShieldCheck size={28} className="text-[#7C3AED]" />
                     </div>
                     <h1 className="text-2xl font-bold text-white">Set Your Password</h1>
                     <p className="text-sm text-white/50 mt-1">
@@ -118,14 +118,14 @@ export default function StudentSetPasswordPage() {
                     </p>
                 </div>
 
-                <div className="h-[2px] w-full mb-0"
-                    style={{ background: 'linear-gradient(90deg, transparent, #6EE7B7, #7C3AED, transparent)' }} />
-                <div className="bg-white/[0.04] border border-white/10 rounded-3xl p-6 backdrop-blur-xl shadow-2xl">
+                <div className="h-[2px] w-full mb-0 shrink-0"
+                    style={{ background: 'linear-gradient(90deg, transparent, #7C3AED, #DA7756, transparent)' }} />
+                <div className="bg-white/[0.04] border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl p-6 shrink-0">
 
                     {/* New Password */}
                     <div className="mb-4">
                         <label className="block text-xs font-semibold text-white/60 mb-2">
-                            New Password <span className="text-emerald-400">*</span>
+                            New Password <span className="text-[#DA7756]">*</span>
                         </label>
                         <div className="relative">
                             <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
@@ -157,7 +157,7 @@ export default function StudentSetPasswordPage() {
                     {/* Confirm Password */}
                     <div className="mb-5">
                         <label className="block text-xs font-semibold text-white/60 mb-2">
-                            Confirm Password <span className="text-emerald-400">*</span>
+                            Confirm Password <span className="text-[#DA7756]">*</span>
                         </label>
                         <div className="relative">
                             <Lock size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-white/30 pointer-events-none" />
@@ -184,7 +184,7 @@ export default function StudentSetPasswordPage() {
 
                     {/* Rules */}
                     {password.length > 0 && (
-                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-2 gap-1.5 mb-5">
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-2 gap-1.5 mb-4">
                             {RULES.map(rule => {
                                 const passed = rule.test(password);
                                 return (
@@ -201,7 +201,7 @@ export default function StudentSetPasswordPage() {
                         onClick={handleSubmit}
                         disabled={!canSubmit}
                         className="w-full h-12 rounded-xl text-sm font-semibold text-white transition-all duration-200 hover:opacity-90 active:scale-[0.98] disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                        style={{ background: canSubmit ? 'linear-gradient(135deg, #34d399 0%, #10b981 40%, #059669 100%)' : 'rgba(255,255,255,0.08)' }}
+                        style={{ background: canSubmit ? 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' : 'rgba(255,255,255,0.08)' }}
                     >
                         {submitting
                             ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Setting password…</>
@@ -210,7 +210,7 @@ export default function StudentSetPasswordPage() {
                     </button>
                 </div>
 
-                <p className="text-center text-xs text-white/20 mt-6">
+                <p className="text-center text-xs text-white/20 mt-6 shrink-0">
                     QubeEx Student Portal · Your account is secured
                 </p>
             </motion.div>

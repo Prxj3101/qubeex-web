@@ -41,10 +41,16 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
         },
     ];
 
+    const isSetPasswordPage = pathname?.startsWith('/student/set-password') ?? false;
+
+    const effectiveNavItems = isSetPasswordPage
+        ? navItems.map(item => ({ ...item, locked: true }))
+        : navItems;
+
     return (
         <div className="flex flex-col h-screen bg-background px-0 pt-3 gap-3">
-            <Topbar navItems={navItems} />
-            <main className="flex-1 overflow-y-auto px-2">
+            <Topbar navItems={effectiveNavItems} restrictNav={isSetPasswordPage} />
+            <main className="flex-1 min-h-0 overflow-y-auto px-2">
                 {loading ? (
                     <div className="flex items-center justify-center h-full">
                         <PencilLoader size={72} />

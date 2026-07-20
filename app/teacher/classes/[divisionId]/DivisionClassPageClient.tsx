@@ -85,7 +85,10 @@ export default function DivisionClassPageClient() {
 
     const [division, setDivision] = useState<Division | null>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'view' | 'manage' | 'promotions' | 'attendance' | 'marks' | 'fees' | 'tasks'>('view');
+    type TabKey = 'view' | 'manage' | 'promotions' | 'attendance' | 'marks' | 'fees' | 'tasks';
+    const VALID_TABS: TabKey[] = ['view', 'manage', 'promotions', 'attendance', 'marks', 'fees', 'tasks'];
+    const tabParam = searchParams.get('tab') as TabKey | null;
+    const [activeTab, setActiveTab] = useState<TabKey>(tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'view');
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
     useEffect(() => {
