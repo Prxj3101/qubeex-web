@@ -621,7 +621,7 @@ export default function AdminAnalyticsPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
                 <StatCard icon={Users} label="Total Users" value={stats.totalUsers}
                     iconBg="bg-violet-100 dark:bg-violet-950" iconColor="text-violet-600 dark:text-violet-400"
-                    sub={`${plan.usage.users.limit.toLocaleString('en-IN')} limit`} />
+                    sub="∞ limit" />
                 <StatCard icon={GraduationCap} label="Students" value={stats.totalStudents}
                     iconBg="bg-emerald-100 dark:bg-emerald-950" iconColor="text-emerald-600 dark:text-emerald-400"
                     sub="Enrolled students" />

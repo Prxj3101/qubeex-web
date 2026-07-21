@@ -135,12 +135,10 @@ const formatBillDate = (iso: string | null) => {
 
 const PRICING_TIERS: Record<'PRO' | 'BASIC', { min: number; max: number; rate: number }[]> = {
     PRO: [
-        { min: 200, max: 1499, rate: 25 },
-        { min: 1500, max: Infinity, rate: 22 },
+        { min: 200, max: Infinity, rate: 39 },
     ],
     BASIC: [
-        { min: 200, max: 1499, rate: 20 },
-        { min: 1500, max: Infinity, rate: 17 },
+        { min: 200, max: Infinity, rate: 29 },
     ],
 };
 
@@ -237,8 +235,10 @@ export default function SubscriptionPage() {
 
     const tiers = PRICING_TIERS[currentPlan];
     const billedUsers = overview?.plan.billedUsers ?? 200;
-    const currentRate = overview?.plan.perUserRate ?? (tiers.find((t) => billedUsers >= t.min && billedUsers <= t.max)?.rate ?? tiers[0].rate);
-    const monthlyBill = overview?.plan.estMonthlyBill ?? (billedUsers * currentRate);
+    // Always use the current flat per-user rate (BASIC ₹29 / PRO ₹39) — ignore any stale
+    // perUserRate/estMonthlyBill the backend may still be sending from the old tiered pricing.
+    const currentRate = tiers.find((t) => billedUsers >= t.min && billedUsers <= t.max)?.rate ?? tiers[0].rate;
+    const monthlyBill = billedUsers * currentRate;
 
     const userBreakdown = [
         { label: 'Admin', value: overview?.stats.totalAdmins ?? 0, color: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500', fill: '#7C3AED' },
@@ -476,7 +476,7 @@ export default function SubscriptionPage() {
                                             <span className="text-muted-foreground">Users</span>
                                             {!isTrial && (
                                                 <span className="text-[11px] font-medium text-violet-500 dark:text-violet-400">
-                                                    (min. {config.userMin} | 200–1499 Users: ₹{currentPlan === 'PRO' ? 25 : 20}/user | 1500+ Users: ₹{currentPlan === 'PRO' ? 22 : 17}/user)
+                                                    (min. {config.userMin} | ₹{currentPlan === 'PRO' ? 39 : 29}/user per month)
                                                 </span>
                                             )}
                                         </div>

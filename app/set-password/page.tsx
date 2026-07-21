@@ -78,6 +78,20 @@ const idLabelForRole = (role?: string) => {
   }
 };
 
+// Account-type word for the subtitle, based on the invited user's role.
+const accountLabelForRole = (role?: string) => {
+  switch (role) {
+    case "TEACHER":
+      return "Teacher";
+    case "STUDENT":
+      return "Student";
+    case "SUB_ADMIN":
+      return "SubAdmin";
+    default:
+      return "Admin";
+  }
+};
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 function SetPasswordContent() {
@@ -306,7 +320,7 @@ function SetPasswordContent() {
             Set Your Password
           </h1>
           <p className="text-xs text-white/50 mt-1">
-            Complete your Admin account setup to get started
+            Complete your {accountLabelForRole(tokenData?.role)} account setup to get started
           </p>
         </div>
 

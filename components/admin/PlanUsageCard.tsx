@@ -37,14 +37,15 @@ export function PlanUsageCard({ plan }: PlanUsageCardProps) {
 
             <div className="space-y-3">
                 {bars.map((b) => {
+                    const isInfinite = b.label === 'Users';
                     const pct = Math.min(100, Math.round((b.used / b.limit) * 100));
-                    const overLimit = b.used >= b.limit;
+                    const overLimit = isInfinite ? false : b.used >= b.limit;
                     return (
                         <div key={b.label}>
                             <div className="flex items-center justify-between mb-1.5">
                                 <span className="text-xs text-muted-foreground">{b.label}</span>
                                 <span className="text-xs font-medium">
-                                    {b.format(b.used)} <span className="text-muted-foreground">/ {b.format(b.limit)}</span>
+                                    {b.format(b.used)} <span className="text-muted-foreground">/ {b.label === 'Users' ? '∞' : b.format(b.limit)}</span>
                                 </span>
                             </div>
                             <div className="h-1.5 bg-muted rounded-full overflow-hidden">
