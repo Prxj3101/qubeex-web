@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useUserAvatarStore } from './userAvatarStore';
 
 interface User {
     id: string;
@@ -22,17 +23,21 @@ interface AuthStore {
 
 export const useAuthStore = create<AuthStore>()(
     persist(
-        (set) => ({
+        (set, get) => ({
             user: null,
             token: null,
             setAuth: (user, token) => {
                 localStorage.setItem('token', token);
+                if (get().user?.id !== user.id) {
+                    useUserAvatarStore.getState().clearAvatarUrl();
+                }
                 set({ user, token });
             },
             setUser: (user) => set({ user }),
             clearAuth: () => {
                 localStorage.removeItem('token');
                 set({ user: null, token: null });
+                useUserAvatarStore.getState().clearAvatarUrl();
             },
         }),
         { name: 'auth-storage' }

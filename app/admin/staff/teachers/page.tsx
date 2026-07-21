@@ -10,6 +10,7 @@ import type {
     InstitutionType,
 } from '@/types';
 import { getStructureLabels } from '@/lib/getInstitutionAccent';
+import { formatDisplayName } from '@/lib/displayName';
 import { AddTeacherModal, type TeacherFormData } from '@/components/admin/AddTeacherModal';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -193,7 +194,7 @@ function TeacherCard({
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
                         <p className="text-sm font-semibold leading-snug truncate pr-1">
-                            {teacher.name}
+                            {formatDisplayName(teacher.name, teacher.prefix)}
                         </p>
                         {/* Status badge */}
                         {teacher.invitePending ? (

@@ -1056,9 +1056,7 @@ export default function DivisionDetailPage() {
         if (!division) return;
         setSavingSubject(true);
         try {
-            const colorIndex = division.standard.subjects.length;
-            const color = assignSubjectColor(colorIndex);
-            const res = await api.post(`/admin/campus/standards/${division.standard.id}/subjects`, { name, color });
+            const res = await api.post(`/admin/campus/standards/${division.standard.id}/subjects`, { name });
             const newSubject: Subject = res.data.data;
             setDivision(prev => prev ? {
                 ...prev,
@@ -1460,7 +1458,7 @@ export default function DivisionDetailPage() {
                                                 <div key={sub.id} className="flex items-center justify-between py-2">
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-2 h-2 rounded-full shrink-0"
-                                                            style={{ background: sub.color ?? '#7C3AED' }} />
+                                                            style={{ background: sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id)) }} />
                                                         <span className="text-xs font-medium">{sub.name}</span>
                                                     </div>
                                                     {teacherName ? (
@@ -1742,9 +1740,9 @@ export default function DivisionDetailPage() {
                                                                         disabled={togglingSubject === sub.id}
                                                                         className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all disabled:opacity-50"
                                                                         style={isSelected ? {
-                                                                            background: (sub.color ?? '#7C3AED') + '20',
-                                                                            color: sub.color ?? '#7C3AED',
-                                                                            border: `1px solid ${sub.color ?? '#7C3AED'}40`,
+                                                                            background: (sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id))) + '20',
+                                                                            color: sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id)),
+                                                                            border: `1px solid ${sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id))}40`,
                                                                         } : {
                                                                             background: 'hsl(var(--muted))',
                                                                             color: 'hsl(var(--muted-foreground))',
@@ -1806,7 +1804,7 @@ export default function DivisionDetailPage() {
                                                                         <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20">
                                                                             <div className="flex items-center gap-2">
                                                                                 <div className="w-2 h-2 rounded-full shrink-0"
-                                                                                    style={{ background: sub.color ?? '#7C3AED' }} />
+                                                                                    style={{ background: sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id)) }} />
                                                                                 <span className="text-xs text-muted-foreground">{sub.name}</span>
                                                                                 {assignment && (
                                                                                     <span className="text-[10px] text-foreground font-semibold">
@@ -1824,7 +1822,7 @@ export default function DivisionDetailPage() {
                                                                                 <TeacherPicker
                                                                                     value={assignment?.teacher.id}
                                                                                     teachers={teachers}
-                                                                                    accentColor={sub.color ?? '#7C3AED'}
+                                                                                    accentColor={sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id))}
                                                                                     loading={savingAssign}
                                                                                     onChange={(teacherId, name) => assignTeacher(sub.id, teacherId, name)}
                                                                                 />
@@ -2050,7 +2048,7 @@ export default function DivisionDetailPage() {
                                         id: s.id,
                                         name: s.name,
                                         code: s.code ?? s.name.slice(0, 4).toUpperCase(),
-                                        color: s.color ?? '#7C3AED',
+                                        color: s.color ?? assignSubjectColor(division.standard.subjects.findIndex(ss => ss.id === s.id)),
                                     }))}
                                 divisionName={division.name}
                                 subTab={marksheetSubTab}

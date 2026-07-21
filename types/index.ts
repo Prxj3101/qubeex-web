@@ -176,5 +176,7 @@ export interface Teacher {
     dob?: string;
     gender?: string;
     address?: string;
+    prefix?: string | null;
+    title?: string | null;
 }
 

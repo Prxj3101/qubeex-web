@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 interface UserAvatarState {
     avatarUrl: string | null;
@@ -6,8 +7,13 @@ interface UserAvatarState {
     clearAvatarUrl: () => void;
 }
 
-export const useUserAvatarStore = create<UserAvatarState>((set) => ({
-    avatarUrl: null,
-    setAvatarUrl: (url) => set({ avatarUrl: url }),
-    clearAvatarUrl: () => set({ avatarUrl: null }),
-}));
+export const useUserAvatarStore = create<UserAvatarState>()(
+    persist(
+        (set) => ({
+            avatarUrl: null,
+            setAvatarUrl: (url) => set({ avatarUrl: url }),
+            clearAvatarUrl: () => set({ avatarUrl: null }),
+        }),
+        { name: 'user-avatar-storage' }
+    )
+);
