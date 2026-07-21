@@ -10,6 +10,7 @@ import { useStudentStore } from '@/store/studentStore';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { useFeedBadge } from '@/context/FeedBadgeContext';
 import { toast } from 'sonner';
+import { formatDisplayName, resolveDisplayTitle } from '@/lib/displayName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type EventType = 'holiday' | 'event' | 'sports' | 'trip' | 'meeting' | 'test' | 'termtest' | 'exam' | 'submission';
@@ -31,7 +32,7 @@ interface FeedPost {
     id: string;
     type: PostType;
     source: FeedSource;
-    author: { id: string; name: string; role: string; avatarUrl?: string | null };
+    author: { id: string; name: string; role: string; avatarUrl?: string | null; prefix?: string | null; title?: string | null };
     subject?: string | null;
     title: string;
     body: string;
@@ -295,9 +296,9 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
                         : initials}
                 </div>
                 <div>
-                    <p className="text-xs font-semibold">{post.author.name}</p>
+                    <p className="text-xs font-semibold">{formatDisplayName(post.author.name, post.author.prefix)}</p>
                     <div className="flex items-center gap-1">
-                        <p className="text-[10px] text-muted-foreground capitalize">{post.author.role.toLowerCase()}</p>
+                        <p className="text-[10px] text-muted-foreground">{resolveDisplayTitle(post.author.role, post.author.title)}</p>
                         <VerifiedBadge />
                     </div>
                 </div>

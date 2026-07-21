@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
+import { assignSubjectColor } from '@/lib/subjectColors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -322,13 +323,13 @@ export default function ClassesPage() {
                                                         Subjects
                                                     </p>
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                        {(std.subjects ?? []).map(sub => (
+                                                        {(std.subjects ?? []).map((sub, subIdx) => (
                                                             <span key={sub.id}
                                                                 className="group flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-full text-xs font-medium"
                                                                 style={{
-                                                                    background: (sub.color ?? '#7C3AED') + '20',
-                                                                    color: sub.color ?? '#7C3AED',
-                                                                    border: `1px solid ${sub.color ?? '#7C3AED'}40`,
+                                                                    background: (sub.color ?? assignSubjectColor(subIdx)) + '20',
+                                                                    color: sub.color ?? assignSubjectColor(subIdx),
+                                                                    border: `1px solid ${sub.color ?? assignSubjectColor(subIdx)}40`,
                                                                 }}>
                                                                 <BookOpen size={11} />
                                                                 {sub.name}
@@ -424,7 +425,7 @@ export default function ClassesPage() {
                                                                                                 <div key={sub.id} className="flex items-center justify-between py-1 border-t border-border/20">
                                                                                                     <div className="flex items-center gap-1.5">
                                                                                                         <div className="w-1.5 h-1.5 rounded-full shrink-0"
-                                                                                                            style={{ background: sub.color ?? '#7C3AED' }} />
+                                                                                                            style={{ background: sub.color ?? assignSubjectColor(std.subjects.findIndex(s => s.id === sub.id)) }} />
                                                                                                         <span className="text-[10px] text-muted-foreground">{sub.name}</span>
                                                                                                     </div>
                                                                                                     {assignment?.teacher.user.name ? (

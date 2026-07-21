@@ -14,13 +14,6 @@ import { SillyStringOverlay } from '@/components/shared/SillyStringOverlay';
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
 
-const MOCK_TEACHER = {
-    name: 'Ritu Sharma',
-    institutionName: 'Viva Institute of Technology',
-    classTeacher: '10-A',
-};
-
-
 const MOCK_STATS = [
     { label: 'Classes Assigned', value: '5', sub: '+1 this month', trend: 'up', icon: LayoutGrid, iconBg: 'bg-violet-100 dark:bg-violet-950', iconColor: 'text-violet-600 dark:text-violet-400' },
     { label: 'Subjects Teaching', value: '3', sub: 'this academic year', trend: 'up', icon: BookOpen, iconBg: 'bg-amber-100 dark:bg-amber-950', iconColor: 'text-amber-600 dark:text-amber-400' },
@@ -284,7 +277,7 @@ export default function TeacherOverviewPage() {
         return () => clearInterval(id);
     }, []);
 
-    const teacherName = user?.name ?? user?.email?.split('@')[0] ?? MOCK_TEACHER.name;
+    const teacherName = user?.name ?? user?.email?.split('@')[0] ?? '';
 
     // State
     const [currentChar, setCurrentChar] = useState(0);
@@ -312,9 +305,9 @@ export default function TeacherOverviewPage() {
                 <div className="space-y-1 z-10">
                     <p className="text-white/70 text-base">{greeting}</p>
                     <div className="relative">
-                        <p className="text-white text-xl lg:text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
-                            {teacherName}
-                        </p>
+                        <div className="text-white text-xl lg:text-3xl font-semibold" style={{ fontFamily: 'var(--font-poppins)' }}>
+                            {teacherName || <Skeleton className="h-7 w-40 bg-white/20" />}
+                        </div>
                         <SillyStringOverlay name={teacherName} fontSize={30} active={isTodayBirthday(teacherDob ?? '')} />
                     </div>
                     <p className="text-white/60 text-sm">{getCasualMessage()}</p>

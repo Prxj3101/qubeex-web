@@ -9,6 +9,7 @@ import { LinkifiedText } from '@/components/shared/LinkifiedText';
 import api from '@/lib/api';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
+import { formatDisplayName, resolveDisplayTitle } from '@/lib/displayName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type EventType = 'holiday' | 'event' | 'sports' | 'trip' | 'meeting';
@@ -17,7 +18,7 @@ interface CalEvent { id: string; date: number; type: EventType; label: string; f
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
 interface FeedPost {
     id: string; type: PostType;
-    author: { id: string; name: string; role: string; avatarUrl?: string | null };
+    author: { id: string; name: string; role: string; avatarUrl?: string | null; prefix?: string | null; title?: string | null };
     subject?: string | null; title: string; body: string; createdAt: string;
     attachmentUrl?: string | null; attachmentType?: string | null; attachmentName?: string | null;
 }
@@ -227,6 +228,7 @@ function FeedCard({ post, myUserId, onDelete }: { post: FeedPost; myUserId: stri
     const isLongBody = (post.body?.length ?? 0) > 100;
     const meta = POST_META[post.type];
     const name = post.author.name;
+    const displayName = formatDisplayName(name, post.author.prefix);
     const initials = name.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase();
     const avatarColor = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
     const canDelete = post.author.id === myUserId;
@@ -257,9 +259,9 @@ function FeedCard({ post, myUserId, onDelete }: { post: FeedPost; myUserId: stri
                         : initials}
                 </div>
                 <div>
-                    <p className="text-xs font-semibold">{name}</p>
+                    <p className="text-xs font-semibold">{displayName}</p>
                     <div className="flex items-center gap-1">
-                        <p className="text-[10px] text-muted-foreground capitalize">{post.author.role.toLowerCase()}</p>
+                        <p className="text-[10px] text-muted-foreground">{resolveDisplayTitle(post.author.role, post.author.title)}</p>
                         <VerifiedBadge />
                     </div>
                 </div>

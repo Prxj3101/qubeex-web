@@ -13,6 +13,7 @@ import {
     AreaChart, Area, ReferenceLine,
 } from 'recharts';
 import { FlagItem } from '@/lib/flags';
+import { assignSubjectColor } from '@/lib/subjectColors';
 
 type MarksMode = 'offline' | 'online' | 'combined';
 
@@ -34,8 +35,6 @@ export interface ProfileViewAttendance {
     overall: { pct: number | null };
     monthly: ProfileViewAttendanceMonth[];
 }
-
-const SUBJECT_COLORS = ['#DA7756', '#EC4899', '#0891B2', '#7C3AED', '#059669', '#0EA5E9', '#6366F1', '#D97706', '#16A34A', '#E11D48', '#7C3AED', '#0284C7'];
 
 const SCHOOL_START_MONTH = 5;
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -146,7 +145,7 @@ export default function StudentProfileView({
         const offline = s.pct ?? 0;
         const online = 0;
         const pct = marksMode === 'offline' ? offline : marksMode === 'online' ? online : Math.round((offline + online) / 2);
-        return { name: s.name, code: s.code, color: s.color ?? SUBJECT_COLORS[i % SUBJECT_COLORS.length], pct };
+        return { name: s.name, code: s.code, color: s.color ?? assignSubjectColor(i), pct };
     });
     const avg = chartData.length > 0
         ? Math.round(chartData.reduce((a, b) => a + b.pct, 0) / chartData.length)

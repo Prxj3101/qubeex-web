@@ -190,11 +190,11 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
         name: teacher.name, dob: teacher.dob ?? '', gender: teacher.gender ?? '',
     });
     const [personalSaved, setPersonalSaved] = useState({ ...personalDraft });
-    const prefix = personalSaved.gender === 'MALE' ? 'Mr.' : personalSaved.gender === 'FEMALE' ? 'Ms.' : '';
+    const prefix = teacher.prefix ?? '';
 
     const TITLE_OPTIONS = ['Teacher', 'Professor', 'Asst. Teacher', 'Lecturer', 'HOD', 'Mentor', 'Tutor', 'Educator'];
-    const [titleDraft, setTitleDraft] = useState('Teacher');
-    const [titleSaved, setTitleSaved] = useState('Teacher');
+    const [titleDraft, setTitleDraft] = useState(teacher.title ?? 'Teacher');
+    const [titleSaved, setTitleSaved] = useState(teacher.title ?? 'Teacher');
 
     const [contactDraft, setContactDraft] = useState({
         email: teacher.email, phone: teacher.phone ?? '',

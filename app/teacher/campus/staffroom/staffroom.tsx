@@ -13,9 +13,10 @@ import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidatio
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { LinkifiedText } from '@/components/shared/LinkifiedText';
 import NextImage from 'next/image';
+import { formatDisplayName } from '@/lib/displayName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-interface PostAuthor { id: string; name: string; role: 'ADMIN' | 'TEACHER'; avatarUrl?: string | null; }
+interface PostAuthor { id: string; name: string; role: 'ADMIN' | 'TEACHER'; avatarUrl?: string | null; prefix?: string | null; title?: string | null; }
 
 interface StaffroomPost {
     id: string; text: string;
@@ -30,6 +31,7 @@ interface DmThread {
     avatarUrl: string | null; isActive: boolean;
     lastMessage: string | null; lastMessageAt: string | null;
     lastMessageIsMe: boolean; unread: number;
+    prefix?: string | null; title?: string | null;
 }
 
 interface DmMessage {
@@ -122,7 +124,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
             </div>
             <div className={`flex flex-col max-w-[82%] ${isMe ? 'items-end' : 'items-start'}`}>
                 <div className={`flex items-center gap-2 mb-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <span className="text-[11px] font-semibold">{post.author.name}</span>
+                    <span className="text-[11px] font-semibold">{formatDisplayName(post.author.name, post.author.prefix)}</span>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${post.author.role === 'ADMIN'
                         ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
                         : 'bg-muted text-muted-foreground'}`}>
@@ -181,7 +183,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                                             {getInitials(c.author.name)}
                                         </div>
                                         <div className="px-2.5 py-1.5 rounded-xl bg-muted/60 border border-border/30 group relative">
-                                            <p className="text-[10px] font-semibold text-muted-foreground">{c.author.name}</p>
+                                            <p className="text-[10px] font-semibold text-muted-foreground">{formatDisplayName(c.author.name, c.author.prefix)}</p>
                                             <p className="text-xs text-foreground"><LinkifiedText text={c.text} /></p>
                                             {c.author.id === myUserId && (
                                                 <button onClick={() => onDeleteComment(post.id, c.id)}
@@ -623,7 +625,7 @@ export default function TeacherStaffroom() {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between mb-0.5">
-                                                        <p className="text-xs font-semibold truncate">{t.name}</p>
+                                                        <p className="text-xs font-semibold truncate">{formatDisplayName(t.name, t.prefix)}</p>
                                                         <p className="text-[10px] text-muted-foreground shrink-0 ml-1">{t.lastMessageAt ? fmtTime(t.lastMessageAt) : ''}</p>
                                                     </div>
                                                     <p className="text-[11px] text-muted-foreground truncate">
@@ -654,7 +656,7 @@ export default function TeacherStaffroom() {
                                         <div className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${activeIsOnline ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-semibold">{activeDm.name}</p>
+                                        <p className="text-xs font-semibold">{formatDisplayName(activeDm.name, activeDm.prefix)}</p>
                                         <p className="text-[10px] text-muted-foreground">{activeIsOnline ? '🟢 Active' : '⚫ Inactive'}</p>
                                     </div>
                                 </div>

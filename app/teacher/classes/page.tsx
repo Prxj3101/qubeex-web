@@ -7,6 +7,7 @@ import { motion } from 'framer-motion';
 import { LayoutGrid, Users, BookOpen, GraduationCap, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { assignSubjectColor } from '@/lib/subjectColors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ClassTeacherAssignment {
@@ -172,11 +173,11 @@ function SubjectTeacherCard({ item, index }: { item: SubjectTeacherAssignment; i
                 {/* Subject badge */}
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl border"
                     style={{
-                        background: (item.subjectColor ?? '#7C3AED') + '15',
-                        borderColor: (item.subjectColor ?? '#7C3AED') + '40',
+                        background: (item.subjectColor ?? assignSubjectColor(index)) + '15',
+                        borderColor: (item.subjectColor ?? assignSubjectColor(index)) + '40',
                     }}>
-                    <BookOpen size={12} style={{ color: item.subjectColor ?? '#7C3AED' }} />
-                    <span className="text-xs font-semibold" style={{ color: item.subjectColor ?? '#7C3AED' }}>
+                    <BookOpen size={12} style={{ color: item.subjectColor ?? assignSubjectColor(index) }} />
+                    <span className="text-xs font-semibold" style={{ color: item.subjectColor ?? assignSubjectColor(index) }}>
                         {item.subjectName}
                     </span>
                 </div>

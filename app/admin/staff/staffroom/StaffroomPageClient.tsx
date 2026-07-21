@@ -27,6 +27,7 @@ import { LinkifiedText } from "@/components/shared/LinkifiedText";
 import { validateAttachment, ATTACHMENT_ACCEPT } from "@/lib/attachmentValidation";
 import { AttachmentPreview } from "@/components/shared/AttachmentPreview";
 import NextImage from "next/image";
+import { formatDisplayName, resolveDisplayTitle } from "@/lib/displayName";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -35,6 +36,8 @@ interface PostAuthor {
   name: string;
   role: "ADMIN" | "TEACHER";
   avatarUrl?: string | null;
+  prefix?: string | null;
+  title?: string | null;
 }
 
 interface PostComment {
@@ -67,6 +70,8 @@ interface DmThread {
   lastMessageAt: string | null;
   lastMessageIsMe: boolean;
   unread: number;
+  prefix?: string | null;
+  title?: string | null;
 }
 
 interface DmMessage {
@@ -245,7 +250,7 @@ function PostCard({
         <div
           className={`flex items-center gap-2 mb-1 px-1 ${isMe ? "flex-row-reverse" : "flex-row"}`}
         >
-          <span className="text-[11px] font-semibold">{post.author.name}</span>
+          <span className="text-[11px] font-semibold">{formatDisplayName(post.author.name, post.author.prefix)}</span>
           <span
             className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${
               post.author.role === "ADMIN"
@@ -253,7 +258,7 @@ function PostCard({
                 : "bg-muted text-muted-foreground"
             }`}
           >
-            {post.author.role === "ADMIN" ? "Admin" : "Teacher"}
+            {resolveDisplayTitle(post.author.role, post.author.title)}
           </span>
           <span className="text-[10px] text-muted-foreground">
             {fmtDateTime(post.createdAt)}
@@ -351,7 +356,7 @@ function PostCard({
                     </div>
                     <div className="px-2.5 py-1.5 rounded-xl bg-muted/60 border border-border/30 group relative">
                       <p className="text-[10px] font-semibold text-muted-foreground">
-                        {c.author.name}
+                        {formatDisplayName(c.author.name, c.author.prefix)}
                       </p>
                       <p className="text-xs text-foreground"><LinkifiedText text={c.text} /></p>
                       {c.author.id === myUserId && (
@@ -1116,7 +1121,7 @@ export default function StaffroomPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-0.5">
                           <p className="text-xs font-semibold truncate">
-                            {t.name}
+                            {formatDisplayName(t.name, t.prefix)}
                           </p>
                           <p className="text-[10px] text-muted-foreground shrink-0 ml-1">
                             {t.lastMessageAt ? fmtTime(t.lastMessageAt) : ""}
@@ -1183,7 +1188,7 @@ export default function StaffroomPage() {
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold">{activeDm.name}</p>
+                    <p className="text-xs font-semibold">{formatDisplayName(activeDm.name, activeDm.prefix)}</p>
                     <p className="text-[10px] text-muted-foreground">
                       {activeIsOnline ? "🟢 Active" : "⚫ Inactive"}
                     </p>
