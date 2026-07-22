@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ArrowLeft, ChevronRight, Users, BookOpen, User, Shield, MapPin, Heart,
@@ -32,7 +33,7 @@ interface TeacherOption {
 interface Assignment {
     id: string;
     subjectId: string | null;
-    teacher: { id: string; user: { id: string; name: string | null } };
+    teacher: { id: string; avatarUrl?: string | null; user: { id: string; name: string | null } };
     subject: { id: string; name: string; color: string | null } | null;
 }
 
@@ -575,7 +576,7 @@ interface DivAnnouncement {
     attachmentType: string | null;
     attachmentName: string | null;
     createdAt: string;
-    author: { id: string; name: string; role: string };
+    author: { id: string; name: string; role: string; avatarUrl?: string | null };
 }
 
 const POST_META = {
@@ -701,9 +702,11 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
                 </div>
             </div>
             <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                    style={{ background: avatarColor }}>
-                    {initials}
+                <div className="w-8 h-8 rounded-full overflow-hidden relative flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                    style={{ background: ann.author.avatarUrl ? 'transparent' : avatarColor }}>
+                    {ann.author.avatarUrl
+                        ? <NextImage src={ann.author.avatarUrl} alt={authorName} fill sizes="32px" className="object-cover" />
+                        : initials}
                 </div>
                 <div>
                     <p className="text-xs font-semibold">{authorName}</p>
@@ -1323,11 +1326,13 @@ export default function DivisionDetailPage() {
 
                                 {/* Class Teacher card */}
                                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm shadow-black/5">
-                                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                                        style={{ background: '#F59E0B' }}>
-                                        {classTeacherAssignment
-                                            ? getInitials(classTeacherAssignment.teacher.user.name ?? 'CT')
-                                            : '?'}
+                                    <div className="w-9 h-9 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                                        style={{ background: classTeacherAssignment?.teacher.avatarUrl ? 'transparent' : '#F59E0B' }}>
+                                        {classTeacherAssignment?.teacher.avatarUrl
+                                            ? <NextImage src={classTeacherAssignment.teacher.avatarUrl} alt={classTeacherAssignment.teacher.user.name ?? 'Class Teacher'} fill sizes="36px" className="object-cover" />
+                                            : classTeacherAssignment
+                                                ? getInitials(classTeacherAssignment.teacher.user.name ?? 'CT')
+                                                : '?'}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-[10px] font-semibold" style={{ color: '#F59E0B' }}>Class Teacher</p>
@@ -1489,9 +1494,11 @@ export default function DivisionDetailPage() {
                                                     </div>
                                                     {teacherName ? (
                                                         <div className="flex items-center gap-1.5">
-                                                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                                style={{ background: getAvatarColor(teacherName) }}>
-                                                                {getInitials(teacherName)}
+                                                            <div className="w-5 h-5 rounded-full overflow-hidden relative flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                                                style={{ background: assignment?.teacher.avatarUrl ? 'transparent' : getAvatarColor(teacherName) }}>
+                                                                {assignment?.teacher.avatarUrl
+                                                                    ? <NextImage src={assignment.teacher.avatarUrl} alt={teacherName} fill sizes="20px" className="object-cover" />
+                                                                    : getInitials(teacherName)}
                                                             </div>
                                                             <span className="text-[11px] text-muted-foreground">{teacherName}</span>
                                                         </div>
@@ -1543,9 +1550,11 @@ export default function DivisionDetailPage() {
                                                         return (
                                                             <div key={student.id} className="flex flex-col items-center gap-1.5">
 
-                                                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20"
-                                                                    style={{ background: getAvatarColor(student.name) }}>
-                                                                    {getInitials(student.name)}
+                                                                <div className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20"
+                                                                    style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                                                    {student.avatarUrl
+                                                                        ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="40px" className="object-cover" />
+                                                                        : getInitials(student.name)}
                                                                 </div>
                                                                 <p className="text-[10px] font-bold text-center w-16 truncate">{student.name}</p>
                                                                 <p className="text-[10px] text-muted-foreground">{pctFor(student)}%</p>
@@ -1563,9 +1572,11 @@ export default function DivisionDetailPage() {
                                                     {top5.slice(3, 5).map((student, i) => (
                                                         <div key={student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
                                                             <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
-                                                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                                style={{ background: getAvatarColor(student.name) }}>
-                                                                {getInitials(student.name)}
+                                                            <div className="w-6 h-6 rounded-full overflow-hidden relative flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                                                style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                                                {student.avatarUrl
+                                                                    ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="24px" className="object-cover" />
+                                                                    : getInitials(student.name)}
                                                             </div>
                                                             <p className="text-xs font-semibold flex-1 truncate">{student.name}</p>
                                                             <span className="text-[11px] font-bold text-muted-foreground">{pctFor(student)}%</span>
@@ -1654,9 +1665,11 @@ export default function DivisionDetailPage() {
                                                 onClick={() => { setSelectedStudent(student); setManageRightTab('student'); }}
                                                 className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-all hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''
                                                     }`}>
-                                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                                                    style={{ background: getAvatarColor(name) }}>
-                                                    {getInitials(name)}
+                                                <div className="w-7 h-7 rounded-full overflow-hidden relative flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                                                    style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(name) }}>
+                                                    {student.avatarUrl
+                                                        ? <NextImage src={student.avatarUrl} alt={name} fill sizes="28px" className="object-cover" />
+                                                        : getInitials(name)}
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs font-semibold truncate">{name}</p>
@@ -1952,9 +1965,11 @@ export default function DivisionDetailPage() {
                                                             <div className="flex-1 px-4 py-3 md:border-r border-border/40 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={User} label="Student Info" />
                                                                 <div className="flex items-center gap-3 mb-2">
-                                                                    <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                                                                        style={{ background: getAvatarColor(selectedStudent.user.name ?? '—') }}>
-                                                                        {getInitials(selectedStudent.user.name ?? '—')}
+                                                                    <div className="w-12 h-12 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                                                                        style={{ background: selectedStudent.avatarUrl ? 'transparent' : getAvatarColor(selectedStudent.user.name ?? '—') }}>
+                                                                        {selectedStudent.avatarUrl
+                                                                            ? <NextImage src={selectedStudent.avatarUrl} alt={selectedStudent.user.name ?? 'Student'} fill sizes="48px" className="object-cover" />
+                                                                            : getInitials(selectedStudent.user.name ?? '—')}
                                                                     </div>
                                                                     <div>
                                                                         <p className="text-sm font-bold">{selectedStudent.user.name ?? '—'}</p>

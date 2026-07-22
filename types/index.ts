@@ -153,6 +153,7 @@ export interface TeacherAssignment {
     level2Name: string;
     level3Id: string;
     level3Name: string;
+    subjectColor?: string | null;
     role: TeacherRole;
 }
 

@@ -15,6 +15,7 @@ import { Division, getInitials, getAvatarColor } from './DivisionClassPageClient
 import { useStudentPhotosStore } from '@/store/studentPhotosStore';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
+import { colorForSubject } from '@/lib/subjectColors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Guardian { name: string; number: string; relation: string }
@@ -735,7 +736,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                 return (
                                                     <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20">
                                                         <div className="flex items-center gap-2">
-                                                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sub.color ?? '#7C3AED' }} />
+                                                            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
                                                             <span className="text-xs text-muted-foreground">{sub.name}</span>
                                                         </div>
                                                         <span className="text-[11px] font-semibold text-foreground">

@@ -15,6 +15,7 @@ import type { Teacher, InstitutionType } from '@/types';
 import { getStructureLabels } from '@/lib/getInstitutionAccent';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import api from '@/lib/api';
+import { colorForSubject } from '@/lib/subjectColors';
 
 
 // ── Mock teacher data ─────────────────────────────────────────────────────────
@@ -620,31 +621,32 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                     <p className="text-xs font-semibold text-muted-foreground">{level1}</p>
                                 </div>
                                 <div className="space-y-1.5 pl-4">
-                                    {assignments.map(a => (
-                                        <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border/50 bg-muted/20">
-                                            <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${a.role === 'CLASS_TEACHER'
-                                                ? 'bg-violet-100 dark:bg-violet-950'
-                                                : 'bg-sky-100 dark:bg-sky-950'
-                                                }`}>
-                                                {a.role === 'CLASS_TEACHER'
-                                                    ? <GraduationCap size={12} className="text-violet-600 dark:text-violet-400" />
-                                                    : <BookOpen size={12} className="text-sky-600 dark:text-sky-400" />
-                                                }
-                                            </div>
-                                            <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-semibold">{a.level2Name} · {a.level3Name}</p>
-                                                <p className="text-[11px] text-muted-foreground">
+                                    {assignments.map(a => {
+                                        const subjectColor = a.role === 'SUBJECT_TEACHER'
+                                            ? colorForSubject({ id: a.level3Id, color: a.subjectColor })
+                                            : null;
+                                        return (
+                                            <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border/50 bg-muted/20">
+                                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${a.role === 'CLASS_TEACHER' ? 'bg-violet-100 dark:bg-violet-950' : ''}`}
+                                                    style={subjectColor ? { background: subjectColor + '20' } : undefined}>
+                                                    {a.role === 'CLASS_TEACHER'
+                                                        ? <GraduationCap size={12} className="text-violet-600 dark:text-violet-400" />
+                                                        : <BookOpen size={12} style={{ color: subjectColor ?? undefined }} />
+                                                    }
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-semibold">{a.level2Name} · {a.level3Name}</p>
+                                                    <p className="text-[11px] text-muted-foreground">
+                                                        {a.role === 'CLASS_TEACHER' ? 'Class Teacher' : 'Subject Teacher'}
+                                                    </p>
+                                                </div>
+                                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${a.role === 'CLASS_TEACHER' ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' : ''}`}
+                                                    style={subjectColor ? { background: subjectColor + '20', color: subjectColor } : undefined}>
                                                     {a.role === 'CLASS_TEACHER' ? 'Class Teacher' : 'Subject Teacher'}
-                                                </p>
+                                                </span>
                                             </div>
-                                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${a.role === 'CLASS_TEACHER'
-                                                ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
-                                                : 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300'
-                                                }`}>
-                                                {a.role === 'CLASS_TEACHER' ? 'Class Teacher' : 'Subject Teacher'}
-                                            </span>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}

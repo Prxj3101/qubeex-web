@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import PencilLoader from '@/components/student/PencilLoader';
+import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Users, Trophy, Calendar, Loader2, X, FileText, ChevronRight, GraduationCap } from 'lucide-react';
 import { colorForSubject } from '@/lib/subjectColors';
@@ -9,9 +10,9 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import api from '@/lib/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface Subject { id: string; name: string; code: string; color: string; teacherName: string }
+interface Subject { id: string; name: string; code: string; color: string; teacherName: string; teacherAvatarUrl?: string | null }
 interface Classmate {
-    id: string; name: string; rollNo: string;
+    id: string; name: string; rollNo: string; avatarUrl?: string | null;
     rank: number | null; attendancePct: number | null;
     marksPct: number | null; offlinePct: number | null; onlinePct: number | null; isMe: boolean;
 }
@@ -20,7 +21,7 @@ interface SubjectScore {
     columns: { name: string; scored: number | null; max: number; isAbsent: boolean }[];
     totalScored: number; totalMax: number; pct: number | null;
 }
-interface LbEntry { name: string; combinedPct: number; offlinePct: number | null; onlinePct: number | null; isMe: boolean }
+interface LbEntry { name: string; avatarUrl?: string | null; combinedPct: number; offlinePct: number | null; onlinePct: number | null; isMe: boolean }
 interface FeedFile {
     id: string; title: string;
     attachmentUrl: string | null; attachmentType: string | null; attachmentName: string | null;
@@ -87,11 +88,13 @@ function FileViewer({ file, onClose }: { file: FeedFile; onClose: () => void }) 
 }
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
-function Avatar({ name, size = 28 }: { name: string; size?: number }) {
+function Avatar({ name, size = 28, url }: { name: string; size?: number; url?: string | null }) {
     return (
-        <div className="rounded-full flex items-center justify-center text-white font-bold shrink-0"
-            style={{ width: size, height: size, fontSize: size * 0.36, background: getAvatarColor(name) }}>
-            {getInitials(name)}
+        <div className="rounded-full overflow-hidden relative flex items-center justify-center text-white font-bold shrink-0"
+            style={{ width: size, height: size, fontSize: size * 0.36, background: url ? 'transparent' : getAvatarColor(name) }}>
+            {url
+                ? <NextImage src={url} alt={name} fill sizes={`${size}px`} className="object-cover" />
+                : getInitials(name)}
         </div>
     );
 }
@@ -195,7 +198,7 @@ function ViewTab({ data }: { data: ClassData }) {
                     <div className="flex-1 overflow-y-auto">
                         {classmates.map(s => (
                             <div key={s.id} className={`flex items-center gap-2.5 px-3 py-2.5 border-b border-border/40 transition-colors ${s.isMe ? 'bg-violet-500/10' : ''}`}>
-                                <Avatar name={s.name} size={30} />
+                                <Avatar name={s.name} size={30} url={s.avatarUrl} />
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
                                         <p className="text-[12px] font-semibold text-foreground truncate">{s.name}</p>
@@ -254,7 +257,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                                 const pct = getClassmatePct(s, lbMode);
                                                 return (
                                                     <div key={s.id} className="flex flex-col items-center gap-1.5">
-                                                        <Avatar name={s.name} size={40} />
+                                                        <Avatar name={s.name} size={40} url={s.avatarUrl} />
                                                         <p className="text-[10px] font-bold text-center w-16 truncate">{s.name.split(' ')[0]}</p>
                                                         <p className="text-[9px] font-bold text-center w-16 truncate -mt-2">{s.name.split(' ').slice(1).join(' ')}</p>
                                                         {s.isMe && <span className="text-[7px] font-bold px-1 py-0.5 rounded-full bg-violet-500/20 text-violet-700 dark:text-violet-300">You</span>}
@@ -275,7 +278,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                                 return (
                                                     <div key={s.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border ${s.isMe ? 'bg-violet-500/10 border-violet-500/30' : 'bg-muted/30 border-border/40'}`}>
                                                         <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
-                                                        <Avatar name={s.name} size={24} />
+                                                        <Avatar name={s.name} size={24} url={s.avatarUrl} />
                                                         <p className="text-xs font-semibold flex-1 truncate">
                                                             {s.name}
                                                             {s.isMe && <span className="ml-1 text-[8px] text-violet-700 dark:text-violet-400">(You)</span>}
@@ -302,7 +305,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#F59E0B' }} />
                                         <p className="text-[11px] font-semibold text-foreground flex-1 truncate">Class Teacher</p>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            <Avatar name={division.classTeacherName} size={22} />
+                                            <Avatar name={division.classTeacherName} size={22} url={division.classTeacherAvatarUrl} />
                                             <p className="text-[10px] text-muted-foreground truncate max-w-[110px]">{division.classTeacherName}</p>
                                         </div>
                                     </div>
@@ -312,7 +315,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sub.color }} />
                                         <p className="text-[11px] font-semibold text-foreground flex-1 truncate">{sub.name}</p>
                                         <div className="flex items-center gap-2 shrink-0">
-                                            <Avatar name={sub.teacherName} size={22} />
+                                            <Avatar name={sub.teacherName} size={22} url={sub.teacherAvatarUrl} />
                                             <p className="text-[10px] text-muted-foreground truncate max-w-[110px]">{sub.teacherName}</p>
                                         </div>
                                     </div>
@@ -414,7 +417,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                 <div className="flex-1 min-w-0">
                                     <p className="text-[12px] font-bold text-foreground truncate">{subject.name}</p>
                                     <div className="flex items-center gap-1.5 mt-0.5">
-                                        <Avatar name={subject.teacherName} size={17} />
+                                        <Avatar name={subject.teacherName} size={17} url={subject.teacherAvatarUrl} />
                                         <p className="text-[11px] text-muted-foreground truncate">{subject.teacherName}</p>
                                     </div>
                                 </div>
@@ -439,7 +442,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                                         ? <span className="text-sm shrink-0">{medal}</span>
                                                         : <span className="text-[10px] font-bold text-muted-foreground w-5 text-center shrink-0">#{i + 1}</span>
                                                     }
-                                                    <Avatar name={e.name} size={28} />
+                                                    <Avatar name={e.name} size={28} url={e.avatarUrl} />
                                                     <p className="text-[11px] font-semibold text-foreground flex-1 truncate">
                                                         {e.name}
                                                         {e.isMe && <span className="ml-1.5 text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-violet-500/20 text-violet-700 dark:text-violet-300">You</span>}

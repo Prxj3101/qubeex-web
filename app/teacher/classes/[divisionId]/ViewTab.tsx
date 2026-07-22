@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import NextImage from 'next/image';
 import api from '@/lib/api';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -11,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import { Division, Assignment, getInitials, getAvatarColor, AVATAR_COLORS, LeaderboardEntry } from './DivisionClassPageClient';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
+import { colorForSubject } from '@/lib/subjectColors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
@@ -26,7 +28,7 @@ interface DivAnnouncement {
     attachmentType: string | null;
     attachmentName: string | null;
     createdAt: string;
-    author: { id: string; name: string; role: string };
+    author: { id: string; name: string; role: string; avatarUrl?: string | null };
 }
 
 const POST_META = {
@@ -381,9 +383,11 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
                 </div>
             </div>
             <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
-                    style={{ background: avatarColor }}>
-                    {initials}
+                <div className="w-8 h-8 rounded-full overflow-hidden relative flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                    style={{ background: ann.author.avatarUrl ? 'transparent' : avatarColor }}>
+                    {ann.author.avatarUrl
+                        ? <NextImage src={ann.author.avatarUrl} alt={ann.author.name} fill sizes="32px" className="object-cover" />
+                        : initials}
                 </div>
                 <div>
                     <p className="text-xs font-semibold">
@@ -590,9 +594,11 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
 
                 {/* Class Teacher card */}
                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm shadow-black/5">
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                        style={{ background: '#F59E0B' }}>
-                        {classTeacherAssignment ? getInitials(classTeacherAssignment.teacher.user.name ?? 'CT') : '?'}
+                    <div className="w-9 h-9 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                        style={{ background: classTeacherAssignment?.teacher.avatarUrl ? 'transparent' : '#F59E0B' }}>
+                        {classTeacherAssignment?.teacher.avatarUrl
+                            ? <NextImage src={classTeacherAssignment.teacher.avatarUrl} alt={classTeacherAssignment.teacher.user.name ?? 'Class Teacher'} fill sizes="36px" className="object-cover" />
+                            : classTeacherAssignment ? getInitials(classTeacherAssignment.teacher.user.name ?? 'CT') : '?'}
                     </div>
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-semibold" style={{ color: '#F59E0B' }}>Class Teacher</p>
@@ -737,14 +743,16 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             return (
                                 <div key={sub.id} className="flex items-center justify-between py-2">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: sub.color ?? '#7C3AED' }} />
+                                        <div className="w-2 h-2 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
                                         <span className="text-xs font-medium">{sub.name}</span>
                                     </div>
                                     {teacherName ? (
                                         <div className="flex items-center gap-1.5">
-                                            <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                style={{ background: getAvatarColor(teacherName) }}>
-                                                {getInitials(teacherName)}
+                                            <div className="w-5 h-5 rounded-full overflow-hidden relative flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                                style={{ background: assignment?.teacher.avatarUrl ? 'transparent' : getAvatarColor(teacherName) }}>
+                                                {assignment?.teacher.avatarUrl
+                                                    ? <NextImage src={assignment.teacher.avatarUrl} alt={teacherName} fill sizes="20px" className="object-cover" />
+                                                    : getInitials(teacherName)}
                                             </div>
                                             <span className="text-[11px] text-muted-foreground">{teacherName}</span>
                                         </div>
@@ -795,9 +803,11 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                         if (!student) return null;
                                         return (
                                             <div key={student.id} className="flex flex-col items-center gap-1.5">
-                                                <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20"
-                                                    style={{ background: getAvatarColor(student.name) }}>
-                                                    {getInitials(student.name)}
+                                                <div className="w-10 h-10 rounded-full overflow-hidden relative flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20"
+                                                    style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                                    {student.avatarUrl
+                                                        ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="40px" className="object-cover" />
+                                                        : getInitials(student.name)}
                                                 </div>
                                                 <p className="text-[10px] font-bold text-center w-16 truncate">{student.name}</p>
                                                 <p className="text-[10px] text-muted-foreground">{pctFor(student)}%</p>
@@ -815,9 +825,11 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                     {top5.slice(3, 5).map((student, i) => (
                                         <div key={student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
                                             <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
-                                            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                style={{ background: getAvatarColor(student.name) }}>
-                                                {getInitials(student.name)}
+                                            <div className="w-6 h-6 rounded-full overflow-hidden relative flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+                                                style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                                {student.avatarUrl
+                                                    ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="24px" className="object-cover" />
+                                                    : getInitials(student.name)}
                                             </div>
                                             <p className="text-xs font-semibold flex-1 truncate">{student.name}</p>
                                             <span className="text-[11px] font-bold text-muted-foreground">{pctFor(student)}%</span>

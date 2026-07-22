@@ -618,8 +618,10 @@ export default function TeacherStaffroom() {
                                             <button key={t.teacherUserId} onClick={() => openDm(t)}
                                                 className="w-full flex items-center gap-3 px-4 py-3 border-b border-border/30 hover:bg-muted/40 transition-all text-left">
                                                 <div className="relative shrink-0">
-                                                    <div className={`w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-bold ${getAvatarColor(t.teacherUserId)}`}>
-                                                        {getInitials(t.name)}
+                                                    <div className={`w-9 h-9 rounded-full overflow-hidden relative flex items-center justify-center text-[11px] font-bold ${t.avatarUrl ? '' : getAvatarColor(t.teacherUserId)}`}>
+                                                        {t.avatarUrl
+                                                            ? <NextImage src={t.avatarUrl} alt={t.name} fill sizes="36px" className="object-cover" />
+                                                            : getInitials(t.name)}
                                                     </div>
                                                     <div className={`absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full border-2 border-card ${t.isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
                                                 </div>
@@ -650,8 +652,10 @@ export default function TeacherStaffroom() {
                                         <ChevronDown size={15} style={{ transform: 'rotate(90deg)' }} />
                                     </button>
                                     <div className="relative shrink-0">
-                                        <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${getAvatarColor(activeDm.teacherUserId)}`}>
-                                            {getInitials(activeDm.name)}
+                                        <div className={`w-8 h-8 rounded-full overflow-hidden relative flex items-center justify-center text-[10px] font-bold ${activeDm.avatarUrl ? '' : getAvatarColor(activeDm.teacherUserId)}`}>
+                                            {activeDm.avatarUrl
+                                                ? <NextImage src={activeDm.avatarUrl} alt={activeDm.name} fill sizes="32px" className="object-cover" />
+                                                : getInitials(activeDm.name)}
                                         </div>
                                         <div className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border-2 border-card ${activeIsOnline ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
                                     </div>

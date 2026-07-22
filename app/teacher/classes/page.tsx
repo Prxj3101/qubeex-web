@@ -115,7 +115,7 @@ function ClassTeacherCard({ item, index }: { item: ClassTeacherAssignment; index
                             <div key={sub.id} className="flex items-center justify-between py-1 border-t border-border/20">
                                 <div className="flex items-center gap-1.5">
                                     <div className="w-1.5 h-1.5 rounded-full shrink-0"
-                                        style={{ background: sub.color ?? '#7C3AED' }} />
+                                        style={{ background: colorForSubject(sub) }} />
                                     <span className="text-[10px] text-muted-foreground">{sub.name}</span>
                                 </div>
                                 <span className="text-[10px] font-semibold text-muted-foreground/50 italic">

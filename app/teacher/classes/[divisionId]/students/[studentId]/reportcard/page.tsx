@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import api from '@/lib/api';
 import { getMarksheet, resolveGrade, type MarksheetData as ClassMarksheetData } from '@/lib/marksheetApi';
+import { colorForSubject } from '@/lib/subjectColors';
 
 interface Subject { id: string; name: string; code: string | null; color: string | null; order: number }
 
@@ -297,7 +298,7 @@ export default function TeacherStudentReportCardPage() {
                                                     <tr key={sub.id}>
                                                         <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap">
                                                             <div className="flex items-center gap-1.5">
-                                                                <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: sub.color ?? '#94A3B8' }} />
+                                                                <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
                                                                 {sub.name}
                                                             </div>
                                                         </td>
@@ -387,7 +388,7 @@ export default function TeacherStudentReportCardPage() {
                                             <tr key={sub.id}>
                                                 <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap">
                                                     <div className="flex items-center gap-1.5">
-                                                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: sub.color ?? '#94A3B8' }} />
+                                                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
                                                         {sub.name}
                                                     </div>
                                                 </td>

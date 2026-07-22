@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useMarksheet, UseMarksheetResult } from '@/lib/useMarksheet';
 import { downloadMarksheetPdf, resolveGrade, type MarksheetMeta, type GradeScaleEntry } from '@/lib/marksheetApi';
 import NextImage from 'next/image';
+import { colorForSubject, assignSubjectColor } from '@/lib/subjectColors';
 
 interface Student { id: string; name: string; rollNo: string; avatarUrl?: string | null; }
 
@@ -72,10 +73,10 @@ const MOCK_SUBJECTS: Subject[] = [
     { id: 's3', name: 'Marathi', code: 'MAR', color: '#0891B2' },
     { id: 's4', name: 'Algebra', code: 'ALG', color: '#7C3AED' },
     { id: 's5', name: 'Geometry', code: 'GEO', color: '#059669' },
-    { id: 's6', name: 'Science 1', code: 'SC1', color: '#0EA5E9' },
-    { id: 's7', name: 'Science 2', code: 'SC2', color: '#6366F1' },
+    { id: 's6', name: 'Science 1', code: 'SC1', color: '#2563EB' },
+    { id: 's7', name: 'Science 2', code: 'SC2', color: '#4F46E5' },
     { id: 's8', name: 'History', code: 'HIS', color: '#D97706' },
-    { id: 's9', name: 'Geography', code: 'GEOG', color: '#16A34A' },
+    { id: 's9', name: 'Geography', code: 'GEOG', color: '#166534' },
 ];
 
 // ── Offline exams (teacher-defined, same for all subjects) ────────────────────
@@ -1745,6 +1746,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                         );
                         const rank = rankMap[sel.student.id];
                         const trendSub = subjects.find(s => s.id === trendSubjectId) ?? subjects[0];
+                        const trendColor = trendSub ? colorForSubject(trendSub) : assignSubjectColor(0);
                         const offCols = trendSub ? (marksheetHook.examColumns[trendSub.id] ?? []) : [];
                         const trendData = (() => {
                             if (!trendSub) return [];
@@ -1814,8 +1816,8 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                         <AreaChart data={trendData} margin={{ top: 28, right: 8, left: -20, bottom: 0 }}>
                                                             <defs>
                                                                 <linearGradient id={`trendGrad-${trendSub?.id}`} x1="0" y1="0" x2="0" y2="1">
-                                                                    <stop offset="5%" stopColor={trendSub?.color ?? '#7C3AED'} stopOpacity={0.3} />
-                                                                    <stop offset="95%" stopColor={trendSub?.color ?? '#7C3AED'} stopOpacity={0} />
+                                                                    <stop offset="5%" stopColor={trendColor} stopOpacity={0.3} />
+                                                                    <stop offset="95%" stopColor={trendColor} stopOpacity={0} />
                                                                 </linearGradient>
                                                             </defs>
                                                             <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.15)" />
@@ -1825,9 +1827,9 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                                 contentStyle={{ background: '#1A1030', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, fontSize: 11 }}
                                                                 labelStyle={{ color: '#F1F5F9' }}
                                                                 formatter={(val: unknown) => [`${val}%`, 'Score']}
-                                                                itemStyle={{ color: trendSub?.color ?? '#7C3AED' }}
+                                                                itemStyle={{ color: trendColor }}
                                                             />
-                                                            <Area type="monotone" dataKey="score" stroke={trendSub?.color ?? '#7C3AED'} strokeWidth={2}
+                                                            <Area type="monotone" dataKey="score" stroke={trendColor} strokeWidth={2}
                                                                 fill={`url(#trendGrad-${trendSub?.id})`}
                                                                 dot={(dotProps: any) => {
                                                                     const { cx, cy, payload } = dotProps;
@@ -1838,7 +1840,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                                     const labelColor = isMin ? '#EF4444' : '#10B981';
                                                                     return (
                                                                         <g style={{ overflow: 'visible' }}>
-                                                                            <circle cx={cx} cy={cy} r={4} fill={trendSub?.color ?? '#7C3AED'} />
+                                                                            <circle cx={cx} cy={cy} r={4} fill={trendColor} />
                                                                             {(isMax || isMin) && (
                                                                                 <>
                                                                                     <rect x={cx - 14} y={isMin ? cy + 7 : cy - 21} width={28} height={14} rx={3} fill={labelColor} />

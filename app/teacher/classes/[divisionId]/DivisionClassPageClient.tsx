@@ -24,7 +24,7 @@ export interface Subject {
 export interface Assignment {
     id: string;
     subjectId: string | null;
-    teacher: { id: string; user: { id: string; name: string | null } };
+    teacher: { id: string; avatarUrl?: string | null; user: { id: string; name: string | null } };
     subject: { id: string; name: string; color: string | null } | null;
 }
 

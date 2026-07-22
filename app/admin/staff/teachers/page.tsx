@@ -11,6 +11,7 @@ import type {
 } from '@/types';
 import { getStructureLabels } from '@/lib/getInstitutionAccent';
 import { formatDisplayName } from '@/lib/displayName';
+import { colorForSubject } from '@/lib/subjectColors';
 import { AddTeacherModal, type TeacherFormData } from '@/components/admin/AddTeacherModal';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -276,21 +277,31 @@ function TeacherCard({
                                 </div>
                                 {/* Assignment tags */}
                                 <div className="flex flex-wrap gap-1 pl-4">
-                                    {assignments.map(a => (
-                                        <span
-                                            key={a.id}
-                                            className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${a.role === 'CLASS_TEACHER'
-                                                ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800'
-                                                : 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/50 dark:text-sky-300 dark:border-sky-800'
-                                                }`}
-                                        >
-                                            {a.role === 'CLASS_TEACHER'
-                                                ? <GraduationCap size={9} />
-                                                : <BookOpen size={9} />
-                                            }
-                                            {a.level2Name} · {a.level3Name}
-                                        </span>
-                                    ))}
+                                    {assignments.map(a => {
+                                        const subjectColor = a.role === 'SUBJECT_TEACHER'
+                                            ? colorForSubject({ id: a.level3Id, color: a.subjectColor })
+                                            : null;
+                                        return (
+                                            <span
+                                                key={a.id}
+                                                className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${a.role === 'CLASS_TEACHER'
+                                                    ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800'
+                                                    : ''
+                                                    }`}
+                                                style={subjectColor ? {
+                                                    background: subjectColor + '15',
+                                                    color: subjectColor,
+                                                    borderColor: subjectColor + '40',
+                                                } : undefined}
+                                            >
+                                                {a.role === 'CLASS_TEACHER'
+                                                    ? <GraduationCap size={9} />
+                                                    : <BookOpen size={9} />
+                                                }
+                                                {a.level2Name} · {a.level3Name}
+                                            </span>
+                                        );
+                                    })}
                                 </div>
                             </div>
                         ))}
