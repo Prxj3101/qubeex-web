@@ -7,6 +7,7 @@ import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useStudentStore } from '@/store/studentStore';
+import { toTitleCase } from '@/lib/utils';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -478,7 +479,7 @@ export default function StudentDetailPage() {
                             }
                             {editingInfo
                                 ? <EditDropdown label="Gender" value={draft.gender} options={GENDERS} onChange={v => setDraft(p => ({ ...p, gender: v }))} />
-                                : <ReadField label="Gender" value={data.gender} />
+                                : <ReadField label="Gender" value={toTitleCase(data.gender)} />
                             }
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

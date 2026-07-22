@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ArrowLeft, ChevronRight, Users, BookOpen, User, Shield, MapPin,
+    ArrowLeft, ChevronRight, Users, BookOpen, User, Shield, MapPin, Heart,
     Plus, X, Check, ChevronDown, User as UserIcon, ArrowUp,
     Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink,
     CalendarCheck, BarChart2, NotebookPen, Smartphone
@@ -16,6 +16,7 @@ import api from '@/lib/api';
 import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { assignSubjectColor } from '@/lib/subjectColors';
+import { toTitleCase } from '@/lib/utils';
 import { FeesTab } from './fees';
 import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[divisionId]/AttendanceTab';
 import MarksTab, { MarksSubTab, MarksStats } from '@/app/teacher/classes/[divisionId]/MarksTab';
@@ -94,12 +95,12 @@ function SectionHeader({ icon: Icon, label, editing, onEdit, onSave, onCancel }:
     );
 }
 
-function ReadField({ label, value }: { label: string; value: string }) {
+function ReadField({ label, value, multiline }: { label: string; value: string; multiline?: boolean }) {
     return (
         <div>
             <p className="text-[11px] text-muted-foreground mb-1 font-medium">{label}</p>
-            <div className="h-8 px-3 rounded-md border border-border/40 bg-muted flex items-center">
-                <span className="text-xs text-foreground">{value || '—'}</span>
+            <div className={`px-3 rounded-md border border-border/40 bg-muted flex ${multiline ? 'min-h-8 py-2 items-start' : 'h-8 items-center'}`}>
+                <span className="text-xs text-foreground leading-relaxed">{value || '—'}</span>
             </div>
         </div>
     );
@@ -607,6 +608,7 @@ interface AdminStudent {
     emergencyContact: string | null;
     religion: string | null;
     category: string | null;
+    nationality: string | null;
     admissionYear: string | null;
     guardians: { name: string; number: string; relation: string }[] | null;
     tempPassword: string | null;
@@ -767,10 +769,15 @@ const TABS = [
     { key: 'marksheet' as const,   label: 'Marksheet' },
 ];
 
+const VALID_TABS = ['overview', 'manage', 'fees', 'attendance', 'marksheet'] as const;
+type TabKey = typeof VALID_TABS[number];
+
 export default function DivisionDetailPage() {
     const router = useRouter();
     const params = useParams();
+    const searchParams = useSearchParams();
     const divisionId = params.divisionId as string;
+    const wantedStudentId = searchParams.get('student');
 
     const [division, setDivision] = useState<Division | null>(null);
     const [teachers, setTeachers] = useState<TeacherOption[]>([]);
@@ -790,7 +797,12 @@ export default function DivisionDetailPage() {
         return false;
     }
 
-    const [activeTab, setActiveTab] = useState<'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'>(() => {
+    const [activeTab, setActiveTab] = useState<TabKey>(() => {
+        const tabParam = searchParams.get('tab') as TabKey | null;
+        const wantedTab = tabParam && VALID_TABS.includes(tabParam) ? tabParam : null;
+        if (wantedTab && (!subAdminPermissions || !isTabLocked(wantedTab))) {
+            return wantedTab;
+        }
         if (!subAdminPermissions) return 'overview';
         if (subAdminPermissions.includes('CAMPUS_VIEW'))       return 'overview';
         if (subAdminPermissions.includes('CAMPUS_MANAGE'))     return 'manage';
@@ -1010,6 +1022,20 @@ export default function DivisionDetailPage() {
         fetchedRef.current = true;
         fetchAll();
     }, [fetchAll]);
+
+    // Re-select the student that was clicked into Report/View Profile, once the
+    // students list has loaded, instead of leaving selection empty/reset.
+    const restoredSelectionRef = useRef(false);
+    useEffect(() => {
+        if (restoredSelectionRef.current) return;
+        if (!wantedStudentId || students.length === 0) return;
+        const wanted = students.find(s => s.id === wantedStudentId);
+        if (wanted) {
+            setSelectedStudent(wanted);
+            setManageRightTab('student');
+        }
+        restoredSelectionRef.current = true;
+    }, [students, wantedStudentId]);
 
     const assignTeacher = async (subjectId: string | null, teacherId: string, name: string) => {
         if (!division) return;
@@ -1853,24 +1879,40 @@ export default function DivisionDetailPage() {
 
                                                         {/* Stats */}
                                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                                            <div className="rounded-xl border border-border/40 bg-muted/20 p-3 text-center">
-                                                                <p className="text-lg font-black" style={{ color: '#7C3AED' }}>
-                                                                    {loadingStats ? '…' : studentStats?.classRank != null ? `#${studentStats.classRank}` : '—'}
-                                                                </p>
-                                                                <p className="text-[11px] text-muted-foreground">Class Rank</p>
-                                                            </div>
-                                                            <div className="rounded-xl border border-border/40 bg-muted/20 p-3 text-center">
-                                                                <p className="text-lg font-black">
-                                                                    {loadingStats ? '…' : studentStats?.score.pct != null ? `${studentStats.score.pct}%` : '—'}
-                                                                </p>
-                                                                <p className="text-[11px] text-muted-foreground">Score %</p>
-                                                            </div>
-                                                            <div className="rounded-xl border border-border/40 bg-muted/20 p-3 text-center">
-                                                                <p className={`text-lg font-black ${studentStats?.attendance.pct == null ? '' : studentStats.attendance.pct >= 75 ? 'text-emerald-600' : studentStats.attendance.pct >= 65 ? 'text-amber-600' : 'text-red-500'}`}>
-                                                                    {loadingStats ? '…' : studentStats?.attendance.pct != null ? `${studentStats.attendance.pct}%` : '—'}
-                                                                </p>
-                                                                <p className="text-[11px] text-muted-foreground">Attendance</p>
-                                                            </div>
+                                                            {[
+                                                                {
+                                                                    label: 'Class Rank',
+                                                                    value: loadingStats ? '…' : (studentStats?.classRank != null ? `#${studentStats.classRank}` : '—'),
+                                                                    sub: 'by score',
+                                                                    color: studentStats?.classRank == null ? undefined :
+                                                                        studentStats.classRank === 1 ? '#F59E0B' :
+                                                                            studentStats.classRank <= 3 ? '#7C3AED' :
+                                                                                studentStats.classRank <= 10 ? 'var(--blue)' :
+                                                                                    'var(--muted-foreground)',
+                                                                },
+                                                                {
+                                                                    label: 'Score %',
+                                                                    value: loadingStats ? '…' : (studentStats?.score.pct != null ? `${studentStats.score.pct}%` : '—'),
+                                                                    sub: 'overall',
+                                                                    color: studentStats?.score.pct == null ? undefined :
+                                                                        studentStats.score.pct >= 75 ? '#10B981' :
+                                                                            studentStats.score.pct >= 65 ? '#F59E0B' : '#EF4444',
+                                                                },
+                                                                {
+                                                                    label: 'Attendance',
+                                                                    value: loadingStats ? '…' : (studentStats?.attendance.pct != null ? `${studentStats.attendance.pct}%` : '—'),
+                                                                    sub: 'overall',
+                                                                    color: studentStats?.attendance.pct == null ? undefined :
+                                                                        studentStats.attendance.pct >= 75 ? '#10B981' :
+                                                                            studentStats.attendance.pct >= 65 ? '#F59E0B' : '#EF4444',
+                                                                },
+                                                            ].map(stat => (
+                                                                <div key={stat.label} className="flex flex-col items-center justify-center py-2.5 rounded-xl border border-border/40 bg-muted/20">
+                                                                    <p className="text-lg font-black" style={{ color: stat.color }}>{stat.value}</p>
+                                                                    <p className="text-[11px] font-semibold text-foreground/70 mt-0.5">{stat.label}</p>
+                                                                    <p className="text-[10px] text-muted-foreground/60">{stat.sub}</p>
+                                                                </div>
+                                                            ))}
                                                         </div>
 
                                                         {/* Account status banner */}
@@ -1889,7 +1931,7 @@ export default function DivisionDetailPage() {
                                                         )}
 
                                                         {/* ROW 1 — Student Info + Academic */}
-                                                        <div className="flex flex-col md:flex-row gap-3 md:gap-0 border border-border/40 rounded-2xl overflow-hidden bg-background">
+                                                        <div className="flex flex-col md:flex-row gap-3 border border-border/40 rounded-2xl overflow-hidden bg-background">
                                                             {/* LEFT — Student Info */}
                                                             <div className="flex-1 px-4 py-3 md:border-r border-border/40 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={User} label="Student Info" />
@@ -1900,18 +1942,20 @@ export default function DivisionDetailPage() {
                                                                     </div>
                                                                     <div>
                                                                         <p className="text-sm font-bold">{selectedStudent.user.name ?? '—'}</p>
-                                                                        <p className="text-[11px] text-muted-foreground">Roll No. {selectedStudent.rollNo ?? '—'}</p>
                                                                     </div>
                                                                 </div>
                                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     <ReadField label="Date of Birth" value={selectedStudent.dob ?? '—'} />
-                                                                    <ReadField label="Gender" value={selectedStudent.gender ?? '—'} />
+                                                                    <ReadField label="Gender" value={toTitleCase(selectedStudent.gender) || '—'} />
                                                                 </div>
                                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     <ReadField label="Religion" value={selectedStudent.religion ?? '—'} />
                                                                     <ReadField label="Category" value={selectedStudent.category ?? '—'} />
                                                                 </div>
-                                                                <ReadField label="Admission Year" value={selectedStudent.admissionYear ?? '—'} />
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                                                    <ReadField label="Nationality" value={selectedStudent.nationality ?? '—'} />
+                                                                    <ReadField label="Admission Year" value={selectedStudent.admissionYear ?? '—'} />
+                                                                </div>
                                                                 <ReadField label="Email" value={selectedStudent.user.email} />
                                                                 <ReadField label="Contact No" value={selectedStudent.phone ?? '—'} />
                                                             </div>
@@ -1920,8 +1964,8 @@ export default function DivisionDetailPage() {
                                                             <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={BookOpen} label="Academic Details" />
                                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                                    <ReadField label="Class" value={division?.standard.name ?? '—'} />
-                                                                    <ReadField label="Division" value={division?.name ?? '—'} />
+                                                                    <ReadField label="Class" value={division?.standard.name.replace(/^Class\s*/i, '') ?? '—'} />
+                                                                    <ReadField label="Division" value={division?.name.split('-').pop() ?? division?.name ?? '—'} />
                                                                 </div>
                                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     <ReadField label="Roll No" value={selectedStudent.rollNo ?? '—'} />
@@ -1958,11 +2002,17 @@ export default function DivisionDetailPage() {
                                                         </div>
 
                                                         {/* ROW 2 — Medical + Address */}
-                                                        <div className="flex flex-col md:flex-row gap-3 md:gap-0 border border-border/40 rounded-2xl overflow-hidden bg-background">
+                                                        <div className="flex flex-col md:flex-row gap-3 border border-border/40 rounded-2xl overflow-hidden bg-background">
                                                             {/* LEFT — Medical & Identity */}
                                                             <div className="flex-1 px-4 py-3 md:border-r border-border/40 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={Shield} label="Medical & Identity" />
-                                                                <ReadField label="Blood Group" value={selectedStudent.bloodGroup ?? '—'} />
+                                                                <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200/50 dark:border-red-900/50">
+                                                                    <Heart size={18} className="text-red-500 shrink-0" />
+                                                                    <div>
+                                                                        <p className="text-[10px] text-red-400 font-medium">Blood Group</p>
+                                                                        <p className="text-xl font-black text-red-500">{selectedStudent.bloodGroup || '—'}</p>
+                                                                    </div>
+                                                                </div>
                                                                 <ReadField label="Aadhar No" value={selectedStudent.aadharNo ?? '—'} />
                                                                 <ReadField label="PAN No" value={selectedStudent.panNo ?? '—'} />
                                                                 <ReadField label="Emergency Contact" value={selectedStudent.emergencyContact ?? '—'} />
@@ -1971,7 +2021,7 @@ export default function DivisionDetailPage() {
                                                             {/* RIGHT — Address */}
                                                             <div className="flex-1 px-4 py-3 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={MapPin} label="Address" />
-                                                                <ReadField label="Address" value={selectedStudent.address ?? '—'} />
+                                                                <ReadField label="Address" value={selectedStudent.address ?? '—'} multiline />
                                                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     <ReadField label="City" value={selectedStudent.city ?? '—'} />
                                                                     <ReadField label="State" value={selectedStudent.state ?? '—'} />
@@ -1985,11 +2035,13 @@ export default function DivisionDetailPage() {
                                                         <div className="border border-border/40 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
                                                             <SectionViewLabel icon={Users} label="Parents / Guardian" />
                                                             {(!selectedStudent.guardians || selectedStudent.guardians.length === 0) ? (
-                                                                <p className="text-xs text-muted-foreground/60 italic py-2 text-center">No guardian details on file</p>
+                                                                <p className="text-xs text-muted-foreground/60 text-center py-1">No parents or guardians added yet</p>
                                                             ) : (
                                                                 selectedStudent.guardians.map((g, i) => (
                                                                     <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
-                                                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Guardian {i + 1}</p>
+                                                                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+                                                                            {g.relation || `Entry ${i + 1}`}
+                                                                        </p>
                                                                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                                                                             <ReadField label="Name" value={g.name} />
                                                                             <ReadField label="Number" value={g.number} />

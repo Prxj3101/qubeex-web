@@ -13,6 +13,7 @@ export default function AdminStudentReportsPage() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
+    const standardId = params.standardId as string;
     const divisionId = params.divisionId as string;
     const studentId = params.studentId as string;
     const studentName = searchParams.get('name') ?? 'Student';
@@ -50,7 +51,7 @@ export default function AdminStudentReportsPage() {
                 flags={flags}
                 title={`${studentName} — Reports`}
                 subtitle="Yellow & red card history for this student"
-                onBack={() => router.back()}
+                onBack={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}?tab=manage&student=${studentId}`)}
                 headerAction={
                     <button
                         onClick={() => setShowAddModal(true)}

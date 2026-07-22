@@ -755,20 +755,31 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     label: 'Class Rank',
                                                     value: loadingStats ? '…' : (studentStats?.classRank != null ? `#${studentStats.classRank}` : '—'),
                                                     sub: 'by score',
+                                                    color: studentStats?.classRank == null ? undefined :
+                                                        studentStats.classRank === 1 ? '#F59E0B' :
+                                                            studentStats.classRank <= 3 ? '#7C3AED' :
+                                                                studentStats.classRank <= 10 ? 'var(--blue)' :
+                                                                    'var(--muted-foreground)',
                                                 },
                                                 {
                                                     label: 'Score %',
                                                     value: loadingStats ? '…' : (studentStats?.score.pct != null ? `${studentStats.score.pct}%` : '—'),
-                                                    sub: 'latest exam',
+                                                    sub: 'overall',
+                                                    color: studentStats?.score.pct == null ? undefined :
+                                                        studentStats.score.pct >= 75 ? '#10B981' :
+                                                            studentStats.score.pct >= 65 ? '#F59E0B' : '#EF4444',
                                                 },
                                                 {
                                                     label: 'Attendance',
                                                     value: loadingStats ? '…' : (studentStats?.attendance.pct != null ? `${studentStats.attendance.pct}%` : '—'),
-                                                    sub: studentStats?.attendance.total ? `${studentStats.attendance.present}/${studentStats.attendance.total} days` : 'no records',
+                                                    sub: 'overall',
+                                                    color: studentStats?.attendance.pct == null ? undefined :
+                                                        studentStats.attendance.pct >= 75 ? '#10B981' :
+                                                            studentStats.attendance.pct >= 65 ? '#F59E0B' : '#EF4444',
                                                 },
                                             ].map(stat => (
                                                 <div key={stat.label} className="flex flex-col items-center justify-center py-2.5 rounded-xl border border-border/50 bg-muted/30">
-                                                    <p className="text-lg font-black" style={{ color: '#DA7756' }}>{stat.value}</p>
+                                                    <p className="text-lg font-black" style={{ color: stat.color ?? '#DA7756' }}>{stat.value}</p>
                                                     <p className="text-[11px] font-semibold text-foreground/70 mt-0.5">{stat.label}</p>
                                                     <p className="text-[10px] text-muted-foreground/60">{stat.sub}</p>
                                                 </div>
@@ -920,7 +931,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                 {/* Password */}
                                                 <div>
                                                     <p className="text-[11px] text-muted-foreground mb-1 font-medium">
-                                                        {selectedStudent.user.mustChangePassword ? 'Initial Password' : 'Password'}
+                                                        {selectedStudent.user.mustChangePassword ? 'Initial Password' : 'Current Password'}
                                                     </p>
                                                     <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between gap-2">
                                                         <span className="text-sm font-mono flex-1" style={{ color: selectedStudent.user.mustChangePassword ? '#DA7756' : undefined }}>

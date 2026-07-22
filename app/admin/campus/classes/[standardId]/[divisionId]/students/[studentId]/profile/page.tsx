@@ -20,6 +20,7 @@ interface RawStudent {
 export default function AdminStudentProfilePage() {
     const params = useParams();
     const router = useRouter();
+    const standardId = params.standardId as string;
     const divisionId = params.divisionId as string;
     const studentId = params.studentId as string;
 
@@ -68,7 +69,7 @@ export default function AdminStudentProfilePage() {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-3">
                 <p className="text-sm text-muted-foreground">Student not found.</p>
-                <button onClick={() => router.back()} className="text-xs font-semibold text-primary hover:underline">Go back</button>
+                <button onClick={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}?tab=manage&student=${studentId}`)} className="text-xs font-semibold text-primary hover:underline">Go back</button>
             </div>
         );
     }
@@ -88,8 +89,8 @@ export default function AdminStudentProfilePage() {
             marksheetData={marksheetData}
             attendanceApiData={attendanceApiData}
             flags={flags}
-            onBack={() => router.back()}
-            onViewAllFlags={() => router.push(`/admin/campus/classes/${params.standardId}/${divisionId}/students/${studentId}/reports?name=${encodeURIComponent(student.user.name ?? 'Student')}`)}
+            onBack={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}?tab=manage&student=${studentId}`)}
+            onViewAllFlags={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}/students/${studentId}/reports?name=${encodeURIComponent(student.user.name ?? 'Student')}`)}
         />
     );
 }
