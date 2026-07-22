@@ -72,7 +72,6 @@ export default function DivisionClassPageClient() {
         ? [
             { key: 'view' as const, label: 'View' },
             { key: 'manage' as const, label: 'Manage' },
-            { key: 'promotions' as const, label: 'Promotions' },
             { key: 'attendance' as const, label: 'Attendance' },
             { key: 'marks' as const, label: 'Marksheet' },
             { key: 'fees' as const, label: 'Fees' },
@@ -166,7 +165,7 @@ export default function DivisionClassPageClient() {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 flex-wrap">
                         {/* Back button */}
-                        <button onClick={() => router.back()}
+                        <button onClick={() => activeTab === 'promotions' ? setActiveTab('manage') : router.back()}
                             className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
                             <ArrowLeft size={16} />
                         </button>
@@ -200,7 +199,7 @@ export default function DivisionClassPageClient() {
                         {/* Main tab bar */}
                         <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 ml-0 lg:ml-4 overflow-x-auto max-w-full">
                             {TABS.map(tab => {
-                                const isActive = activeTab === tab.key;
+                                const isActive = activeTab === tab.key || (tab.key === 'manage' && activeTab === 'promotions');
                                 return (
                                     <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="relative">
                                         {isActive && (
@@ -362,6 +361,13 @@ export default function DivisionClassPageClient() {
                             </div>
                         ) : (
                             <div className="flex items-center gap-4">
+                                {activeTab === 'manage' && isClassTeacher && (
+                                    <button onClick={() => setActiveTab('promotions')}
+                                        className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-white shrink-0"
+                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                        <TrendingUp size={13} /> Promotions
+                                    </button>
+                                )}
                                 {[
                                     { label: 'Subjects', value: division.subjects.length },
                                     { label: 'Students', value: leaderboard.length },

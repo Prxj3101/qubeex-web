@@ -63,12 +63,26 @@ export default function ReportStudentModal({ open, onOpenChange, studentName, lo
                 <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-3">
                     <div className="flex gap-2">
                         <button type="button" onClick={() => setForm(f => ({ ...f, type: 'yellow' }))}
-                            className={`flex-1 h-9 rounded-lg text-xs font-semibold border transition-all ${form.type === 'yellow' ? 'bg-amber-100 dark:bg-amber-950 border-amber-400 text-amber-800 dark:text-amber-300' : 'border-border/50 text-muted-foreground hover:bg-muted/40'}`}>
-                            🟡 Yellow Card
+                            className={`flex-1 h-9 rounded-lg text-xs font-semibold border transition-all flex items-center justify-center gap-2 ${form.type === 'yellow' ? 'bg-amber-100 dark:bg-amber-950 border-amber-400 text-amber-800 dark:text-amber-300' : 'border-border/50 text-muted-foreground hover:bg-muted/40'}`}>
+                            <span style={{
+                                width: 12, height: 16, borderRadius: 2,
+                                backgroundColor: '#FCFF38',
+                                transform: 'rotate(-5deg)',
+                                boxShadow: '1px 2px 0px rgba(0,0,0,0.35)',
+                                display: 'inline-block',
+                            }} />
+                            Yellow Card
                         </button>
                         <button type="button" onClick={() => setForm(f => ({ ...f, type: 'red' }))}
-                            className={`flex-1 h-9 rounded-lg text-xs font-semibold border transition-all ${form.type === 'red' ? 'bg-red-100 dark:bg-red-950 border-red-400 text-red-800 dark:text-red-300' : 'border-border/50 text-muted-foreground hover:bg-muted/40'}`}>
-                            🔴 Red Card
+                            className={`flex-1 h-9 rounded-lg text-xs font-semibold border transition-all flex items-center justify-center gap-2 ${form.type === 'red' ? 'bg-red-100 dark:bg-red-950 border-red-400 text-red-800 dark:text-red-300' : 'border-border/50 text-muted-foreground hover:bg-muted/40'}`}>
+                            <span style={{
+                                width: 12, height: 16, borderRadius: 2,
+                                backgroundColor: '#DC2626',
+                                transform: 'rotate(-5deg)',
+                                boxShadow: '1px 2px 0px rgba(0,0,0,0.35)',
+                                display: 'inline-block',
+                            }} />
+                            Red Card
                         </button>
                     </div>
 

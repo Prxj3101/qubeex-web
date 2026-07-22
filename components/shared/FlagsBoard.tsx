@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, BookOpen, Calendar, User, ShieldAlert, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, User, ShieldAlert, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
 import { FlagItem, CardType } from '@/lib/flags';
 
 const CATEGORY_ICONS: Record<string, string> = {
@@ -22,7 +22,7 @@ const STATUS_CFG = {
     appealed: { label: 'Appealed', emoji: '⚖️', color: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
 };
 
-export function FlagCard({ flag }: { flag: FlagItem }) {
+export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: string }) {
     const [expanded, setExpanded] = useState(false);
     const isYellow = flag.type === 'yellow';
     const status = STATUS_CFG[flag.status];
@@ -81,6 +81,12 @@ export function FlagCard({ flag }: { flag: FlagItem }) {
                     <Calendar size={11} className={isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} />
                     <span className={`text-[10px] ${isYellow ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'}`}>{flag.date}</span>
                 </div>
+                {classLabel && (
+                    <div className="flex items-center gap-1">
+                        <GraduationCap size={11} className={isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} />
+                        <span className={`text-[10px] ${isYellow ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'}`}>{classLabel}</span>
+                    </div>
+                )}
                 {flag.subject && (
                     <div className="flex items-center gap-1">
                         <BookOpen size={11} className={isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} />
@@ -138,9 +144,10 @@ interface FlagsBoardProps {
     onBack: () => void;
     headerAction?: React.ReactNode;
     appealNote?: string;
+    classLabel?: string;
 }
 
-export default function FlagsBoard({ flags, title, subtitle, onBack, headerAction, appealNote = 'Contact your class teacher or Principal.' }: FlagsBoardProps) {
+export default function FlagsBoard({ flags, title, subtitle, onBack, headerAction, appealNote = 'Contact your class teacher or Principal.', classLabel }: FlagsBoardProps) {
     const [activeTab, setActiveTab] = useState<CardType>('yellow');
 
     const sortByDateDesc = (arr: FlagItem[]) =>
@@ -261,7 +268,7 @@ export default function FlagsBoard({ flags, title, subtitle, onBack, headerActio
                             </p>
                         </div>
                     ) : (
-                        activeFlags.map(flag => <FlagCard key={flag.id} flag={flag} />)
+                        activeFlags.map(flag => <FlagCard key={flag.id} flag={flag} classLabel={classLabel} />)
                     )}
                 </div>
             </div>

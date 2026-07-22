@@ -16,6 +16,8 @@ export default function TeacherStudentReportsPage() {
     const divisionId = params.divisionId as string;
     const studentId = params.studentId as string;
     const studentName = searchParams.get('name') ?? 'Student';
+    const [classLabel, setClassLabel] = useState<string | undefined>(searchParams.get('class') ?? undefined);
+    const from = searchParams.get('from');
 
     const [flags, setFlags] = useState<FlagItem[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -28,6 +30,16 @@ export default function TeacherStudentReportsPage() {
     }, [divisionId, studentId]);
 
     useEffect(() => { load(); }, [load]);
+
+    // Fallback: fetch the division's own name directly, in case the ?class= param
+    // wasn't present (e.g. page reached via an older cached link).
+    useEffect(() => {
+        if (classLabel) return;
+        api.get(`/teacher/classes/${divisionId}`)
+            .then(res => setClassLabel(res.data.data?.name))
+            .catch(() => {});
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [divisionId]);
 
     const handleSubmit = async (data: ReportFormData) => {
         setSubmitting(true);
@@ -48,9 +60,12 @@ export default function TeacherStudentReportsPage() {
         <>
             <FlagsBoard
                 flags={flags}
-                title={`${studentName} — Reports`}
-                subtitle="Yellow & red card history for this student"
-                onBack={() => router.push(`/teacher/classes/${divisionId}?tab=manage&student=${studentId}`)}
+                title={`Flags & Warnings - ${studentName}`}
+                subtitle={`${studentName.split(' ')[0]}'s conduct record & disciplinary remarks`}
+                classLabel={classLabel}
+                onBack={() => router.push(from === 'profile'
+                    ? `/teacher/classes/${divisionId}/students/${studentId}/profile`
+                    : `/teacher/classes/${divisionId}?tab=manage&student=${studentId}`)}
                 headerAction={
                     <button
                         onClick={() => setShowAddModal(true)}

@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation';
 import { FlagItem } from '@/lib/flags';
 import api from '@/lib/api';
 import FlagsBoard from '@/components/shared/FlagsBoard';
+import { useStudentStore } from '@/store/studentStore';
 
 export default function FlagsPage() {
     const [flags, setFlags] = useState<FlagItem[]>([]);
     const router = useRouter();
+    const division = useStudentStore(s => s.division);
 
     useEffect(() => {
         api.get('/student/remarks')
@@ -22,6 +24,7 @@ export default function FlagsPage() {
             title="Flags & Warnings"
             subtitle="Your conduct record & disciplinary remarks"
             onBack={() => router.back()}
+            classLabel={division || undefined}
         />
     );
 }

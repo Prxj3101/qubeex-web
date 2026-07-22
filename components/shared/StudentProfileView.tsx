@@ -241,12 +241,12 @@ export default function StudentProfileView({
                                 </div>
                             </div>
                             <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold mt-0.5">
-                                {standard} · {division}
+                                {standard} · Division {division.split('-').pop() ?? division}
                             </p>
                             <div className="h-px bg-border/50 my-3" />
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
                                 <InfoRow label="Roll No" value={rollNo ?? '—'} />
-                                <InfoRow label="Division" value={division} />
+                                <InfoRow label="Division" value={division.split('-').pop() ?? division} />
                                 <InfoRow label="Admission Year" value={admissionYear ?? '—'} />
                                 <InfoRow label="Date of Birth" value={dobDisplay ? `${dobDisplay}${age !== null ? ` (${age} yrs)` : ''}` : '—'} />
                                 <InfoRow label="Email" value={email} />
@@ -538,9 +538,9 @@ export default function StudentProfileView({
                     )}
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
-                            <User size={21} /> Profile
+                            <User size={21} /> {studentName}&apos;s Profile
                         </h1>
-                        <p className="text-[13px] text-muted-foreground">Personal &amp; academic details</p>
+                        <p className="text-[13px] text-muted-foreground">{studentName.split(' ')[0]}&apos;s Personal &amp; academic details</p>
                     </div>
                 </div>
                 <div className="h-px bg-border/60 mt-2" />

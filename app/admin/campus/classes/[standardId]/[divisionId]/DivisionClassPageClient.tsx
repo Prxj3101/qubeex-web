@@ -1727,7 +1727,7 @@ export default function DivisionDetailPage() {
                                                     }`}>
                                                 {selectedStudent.status === 'ACTIVE' ? <><PowerOff size={11} /> Deactivate</> : <><Power size={11} /> Activate</>}
                                             </button>
-                                            <button onClick={() => router.push(`/admin/campus/classes/${division?.standard.id}/${divisionId}/students/${selectedStudent.id}/reports?name=${encodeURIComponent(selectedStudent.user.name ?? 'Student')}`)}
+                                            <button onClick={() => router.push(`/admin/campus/classes/${division?.standard.id}/${divisionId}/students/${selectedStudent.id}/reports?name=${encodeURIComponent(selectedStudent.user.name ?? 'Student')}&class=${encodeURIComponent(division?.name ?? '')}`)}
                                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
                                                 <Flag size={11} /> Report
                                             </button>
