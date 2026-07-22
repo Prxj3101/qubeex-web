@@ -13,7 +13,7 @@ import {
     AreaChart, Area, ReferenceLine,
 } from 'recharts';
 import { FlagItem } from '@/lib/flags';
-import { assignSubjectColor } from '@/lib/subjectColors';
+import { colorForSubject } from '@/lib/subjectColors';
 
 type MarksMode = 'offline' | 'online' | 'combined';
 
@@ -141,11 +141,11 @@ export default function StudentProfileView({
         }),
     [attendanceApiData]);
 
-    const chartData = (marksheetData?.subjects ?? []).map((s, i) => {
+    const chartData = (marksheetData?.subjects ?? []).map((s) => {
         const offline = s.pct ?? 0;
         const online = 0;
         const pct = marksMode === 'offline' ? offline : marksMode === 'online' ? online : Math.round((offline + online) / 2);
-        return { name: s.name, code: s.code, color: s.color ?? assignSubjectColor(i), pct };
+        return { name: s.name, code: s.code, color: colorForSubject(s), pct };
     });
     const avg = chartData.length > 0
         ? Math.round(chartData.reduce((a, b) => a + b.pct, 0) / chartData.length)

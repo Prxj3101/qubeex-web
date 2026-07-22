@@ -7,7 +7,7 @@ import { motion } from 'framer-motion';
 import { LayoutGrid, Users, BookOpen, GraduationCap, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
-import { assignSubjectColor } from '@/lib/subjectColors';
+import { colorForSubject } from '@/lib/subjectColors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface ClassTeacherAssignment {
@@ -134,6 +134,7 @@ function ClassTeacherCard({ item, index }: { item: ClassTeacherAssignment; index
 function SubjectTeacherCard({ item, index }: { item: SubjectTeacherAssignment; index: number }) {
     const grad = getGradient(item.standardName);
     const router = useRouter();
+    const subjectColor = colorForSubject({ id: item.subjectId, color: item.subjectColor });
 
     return (
         <motion.div
@@ -173,11 +174,11 @@ function SubjectTeacherCard({ item, index }: { item: SubjectTeacherAssignment; i
                 {/* Subject badge */}
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl border"
                     style={{
-                        background: (item.subjectColor ?? assignSubjectColor(index)) + '15',
-                        borderColor: (item.subjectColor ?? assignSubjectColor(index)) + '40',
+                        background: subjectColor + '15',
+                        borderColor: subjectColor + '40',
                     }}>
-                    <BookOpen size={12} style={{ color: item.subjectColor ?? assignSubjectColor(index) }} />
-                    <span className="text-xs font-semibold" style={{ color: item.subjectColor ?? assignSubjectColor(index) }}>
+                    <BookOpen size={12} style={{ color: subjectColor }} />
+                    <span className="text-xs font-semibold" style={{ color: subjectColor }}>
                         {item.subjectName}
                     </span>
                 </div>

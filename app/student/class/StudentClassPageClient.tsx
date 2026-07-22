@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import PencilLoader from '@/components/student/PencilLoader';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Users, Trophy, Calendar, Loader2, X, FileText, ChevronRight, GraduationCap } from 'lucide-react';
-import { SUBJECT_PALETTE } from '@/lib/subjectColors';
+import { colorForSubject } from '@/lib/subjectColors';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '@/lib/api';
 
@@ -354,8 +354,8 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
     const [viewFile, setViewFile] = useState<FeedFile | null>(null);
 
     const subject = subjects.find(s => s.id === selectedId);
-    const subjectColor = (s: Subject) => s.color || SUBJECT_PALETTE[subjects.indexOf(s) % SUBJECT_PALETTE.length];
-    const activeColor = subject ? subjectColor(subject) : SUBJECT_PALETTE[0];
+    const subjectColor = (s: Subject) => colorForSubject(s);
+    const activeColor = subject ? subjectColor(subject) : colorForSubject({ id: 'none' });
     const score = myScores.find(s => s.subjectId === selectedId);
     const leaderboard = subjectLeaderboards[selectedId] ?? [];
     const materials = subjectMaterials[selectedId] ?? [];

@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronDown, Plus, Check, X, BookOpen, Users,
-    ArrowUpRight, LayoutGrid,
+    ArrowUpRight, LayoutGrid, GripVertical,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
-import { assignSubjectColor } from '@/lib/subjectColors';
+import { colorForSubject } from '@/lib/subjectColors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -42,6 +42,7 @@ interface Division {
     id: string;
     name: string;
     capacity: number | null;
+    studentCount: number;
     divisionSubjects: { subjectId: string }[];
     assignments: Assignment[];
 }
@@ -206,6 +207,45 @@ export default function ClassesPage() {
         }
     };
 
+    const [dragSubjectId, setDragSubjectId] = useState<string | null>(null);
+
+    const reorderSubjects = async (standardId: string, orderedIds: string[]) => {
+        // Optimistic reorder — colors are placeholders here (same as before the
+        // drag) until the server responds with the real recolored list, since
+        // color reassignment happens server-side to stay the single source of truth.
+        setStandards(prev => prev.map(s => s.id !== standardId ? s : {
+            ...s,
+            subjects: orderedIds
+                .map(id => s.subjects.find(sub => sub.id === id))
+                .filter((sub): sub is Subject => !!sub),
+        }));
+        try {
+            const res = await api.patch(`/admin/campus/standards/${standardId}/subjects/reorder`, { orderedIds });
+            const reordered: Subject[] = res.data.data;
+            setStandards(prev => prev.map(s => s.id !== standardId ? s : { ...s, subjects: reordered }));
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to save subject order');
+            fetchStandards();
+        }
+    };
+
+    const handleSubjectDrop = (standardId: string, targetSubjectId: string) => {
+        const draggedId = dragSubjectId;
+        setDragSubjectId(null);
+        if (!draggedId || draggedId === targetSubjectId) return;
+        const std = standards.find(s => s.id === standardId);
+        if (!std) return;
+        const ids = std.subjects.map(s => s.id);
+        const fromIdx = ids.indexOf(draggedId);
+        const toIdx = ids.indexOf(targetSubjectId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        const newIds = [...ids];
+        newIds.splice(fromIdx, 1);
+        newIds.splice(toIdx, 0, draggedId);
+        reorderSubjects(standardId, newIds);
+    };
+
     const totalDivisions = standards.reduce((n, s) => n + s.divisions.length, 0);
     const totalSubjects = standards.reduce((n, s) => n + (s.subjects?.length ?? 0), 0);
     const gradients = [
@@ -277,7 +317,7 @@ export default function ClassesPage() {
                 {standards.map((std, idx) => {
                     const isExpanded = expandedId === std.id;
                     const grad = gradients[idx % gradients.length];
-                    const totalStudents = 0;
+                    const totalStudents = std.divisions.reduce((sum, div) => sum + div.studentCount, 0);
 
                     return (
                         <div key={std.id} className="bg-card border border-border/50 rounded-2xl overflow-hidden">
@@ -323,14 +363,20 @@ export default function ClassesPage() {
                                                         Subjects
                                                     </p>
                                                     <div className="flex flex-wrap items-center gap-2">
-                                                        {(std.subjects ?? []).map((sub, subIdx) => (
+                                                        {(std.subjects ?? []).map((sub) => (
                                                             <span key={sub.id}
-                                                                className="group flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-full text-xs font-medium"
+                                                                draggable={isAdmin}
+                                                                onDragStart={() => setDragSubjectId(sub.id)}
+                                                                onDragOver={(e) => isAdmin && e.preventDefault()}
+                                                                onDrop={(e) => { e.preventDefault(); handleSubjectDrop(std.id, sub.id); }}
+                                                                onDragEnd={() => setDragSubjectId(null)}
+                                                                className={`group flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-full text-xs font-medium transition-opacity ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} ${dragSubjectId === sub.id ? 'opacity-40' : ''}`}
                                                                 style={{
-                                                                    background: (sub.color ?? assignSubjectColor(subIdx)) + '20',
-                                                                    color: sub.color ?? assignSubjectColor(subIdx),
-                                                                    border: `1px solid ${sub.color ?? assignSubjectColor(subIdx)}40`,
+                                                                    background: colorForSubject(sub) + '20',
+                                                                    color: colorForSubject(sub),
+                                                                    border: `1px solid ${colorForSubject(sub)}40`,
                                                                 }}>
+                                                                {isAdmin && <GripVertical size={11} className="opacity-50" />}
                                                                 <BookOpen size={11} />
                                                                 {sub.name}
                                                                 {isAdmin && (
@@ -388,7 +434,7 @@ export default function ClassesPage() {
                                                                                 </div>
                                                                                 <div>
                                                                                     <p className="text-sm font-bold">{div.name}</p>
-                                                                                    <p className="text-[11px] text-muted-foreground">0 students</p>
+                                                                                    <p className="text-[11px] text-muted-foreground">{div.studentCount} student{div.studentCount === 1 ? '' : 's'}</p>
                                                                                 </div>
                                                                             </div>
                                                                             <div
@@ -425,7 +471,7 @@ export default function ClassesPage() {
                                                                                                 <div key={sub.id} className="flex items-center justify-between py-1 border-t border-border/20">
                                                                                                     <div className="flex items-center gap-1.5">
                                                                                                         <div className="w-1.5 h-1.5 rounded-full shrink-0"
-                                                                                                            style={{ background: sub.color ?? assignSubjectColor(std.subjects.findIndex(s => s.id === sub.id)) }} />
+                                                                                                            style={{ background: colorForSubject(sub) }} />
                                                                                                         <span className="text-[10px] text-muted-foreground">{sub.name}</span>
                                                                                                     </div>
                                                                                                     {assignment?.teacher.user.name ? (

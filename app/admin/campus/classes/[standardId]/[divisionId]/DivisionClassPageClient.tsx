@@ -15,7 +15,7 @@ import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
 import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
-import { assignSubjectColor } from '@/lib/subjectColors';
+import { colorForSubject } from '@/lib/subjectColors';
 import { toTitleCase } from '@/lib/utils';
 import { FeesTab } from './fees';
 import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[divisionId]/AttendanceTab';
@@ -1484,7 +1484,7 @@ export default function DivisionDetailPage() {
                                                 <div key={sub.id} className="flex items-center justify-between py-2">
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-2 h-2 rounded-full shrink-0"
-                                                            style={{ background: sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id)) }} />
+                                                            style={{ background: colorForSubject(sub) }} />
                                                         <span className="text-xs font-medium">{sub.name}</span>
                                                     </div>
                                                     {teacherName ? (
@@ -1766,9 +1766,9 @@ export default function DivisionDetailPage() {
                                                                         disabled={togglingSubject === sub.id}
                                                                         className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all disabled:opacity-50"
                                                                         style={isSelected ? {
-                                                                            background: (sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id))) + '20',
-                                                                            color: sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id)),
-                                                                            border: `1px solid ${sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id))}40`,
+                                                                            background: (colorForSubject(sub)) + '20',
+                                                                            color: colorForSubject(sub),
+                                                                            border: `1px solid ${colorForSubject(sub)}40`,
                                                                         } : {
                                                                             background: 'hsl(var(--muted))',
                                                                             color: 'hsl(var(--muted-foreground))',
@@ -1830,7 +1830,7 @@ export default function DivisionDetailPage() {
                                                                         <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20">
                                                                             <div className="flex items-center gap-2">
                                                                                 <div className="w-2 h-2 rounded-full shrink-0"
-                                                                                    style={{ background: sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id)) }} />
+                                                                                    style={{ background: colorForSubject(sub) }} />
                                                                                 <span className="text-xs text-muted-foreground">{sub.name}</span>
                                                                                 {assignment && (
                                                                                     <span className="text-[10px] text-foreground font-semibold">
@@ -1848,7 +1848,7 @@ export default function DivisionDetailPage() {
                                                                                 <TeacherPicker
                                                                                     value={assignment?.teacher.id}
                                                                                     teachers={teachers}
-                                                                                    accentColor={sub.color ?? assignSubjectColor(division.standard.subjects.findIndex(s => s.id === sub.id))}
+                                                                                    accentColor={colorForSubject(sub)}
                                                                                     loading={savingAssign}
                                                                                     onChange={(teacherId, name) => assignTeacher(sub.id, teacherId, name)}
                                                                                 />
@@ -2100,7 +2100,7 @@ export default function DivisionDetailPage() {
                                         id: s.id,
                                         name: s.name,
                                         code: s.code ?? s.name.slice(0, 4).toUpperCase(),
-                                        color: s.color ?? assignSubjectColor(division.standard.subjects.findIndex(ss => ss.id === s.id)),
+                                        color: colorForSubject(s),
                                     }))}
                                 divisionName={division.name}
                                 subTab={marksheetSubTab}
