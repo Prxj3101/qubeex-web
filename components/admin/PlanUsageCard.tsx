@@ -17,7 +17,6 @@ export function PlanUsageCard({ plan }: PlanUsageCardProps) {
     const bars = [
         { label: 'Users', used: plan.usage.users.used, limit: plan.usage.users.limit, format: (n: number) => n.toLocaleString('en-IN') },
         { label: 'Storage', used: plan.usage.storage.used, limit: plan.usage.storage.limit, format: formatBytes },
-        { label: 'Tests', used: plan.usage.tests.used, limit: plan.usage.tests.limit, format: (n: number) => n.toLocaleString('en-IN') },
     ];
 
     return (
@@ -27,12 +26,14 @@ export function PlanUsageCard({ plan }: PlanUsageCardProps) {
                     <p className="text-xs text-muted-foreground">Current plan</p>
                     <p className="text-lg font-semibold">{plan.name}</p>
                 </div>
-                <Link
-                    href="/admin/insights/subscription"
-                    className="text-xs text-primary hover:underline flex items-center gap-0.5"
-                >
-                    Request upgrade <ArrowUpRight size={12} />
-                </Link>
+                {plan.name.toUpperCase() !== 'PRO' && (
+                    <Link
+                        href="/admin/insights/subscription"
+                        className="text-xs text-primary hover:underline flex items-center gap-0.5"
+                    >
+                        Request upgrade <ArrowUpRight size={12} />
+                    </Link>
+                )}
             </div>
 
             <div className="space-y-3">

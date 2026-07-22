@@ -42,6 +42,14 @@ export function OverviewHero({ adminName, institutionName, institutionType, admi
         return () => clearInterval(iv);
     }, []);
 
+    const [currentTime, setCurrentTime] = useState('');
+    useEffect(() => {
+        const fmt = () => new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+        setCurrentTime(fmt());
+        const id = setInterval(() => setCurrentTime(fmt()), 1000);
+        return () => clearInterval(id);
+    }, []);
+
     const now = new Date();
     const hour = now.getHours();
     const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
@@ -81,7 +89,7 @@ export function OverviewHero({ adminName, institutionName, institutionType, admi
                     <SillyStringOverlay name={institutionName} fontSize={30} active={isInstAnniversary} />
                 </div>
                 <p className="text-white/60 text-xs sm:text-sm">Here&apos;s what&apos;s happening at your {accent.label.toLowerCase()} today.</p>
-                <p className="text-white/50 text-xs mt-2">{dateStr}</p>
+                <p className="text-white/50 text-xs mt-2">{dateStr}{currentTime && <span className="ml-2">·&nbsp; {currentTime}</span>}</p>
             </div>
 
             {/* Animated character */}

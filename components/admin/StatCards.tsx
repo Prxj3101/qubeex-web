@@ -18,7 +18,7 @@ export function StatCards({ stats, institutionType, plan }: StatCardsProps) {
         {
             label: 'Total users',
             value: stats.totalUsers.toLocaleString('en-IN'),
-            sub: `${plan.usage.users.limit.toLocaleString('en-IN')} limit`,
+            sub: '∞ limit',
             icon: Users,
             iconBg: 'bg-violet-100 dark:bg-violet-950',
             iconColor: 'text-violet-600 dark:text-violet-400',

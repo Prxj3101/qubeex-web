@@ -291,49 +291,54 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                 {expanded && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
-                        <div className="border-t border-border/40 px-4 py-4 space-y-4">
-                            <div className="p-3 bg-muted/30 rounded-xl">
-                                <p className="text-[11px] font-semibold text-muted-foreground mb-1">Description</p>
-                                <p className="text-sm text-foreground leading-relaxed">{ticket.description}</p>
-                                {ticket.attachments && ticket.attachments.length > 0 && (
-                                    <div className="flex flex-wrap gap-2 mt-2.5">
-                                        {ticket.attachments.map((a, i) => (
-                                            <AttachmentPreview key={i} attachment={a} compact />
-                                        ))}
+                        <div className="border-t border-border/40 px-4 pt-0 pb-1 flex flex-col gap-2">
+                            <div
+                                className="max-h-[285px] overflow-y-auto space-y-4 pr-1 pt-1 pb-3 border-b border-border/40"
+                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                            >
+                                <div className="p-3 bg-muted/30 rounded-xl">
+                                    <p className="text-[11px] font-semibold text-muted-foreground mb-1">Description</p>
+                                    <p className="text-sm text-foreground leading-relaxed">{ticket.description}</p>
+                                    {ticket.attachments && ticket.attachments.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mt-2.5">
+                                            {ticket.attachments.map((a, i) => (
+                                                <AttachmentPreview key={i} attachment={a} compact />
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {replies.length > 0 && (
+                                    <div className="space-y-2.5">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Thread</p>
+                                        {replies.map(r => {
+                                            const isAdmin = r.role === 'ADMIN';
+                                            return (
+                                                <div key={r.id} className={`flex gap-2.5 ${isAdmin ? 'flex-row-reverse' : ''}`}>
+                                                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 text-white"
+                                                        style={{ background: isAdmin ? '#7C3AED' : '#DA7756' }}>
+                                                        {isAdmin ? 'AD' : 'QX'}
+                                                    </div>
+                                                    <div className={`flex-1 flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
+                                                        <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${isAdmin ? 'text-white rounded-tr-sm' : 'bg-muted text-foreground rounded-tl-sm'}`}
+                                                            style={isAdmin ? { background: '#7C3AED' } : {}}>
+                                                            {r.message}
+                                                        </div>
+                                                        {r.attachments && r.attachments.length > 0 && (
+                                                            <div className={`flex flex-wrap gap-1.5 mt-1.5 max-w-[85%] ${isAdmin ? 'justify-end' : 'justify-start'}`}>
+                                                                {r.attachments.map((a, i) => (
+                                                                    <AttachmentPreview key={i} attachment={a} compact />
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        <p className="text-[10px] text-muted-foreground mt-1 px-1">{r.author} · {formatRelative(r.createdAt)}</p>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </div>
-
-                            {replies.length > 0 && (
-                                <div className="space-y-2.5">
-                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Thread</p>
-                                    {replies.map(r => {
-                                        const isAdmin = r.role === 'ADMIN';
-                                        return (
-                                            <div key={r.id} className={`flex gap-2.5 ${isAdmin ? 'flex-row-reverse' : ''}`}>
-                                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 text-white"
-                                                    style={{ background: isAdmin ? '#7C3AED' : '#DA7756' }}>
-                                                    {isAdmin ? 'AD' : 'QX'}
-                                                </div>
-                                                <div className={`flex-1 flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
-                                                    <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${isAdmin ? 'text-white rounded-tr-sm' : 'bg-muted text-foreground rounded-tl-sm'}`}
-                                                        style={isAdmin ? { background: '#7C3AED' } : {}}>
-                                                        {r.message}
-                                                    </div>
-                                                    {r.attachments && r.attachments.length > 0 && (
-                                                        <div className={`flex flex-wrap gap-1.5 mt-1.5 max-w-[85%] ${isAdmin ? 'justify-end' : 'justify-start'}`}>
-                                                            {r.attachments.map((a, i) => (
-                                                                <AttachmentPreview key={i} attachment={a} compact />
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                    <p className="text-[10px] text-muted-foreground mt-1 px-1">{r.author} · {formatRelative(r.createdAt)}</p>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            )}
 
                             {ticket.status !== 'CLOSED' && (
                                 <div className="space-y-2">
@@ -344,7 +349,7 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                                 placeholder="Add a message..." rows={2}
                                                 className="w-full px-3 py-2 pr-9 rounded-xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 resize-none" />
                                             <button type="button" onClick={() => replyFileInputRef.current?.click()}
-                                                className="absolute bottom-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+                                                className="absolute top-2 right-2 w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
                                                 title="Add attachment">
                                                 <Paperclip size={13} />
                                             </button>
@@ -357,7 +362,7 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                                 }} />
                                         </div>
                                         <button onClick={handleReply} disabled={!replyInput.trim() || sending}
-                                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold self-end disabled:opacity-50 transition-all hover:opacity-90"
+                                            className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-white text-xs font-semibold self-start disabled:opacity-50 transition-all hover:opacity-90"
                                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                             {sending ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
                                             Send

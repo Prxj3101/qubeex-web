@@ -21,7 +21,7 @@ import { useRouter } from 'next/navigation';
 import {
     Plus, Search, X, Users, Mail, Phone,
     CalendarDays, BookOpen, Edit2, PowerOff, Power,
-    GraduationCap, Hash, Layers, Eye, Sparkles, MapPin, Briefcase, MailCheck, Trash2
+    GraduationCap, Hash, Layers, Eye, Sparkles, MapPin, Briefcase, MailCheck, Trash2, ChevronDown
 } from 'lucide-react';
 
 import { useMockInstType } from '@/context/MockInstTypeContext';
@@ -157,6 +157,7 @@ function TeacherCard({
 }) {
     const avatarColor = getAvatarColor(teacher.id);
     const isActive = teacher.status === 'ACTIVE';
+    const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
     const labels = getStructureLabels(instType);
     const router = useRouter();
 
@@ -261,50 +262,65 @@ function TeacherCard({
             {teacher.assignments.length > 0 && (
                 <>
                     <div className="h-px bg-border/50 mx-4" />
-                    <div className="px-4 py-3 space-y-2">
-                        <div className="flex items-center gap-1.5 mb-1.5">
+                    <div className="px-4 py-3 space-y-1.5">
+                        <div className="flex items-center gap-1.5 mb-1">
                             <BookOpen size={12} className="text-muted-foreground/60" />
                             <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/50">
-                                Assignments
+                                Assignments <span className="text-[11px] normal-case tracking-normal">({teacher.assignments.length})</span>
                             </p>
                         </div>
-                        {Object.entries(grouped).map(([level1, assignments]) => (
-                            <div key={level1}>
-                                {/* Level1 label */}
-                                <div className="flex items-center gap-1.5 mb-1">
-                                    <Layers size={11} className="text-muted-foreground/50 shrink-0" />
-                                    <span className="text-[11px] font-semibold text-muted-foreground">{level1}</span>
+                        {Object.entries(grouped).map(([level1, assignments]) => {
+                            const isOpen = !!openGroups[level1];
+                            return (
+                                <div key={level1}>
+                                    {/* Level1 label — click to expand/collapse its tags */}
+                                    <button
+                                        onClick={() => setOpenGroups(prev => ({ ...prev, [level1]: !prev[level1] }))}
+                                        className="w-full flex items-center gap-1.5 group/level1"
+                                    >
+                                        <Layers size={11} className="text-muted-foreground/50 shrink-0" />
+                                        <span className="text-[11px] font-semibold text-muted-foreground">{level1}</span>
+                                        <span className="text-[10px] font-semibold text-muted-foreground/50">
+                                            ({assignments.length})
+                                        </span>
+                                        <ChevronDown
+                                            size={11}
+                                            className={`ml-auto text-muted-foreground/50 transition-transform duration-200 group-hover/level1:text-muted-foreground ${isOpen ? 'rotate-180' : ''}`}
+                                        />
+                                    </button>
+                                    {/* Assignment tags */}
+                                    {isOpen && (
+                                        <div className="flex flex-wrap gap-1 pl-4 mt-1">
+                                            {assignments.map(a => {
+                                                const subjectColor = a.role === 'SUBJECT_TEACHER'
+                                                    ? colorForSubject({ id: a.level3Id, color: a.subjectColor })
+                                                    : null;
+                                                return (
+                                                    <span
+                                                        key={a.id}
+                                                        className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${a.role === 'CLASS_TEACHER'
+                                                            ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800'
+                                                            : ''
+                                                            }`}
+                                                        style={subjectColor ? {
+                                                            background: subjectColor + '15',
+                                                            color: subjectColor,
+                                                            borderColor: subjectColor + '40',
+                                                        } : undefined}
+                                                    >
+                                                        {a.role === 'CLASS_TEACHER'
+                                                            ? <GraduationCap size={9} />
+                                                            : <BookOpen size={9} />
+                                                        }
+                                                        {a.level2Name} · {a.level3Name}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
                                 </div>
-                                {/* Assignment tags */}
-                                <div className="flex flex-wrap gap-1 pl-4">
-                                    {assignments.map(a => {
-                                        const subjectColor = a.role === 'SUBJECT_TEACHER'
-                                            ? colorForSubject({ id: a.level3Id, color: a.subjectColor })
-                                            : null;
-                                        return (
-                                            <span
-                                                key={a.id}
-                                                className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${a.role === 'CLASS_TEACHER'
-                                                    ? 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/50 dark:text-violet-300 dark:border-violet-800'
-                                                    : ''
-                                                    }`}
-                                                style={subjectColor ? {
-                                                    background: subjectColor + '15',
-                                                    color: subjectColor,
-                                                    borderColor: subjectColor + '40',
-                                                } : undefined}
-                                            >
-                                                {a.role === 'CLASS_TEACHER'
-                                                    ? <GraduationCap size={9} />
-                                                    : <BookOpen size={9} />
-                                                }
-                                                {a.level2Name} · {a.level3Name}
-                                            </span>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </>
             )}

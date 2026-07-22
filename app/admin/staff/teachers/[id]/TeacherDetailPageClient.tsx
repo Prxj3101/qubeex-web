@@ -627,10 +627,10 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                             : null;
                                         return (
                                             <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border/50 bg-muted/20">
-                                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${a.role === 'CLASS_TEACHER' ? 'bg-violet-100 dark:bg-violet-950' : ''}`}
+                                                <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${a.role === 'CLASS_TEACHER' ? 'bg-amber-100 dark:bg-amber-950' : ''}`}
                                                     style={subjectColor ? { background: subjectColor + '20' } : undefined}>
                                                     {a.role === 'CLASS_TEACHER'
-                                                        ? <GraduationCap size={12} className="text-violet-600 dark:text-violet-400" />
+                                                        ? <GraduationCap size={12} className="text-amber-700 dark:text-amber-300" />
                                                         : <BookOpen size={12} style={{ color: subjectColor ?? undefined }} />
                                                     }
                                                 </div>
@@ -640,7 +640,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                                         {a.role === 'CLASS_TEACHER' ? 'Class Teacher' : 'Subject Teacher'}
                                                     </p>
                                                 </div>
-                                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${a.role === 'CLASS_TEACHER' ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' : ''}`}
+                                                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${a.role === 'CLASS_TEACHER' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' : ''}`}
                                                     style={subjectColor ? { background: subjectColor + '20', color: subjectColor } : undefined}>
                                                     {a.role === 'CLASS_TEACHER' ? 'Class Teacher' : 'Subject Teacher'}
                                                 </span>
