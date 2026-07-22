@@ -260,7 +260,7 @@ function Skeleton({ className }: { className?: string }) {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AdminProfilePage() {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const setUserAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
   const [inst, setInst] = useState<InstData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -364,6 +364,9 @@ export default function AdminProfilePage() {
           gender: adminDraft.adminGender || undefined,
         });
         setAdminSaved({ ...adminDraft });
+        if (adminDraft.adminName && user && adminDraft.adminName !== user.name) {
+          setUser({ ...user, name: adminDraft.adminName });
+        }
       }
       setEditingSection(null);
       toast.success('Changes saved');
