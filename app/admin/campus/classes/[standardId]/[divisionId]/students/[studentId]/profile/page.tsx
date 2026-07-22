@@ -122,7 +122,7 @@ export default function AdminStudentProfilePage() {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-3">
                 <p className="text-sm text-muted-foreground">Student not found.</p>
-                <button onClick={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}?tab=manage&student=${studentId}`)} className="text-xs font-semibold text-primary hover:underline">Go back</button>
+                <button onClick={() => router.replace(`/admin/campus/classes/${standardId}/${divisionId}?tab=manage&student=${studentId}`)} className="text-xs font-semibold text-primary hover:underline">Go back</button>
             </div>
         );
     }
@@ -246,7 +246,7 @@ export default function AdminStudentProfilePage() {
             marksheetData={marksheetData}
             attendanceApiData={attendanceApiData}
             flags={flags}
-            onBack={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}?tab=manage&student=${studentId}`)}
+            onBack={() => router.back()}
             onViewDetail={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}/students/${studentId}/detail`)}
             onViewReportCard={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}/students/${studentId}/reportcard`)}
             onViewAllFlags={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}/students/${studentId}/reports?name=${encodeURIComponent(student.user.name ?? 'Student')}&class=${encodeURIComponent(divisionName)}&from=profile`)}

@@ -180,7 +180,7 @@ export default function AdminStudentReportCardPage() {
         return cols;
     }, [reportSubjects]);
 
-    const goBack = () => router.push(`/admin/campus/classes/${standardId}/${divisionId}/students/${studentId}/profile`);
+    const goBack = () => router.back();
 
     const hasRich = !!classData;
     const hasSimple = !hasRich && !!simpleData;

@@ -179,7 +179,7 @@ export default function TeacherStudentReportCardPage() {
         return cols;
     }, [reportSubjects]);
 
-    const goBack = () => router.push(`/teacher/classes/${divisionId}/students/${studentId}/profile`);
+    const goBack = () => router.back();
 
     const hasRich = !!classData;
     const hasSimple = !hasRich && !!simpleData;

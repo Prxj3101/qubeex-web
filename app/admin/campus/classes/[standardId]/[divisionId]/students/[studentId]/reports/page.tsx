@@ -18,7 +18,6 @@ export default function AdminStudentReportsPage() {
     const studentId = params.studentId as string;
     const studentName = searchParams.get('name') ?? 'Student';
     const [classLabel, setClassLabel] = useState<string | undefined>(searchParams.get('class') ?? undefined);
-    const from = searchParams.get('from');
 
     const [flags, setFlags] = useState<FlagItem[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
@@ -64,9 +63,7 @@ export default function AdminStudentReportsPage() {
                 title={`Flags & Warnings - ${studentName}`}
                 subtitle={`${studentName.split(' ')[0]}'s conduct record & disciplinary remarks`}
                 classLabel={classLabel}
-                onBack={() => router.push(from === 'profile'
-                    ? `/admin/campus/classes/${standardId}/${divisionId}/students/${studentId}/profile`
-                    : `/admin/campus/classes/${standardId}/${divisionId}?tab=manage&student=${studentId}`)}
+                onBack={() => router.back()}
                 headerAction={
                     <button
                         onClick={() => setShowAddModal(true)}

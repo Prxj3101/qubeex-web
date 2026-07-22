@@ -245,7 +245,7 @@ export default function TeacherStudentProfilePage() {
             marksheetData={marksheetData}
             attendanceApiData={attendanceApiData}
             flags={flags}
-            onBack={() => router.push(`/teacher/classes/${divisionId}?tab=manage&student=${studentId}`)}
+            onBack={() => router.back()}
             onViewDetail={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/detail`)}
             onViewReportCard={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/reportcard`)}
             onViewAllFlags={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/reports?name=${encodeURIComponent(student.user.name ?? 'Student')}&class=${encodeURIComponent(divisionName)}&from=profile`)}

@@ -675,12 +675,28 @@ export default function ManageTab({ division, isClassTeacher }: {
                                     ? <><PowerOff size={11} /> Deactivate</>
                                     : <><Power size={11} /> Activate</>}
                             </button>
-                            <button onClick={() => router.push(`/teacher/classes/${division.id}/students/${selectedStudent.id}/reports?name=${encodeURIComponent(selectedStudent.user.name ?? 'Student')}&class=${encodeURIComponent(division.name)}`)}
+                            <button onClick={() => {
+                                // Sync this entry's own URL with the current tab/selection first (no new
+                                // history entry — replaceState is synchronous), so when Report/Profile
+                                // navigates back with a plain router.back(), it lands on this exact state
+                                // instead of a duplicate class-page entry.
+                                const params = new URLSearchParams(searchParams.toString());
+                                params.set('tab', 'manage');
+                                params.set('student', selectedStudent.id);
+                                window.history.replaceState(null, '', `/teacher/classes/${division.id}?${params.toString()}`);
+                                router.push(`/teacher/classes/${division.id}/students/${selectedStudent.id}/reports?name=${encodeURIComponent(selectedStudent.user.name ?? 'Student')}&class=${encodeURIComponent(division.name)}`);
+                            }}
                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
                                 <Flag size={11} /> Report
                             </button>
                             <button
-                                onClick={() => router.push(`/teacher/classes/${division.id}/students/${selectedStudent.id}/profile`)}
+                                onClick={() => {
+                                    const params = new URLSearchParams(searchParams.toString());
+                                    params.set('tab', 'manage');
+                                    params.set('student', selectedStudent.id);
+                                    window.history.replaceState(null, '', `/teacher/classes/${division.id}?${params.toString()}`);
+                                    router.push(`/teacher/classes/${division.id}/students/${selectedStudent.id}/profile`);
+                                }}
                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
                                 <ExternalLink size={10} /> View Profile
                             </button>

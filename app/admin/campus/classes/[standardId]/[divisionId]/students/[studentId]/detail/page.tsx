@@ -120,7 +120,7 @@ export default function AdminStudentDetailPage() {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-3">
                 <p className="text-sm text-muted-foreground">Student not found.</p>
-                <button onClick={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}?tab=manage&student=${studentId}`)} className="text-xs font-semibold text-primary hover:underline">Go back</button>
+                <button onClick={() => router.replace(`/admin/campus/classes/${standardId}/${divisionId}?tab=manage&student=${studentId}`)} className="text-xs font-semibold text-primary hover:underline">Go back</button>
             </div>
         );
     }
@@ -135,7 +135,7 @@ export default function AdminStudentDetailPage() {
             {/* Header */}
             <div className="flex items-center gap-3 pt-0 pb-3 shrink-0">
                 <button
-                    onClick={() => router.push(`/admin/campus/classes/${standardId}/${divisionId}/students/${studentId}/profile`)}
+                    onClick={() => router.back()}
                     className="w-8 h-8 rounded-xl flex items-center justify-center border border-border/50 bg-card hover:bg-muted transition-all shrink-0"
                 >
                     <ArrowLeft size={15} className="text-foreground" />
