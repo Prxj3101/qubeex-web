@@ -92,6 +92,9 @@ interface PendingAttachment {
 
 // ── Avatar helpers ────────────────────────────────────────────────────────────
 
+const UNSEND_WINDOW_MS = 60 * 60 * 1000;
+function canUnsend(msg: DmMessage) { return msg.isMe && Date.now() - new Date(msg.createdAt).getTime() < UNSEND_WINDOW_MS; }
+
 const AVATAR_COLORS = [
   "bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300",
   "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300",
@@ -477,6 +480,7 @@ export default function StaffroomPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const threadPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const feedPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Presence heartbeat: ping every 30s to stay online
   // After the first heartbeat, re-fetch threads so online contacts appear immediately
@@ -520,18 +524,25 @@ export default function StaffroomPage() {
   }, []);
 
   // ── Feed ──
-  useEffect(() => {
-    api
-      .get("/admin/staffroom/posts")
-      .then((res) => {
-        setPosts((res.data.data as FeedPost[]).reverse()); // oldest first
-      })
-      .catch((err) => {
+  const fetchPosts = useCallback(async (silent = false) => {
+    try {
+      const res = await api.get("/admin/staffroom/posts");
+      setPosts((res.data.data as FeedPost[]).reverse()); // oldest first
+    } catch (err) {
+      if (!silent) {
         console.error("[Staffroom] posts fetch failed:", err);
         toast.error("Failed to load staffroom posts");
-      })
-      .finally(() => setFeedLoading(false));
+      }
+    } finally {
+      if (!silent) setFeedLoading(false);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPosts();
+    feedPollRef.current = setInterval(() => fetchPosts(true), 4000);
+    return () => { if (feedPollRef.current) clearInterval(feedPollRef.current); };
+  }, [fetchPosts]);
 
   // ── DM threads ──
   useEffect(() => {
@@ -770,6 +781,16 @@ export default function StaffroomPage() {
       toast.error("Failed to send message");
     } finally {
       setDmSubmitting(false);
+    }
+  };
+
+  const handleUnsendMessage = async (messageId: string) => {
+    if (!activeDm) return;
+    try {
+      await api.delete(`/admin/staffroom/dms/${activeDm.teacherUserId}/messages/${messageId}`);
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+    } catch {
+      toast.error("Failed to unsend message");
     }
   };
 
@@ -1226,7 +1247,7 @@ export default function StaffroomPage() {
                       return (
                         <div
                           key={msg.id}
-                          className={`flex gap-2 ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}
+                          className={`flex gap-2 group ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}
                         >
                           <div
                             className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 mt-1 ${color}`}
@@ -1260,9 +1281,19 @@ export default function StaffroomPage() {
                                   </div>
                                 )}
                             </div>
-                            <p className="text-[10px] text-muted-foreground mt-0.5 px-1">
-                              {fmtDateTime(msg.createdAt)}
-                            </p>
+                            <div className="flex items-center gap-1.5 mt-0.5 px-1">
+                              <p className="text-[10px] text-muted-foreground">
+                                {fmtDateTime(msg.createdAt)}
+                              </p>
+                              {canUnsend(msg) && (
+                                <button
+                                  onClick={() => handleUnsendMessage(msg.id)}
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted-foreground hover:text-red-500 flex items-center gap-0.5"
+                                >
+                                  <X size={10} /> Unsend
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );

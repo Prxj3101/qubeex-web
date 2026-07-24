@@ -8,9 +8,10 @@ import { BookOpen, Users, Trophy, Calendar, Loader2, X, FileText, ChevronRight, 
 import { colorForSubject } from '@/lib/subjectColors';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '@/lib/api';
+import { formatDisplayName } from '@/lib/displayName';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface Subject { id: string; name: string; code: string; color: string; teacherName: string; teacherAvatarUrl?: string | null }
+interface Subject { id: string; name: string; code: string; color: string; teacherName: string; teacherPrefix?: string | null; teacherAvatarUrl?: string | null }
 interface Classmate {
     id: string; name: string; rollNo: string; avatarUrl?: string | null;
     rank: number | null; attendancePct: number | null;
@@ -28,9 +29,10 @@ interface FeedFile {
     postedBy: string; createdAt: string;
 }
 interface ClassData {
-    division: { id: string; name: string; standardName: string; classTeacherName: string | null; classTeacherAvatarUrl: string | null; totalStudents: number; subjects: Subject[] } | null;
+    division: { id: string; name: string; standardName: string; classTeacherName: string | null; classTeacherPrefix?: string | null; classTeacherAvatarUrl: string | null; totalStudents: number; subjects: Subject[] } | null;
     resultFiles: FeedFile[];
     subjectMaterials: Record<string, FeedFile[]>;
+    generalMaterials?: FeedFile[];
     classmates: Classmate[];
     myScores: SubjectScore[];
     subjectLeaderboards: Record<string, LbEntry[]>;
@@ -137,7 +139,7 @@ function FileRow({ file, onView }: { file: FeedFile; onView: (f: FeedFile) => vo
 
 // ── VIEW TAB ──────────────────────────────────────────────────────────────────
 function ViewTab({ data }: { data: ClassData }) {
-    const { classmates, division, resultFiles } = data;
+    const { classmates, division, resultFiles, generalMaterials } = data;
     const [showTimetable, setShowTimetable] = useState(false);
     const [lbMode, setLbMode] = useState<LbMode>('combined');
     const [viewFile, setViewFile] = useState<FeedFile | null>(null);
@@ -306,7 +308,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                         <p className="text-[11px] font-semibold text-foreground flex-1 truncate">Class Teacher</p>
                                         <div className="flex items-center gap-2 shrink-0">
                                             <Avatar name={division.classTeacherName} size={22} url={division.classTeacherAvatarUrl} />
-                                            <p className="text-[10px] text-muted-foreground truncate max-w-[110px]">{division.classTeacherName}</p>
+                                            <p className="text-[10px] text-muted-foreground truncate max-w-[110px]">{formatDisplayName(division.classTeacherName, division.classTeacherPrefix)}</p>
                                         </div>
                                     </div>
                                 )}
@@ -316,23 +318,28 @@ function ViewTab({ data }: { data: ClassData }) {
                                         <p className="text-[11px] font-semibold text-foreground flex-1 truncate">{sub.name}</p>
                                         <div className="flex items-center gap-2 shrink-0">
                                             <Avatar name={sub.teacherName} size={22} url={sub.teacherAvatarUrl} />
-                                            <p className="text-[10px] text-muted-foreground truncate max-w-[110px]">{sub.teacherName}</p>
+                                            <p className="text-[10px] text-muted-foreground truncate max-w-[110px]">{formatDisplayName(sub.teacherName, sub.teacherPrefix)}</p>
                                         </div>
                                     </div>
                                 ))}
                             </div>
                         </div>
 
-                        {/* Results (col 2, row 2) */}
+                        {/* Results & general class materials (col 2, row 2) */}
                         <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
                             <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                 <FileText size={13} className="text-muted-foreground" />
-                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Results</p>
+                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Results &amp; Materials</p>
                             </div>
                             <div className="overflow-y-auto flex-1 min-h-0 px-3 py-2 space-y-1.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                                {resultFiles.length === 0
-                                    ? <p className="text-[10px] text-muted-foreground py-4 text-center">No results uploaded yet</p>
-                                    : resultFiles.map(f => <FileRow key={f.id} file={f} onView={setViewFile} />)
+                                {resultFiles.length === 0 && (generalMaterials?.length ?? 0) === 0
+                                    ? <p className="text-[10px] text-muted-foreground py-4 text-center">No results or materials uploaded yet</p>
+                                    : (
+                                        <>
+                                            {resultFiles.map(f => <FileRow key={f.id} file={f} onView={setViewFile} />)}
+                                            {(generalMaterials ?? []).map(f => <FileRow key={f.id} file={f} onView={setViewFile} />)}
+                                        </>
+                                    )
                                 }
                             </div>
                         </div>
@@ -633,7 +640,7 @@ export default function StudentClassPageClient() {
                                 <Users size={24} /> {division?.name ?? '—'}
                             </h1>
                             <p className="text-xs text-muted-foreground">
-                                {division?.classTeacherName ? `Class Teacher - ${division.classTeacherName}` : division?.standardName}
+                                {division?.classTeacherName ? `Class Teacher - ${formatDisplayName(division.classTeacherName, division.classTeacherPrefix)}` : division?.standardName}
                             </p>
                         </div>
 

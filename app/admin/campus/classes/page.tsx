@@ -12,13 +12,14 @@ import { useMockInstType } from '@/context/MockInstTypeContext';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
 import { colorForSubject } from '@/lib/subjectColors';
+import { formatDisplayName } from '@/lib/displayName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface Assignment {
     id: string;
     subjectId: string | null;
-    teacher: { id: string; user: { id: string; name: string | null } };
+    teacher: { id: string; prefix: string | null; user: { id: string; name: string | null } };
     subject: { id: string; name: string; color: string | null } | null;
 }
 
@@ -51,7 +52,8 @@ interface Division {
 
 function getClassTeacher(div: Division): string | null {
     const ct = div.assignments.find(a => a.subjectId === null);
-    return ct?.teacher.user.name ?? null;
+    if (!ct?.teacher.user.name) return null;
+    return formatDisplayName(ct.teacher.user.name, ct.teacher.prefix);
 }
 
 function getAssignedCount(div: Division): number {

@@ -11,6 +11,7 @@ import type {
     InstitutionType,
 } from '@/types';
 import { getStructureLabels, getInstitutionAccent } from '@/lib/getInstitutionAccent';
+import { formatDisplayName } from '@/lib/displayName';
 import {
     Dialog,
     DialogContent,
@@ -85,7 +86,7 @@ export function AssignTeacherModal({
                 (a) => a.level3Id === l3Id && a.role === 'CLASS_TEACHER',
             );
             if (existing) {
-                return `${t.name} is already the class teacher of ${l3Name}. Only one class teacher is allowed per class.`;
+                return `${formatDisplayName(t.name, t.prefix)} is already the class teacher of ${l3Name}. Only one class teacher is allowed per class.`;
             }
         }
         // Check if this teacher is already a class teacher of another class
@@ -93,7 +94,7 @@ export function AssignTeacherModal({
             (a) => a.role === 'CLASS_TEACHER' && a.level3Id !== l3Id,
         );
         if (existingCT) {
-            return `${teacher.name} is already class teacher of ${existingCT.level3Name}. A teacher can only be class teacher of one class.`;
+            return `${formatDisplayName(teacher.name, teacher.prefix)} is already class teacher of ${existingCT.level3Name}. A teacher can only be class teacher of one class.`;
         }
         return null;
     };
@@ -127,7 +128,7 @@ export function AssignTeacherModal({
                 <DialogHeader>
                     <DialogTitle>
                         {step === 'list'
-                            ? `Assignments — ${teacher.name}`
+                            ? `Assignments — ${formatDisplayName(teacher.name, teacher.prefix)}`
                             : step === 'pick-l1'
                               ? `Select ${labels.l1}`
                               : step === 'pick-l2'

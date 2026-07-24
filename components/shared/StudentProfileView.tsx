@@ -144,7 +144,8 @@ export default function StudentProfileView({
     const chartData = (marksheetData?.subjects ?? []).map((s) => {
         const offline = s.pct ?? 0;
         const online = 0;
-        const pct = marksMode === 'offline' ? offline : marksMode === 'online' ? online : Math.round((offline + online) / 2);
+        const combinedPct = online > 0 ? Math.round((offline + online) / 2) : offline;
+        const pct = marksMode === 'offline' ? offline : marksMode === 'online' ? online : combinedPct;
         return { name: s.name, code: s.code, color: colorForSubject(s), pct };
     });
     const avg = chartData.length > 0

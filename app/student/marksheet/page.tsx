@@ -111,7 +111,7 @@ export default function StudentMarksheetPage() {
                     <div>
                         <h1 className="text-lg font-bold">{data.student.name}</h1>
                         <p className="text-sm text-muted-foreground">
-                            {data.standardName} - {data.divisionName} · Roll {data.student.rollNo} · {data.academicYear}
+                            {data.standardName} · Division {data.divisionName.split('-').pop() ?? data.divisionName} · Roll {data.student.rollNo} · {data.academicYear}
                         </p>
                     </div>
                     <div className="flex items-center gap-3 flex-wrap">

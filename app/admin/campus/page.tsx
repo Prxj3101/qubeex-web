@@ -415,13 +415,36 @@ export default function AdminCampusPage() {
     const [loadingPosts, setLoadingPosts] = useState(true);
     const [postInput, setPostInput] = useState('');
     const [postType, setPostType] = useState<PostType>('announcement');
-    const [postSubject, setPostSubject] = useState('');
+    const [postDivisionId, setPostDivisionId] = useState('');
+    const [postSubjectId, setPostSubjectId] = useState('');
+    const [divisionOptions, setDivisionOptions] = useState<{ id: string; label: string; subjects: { id: string; name: string }[] }[]>([]);
     const [posting, setPosting] = useState(false);
     const fetchedRef = useRef(false);
     const [postBody, setPostBody] = useState('');
     const [postAttachment, setPostAttachment] = useState<{ url: string; name: string; type: string; mimeType: string } | null>(null);
     const [uploadingAttachment, setUploadingAttachment] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    useEffect(() => {
+        api.get('/admin/campus/standards').then(res => {
+            interface StandardWithDivisions {
+                name: string;
+                subjects: { id: string; name: string }[];
+                divisions: { id: string; name: string; divisionSubjects: { subjectId: string }[] }[];
+            }
+            const standards = res.data.data as StandardWithDivisions[];
+            const options = standards.flatMap(std =>
+                std.divisions.map(div => ({
+                    id: div.id,
+                    label: `${std.name} - ${div.name}`,
+                    subjects: std.subjects.filter(s => div.divisionSubjects.some(ds => ds.subjectId === s.id)),
+                }))
+            );
+            setDivisionOptions(options);
+        }).catch(() => {});
+    }, []);
+
+    const selectedDivisionSubjects = divisionOptions.find(d => d.id === postDivisionId)?.subjects ?? [];
 
     const fetchPosts = useCallback(async (filter: PostType | 'all' = 'all') => {
         setLoadingPosts(true);
@@ -480,17 +503,19 @@ export default function AdminCampusPage() {
                 type: postType.toUpperCase(),
                 title: postInput.trim(),
                 body: postBody.trim(),
-                subject: postSubject.trim() || undefined,
+                divisionId: postDivisionId || undefined,
+                subjectId: postSubjectId || undefined,
                 ...(postAttachment ? {
                     attachmentUrl: postAttachment.url,
                     attachmentType: postAttachment.mimeType,
                     attachmentName: postAttachment.name,
                 } : {}),
             });
-            setPosts(prev => [res.data.data, ...prev]);
+            setPosts(prev => postDivisionId ? prev : [res.data.data, ...prev]);
             setPostInput('');
             setPostBody('');
-            setPostSubject('');
+            setPostDivisionId('');
+            setPostSubjectId('');
             setPostAttachment(null);
             toast.success('Posted');
         } catch (err: unknown) {
@@ -588,9 +613,25 @@ export default function AdminCampusPage() {
                                     placeholder="Title..."
                                     className="flex-1 bg-transparent text-sm font-bold placeholder:text-muted-foreground/60 placeholder:font-normal focus:outline-none" />
                                 <div className="w-px h-4 bg-border/50 shrink-0" />
-                                <input value={postSubject} onChange={e => setPostSubject(e.target.value)}
-                                    placeholder="Subject (optional)"
-                                    className="w-28 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/40 focus:outline-none" />
+                                <select value={postDivisionId} onChange={e => { setPostDivisionId(e.target.value); setPostSubjectId(''); }}
+                                    className="w-32 bg-transparent text-xs text-muted-foreground focus:outline-none">
+                                    <option value="">Whole institution</option>
+                                    {divisionOptions.map(d => (
+                                        <option key={d.id} value={d.id}>{d.label}</option>
+                                    ))}
+                                </select>
+                                {postDivisionId && selectedDivisionSubjects.length > 0 && (
+                                    <>
+                                        <div className="w-px h-4 bg-border/50 shrink-0" />
+                                        <select value={postSubjectId} onChange={e => setPostSubjectId(e.target.value)}
+                                            className="w-28 bg-transparent text-xs text-muted-foreground focus:outline-none">
+                                            <option value="">General (no subject)</option>
+                                            {selectedDivisionSubjects.map(s => (
+                                                <option key={s.id} value={s.id}>{s.name}</option>
+                                            ))}
+                                        </select>
+                                    </>
+                                )}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                                 {(['announcement', 'notice', 'material', 'result'] as PostType[]).map(type => {

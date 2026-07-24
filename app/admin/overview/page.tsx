@@ -15,6 +15,7 @@ import { WelcomeBanner } from '@/components/admin/WelcomeBanner';
 import { BirthdayBanner } from '@/components/shared/BirthdayBanner';
 import { Sparkles, AlertCircle } from 'lucide-react';
 import { useMockInstType } from '@/context/MockInstTypeContext';
+import { formatDisplayName } from '@/lib/displayName';
 
 export default function AdminOverviewPage() {
     const { user } = useAuthStore();
@@ -77,7 +78,10 @@ export default function AdminOverviewPage() {
         );
     }
 
-    const adminName = user?.name ?? user?.email?.split('@')[0] ?? 'Admin';
+    const adminName = formatDisplayName(
+        user?.name ?? user?.email?.split('@')[0] ?? 'Admin',
+        overview.institution.adminPrefix
+    );
     const planName = overview.plan.name.toUpperCase() as 'PRO' | 'BASIC' | 'TRIAL';
 
     return (

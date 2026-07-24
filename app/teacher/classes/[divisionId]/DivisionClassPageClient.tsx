@@ -24,7 +24,7 @@ export interface Subject {
 export interface Assignment {
     id: string;
     subjectId: string | null;
-    teacher: { id: string; avatarUrl?: string | null; user: { id: string; name: string | null } };
+    teacher: { id: string; prefix: string | null; avatarUrl?: string | null; user: { id: string; name: string | null } };
     subject: { id: string; name: string; color: string | null } | null;
 }
 
@@ -128,9 +128,9 @@ export default function DivisionClassPageClient() {
                     { id: 's4', name: 'Hindi', code: 'HIN', color: '#059669', order: 4 },
                 ],
                 assignments: [
-                    { id: 'a1', subjectId: null, teacher: { id: 't1', user: { id: 'u1', name: 'Ritu Sharma' } }, subject: null },
-                    { id: 'a2', subjectId: 's1', teacher: { id: 't2', user: { id: 'u2', name: 'Amit Verma' } }, subject: { id: 's1', name: 'Mathematics', color: '#7C3AED' } },
-                    { id: 'a3', subjectId: 's2', teacher: { id: 't3', user: { id: 'u3', name: 'Priya Nair' } }, subject: { id: 's2', name: 'Science', color: '#0891B2' } },
+                    { id: 'a1', subjectId: null, teacher: { id: 't1', prefix: null, user: { id: 'u1', name: 'Ritu Sharma' } }, subject: null },
+                    { id: 'a2', subjectId: 's1', teacher: { id: 't2', prefix: null, user: { id: 'u2', name: 'Amit Verma' } }, subject: { id: 's1', name: 'Mathematics', color: '#7C3AED' } },
+                    { id: 'a3', subjectId: 's2', teacher: { id: 't3', prefix: null, user: { id: 'u3', name: 'Priya Nair' } }, subject: { id: 's2', name: 'Science', color: '#0891B2' } },
                 ],
             });
         } finally {
@@ -389,7 +389,8 @@ export default function DivisionClassPageClient() {
                 <AnimatePresence mode="wait">
                     {activeTab === 'view' && (
                         <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                            <ViewTab division={division} classTeacherAssignment={classTeacherAssignment} isClassTeacher={isClassTeacher} leaderboard={leaderboard} />
+                            <ViewTab division={division} classTeacherAssignment={classTeacherAssignment} isClassTeacher={isClassTeacher} leaderboard={leaderboard}
+                                restrictToSubjectId={isClassTeacher ? null : subjectId} />
                         </motion.div>
                     )}
                     {activeTab === 'manage' && (

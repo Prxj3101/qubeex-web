@@ -338,7 +338,7 @@ export default function TeacherCampusFeed() {
 
     useEffect(() => {
         api.get('/teacher/me').then(res => {
-            setMyUserId(res.data.data?.id ?? '');
+            setMyUserId(res.data.data?.userId ?? res.data.data?.user?.id ?? '');
         }).catch(() => { });
     }, []);
 

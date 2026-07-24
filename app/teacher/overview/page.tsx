@@ -11,6 +11,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { BirthdayBanner, isTodayBirthday } from '@/components/shared/BirthdayBanner';
 import { SillyStringOverlay } from '@/components/shared/SillyStringOverlay';
+import { formatDisplayName } from '@/lib/displayName';
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
 
@@ -241,7 +242,7 @@ export default function TeacherOverviewPage() {
     const { user } = useAuthStore();
 
     type OverviewData = {
-        teacher: { name: string; institutionName: string; classTeacherDivisionName: string | null };
+        teacher: { name: string; prefix: string | null; institutionName: string; classTeacherDivisionName: string | null };
         stats: { classesAssigned: number; subjectsTeaching: number; testsConducted: number; avgAttendancePct: number | null };
         attendanceTrend: { month: string; attendance: number; students: number }[];
         shortAttendance: { name: string; rollNo: string; pct: number }[];
@@ -277,7 +278,10 @@ export default function TeacherOverviewPage() {
         return () => clearInterval(id);
     }, []);
 
-    const teacherName = user?.name ?? user?.email?.split('@')[0] ?? '';
+    const teacherName = formatDisplayName(
+        user?.name ?? user?.email?.split('@')[0] ?? '',
+        overview?.teacher.prefix
+    );
 
     // State
     const [currentChar, setCurrentChar] = useState(0);

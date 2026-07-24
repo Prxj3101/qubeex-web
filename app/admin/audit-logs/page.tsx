@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatDisplayName } from '@/lib/displayName';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LogEntry = {
@@ -20,7 +21,7 @@ type LogEntry = {
     details?: string | null;
     ip?: string | null;
     createdAt: string;
-    user?: { id: string; name?: string | null; email: string } | null;
+    user?: { id: string; name?: string | null; email: string; prefix?: string | null } | null;
 };
 
 type Pagination = { total: number; page: number; limit: number; pages: number };
@@ -337,7 +338,7 @@ export default function AdminAuditLogsPage() {
                                         {/* Actor */}
                                         <div>
                                             <p className="text-xs font-medium truncate">
-                                                {log.user?.name ?? log.user?.email ?? '—'}
+                                                {log.user?.name ? formatDisplayName(log.user.name, log.user.prefix) : log.user?.email ?? '—'}
                                             </p>
                                             <p className="text-[11px] text-muted-foreground mt-0.5">
                                                 {log.actorRole ?? '—'}

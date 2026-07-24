@@ -63,6 +63,7 @@ export interface AdminOverview {
         status: InstitutionStatus;
         logoUrl?: string;
         createdAt: string;
+        adminPrefix?: string | null;
     };
     showWelcomeBanner: boolean;
     stats: {

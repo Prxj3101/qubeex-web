@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { Division, Assignment, getInitials, getAvatarColor, AVATAR_COLORS, LeaderboardEntry } from './DivisionClassPageClient';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { colorForSubject } from '@/lib/subjectColors';
+import { formatDisplayName, resolveDisplayTitle } from '@/lib/displayName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
@@ -24,11 +25,12 @@ interface DivAnnouncement {
     title: string;
     body: string;
     subject: string | null;
+    subjectId: string | null;
     attachmentUrl: string | null;
     attachmentType: string | null;
     attachmentName: string | null;
     createdAt: string;
-    author: { id: string; name: string; role: string; avatarUrl?: string | null };
+    author: { id: string; name: string; role: string; avatarUrl?: string | null; prefix?: string | null; title?: string | null };
 }
 
 const POST_META = {
@@ -57,6 +59,29 @@ function formatDateTime(iso: string) {
     const ampm = h >= 12 ? 'PM' : 'AM';
     const h12 = h % 12 || 12;
     return `${months[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()} · ${h12}:${m} ${ampm}`;
+}
+
+// ── In-App Material Preview (no new tab) ──────────────────────────────────────
+function MaterialPreview({ ann, onClose }: { ann: DivAnnouncement; onClose: () => void }) {
+    return (
+        <div className="fixed inset-0 z-[999] flex flex-col bg-black/95">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#1A1030] border-b border-white/10 shrink-0">
+                <p className="text-sm font-semibold text-white truncate max-w-md">{ann.title}</p>
+                <button onClick={onClose} className="text-white/60 hover:text-white transition-colors p-1">
+                    <X size={20} />
+                </button>
+            </div>
+            <div className="flex-1 min-h-0">
+                {ann.attachmentUrl ? (
+                    <iframe src={ann.attachmentUrl} className="w-full h-full border-0" title={ann.title} />
+                ) : (
+                    <div className="flex items-center justify-center h-full">
+                        <p className="text-white/50">No file attached</p>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
 }
 
 // ── Verified Badge ────────────────────────────────────────────────────────────
@@ -363,7 +388,7 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
     const initials = ann.author.name.split(' ').slice(0, 2).map((n: string) => n[0]).join('').toUpperCase();
     const avatarColor = AVATAR_COLORS[ann.author.name.charCodeAt(0) % AVATAR_COLORS.length];
     const isMe = ann.author.id === myUserId;
-    const roleLabel = ann.author.role === 'ADMIN' ? 'Admin' : 'Teacher';
+    const roleLabel = resolveDisplayTitle(ann.author.role, ann.author.title);
 
     return (
         <div className="bg-card border border-border/50 rounded-2xl p-4 space-y-3">
@@ -391,7 +416,7 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
                 </div>
                 <div>
                     <p className="text-xs font-semibold">
-                        {ann.author.name}
+                        {formatDisplayName(ann.author.name, ann.author.prefix)}
                         {isMe && <span className="text-[10px] font-normal text-muted-foreground ml-1">(You)</span>}
                     </p>
                     <div className="flex items-center gap-1">
@@ -453,17 +478,19 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
 }
 
 // ── Main ──────────────────────────────────────────────────────────────────────
-export default function ViewTab({ division, classTeacherAssignment, isClassTeacher, leaderboard }: {
+export default function ViewTab({ division, classTeacherAssignment, isClassTeacher, leaderboard, restrictToSubjectId }: {
     division: Division;
     classTeacherAssignment: Assignment | undefined;
     isClassTeacher: boolean;
     leaderboard: LeaderboardEntry[];
+    restrictToSubjectId?: string | null;
 }) {
+    const restrictToSubjectName = restrictToSubjectId ? division.subjects.find(s => s.id === restrictToSubjectId)?.name ?? null : null;
     const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
     const [postType, setPostType] = useState<PostType>('announcement');
     const [postInput, setPostInput] = useState('');
     const [postBody, setPostBody] = useState('');
-    const [postSubject, setPostSubject] = useState('');
+    const [postSubjectId, setPostSubjectId] = useState<string>(restrictToSubjectId ?? '');
     const [attachments, setAttachments] = useState<File[]>([]);
     const [announcements, setAnnouncements] = useState<DivAnnouncement[]>([]);
     const [postsLoading, setPostsLoading] = useState(true);
@@ -476,11 +503,16 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
     const resultsFileInputRef = useRef<HTMLInputElement>(null);
     const [timetableImage, setTimetableImage] = useState<string | null>(null);
     const [leaderTab, setLeaderTab] = useState<'offline' | 'online' | 'combined'>('combined');
+    const [previewMaterial, setPreviewMaterial] = useState<DivAnnouncement | null>(null);
     const fetchedRef = useRef(false);
 
     // Derived
     const results = announcements.filter(a => a.type === 'result');
-    const materials = announcements.filter(a => a.type === 'material');
+    const materials = announcements.filter(a => a.type === 'material' && (
+        !restrictToSubjectId ||
+        a.subjectId === restrictToSubjectId ||
+        (!a.subjectId && restrictToSubjectName && (a.subject ?? '').trim().toLowerCase() === restrictToSubjectName.trim().toLowerCase())
+    ));
     const filteredAnnouncements = feedFilter === 'all'
         ? announcements
         : announcements.filter(a => a.type === feedFilter);
@@ -493,7 +525,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
             api.get('/teacher/campus/feed/posts', { params: { divisionId: division.id, limit: 50 } }),
         ])
             .then(([meRes, postsRes]) => {
-                setMyUserId(meRes.data.data.id);
+                setMyUserId(meRes.data.data?.userId ?? meRes.data.data?.user?.id ?? null);
                 setAnnouncements(postsRes.data.data ?? []);
             })
             .catch(() => toast.error('Failed to load feed'))
@@ -534,12 +566,12 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                 type: postType.toUpperCase(),
                 title: postInput.trim(),
                 body: postBody.trim(),
-                subject: postSubject.trim() || undefined,
+                subjectId: postSubjectId || undefined,
                 divisionId: division.id,
                 ...(attachmentUrl && { attachmentUrl, attachmentType, attachmentName }),
             });
             setAnnouncements(prev => [res.data.data, ...prev]);
-            setPostInput(''); setPostBody(''); setPostSubject(''); setAttachments([]);
+            setPostInput(''); setPostBody(''); setPostSubjectId(restrictToSubjectId ?? ''); setAttachments([]);
             toast.success('Posted!');
         } catch {
             toast.error('Failed to post');
@@ -603,7 +635,9 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                     <div className="flex-1 min-w-0">
                         <p className="text-[10px] font-semibold" style={{ color: '#F59E0B' }}>Class Teacher</p>
                         <p className="text-sm font-bold truncate">
-                            {classTeacherAssignment?.teacher.user.name ?? 'Not assigned'}
+                            {classTeacherAssignment?.teacher.user.name
+                                ? formatDisplayName(classTeacherAssignment.teacher.user.name, classTeacherAssignment.teacher.prefix)
+                                : 'Not assigned'}
                             {isClassTeacher && classTeacherAssignment && (
                                 <span className="text-xs font-normal text-muted-foreground ml-1">(You)</span>
                             )}
@@ -675,9 +709,17 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                     placeholder="Title..."
                                     className="flex-1 bg-transparent text-sm font-bold placeholder:text-muted-foreground/60 placeholder:font-normal focus:outline-none" />
                                 <div className="w-px h-4 bg-border/50 shrink-0" />
-                                <input value={postSubject} onChange={e => setPostSubject(e.target.value)}
-                                    placeholder="Subject (optional)"
-                                    className="w-28 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/40 focus:outline-none" />
+                                {restrictToSubjectId ? (
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap px-1">{restrictToSubjectName}</span>
+                                ) : (
+                                    <select value={postSubjectId} onChange={e => setPostSubjectId(e.target.value)}
+                                        className="w-32 bg-transparent text-xs text-muted-foreground focus:outline-none">
+                                        <option value="">General (no subject)</option>
+                                        {division.subjects.map(s => (
+                                            <option key={s.id} value={s.id}>{s.name}</option>
+                                        ))}
+                                    </select>
+                                )}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">
                                 {(['announcement', 'notice', 'material', 'result'] as PostType[]).map(type => (
@@ -739,7 +781,9 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                         )}
                         {division.subjects.map(sub => {
                             const assignment = division.assignments.find(a => a.subjectId === sub.id);
-                            const teacherName = assignment?.teacher.user.name ?? null;
+                            const teacherName = assignment?.teacher.user.name
+                                ? formatDisplayName(assignment.teacher.user.name, assignment.teacher.prefix)
+                                : null;
                             return (
                                 <div key={sub.id} className="flex items-center justify-between py-2">
                                     <div className="flex items-center gap-2">
@@ -930,10 +974,10 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                         </div>
                                         <div className="flex items-center gap-1 self-center shrink-0">
                                             {mat.attachmentUrl && (
-                                                <a href={mat.attachmentUrl} target="_blank" rel="noopener noreferrer"
+                                                <button onClick={() => setPreviewMaterial(mat)}
                                                     className="text-[10px] h-6 px-2 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted transition-all flex items-center">
                                                     View
-                                                </a>
+                                                </button>
                                             )}
                                             <button
                                                 onMouseEnter={e => { const r = e.currentTarget.getBoundingClientRect(); setTooltip({ x: r.left + r.width / 2, y: r.top }); }}
@@ -1070,6 +1114,8 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                 </div>,
                 document.body
             )}
+
+            {previewMaterial && <MaterialPreview ann={previewMaterial} onClose={() => setPreviewMaterial(null)} />}
         </div>
     );
 }

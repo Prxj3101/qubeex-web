@@ -16,6 +16,7 @@ import { useStudentPhotosStore } from '@/store/studentPhotosStore';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { colorForSubject } from '@/lib/subjectColors';
+import { formatDisplayName } from '@/lib/displayName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Guardian { name: string; number: string; relation: string }
@@ -720,7 +721,10 @@ export default function ManageTab({ division, isClassTeacher }: {
                                             <span className="text-xs text-muted-foreground">Class Teacher</span>
                                         </div>
                                         <span className="text-[11px] font-semibold text-foreground">
-                                            {division.assignments.find(a => a.subjectId === null)?.teacher.user.name ?? 'Not assigned'}
+                                            {(() => {
+                                                const ct = division.assignments.find(a => a.subjectId === null)?.teacher;
+                                                return ct?.user.name ? formatDisplayName(ct.user.name, ct.prefix) : 'Not assigned';
+                                            })()}
                                         </span>
                                     </div>
                                 </div>
@@ -740,7 +744,9 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                             <span className="text-xs text-muted-foreground">{sub.name}</span>
                                                         </div>
                                                         <span className="text-[11px] font-semibold text-foreground">
-                                                            {assignment?.teacher.user.name ?? 'Not assigned'}
+                                                            {assignment?.teacher.user.name
+                                                                ? formatDisplayName(assignment.teacher.user.name, assignment.teacher.prefix)
+                                                                : 'Not assigned'}
                                                         </span>
                                                     </div>
                                                 );

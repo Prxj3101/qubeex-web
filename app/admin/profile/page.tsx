@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
+import { formatDisplayName } from '@/lib/displayName';
 import NextImage from 'next/image';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -463,7 +464,10 @@ export default function AdminProfilePage() {
   const studentCount = inst.studentCount ?? 0;
   const teacherCount = inst.teacherCount ?? 0;
   const adminUser = inst.admin ?? inst.users?.find((u) => u.role === 'ADMIN') ?? null;
-  const adminName = adminUser?.name ?? adminUser?.email?.split('@')[0] ?? user?.name ?? '—';
+  const adminName = formatDisplayName(
+    adminUser?.name ?? adminUser?.email?.split('@')[0] ?? user?.name ?? '—',
+    adminUser?.prefix ?? inst.adminPrefix
+  );
   const myUser = inst.users?.find((u) => u.id === user?.id) ?? null;
   const myDisplayId = myUser?.displayId ?? null;
 

@@ -16,6 +16,7 @@ import { getStructureLabels } from '@/lib/getInstitutionAccent';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import api from '@/lib/api';
 import { colorForSubject } from '@/lib/subjectColors';
+import { formatDisplayName } from '@/lib/displayName';
 
 
 // ── Mock teacher data ─────────────────────────────────────────────────────────
@@ -437,7 +438,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         {/* Teacher usage */}
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
-                                <p className="text-xs font-semibold">{teacher.name}&apos;s usage this month</p>
+                                <p className="text-xs font-semibold">{formatDisplayName(teacher.name, teacher.prefix)}&apos;s usage this month</p>
                                 <span className="text-xs font-bold">1.2M <span className="text-muted-foreground font-normal">/ 10M pool</span></span>
                             </div>
                             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
@@ -733,9 +734,9 @@ export default function TeacherDetailPage() {
                         <ArrowLeft size={16} />
                     </button>
                     <div>
-                        <h1 className="text-xl font-bold">{teacher.name}</h1>
+                        <h1 className="text-xl font-bold">{formatDisplayName(teacher.name, teacher.prefix)}</h1>
                         <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                            Teachers <ChevronRight /> {teacher.name}
+                            Teachers <ChevronRight /> {formatDisplayName(teacher.name, teacher.prefix)}
                         </p>
                     </div>
                 </div>
@@ -761,8 +762,8 @@ export default function TeacherDetailPage() {
                         </h3>
                         <p className="text-sm text-muted-foreground mb-5">
                             {teacher.status === 'ACTIVE'
-                                ? `${teacher.name} will lose access immediately. All assignments will be preserved.`
-                                : `${teacher.name} will regain access to the platform.`
+                                ? `${formatDisplayName(teacher.name, teacher.prefix)} will lose access immediately. All assignments will be preserved.`
+                                : `${formatDisplayName(teacher.name, teacher.prefix)} will regain access to the platform.`
                             }
                         </p>
                         <div className="flex gap-2 justify-end">

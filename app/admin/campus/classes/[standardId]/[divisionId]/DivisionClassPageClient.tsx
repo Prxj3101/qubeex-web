@@ -18,6 +18,7 @@ import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidatio
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { colorForSubject } from '@/lib/subjectColors';
 import { toTitleCase } from '@/lib/utils';
+import { formatDisplayName, resolveDisplayTitle } from '@/lib/displayName';
 import { FeesTab, FeesTabHandle } from './fees';
 import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[divisionId]/AttendanceTab';
 import MarksTab, { MarksSubTab, MarksStats } from '@/app/teacher/classes/[divisionId]/MarksTab';
@@ -33,7 +34,7 @@ interface TeacherOption {
 interface Assignment {
     id: string;
     subjectId: string | null;
-    teacher: { id: string; avatarUrl?: string | null; user: { id: string; name: string | null } };
+    teacher: { id: string; prefix: string | null; avatarUrl?: string | null; user: { id: string; name: string | null } };
     subject: { id: string; name: string; color: string | null } | null;
 }
 
@@ -576,7 +577,7 @@ interface DivAnnouncement {
     attachmentType: string | null;
     attachmentName: string | null;
     createdAt: string;
-    author: { id: string; name: string; role: string; avatarUrl?: string | null };
+    author: { id: string; name: string; role: string; avatarUrl?: string | null; prefix?: string | null; title?: string | null };
 }
 
 const POST_META = {
@@ -709,9 +710,9 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
                         : initials}
                 </div>
                 <div>
-                    <p className="text-xs font-semibold">{authorName}</p>
+                    <p className="text-xs font-semibold">{formatDisplayName(authorName, ann.author.prefix)}</p>
                     <div className="flex items-center gap-1">
-                        <p className="text-[10px] text-muted-foreground">{ann.author.role.split('_').map((w: string) => w[0] + w.slice(1).toLowerCase()).join(' ')}</p>
+                        <p className="text-[10px] text-muted-foreground">{resolveDisplayTitle(ann.author.role, ann.author.title)}</p>
                         <VerifiedBadge />
                     </div>
                 </div>
@@ -1350,7 +1351,9 @@ export default function DivisionDetailPage() {
                                     <div className="flex-1 min-w-0">
                                         <p className="text-[10px] font-semibold" style={{ color: '#F59E0B' }}>Class Teacher</p>
                                         <p className="text-sm font-bold truncate">
-                                            {classTeacherAssignment?.teacher.user.name ?? 'Not assigned'}
+                                            {classTeacherAssignment?.teacher.user.name
+                                                ? formatDisplayName(classTeacherAssignment.teacher.user.name, classTeacherAssignment.teacher.prefix)
+                                                : 'Not assigned'}
                                         </p>
                                     </div>
                                 </div>
@@ -1497,7 +1500,9 @@ export default function DivisionDetailPage() {
                                             .filter(sub => division.divisionSubjects.some(ds => ds.subjectId === sub.id))
                                             .map(sub => {
                                             const assignment = division.assignments.find(a => a.subjectId === sub.id);
-                                            const teacherName = assignment?.teacher.user.name ?? null;
+                                            const teacherName = assignment?.teacher.user.name
+                                                ? formatDisplayName(assignment.teacher.user.name, assignment.teacher.prefix)
+                                                : null;
                                             return (
                                                 <div key={sub.id} className="flex items-center justify-between py-2">
                                                     <div className="flex items-center gap-2">
@@ -1836,7 +1841,7 @@ export default function DivisionDetailPage() {
                                                             <span className="text-xs text-muted-foreground">Class Teacher</span>
                                                             {classTeacherAssignment && (
                                                                 <span className="text-[10px] text-foreground font-semibold">
-                                                                    — {classTeacherAssignment.teacher.user.name}
+                                                                    — {formatDisplayName(classTeacherAssignment.teacher.user.name ?? '', classTeacherAssignment.teacher.prefix)}
                                                                 </span>
                                                             )}
                                                         </div>
@@ -1876,7 +1881,7 @@ export default function DivisionDetailPage() {
                                                                                 <span className="text-xs text-muted-foreground">{sub.name}</span>
                                                                                 {assignment && (
                                                                                     <span className="text-[10px] text-foreground font-semibold">
-                                                                                        — {assignment.teacher.user.name}
+                                                                                        — {formatDisplayName(assignment.teacher.user.name ?? '', assignment.teacher.prefix)}
                                                                                     </span>
                                                                                 )}
                                                                             </div>

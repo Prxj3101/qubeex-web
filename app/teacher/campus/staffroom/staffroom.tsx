@@ -13,7 +13,7 @@ import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidatio
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { LinkifiedText } from '@/components/shared/LinkifiedText';
 import NextImage from 'next/image';
-import { formatDisplayName } from '@/lib/displayName';
+import { formatDisplayName, resolveDisplayTitle } from '@/lib/displayName';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface PostAuthor { id: string; name: string; role: 'ADMIN' | 'TEACHER'; avatarUrl?: string | null; prefix?: string | null; title?: string | null; }
@@ -43,6 +43,8 @@ interface DmMessage {
 interface PendingAttachment { url: string; name: string; type: 'image' | 'file'; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+const UNSEND_WINDOW_MS = 60 * 60 * 1000;
+function canUnsend(msg: DmMessage) { return msg.isMe && Date.now() - new Date(msg.createdAt).getTime() < UNSEND_WINDOW_MS; }
 const AVATAR_COLORS = [
     'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',
     'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300',
@@ -128,7 +130,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${post.author.role === 'ADMIN'
                         ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
                         : 'bg-muted text-muted-foreground'}`}>
-                        {post.author.role === 'ADMIN' ? 'Admin' : 'Teacher'}
+                        {resolveDisplayTitle(post.author.role, post.author.title)}
                     </span>
                     <span className="text-[10px] text-muted-foreground">{fmtDateTime(post.createdAt)}</span>
                     {isMe && (
@@ -271,11 +273,12 @@ export default function TeacherStaffroom() {
     const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const threadPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const feedPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
     useEffect(() => {
         api.get('/teacher/me').then(res => {
             const u = res.data.data;
-            setMyUserId(u?.userId ?? u?.id ?? '');
+            setMyUserId(u?.userId ?? u?.user?.id ?? u?.id ?? '');
             setMyName(u?.name ?? 'Teacher');
         }).catch(() => { });
     }, []);
@@ -303,12 +306,22 @@ export default function TeacherStaffroom() {
         return () => { if (threadPollRef.current) clearInterval(threadPollRef.current); };
     }, []);
 
-    useEffect(() => {
-        api.get('/teacher/staffroom/posts')
-            .then(res => setPosts((res.data.data as StaffroomPost[]).reverse()))
-            .catch(() => toast.error('Failed to load staffroom posts'))
-            .finally(() => setFeedLoading(false));
+    const fetchPosts = useCallback(async (silent = false) => {
+        try {
+            const res = await api.get('/teacher/staffroom/posts');
+            setPosts((res.data.data as StaffroomPost[]).reverse());
+        } catch {
+            if (!silent) toast.error('Failed to load staffroom posts');
+        } finally {
+            if (!silent) setFeedLoading(false);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchPosts();
+        feedPollRef.current = setInterval(() => fetchPosts(true), 4000);
+        return () => { if (feedPollRef.current) clearInterval(feedPollRef.current); };
+    }, [fetchPosts]);
 
     useEffect(() => {
         api.get('/teacher/staffroom/dms')
@@ -457,6 +470,14 @@ export default function TeacherStaffroom() {
                 : (data?.message ?? 'Failed to send message');
             toast.error(msg);
         } finally { setDmSubmitting(false); }
+    };
+
+    const handleUnsendMessage = async (messageId: string) => {
+        if (!activeDm) return;
+        try {
+            await api.delete(`/teacher/staffroom/dms/${activeDm.teacherUserId}/messages/${messageId}`);
+            setMessages(prev => prev.filter(m => m.id !== messageId));
+        } catch { toast.error('Failed to unsend message'); }
     };
 
     const openDm = (thread: DmThread) => { setActiveDm(thread); setMessages([]); setDmInput(''); setDmAttachment(null); };
@@ -678,7 +699,7 @@ export default function TeacherStaffroom() {
                                                 const color = msg.isMe ? 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300' : getAvatarColor(activeDm.teacherUserId);
                                                 const initials = msg.isMe ? myInitials || 'T' : getInitials(activeDm.name);
                                                 return (
-                                                    <div key={msg.id} className={`flex gap-2 ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
+                                                    <div key={msg.id} className={`flex gap-2 group ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                                                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 mt-1 ${color}`}>{initials}</div>
                                                         <div className={`flex flex-col max-w-[75%] ${msg.isMe ? 'items-end' : 'items-start'}`}>
                                                             <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
@@ -697,7 +718,15 @@ export default function TeacherStaffroom() {
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <p className="text-[10px] text-muted-foreground mt-0.5 px-1">{fmtDateTime(msg.createdAt)}</p>
+                                                            <div className="flex items-center gap-1.5 mt-0.5 px-1">
+                                                                <p className="text-[10px] text-muted-foreground">{fmtDateTime(msg.createdAt)}</p>
+                                                                {canUnsend(msg) && (
+                                                                    <button onClick={() => handleUnsendMessage(msg.id)}
+                                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted-foreground hover:text-red-500 flex items-center gap-0.5">
+                                                                        <X size={10} /> Unsend
+                                                                    </button>
+                                                                )}
+                                                            </div>
                                                         </div>
                                                     </div>
                                                 );
