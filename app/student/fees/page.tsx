@@ -357,7 +357,7 @@ export default function FeesPage() {
                                         <div className="px-4 py-3 flex items-center justify-between rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                             <div>
                                                 <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{STUDENT.name}'s Fee Card</p>
-                                                <p className="text-[11px]" style={{ color: '#000000' }}>{STUDENT.division} · Rules & Regulations</p>
+                                                <p className="text-[11px]" style={{ color: '#000000' }}>Rules & Regulations</p>
                                             </div>
                                             <button onClick={() => setCardFlipped(false)}
                                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40"
