@@ -650,8 +650,8 @@ export default function AdminAnalyticsPage() {
                             <p className="text-xs text-muted-foreground">Current plan</p>
                             <p className="text-lg font-semibold">{plan.name}</p>
                         </div>
-                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${plan.name.toUpperCase() === 'PRO' ? 'bg-[#DA7756]/15 text-[#DA7756]' : 'bg-violet-500/15 text-violet-500'}`}>
-                            {plan.name.toUpperCase()}
+                        <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg ${plan.isTrial ? 'bg-[#F59E0B]/15 text-[#F59E0B]' : plan.name.toUpperCase() === 'PRO' ? 'bg-[#DA7756]/15 text-[#DA7756]' : 'bg-violet-500/15 text-violet-500'}`}>
+                            {plan.isTrial ? 'TRIAL' : plan.name.toUpperCase()}
                         </span>
                     </div>
                     <div className="space-y-3">

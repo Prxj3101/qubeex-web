@@ -237,8 +237,9 @@ export default function SubscriptionPage() {
     const billedUsers = overview?.plan.billedUsers ?? 200;
     // Always use the current flat per-user rate (BASIC ₹29 / PRO ₹39) — ignore any stale
     // perUserRate/estMonthlyBill the backend may still be sending from the old tiered pricing.
-    const currentRate = tiers.find((t) => billedUsers >= t.min && billedUsers <= t.max)?.rate ?? tiers[0].rate;
-    const monthlyBill = billedUsers * currentRate;
+    // Trial plans aren't billed at all, so both are forced to 0 regardless of user count.
+    const currentRate = isTrial ? 0 : (tiers.find((t) => billedUsers >= t.min && billedUsers <= t.max)?.rate ?? tiers[0].rate);
+    const monthlyBill = isTrial ? 0 : billedUsers * currentRate;
 
     const userBreakdown = [
         { label: 'Admin', value: overview?.stats.totalAdmins ?? 0, color: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500', fill: '#7C3AED' },

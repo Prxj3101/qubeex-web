@@ -63,7 +63,7 @@ export function getMarginalMonthlyBill(
   users: number,
   baseRate: number,
   marginalRate: number,
-  planOption: "FLEXIBLE" | "COMMITTED" = "FLEXIBLE",
+  planOption: "NORMAL" | "COMMITTED" = "NORMAL",
 ): number {
   const billableUsers = Math.max(200, users);
   let bill: number;
@@ -81,7 +81,7 @@ export function getEffectiveRate(
   users: number,
   baseRate: number,
   marginalRate: number,
-  planOption: "FLEXIBLE" | "COMMITTED" = "FLEXIBLE",
+  planOption: "NORMAL" | "COMMITTED" = "NORMAL",
 ): number {
   const billableUsers = Math.max(200, users);
   const bill = getMarginalMonthlyBill(users, baseRate, marginalRate, planOption);

@@ -1,9 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Landmark, Building2, QrCode, CreditCard, Wallet } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowLeft, Landmark, Building2, QrCode, CreditCard, Wallet, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import api from '@/lib/api';
+
+const FEE_CARD_THEMES = {
+    yellow: { name: 'Yellow', bg: '#FFF9E0', border: '#EEDD9B' },
+    green: { name: 'Pista', bg: '#F1F6E1', border: '#CBDCA0' },
+    blue: { name: 'Blue', bg: '#EEF6FB', border: '#CBE2EF' },
+    pink: { name: 'Pink', bg: '#FCF1F4', border: '#EDCED8' },
+} as const;
+type FeeCardThemeKey = keyof typeof FEE_CARD_THEMES;
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
@@ -22,11 +31,11 @@ const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg:
 };
 
 const STATUS_CFG = {
-    PAID:    { label: 'Paid',    cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-    PENDING: { label: 'Pending', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
+    PAID:    { label: 'Paid',    cls: 'bg-emerald-100 text-emerald-700' },
+    PENDING: { label: 'Pending', cls: 'bg-red-100 text-red-700' },
 };
 
-const STUDENT = { name: 'Prajwal Jagdish Kotian', rollNo: '09', division: '10-A', paid: false };
+const STUDENT = { name: 'Prajwal Jagdish Kotian', rollNo: '09', studentDisplayId: 'STU-009', division: '10-A', paid: false };
 
 // Read-only payment info (mirrors admin "Payment Methods" tab)
 const BANK_DETAILS = [
@@ -84,6 +93,22 @@ export default function FeesPage() {
     const router = useRouter();
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
     const [cardFlipped, setCardFlipped] = useState(false);
+    const [expandedBreakdownItemIds, setExpandedBreakdownItemIds] = useState<Set<string>>(new Set());
+    const [feeCardTheme, setFeeCardTheme] = useState<FeeCardThemeKey>('yellow');
+    const fc = FEE_CARD_THEMES[feeCardTheme];
+
+    useEffect(() => {
+        api.get('/student/class')
+            .then(r => {
+                const divisionId = r.data?.data?.division?.id;
+                if (!divisionId) return;
+                return api.get(`/admin/campus/divisions/${divisionId}/fee-structure`).then(res => {
+                    const theme = res.data?.data?.feeCardTheme;
+                    if (theme && theme in FEE_CARD_THEMES) setFeeCardTheme(theme as FeeCardThemeKey);
+                });
+            })
+            .catch(() => { /* fall back to default yellow theme */ });
+    }, []);
 
     const monthTotal = (m: FeeMonth) =>
         FEE_STRUCTURES.filter(s => m.assignedStructureIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
@@ -143,70 +168,72 @@ export default function FeesPage() {
                                     style={{ transformStyle: 'preserve-3d', position: 'relative' }}>
 
                                     {/* FRONT */}
-                                    <div style={{ backfaceVisibility: 'hidden' }}
-                                        className={`bg-card rounded-2xl border border-border/50 shadow-sm ${cardFlipped ? 'invisible' : ''}`}>
+                                    <div style={{ backfaceVisibility: 'hidden', background: fc.bg, borderColor: fc.border }}
+                                        className={`rounded-2xl border ${cardFlipped ? 'invisible' : ''}`}>
 
-                                        <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between bg-muted/20 rounded-t-2xl">
+                                        <div className="px-4 py-3 flex items-center justify-between rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                             <div>
-                                                <p className="text-sm font-bold">{STUDENT.name}'s Fee Card</p>
-                                                <p className="text-[11px] text-muted-foreground">{STUDENT.division}</p>
+                                                <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{STUDENT.name}'s Fee Card</p>
+                                                <p className="text-[11px]" style={{ color: '#000000' }}>{STUDENT.division}</p>
                                             </div>
                                             <button onClick={() => setCardFlipped(true)}
-                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-all">
+                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40"
+                                                style={{ borderColor: fc.border, color: '#000000' }}>
                                                 <span style={{ fontSize: '16px', display: 'inline-block' }}>↺</span>
                                                 View Back
                                             </button>
                                         </div>
 
-                                        <div className="space-y-4 px-4 py-3">
+                                        <div className="space-y-4 px-4 py-3" style={{ color: '#000000' }}>
 
                                             {/* Student Details */}
                                             <div>
-                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Student Details</p>
-                                                <div className="rounded-xl border border-border/40 overflow-hidden">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Student Details</p>
+                                                <div className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border }}>
                                                     {[
                                                         { label: 'Name',     value: STUDENT.name },
                                                         { label: 'Roll No',  value: STUDENT.rollNo },
+                                                        { label: 'Student ID', value: STUDENT.studentDisplayId, mono: true },
                                                         { label: 'Class',    value: '10' },
                                                         { label: 'Division', value: 'A' },
                                                     ].map((f, i) => (
-                                                        <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border/20 last:border-none">
-                                                            <span className="text-[11px] text-muted-foreground w-24 shrink-0">{f.label}</span>
-                                                            <span className="text-[11px] font-medium">{f.value}</span>
+                                                        <div key={i} className="flex items-center justify-between px-3 py-2 last:border-none" style={{ borderBottom: `1px solid ${fc.border}` }}>
+                                                            <span className="text-[11px] w-24 shrink-0" style={{ color: '#000000' }}>{f.label}</span>
+                                                            <span className={`text-[11px] font-semibold ${f.mono ? 'font-mono' : ''}`} style={{ color: f.mono ? '#DA7756' : '#000000' }}>{f.value}</span>
                                                         </div>
                                                     ))}
                                                 </div>
                                             </div>
 
-                                            <div className="border-t border-border/40" />
+                                            <div style={{ borderTop: `1px dashed ${fc.border}` }} />
 
                                             {/* Monthly Payment Schedule */}
                                             <div>
-                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Monthly Payment Schedule</p>
-                                                <div className="rounded-xl border border-border/40 overflow-hidden overflow-x-auto">
-                                                    <table className="text-xs w-full min-w-[640px] lg:min-w-0">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Monthly Payment Schedule</p>
+                                                <div className="rounded-xl border overflow-hidden overflow-x-auto" style={{ borderColor: fc.border }}>
+                                                    <table className="text-xs w-full min-w-[640px] lg:min-w-0" style={{ color: '#000000' }}>
                                                         <thead>
-                                                            <tr className="bg-muted/10 border-b border-border/30">
+                                                            <tr style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                                                 {['Month', 'Fee Structures', 'Amount (₹)', 'Due Date', 'Paid Date', 'Status', 'Remark'].map((col, i) => (
-                                                                    <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
+                                                                    <th key={i} className="px-3 py-2 text-left text-[11px] font-bold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{col}</th>
                                                                 ))}
                                                             </tr>
                                                         </thead>
-                                                        <tbody className="divide-y divide-border/20">
-                                                            {FEE_MONTHS.map(m => {
+                                                        <tbody>
+                                                            {FEE_MONTHS.map((m, mi) => {
                                                                 const total = monthTotal(m);
                                                                 const assigned = FEE_STRUCTURES.filter(s => m.assignedStructureIds.includes(s.id));
                                                                 return (
-                                                                    <tr key={m.id} className={`transition-colors ${selectedMonth === m.id ? 'bg-violet-100 dark:bg-violet-950/40' : 'hover:bg-muted/10'}`}>
-                                                                        <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer"
+                                                                    <tr key={m.id} className="transition-colors" style={{ background: selectedMonth === m.id ? `${fc.border}80` : mi % 2 === 1 ? fc.bg : 'transparent', borderTop: `1px solid ${fc.border}` }}>
+                                                                        <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
                                                                             onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
                                                                             {m.month}
                                                                         </td>
-                                                                        <td className="px-3 py-2 cursor-pointer"
+                                                                        <td className="px-3 py-2 cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
                                                                             onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
                                                                             <div className="flex flex-wrap gap-0.5">
                                                                                 {assigned.length === 0
-                                                                                    ? <span className="text-[10px] text-muted-foreground/50 italic">—</span>
+                                                                                    ? <span className="text-[10px] italic" style={{ color: '#000000', opacity: 0.4 }}>—</span>
                                                                                     : assigned.map(s => (
                                                                                         <span key={s.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
                                                                                             style={{ background: s.color + '20', color: s.color }}>
@@ -216,22 +243,22 @@ export default function FeesPage() {
                                                                                 }
                                                                             </div>
                                                                         </td>
-                                                                        <td className="px-3 py-2 font-bold text-[11px]">{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
-                                                                        <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.dueDate}</td>
-                                                                        <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.paidDate ?? '—'}</td>
-                                                                        <td className="px-3 py-2">
+                                                                        <td className="px-3 py-2 font-bold" style={{ borderRight: `1px solid ${fc.border}` }}>{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
+                                                                        <td className="px-3 py-2 text-[11px] font-medium" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{m.dueDate}</td>
+                                                                        <td className="px-3 py-2 text-[11px] font-medium" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{m.paidDate ?? '—'}</td>
+                                                                        <td className="px-3 py-2" style={{ borderRight: `1px solid ${fc.border}` }}>
                                                                             <span className={`flex items-center gap-1 w-fit h-6 px-2 rounded-full text-[10px] font-semibold ${STATUS_CFG[m.status].cls}`}>
                                                                                 {m.status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[m.status].label}
                                                                             </span>
                                                                         </td>
-                                                                        <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.remark || '—'}</td>
+                                                                        <td className="px-3 py-2 text-[11px] font-medium" style={{ color: '#000000' }}>{m.remark || '—'}</td>
                                                                     </tr>
                                                                 );
                                                             })}
-                                                            <tr className="bg-muted/20 border-t-2 border-border/40">
-                                                                <td className="px-3 py-2 font-bold text-[11px]">Annual Total</td>
+                                                            <tr style={{ background: fc.bg, borderTop: `2px solid ${fc.border}` }}>
+                                                                <td className="px-3 py-2 font-bold text-[11px]" style={{ color: '#000000' }}>Annual Total</td>
                                                                 <td />
-                                                                <td className="px-3 py-2 text-[11px] font-black" style={{ color: '#7C3AED' }}>
+                                                                <td className="px-3 py-2 text-[11px] font-black" style={{ color: '#000000' }}>
                                                                     ₹{FEE_MONTHS.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}
                                                                 </td>
                                                                 <td colSpan={4} />
@@ -241,27 +268,27 @@ export default function FeesPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="border-t border-border/40" />
+                                            <div style={{ borderTop: `1px dashed ${fc.border}` }} />
 
                                             {/* Fee Structure Breakdown */}
                                             <div>
-                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>
                                                     {selectedMonth
-                                                        ? `Fee Structure Breakdown — ${FEE_MONTHS.find(m => m.id === selectedMonth)?.month}`
+                                                        ? `Fee Structure Breakdown - ${FEE_MONTHS.find(m => m.id === selectedMonth)?.month}`
                                                         : 'Fee Structure Breakdown'
                                                     }
                                                 </p>
                                                 {!selectedMonth ? (
-                                                    <div className="py-6 text-center rounded-xl border border-dashed border-border/40">
-                                                        <p className="text-xs text-muted-foreground/60">Click a month row to view breakdown</p>
+                                                    <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                        <p className="text-xs" style={{ color: '#000000' }}>Click a month row to view breakdown</p>
                                                     </div>
                                                 ) : (() => {
                                                     const month = FEE_MONTHS.find(m => m.id === selectedMonth);
                                                     if (!month) return null;
                                                     const assigned = FEE_STRUCTURES.filter(s => month.assignedStructureIds.includes(s.id));
                                                     if (assigned.length === 0) return (
-                                                        <div className="py-6 text-center rounded-xl border border-dashed border-border/40">
-                                                            <p className="text-xs text-muted-foreground/60">No fee structures assigned to {month.month}</p>
+                                                        <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                            <p className="text-xs" style={{ color: '#000000' }}>No fee structures assigned to {month.month}</p>
                                                         </div>
                                                     );
                                                     return (
@@ -270,19 +297,48 @@ export default function FeesPage() {
                                                                 const total = structureTotal(fs);
                                                                 const cfg = FEE_TYPE_CFG[fs.type];
                                                                 return (
-                                                                    <div key={fs.id} className="rounded-xl border border-border/40 overflow-hidden">
-                                                                        <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
+                                                                    <div key={fs.id} className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border }}>
+                                                                        <div className="flex items-center gap-2 px-3 py-2" style={{ background: fc.bg }}>
                                                                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: fs.color }} />
-                                                                            <span className="flex-1 text-xs font-semibold">{fs.name}</span>
+                                                                            <span className="flex-1 text-xs font-semibold" style={{ color: '#000000' }}>{fs.name}</span>
                                                                             <span className={`text-[10px] font-bold ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
-                                                                            <span className="text-xs font-bold">₹{total.toLocaleString()}</span>
+                                                                            <span className="text-xs font-bold" style={{ color: '#000000' }}>₹{total.toLocaleString()}</span>
                                                                         </div>
-                                                                        {fs.items.map(item => (
-                                                                            <div key={item.id} className="flex items-center justify-between px-3 py-1.5 pl-5 border-t border-border/20 bg-background">
-                                                                                <span className="text-[11px] text-muted-foreground">{item.label}</span>
-                                                                                <span className="text-[11px] font-medium">₹{(item.subItems.reduce((n, s) => n + s.amount, 0) || item.amount).toLocaleString()}</span>
-                                                                            </div>
-                                                                        ))}
+                                                                        {fs.items.map(item => {
+                                                                            const subTotal = item.subItems.reduce((n, s) => n + s.amount, 0);
+                                                                            const hasSub = item.subItems.length > 0;
+                                                                            const isOpen = expandedBreakdownItemIds.has(item.id);
+                                                                            const Row = hasSub ? 'button' : 'div';
+                                                                            return (
+                                                                                <div key={item.id}>
+                                                                                    <Row type={hasSub ? 'button' : undefined}
+                                                                                        onClick={hasSub ? () => setExpandedBreakdownItemIds(prev => {
+                                                                                            const next = new Set(prev);
+                                                                                            if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                                                                                            return next;
+                                                                                        }) : undefined}
+                                                                                        className="w-full flex items-center justify-between px-3 py-1.5 pl-5 text-left" style={{ borderTop: `1px solid ${fc.border}`, background: fc.bg }}>
+                                                                                        <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: '#000000' }}>
+                                                                                            {item.label}
+                                                                                            {hasSub && <ChevronDown size={11} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} style={{ opacity: 0.5 }} />}
+                                                                                        </span>
+                                                                                        <span className="text-[11px] font-semibold" style={{ color: '#000000' }}>₹{(subTotal || item.amount).toLocaleString()}</span>
+                                                                                    </Row>
+                                                                                    <AnimatePresence>
+                                                                                        {hasSub && isOpen && (
+                                                                                            <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                                                                                {item.subItems.map(si => (
+                                                                                                    <div key={si.id} className="flex items-center justify-between px-3 py-1 pl-8" style={{ borderTop: `1px solid ${fc.border}`, background: 'rgba(255,255,255,0.35)' }}>
+                                                                                                        <span className="text-[10px]" style={{ color: '#000000', opacity: 0.65 }}>{si.label}</span>
+                                                                                                        <span className="text-[10px]" style={{ color: '#000000', opacity: 0.65 }}>₹{si.amount.toLocaleString()}</span>
+                                                                                                    </div>
+                                                                                                ))}
+                                                                                            </motion.div>
+                                                                                        )}
+                                                                                    </AnimatePresence>
+                                                                                </div>
+                                                                            );
+                                                                        })}
                                                                     </div>
                                                                 );
                                                             })}
@@ -295,16 +351,17 @@ export default function FeesPage() {
                                     </div>
 
                                     {/* BACK — Rules & Regulations */}
-                                    <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                                        className={`bg-card rounded-2xl border border-border/50 shadow-sm ${!cardFlipped ? 'invisible' : ''}`}>
+                                    <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: fc.bg, borderColor: fc.border }}
+                                        className={`rounded-2xl border ${!cardFlipped ? 'invisible' : ''}`}>
 
-                                        <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between bg-muted/20 rounded-t-2xl">
+                                        <div className="px-4 py-3 flex items-center justify-between rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                             <div>
-                                                <p className="text-sm font-bold">{STUDENT.name}'s Fee Card</p>
-                                                <p className="text-[11px] text-muted-foreground">{STUDENT.division} · Rules & Regulations</p>
+                                                <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{STUDENT.name}'s Fee Card</p>
+                                                <p className="text-[11px]" style={{ color: '#000000' }}>{STUDENT.division} · Rules & Regulations</p>
                                             </div>
                                             <button onClick={() => setCardFlipped(false)}
-                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-all">
+                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40"
+                                                style={{ borderColor: fc.border, color: '#000000' }}>
                                                 <span style={{ fontSize: '16px', display: 'inline-block', transform: 'scaleX(-1)' }}>↺</span>
                                                 View Front
                                             </button>
@@ -312,15 +369,15 @@ export default function FeesPage() {
 
                                         <div className="px-4 py-3 space-y-3">
                                             {RULES.length === 0 ? (
-                                                <div className="py-8 text-center rounded-xl border border-dashed border-border/40">
-                                                    <p className="text-xs text-muted-foreground/60">No rules defined</p>
+                                                <div className="py-8 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                    <p className="text-xs" style={{ color: '#000000' }}>No rules defined</p>
                                                 </div>
                                             ) : (
                                                 <div className="space-y-2">
                                                     {RULES.map((rule, i) => (
                                                         <div key={rule.id} className="flex items-start gap-2">
-                                                            <span className="text-[11px] font-bold text-muted-foreground mt-0.5 w-5 shrink-0">{i + 1}.</span>
-                                                            <p className="text-xs text-foreground leading-relaxed">{rule.text}</p>
+                                                            <span className="text-[11px] font-bold mt-0.5 w-5 shrink-0" style={{ color: '#000000' }}>{i + 1}.</span>
+                                                            <p className="text-xs leading-relaxed" style={{ color: '#000000' }}>{rule.text}</p>
                                                         </div>
                                                     ))}
                                                 </div>

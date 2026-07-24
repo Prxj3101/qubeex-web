@@ -156,8 +156,8 @@ function VerifiedBadge() {
 }
 
 // ── Section Card ──────────────────────────────────────────────────────────────
-function SectionCard({ title, children, editBtn }: {
-    title: React.ReactNode; children: React.ReactNode; editBtn?: React.ReactNode;
+function SectionCard({ title, children, editBtn, contentClassName = 'px-5 pt-2 pb-5' }: {
+    title: React.ReactNode; children: React.ReactNode; editBtn?: React.ReactNode; contentClassName?: string;
 }) {
     return (
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
@@ -165,7 +165,7 @@ function SectionCard({ title, children, editBtn }: {
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
                 {editBtn}
             </div>
-            <div className="p-5">{children}</div>
+            <div className={contentClassName}>{children}</div>
         </div>
     );
 }
@@ -557,7 +557,7 @@ export default function TeacherProfilePage() {
                     </SectionCard>
 
                     {/* AI Token Usage */}
-                    <SectionCard title="AI Token Usage">
+                    <SectionCard title="AI Token Usage" contentClassName="p-5">
                         <div className="space-y-3">
                             <div>
                                 <div className="flex items-center justify-between mb-1.5">
@@ -637,7 +637,7 @@ export default function TeacherProfilePage() {
                 </div>
 
                 {/* Assignments */}
-                <SectionCard title={`Assignments (${teacher.assignments.length})`}>
+                <SectionCard title={`Assignments (${teacher.assignments.length})`} contentClassName="p-5">
                     {teacher.assignments.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 text-center">
                             <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">

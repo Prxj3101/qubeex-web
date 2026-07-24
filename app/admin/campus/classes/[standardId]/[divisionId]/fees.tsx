@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
 import {
     Plus, X, Check, Upload, QrCode, CreditCard, Building2,
-    ChevronDown, ChevronRight, Landmark, Wallet, Users, Save,
+    ChevronDown, ChevronRight, Landmark, Wallet, Users,
     Info, FileText, Tag, Calendar, Pencil, Trash2, ChevronUp,
-    RotateCw, RefreshCw, Rotate3d,
+    RotateCw, RefreshCw, Rotate3d, GripVertical,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -18,7 +18,7 @@ type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME';
 interface FeeSubItem { id: string; label: string; amount: number; }
 interface FeeItem { id: string; label: string; amount: number; subItems: FeeSubItem[]; }
 interface FeeStructure { id: string; name: string; type: FeeStructureType; color: string; items: FeeItem[]; }
-interface FeeMonth { id: string; month: string; dueDate: string; assignedStructureIds: string[]; remark: string; status: 'PAID' | 'PENDING'; paidDate?: string; }
+interface FeeMonth { id: string; month: string; dueDate: string; assignedStructureIds: string[]; status: 'PAID' | 'PENDING'; paidDate?: string; }
 interface BankDetails { accountName: string; accountNumber: string; ifsc: string; bankName: string; branch: string; upiId?: string; }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -32,13 +32,36 @@ const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg:
     ONE_TIME: { label: 'One-time', color: '#059669', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', emoji: '⭐' },
 };
 
+type StudentDetailField = {
+    id: string;
+    kind: 'default' | 'custom';
+    defaultKey?: 'name' | 'rollNo' | 'studentId' | 'class' | 'division';
+    label: string;
+    value?: string;
+};
+const DEFAULT_STUDENT_FIELDS: StudentDetailField[] = [
+    { id: 'f-name', kind: 'default', defaultKey: 'name', label: 'Name' },
+    { id: 'f-rollno', kind: 'default', defaultKey: 'rollNo', label: 'Roll No' },
+    { id: 'f-studentid', kind: 'default', defaultKey: 'studentId', label: 'Student ID' },
+    { id: 'f-class', kind: 'default', defaultKey: 'class', label: 'Class' },
+    { id: 'f-division', kind: 'default', defaultKey: 'division', label: 'Division' },
+];
+
+const FEE_CARD_THEMES = {
+    yellow: { name: 'Yellow', bg: '#FFF9E0', border: '#EEDD9B' },
+    green: { name: 'Pista', bg: '#F1F6E1', border: '#CBDCA0' },
+    blue: { name: 'Blue', bg: '#EEF6FB', border: '#CBE2EF' },
+    pink: { name: 'Pink', bg: '#FCF1F4', border: '#EDCED8' },
+} as const;
+type FeeCardThemeKey = keyof typeof FEE_CARD_THEMES;
+
 const STATUS_CFG = {
-    PAID: { label: 'Paid', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-    PENDING: { label: 'Pending', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
+    PAID: { label: 'Paid', cls: 'bg-emerald-100 text-emerald-700' },
+    PENDING: { label: 'Pending', cls: 'bg-red-100 text-red-700' },
 };
 
 interface FeesStudent { id: string; studentDisplayId: string; name: string; rollNo: string; paid: boolean; }
-interface FeePayment { studentId: string; feeMonthId: string; status: 'PAID' | 'PENDING'; paidDate: string | null; }
+interface FeePayment { studentId: string; feeMonthId: string; status: 'PAID' | 'PENDING'; paidDate: string | null; remark: string | null; }
 const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 function getAvatarColor(n: string) { return AVATAR_COLORS[n.charCodeAt(0) % AVATAR_COLORS.length]; }
 function getInitials(n: string) { return n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
@@ -236,7 +259,7 @@ function FeeStructureModal({
                     {/* Fee Items */}
                     <div>
                         <div className="flex items-center justify-between mb-2">
-                            <p className="text-[11px] font-semibold text-muted-foreground">Fee Items</p>
+                            <p className="text-[11px] font-semibold text-muted-foreground">Fee Items <span className="text-red-500">*</span></p>
                             <button onClick={() => setAddingItem(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
                                 <Plus size={11} /> Add Item
                             </button>
@@ -318,11 +341,12 @@ function FeeStructureModal({
                         Cancel
                     </button>
                     <button
+                        disabled={items.length === 0}
                         onClick={() => {
                             if (!name.trim()) { toast.error('Enter a name'); return; }
                             onSave({ id: initial?.id ?? `fs-${Date.now()}`, name: name.trim(), type, color, items });
                         }}
-                        className="h-9 px-5 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
+                        className="h-9 px-5 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:opacity-40"
                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                         {initial ? 'Save Changes' : 'Add Structure'}
                     </button>
@@ -334,9 +358,14 @@ function FeeStructureModal({
 
 // ── Main FeesTab ──────────────────────────────────────────────────────────────
 
-export function FeesTab({ divisionId, divisionName, feesSubTab }: {
+export interface FeesTabHandle {
+    save: () => Promise<void>;
+}
+
+export const FeesTab = forwardRef<FeesTabHandle, {
     divisionId: string; divisionName: string; feesSubTab: 'setup' | 'students';
-}) {
+    onSavingChange?: (saving: boolean) => void;
+}>(function FeesTab({ divisionId, divisionName, feesSubTab, onSavingChange }, ref) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [templateFrom, setTemplateFrom] = useState<string | null>(null);
@@ -355,6 +384,8 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
     const [newDueDate, setNewDueDate] = useState('');
     const [monthDropdownOpen, setMonthDropdownOpen] = useState(false);
     const monthDropdownRef = useRef<HTMLDivElement>(null);
+    const feeDetailsScrollRef = useRef<HTMLDivElement>(null);
+    const itemRowRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
     // General remark
     const [generalRemark, setGeneralRemark] = useState('');
@@ -368,13 +399,15 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
     const qrInputRef = useRef<HTMLInputElement>(null);
 
     // Fee card template
-    const [extraStudentFields, setExtraStudentFields] = useState<{ label: string; value: string }[]>([]);
+    const [studentFields, setStudentFields] = useState<StudentDetailField[]>(DEFAULT_STUDENT_FIELDS);
     const [addingStudentField, setAddingStudentField] = useState(false);
     const [newStudentFieldLabel, setNewStudentFieldLabel] = useState('');
     const [extraColumns, setExtraColumns] = useState<{ label: string }[]>([]);
     const [addingColumn, setAddingColumn] = useState(false);
     const [newColumnLabel, setNewColumnLabel] = useState('');
     const [feeCardFlipped, setFeeCardFlipped] = useState(false);
+    const [feeCardTheme, setFeeCardTheme] = useState<FeeCardThemeKey>('yellow');
+    const fc = FEE_CARD_THEMES[feeCardTheme];
     const [rulesAndRegs, setRulesAndRegs] = useState<{ id: string; text: string }[]>([]);
     const [studentCardFlipped, setStudentCardFlipped] = useState(false);
 
@@ -385,10 +418,11 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
     const [studentFilter, setStudentFilter] = useState<'all' | 'paid' | 'pending'>('all');
     const [showListMenu, setShowListMenu] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+    const [expandedBreakdownItemIds, setExpandedBreakdownItemIds] = useState<Set<string>>(new Set());
 
     const getPayment = useCallback((studentId: string, feeMonthId: string): FeePayment =>
         feePayments.find(p => p.studentId === studentId && p.feeMonthId === feeMonthId)
-            ?? { studentId, feeMonthId, status: 'PENDING', paidDate: null },
+            ?? { studentId, feeMonthId, status: 'PENDING', paidDate: null, remark: null },
         [feePayments]);
 
     const isStudentPaid = useCallback((studentId: string) =>
@@ -397,52 +431,84 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
 
     const students: FeesStudent[] = rosterStudents.map(s => ({ ...s, paid: isStudentPaid(s.id) }));
 
-    const setPaymentField = async (feeMonthId: string, updates: { status?: 'PAID' | 'PENDING'; paidDate?: string }) => {
+    const paymentSyncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+    const setPaymentField = (feeMonthId: string, updates: { status?: 'PAID' | 'PENDING'; paidDate?: string; remark?: string }) => {
         if (!selectedStudent) return;
-        const current = getPayment(selectedStudent.id, feeMonthId);
-        const next = { status: updates.status ?? current.status, paidDate: updates.paidDate ?? current.paidDate };
-        try {
-            const res = await api.patch(`/admin/campus/divisions/${divisionId}/fee-payments`, {
-                studentId: selectedStudent.id,
-                feeMonthId,
-                status: next.status,
-                paidDate: next.paidDate,
-            });
-            const saved: FeePayment = res.data.data;
-            setFeePayments(prev => {
-                const idx = prev.findIndex(p => p.studentId === saved.studentId && p.feeMonthId === saved.feeMonthId);
-                if (idx === -1) return [...prev, saved];
-                const copy = [...prev]; copy[idx] = saved; return copy;
-            });
-        } catch (err: unknown) {
-            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-            toast.error(msg ?? 'Failed to update payment');
-        }
+        const studentId = selectedStudent.id;
+        const current = getPayment(studentId, feeMonthId);
+        const next: FeePayment = {
+            studentId,
+            feeMonthId,
+            status: updates.status ?? current.status,
+            paidDate: updates.paidDate ?? current.paidDate,
+            remark: updates.remark ?? current.remark,
+        };
+        // Optimistic local update so typing feels instant.
+        setFeePayments(prev => {
+            const idx = prev.findIndex(p => p.studentId === next.studentId && p.feeMonthId === next.feeMonthId);
+            if (idx === -1) return [...prev, next];
+            const copy = [...prev]; copy[idx] = next; return copy;
+        });
+
+        const key = `${studentId}:${feeMonthId}`;
+        if (paymentSyncTimers.current[key]) clearTimeout(paymentSyncTimers.current[key]);
+        paymentSyncTimers.current[key] = setTimeout(async () => {
+            try {
+                const res = await api.patch(`/admin/campus/divisions/${divisionId}/fee-payments`, {
+                    studentId: next.studentId,
+                    feeMonthId,
+                    status: next.status,
+                    paidDate: next.paidDate,
+                    remark: next.remark,
+                });
+                const saved: FeePayment = res.data.data;
+                setFeePayments(prev => {
+                    const idx = prev.findIndex(p => p.studentId === saved.studentId && p.feeMonthId === saved.feeMonthId);
+                    if (idx === -1) return [...prev, saved];
+                    const copy = [...prev]; copy[idx] = saved; return copy;
+                });
+            } catch (err: unknown) {
+                const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                toast.error(msg ?? 'Failed to update payment');
+            }
+        }, 500);
     };
 
     // ── Load / Save ─────────────────────────────────────────────────────────
 
     const applyData = useCallback((data: {
         feeStructures?: FeeStructure[];
-        feeMonths?: { id: string; month: string; dueDate: string; assignedStructureIds?: string[]; remark?: string }[];
+        feeMonths?: { id: string; month: string; dueDate: string; assignedStructureIds?: string[] }[];
         bankDetails?: BankDetails | null;
         qrImageUrl?: string | null;
         extraColumns?: { label: string }[];
-        extraStudentFields?: { label: string; value: string }[];
+        extraStudentFields?: { id?: string; label: string; value: string }[];
+        studentFields?: StudentDetailField[];
         generalRemark?: string | null;
+        feeCardTheme?: string;
     }) => {
         setFeeStructures(data.feeStructures ?? []);
+        setFeeCardTheme((data.feeCardTheme && data.feeCardTheme in FEE_CARD_THEMES ? data.feeCardTheme : 'yellow') as FeeCardThemeKey);
         setFeeMonths((data.feeMonths ?? []).map(m => ({
             ...m,
             assignedStructureIds: m.assignedStructureIds ?? [],
-            remark: m.remark ?? '',
             status: 'PENDING' as const,
         })));
         setBankDetails(data.bankDetails ?? EMPTY_BANK);
         setBankDraft(data.bankDetails ?? EMPTY_BANK);
         setQrImageUrl(data.qrImageUrl ?? null);
         setExtraColumns(data.extraColumns ?? []);
-        setExtraStudentFields(data.extraStudentFields ?? []);
+        if (data.studentFields && data.studentFields.length > 0) {
+            setStudentFields(data.studentFields);
+        } else if (data.extraStudentFields && data.extraStudentFields.length > 0) {
+            setStudentFields([
+                ...DEFAULT_STUDENT_FIELDS,
+                ...data.extraStudentFields.map((f, i) => ({ id: f.id ?? `esf-${i}-${Date.now()}`, kind: 'custom' as const, label: f.label, value: f.value })),
+            ]);
+        } else {
+            setStudentFields(DEFAULT_STUDENT_FIELDS);
+        }
         setGeneralRemark(data.generalRemark ?? '');
     }, []);
 
@@ -456,7 +522,12 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                 }
             })
             .catch(() => { })
-            .finally(() => setLoading(false));
+            .finally(() => {
+                setLoading(false);
+                // Defer arming the autosave watcher until after this render's state updates
+                // (from applyData) have flushed — otherwise autosave fires immediately on load.
+                setTimeout(() => { didLoadRef.current = true; }, 0);
+            });
     }, [divisionId, applyData]);
 
     useEffect(() => {
@@ -480,20 +551,21 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
         return () => document.removeEventListener('mousedown', handler);
     }, []);
 
-    const handleSave = async () => {
+    const handleSave = async (opts?: { silent?: boolean }) => {
         setSaving(true);
         try {
             await api.put(`/admin/campus/divisions/${divisionId}/fee-structure`, {
                 feeStructures,
-                feeMonths: feeMonths.map(({ id, month, dueDate, assignedStructureIds, remark }) => ({ id, month, dueDate, assignedStructureIds, remark })),
+                feeMonths: feeMonths.map(({ id, month, dueDate, assignedStructureIds }) => ({ id, month, dueDate, assignedStructureIds })),
                 bankDetails: bankDetails.accountName ? bankDetails : null,
                 qrImageUrl,
                 extraColumns,
-                extraStudentFields,
+                studentFields,
                 generalRemark: generalRemark.trim() || null,
+                feeCardTheme,
             });
             setTemplateFrom(null);
-            toast.success('Fee structure saved');
+            if (!opts?.silent) toast.success('Fee structure saved');
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
             toast.error(msg ?? 'Failed to save');
@@ -501,6 +573,32 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
             setSaving(false);
         }
     };
+
+    // Keep a ref to the latest handleSave so the autosave debounce timer and the
+    // imperative handle always call the freshest closure (avoids stale state).
+    const handleSaveRef = useRef(handleSave);
+    useEffect(() => { handleSaveRef.current = handleSave; });
+
+    // Tell the parent (which renders the header Save button) whenever saving state changes.
+    useEffect(() => { onSavingChange?.(saving); }, [saving, onSavingChange]);
+
+    // ── Autosave ────────────────────────────────────────────────────────────
+    // Debounced auto-save whenever fee-setup data changes, skipped for the initial load.
+    const didLoadRef = useRef(false);
+    const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    useEffect(() => {
+        if (!didLoadRef.current) return;
+        if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+        autosaveTimerRef.current = setTimeout(() => {
+            handleSaveRef.current({ silent: true });
+        }, 1500);
+        return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [feeStructures, feeMonths, bankDetails, qrImageUrl, extraColumns, studentFields, generalRemark, feeCardTheme]);
+
+    useImperativeHandle(ref, () => ({
+        save: () => handleSaveRef.current(),
+    }), []);
 
     const handleQrSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -522,7 +620,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
 
     const addMonth = () => {
         if (!newMonth || !newDueDate) return;
-        setFeeMonths(prev => [...prev, { id: `m-${Date.now()}`, month: newMonth, dueDate: newDueDate, assignedStructureIds: [], remark: '', status: 'PENDING' }]);
+        setFeeMonths(prev => [...prev, { id: `m-${Date.now()}`, month: newMonth, dueDate: newDueDate, assignedStructureIds: [], status: 'PENDING' }]);
         setNewMonth(''); setNewDueDate(''); setAddingMonth(false);
     };
 
@@ -570,63 +668,368 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                             </div>
                         )}
 
-                        {/* Save button */}
-                        <div className="flex justify-end">
-                            <button onClick={handleSave} disabled={saving}
-                                className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-all"
-                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                <Save size={13} />
-                                {saving ? 'Saving…' : 'Save Changes'}
-                            </button>
-                        </div>
-
-                        {/* ROW 1: Fee Structures + Payment Methods */}
+                        {/* ROW 1: Fee Card Template + Payment Methods */}
                         <div className="flex flex-col lg:flex-row gap-3">
 
-                            {/* LEFT — Fee Structures */}
-                            <div className="w-full lg:w-[55%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0 flex-wrap gap-2">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                            <Tag size={13} /> Fee Structures
-                                        </p>
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                            {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
-                                                const cfg = FEE_TYPE_CFG[t];
-                                                return (
-                                                    <span key={t} className={`text-[10px] font-semibold flex items-center gap-1 ${cfg.text}`}>
-                                                        {cfg.emoji} {cfg.label}
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
+                            {/* LEFT — Fee Card Template */}
+                            <div className="w-full lg:w-[55%] flex flex-col rounded-2xl shadow-sm shadow-black/5 border" style={{ perspective: '1000px', background: fc.bg, borderColor: fc.border }}>
+                            <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: `1px solid ${fc.border}` }}>
+                                <p className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2" style={{ color: '#000000' }}>
+                                    <Wallet size={14} /> Fee Card Template
+                                </p>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1 pr-1.5 mr-0.5 border-r" style={{ borderColor: fc.border }}>
+                                        {(Object.keys(FEE_CARD_THEMES) as FeeCardThemeKey[]).map(key => {
+                                            const t = FEE_CARD_THEMES[key];
+                                            const active = feeCardTheme === key;
+                                            return (
+                                                <button key={key} type="button" onClick={() => setFeeCardTheme(key)} title={t.name}
+                                                    className="w-5 h-5 rounded-full transition-all"
+                                                    style={{ background: t.bg, border: `1.5px solid ${t.border}`, boxShadow: active ? `0 0 0 2px ${t.border}` : 'none', transform: active ? 'scale(1.15)' : 'scale(1)' }} />
+                                            );
+                                        })}
                                     </div>
-                                    <button onClick={() => { setEditingStructure(undefined); setShowStructureModal(true); }}
-                                        className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
-                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                        <Plus size={11} /> Add Structure
+                                    <button
+                                        onClick={() => setFeeCardFlipped(v => !v)}
+                                        className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/30"
+                                        style={{ borderColor: fc.border, color: '#000000' }}>
+                                        <motion.span animate={{ rotate: feeCardFlipped ? 180 : 0 }} transition={{ duration: 0.4 }}>
+                                            <span style={{ fontSize: '16px', display: 'inline-block', transform: feeCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
+                                        </motion.span>
+                                        {feeCardFlipped ? 'View Front' : 'View Back'}
                                     </button>
                                 </div>
-                                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-                                    {feeStructures.length === 0 && (
-                                        <div className="text-center py-8">
-                                            <Tag size={24} className="mx-auto text-muted-foreground/30 mb-2" />
-                                            <p className="text-xs text-muted-foreground/60">No fee structures yet</p>
-                                            <p className="text-[11px] text-muted-foreground/40 mt-1">Add Regular, Add-on, or Event fee structures</p>
+                            </div>
+
+                            <motion.div
+                                animate={{ rotateY: feeCardFlipped ? 180 : 0 }}
+                                transition={{ duration: 0.5, ease: 'easeInOut' }}
+                                style={{ transformStyle: 'preserve-3d', position: 'relative', minHeight: '200px' }}>
+
+                                {/* FRONT */}
+                                <div style={{ backfaceVisibility: 'hidden' }} className={feeCardFlipped ? 'invisible' : ''}>
+                                    <div className="px-4 py-3 space-y-4" style={{ color: '#000000' }}>
+
+                                        {/* 1. Student Details */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Student Details</p>
+                                                <button onClick={() => setAddingStudentField(true)} className="text-[11px] font-medium hover:underline flex items-center gap-1" style={{ color: '#000000' }}>
+                                                    <Plus size={11} /> Add Field
+                                                </button>
+                                            </div>
+                                            <div className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border }}>
+                                                <Reorder.Group axis="y" values={studentFields} onReorder={setStudentFields} as="div">
+                                                    {studentFields.map((f, i) => {
+                                                        const previewValue = f.kind === 'default'
+                                                            ? f.defaultKey === 'name' ? 'Student Name'
+                                                                : f.defaultKey === 'rollNo' ? 'Roll Number'
+                                                                    : f.defaultKey === 'studentId' ? 'Student ID'
+                                                                        : f.defaultKey === 'class' ? (divisionName.split('-')[0] ?? divisionName)
+                                                                            : (divisionName.split('-')[1] ?? '')
+                                                            : f.value;
+                                                        return (
+                                                            <Reorder.Item key={f.id} value={f} as="div"
+                                                                className="flex items-center justify-between px-3 py-2 group"
+                                                                style={{ borderBottom: i === studentFields.length - 1 ? 'none' : `1px solid ${fc.border}`, cursor: 'grab' }}>
+                                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                                    <GripVertical size={12} style={{ color: '#000000', opacity: 0.3 }} className="shrink-0" />
+                                                                    <span className="text-[11px] w-20 shrink-0 truncate" style={{ color: '#000000' }}>{f.label}</span>
+                                                                </div>
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`text-[11px] font-medium italic ${f.kind === 'default' && f.defaultKey === 'studentId' ? 'font-mono' : ''}`} style={{ color: '#000000', opacity: 0.6 }}>{previewValue}</span>
+                                                                    <button onClick={() => setStudentFields(prev => prev.filter(x => x.id !== f.id))}
+                                                                        className="w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 shrink-0"
+                                                                        style={{ color: '#000000' }}>
+                                                                        <X size={10} />
+                                                                    </button>
+                                                                </div>
+                                                            </Reorder.Item>
+                                                        );
+                                                    })}
+                                                </Reorder.Group>
+                                                {addingStudentField && (
+                                                    <div className="flex items-center gap-2 px-3 py-2 border-t border-border/20">
+                                                        <input value={newStudentFieldLabel} onChange={e => setNewStudentFieldLabel(e.target.value)} placeholder="Field name"
+                                                            className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
+                                                        <button onClick={() => {
+                                                            if (!newStudentFieldLabel.trim()) return;
+                                                            setStudentFields(prev => [...prev, { id: `esf-${Date.now()}`, kind: 'custom', label: newStudentFieldLabel.trim(), value: newStudentFieldLabel.trim() }]);
+                                                            setNewStudentFieldLabel(''); setAddingStudentField(false);
+                                                        }} className="w-7 h-7 rounded-lg flex items-center justify-center text-white"
+                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                            <Check size={11} />
+                                                        </button>
+                                                        <button onClick={() => setAddingStudentField(false)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-black/10 border" style={{ color: '#000000', opacity: 0.6, borderColor: fc.border }}>
+                                                            <X size={11} />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                    {feeStructures.map(fs => (
-                                        <FeeStructureCard key={fs.id} fs={fs}
-                                            onEdit={() => { setEditingStructure(fs); setShowStructureModal(true); }}
-                                            onDelete={() => {
-                                                setFeeStructures(prev => prev.filter(s => s.id !== fs.id));
-                                                setFeeMonths(prev => prev.map(m => ({ ...m, assignedStructureIds: m.assignedStructureIds.filter(id => id !== fs.id) })));
-                                            }}
-                                        />
-                                    ))}
 
+                                        <div style={{ borderTop: `1px dashed ${fc.border}` }} />
 
+                                        {/* 2. Fee Table Columns */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Fee Table Columns</p>
+                                                <button onClick={() => setAddingColumn(true)} className="text-[11px] font-medium hover:underline flex items-center gap-1" style={{ color: '#000000' }}>
+                                                    <Plus size={11} /> Add Column
+                                                </button>
+                                            </div>
+                                            <div className="rounded-xl border overflow-x-auto" style={{ borderColor: fc.border }}>
+                                                <table className="text-xs w-full">
+                                                    <thead>
+                                                        <tr style={{ borderBottom: `1px solid ${fc.border}`, background: 'rgba(0,0,0,0.03)' }}>
+                                                            {['Month', 'Fee Structures', 'Amount', 'Due Date', 'Paid Date', 'Status', 'Remark'].map((col, i) => (
+                                                                <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{col}</th>
+                                                            ))}
+                                                            {extraColumns.map((col, i) => (
+                                                                <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>
+                                                                    <div className="flex items-center gap-1">
+                                                                        {col.label}
+                                                                        <button onClick={() => setExtraColumns(prev => prev.filter((_, j) => j !== i))}
+                                                                            className="w-3.5 h-3.5 flex items-center justify-center hover:text-red-500" style={{ color: '#000000', opacity: 0.4 }}>
+                                                                            <X size={9} />
+                                                                        </button>
+                                                                    </div>
+                                                                </th>
+                                                            ))}
+                                                            <th className="px-2 py-2">
+                                                                {addingColumn && (
+                                                                    <div className="flex items-center gap-1">
+                                                                        <input value={newColumnLabel} onChange={e => setNewColumnLabel(e.target.value)}
+                                                                            placeholder="Name" autoFocus
+                                                                            onKeyDown={e => { if (e.key === 'Enter' && newColumnLabel.trim()) { setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); } }}
+                                                                            className="w-20 h-6 px-2 rounded-lg border border-primary/50 bg-primary/5 text-[10px] focus:outline-none" />
+                                                                        <button onClick={() => { if (!newColumnLabel.trim()) return; setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); }}
+                                                                            className="w-5 h-5 rounded flex items-center justify-center text-white"
+                                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                                            <Check size={9} />
+                                                                        </button>
+                                                                        <button onClick={() => setAddingColumn(false)} className="w-5 h-5 rounded flex items-center justify-center hover:bg-black/10" style={{ color: '#000000', opacity: 0.6 }}>
+                                                                            <X size={9} />
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody>
+                                                        <tr className="italic" style={{ color: '#000000', opacity: 0.4 }}>
+                                                            {['June', '—', '—', '10 Jun', '—', 'Pending', '—', ...extraColumns.map(() => '—')].map((val, i) => (
+                                                                <td key={i} className="px-3 py-2 text-[11px]" style={{ borderRight: `1px solid ${fc.border}` }}>{val}</td>
+                                                            ))}
+                                                            <td className="px-2 py-2"></td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
+                                        </div>
+
+                                        <div style={{ borderTop: `1px dashed ${fc.border}` }} />
+
+                                        {/* 3. Monthly Fee Schedule */}
+                                        <div>
+                                            <div className="flex items-center justify-between mb-2">
+                                                <div>
+                                                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Monthly Fee Schedule</p>
+                                                    <p className="text-[10px] mt-0.5" style={{ color: '#000000', opacity: 0.7 }}>Assign fee structures to each month</p>
+                                                </div>
+                                                <button onClick={() => setAddingMonth(true)}
+                                                    className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                    <Plus size={11} /> Add Month
+                                                </button>
+                                            </div>
+
+                                            {feeMonths.length === 0 && !addingMonth && (
+                                                <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                    <Calendar size={20} className="mx-auto mb-2" style={{ color: '#000000', opacity: 0.5 }} />
+                                                    <p className="text-xs" style={{ color: '#000000' }}>No months added yet</p>
+                                                </div>
+                                            )}
+
+                                            <div className="h-[150px] overflow-y-auto space-y-1 pr-1"
+                                                style={{ scrollbarWidth: 'thin', scrollbarColor: `${fc.border} transparent` }}>
+                                                {feeMonths.map(m => {
+                                                    const total = monthTotal(m);
+                                                    const isExpanded = expandedMonthId === m.id;
+                                                    const isAssigning = assigningMonthId === m.id;
+                                                    const assignedCount = m.assignedStructureIds.length;
+                                                    return (
+                                                        <div key={m.id} className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border }}>
+                                                            <div className="flex items-center flex-wrap gap-3 px-3 py-2.5 hover:bg-black/5 transition-colors">
+                                                                <div className="w-20 shrink-0">
+                                                                    <p className="text-xs font-semibold" style={{ color: '#000000' }}>{m.month}</p>
+                                                                    <p className="text-[10px]" style={{ color: '#000000' }}>{m.dueDate || 'No due date'}</p>
+                                                                </div>
+                                                                <div className="flex-1 flex flex-wrap gap-1 min-w-0">
+                                                                    {m.assignedStructureIds.length === 0 ? (
+                                                                        <span className="text-[11px] italic" style={{ color: '#000000', opacity: 0.55 }}>No structures assigned</span>
+                                                                    ) : (
+                                                                        feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).map(s => (
+                                                                            <span key={s.id} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                                                                style={{ background: s.color + '20', color: s.color }}>
+                                                                                {s.name}
+                                                                            </span>
+                                                                        ))
+                                                                    )}
+                                                                </div>
+                                                                {total > 0 && <p className="text-xs font-bold shrink-0" style={{ color: '#7C3AED' }}>₹{total.toLocaleString()}</p>}
+                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                    <button onClick={() => setAssigningMonthId(isAssigning ? null : m.id)}
+                                                                        className={`h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all ${isAssigning ? 'bg-primary text-white border-primary' : 'hover:border-primary/40 hover:text-primary'}`}
+                                                                        style={!isAssigning ? { borderColor: fc.border, color: '#000000', opacity: 0.75 } : undefined}>
+                                                                        {assignedCount > 0 ? `${assignedCount} assigned` : 'Assign'}
+                                                                    </button>
+                                                                    <button onClick={() => setExpandedMonthId(isExpanded ? null : m.id)}
+                                                                        className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-black/10 transition-all" style={{ color: '#000000', opacity: 0.7 }}>
+                                                                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                                                    </button>
+                                                                    <button onClick={() => setFeeMonths(prev => prev.filter(x => x.id !== m.id))}
+                                                                        className="w-6 h-6 rounded-md flex items-center justify-center hover:text-red-500 transition-all" style={{ color: '#000000', opacity: 0.45 }}>
+                                                                        <X size={11} />
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+
+                                                            <AnimatePresence>
+                                                                {isAssigning && (
+                                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                                                        <div className="px-3 pb-2.5 pt-2 border-t" style={{ borderColor: fc.border }}>
+                                                                            <p className="text-[10px] font-semibold mb-2" style={{ color: '#000000', opacity: 0.7 }}>Select fee structures for {m.month}</p>
+                                                                            {feeStructures.length === 0 ? (
+                                                                                <p className="text-[11px] italic" style={{ color: '#000000', opacity: 0.55 }}>Create fee structures first</p>
+                                                                            ) : (
+                                                                                <div className="flex flex-wrap gap-1.5">
+                                                                                    {feeStructures.map(s => {
+                                                                                        const active = m.assignedStructureIds.includes(s.id);
+                                                                                        return (
+                                                                                            <button key={s.id} onClick={() => toggleStructureForMonth(m.id, s.id)}
+                                                                                                className="flex items-center gap-1.5 h-7 px-3 rounded-xl border-2 text-[11px] font-semibold transition-all"
+                                                                                                style={active ? { borderColor: s.color, background: s.color + '20', color: s.color } : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}>
+                                                                                                {active && <Check size={10} />}
+                                                                                                {s.name}
+                                                                                                <span className="opacity-60 text-[10px]">₹{structureTotal(s).toLocaleString()}</span>
+                                                                                            </button>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+
+                                                            <AnimatePresence>
+                                                                {isExpanded && (
+                                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                                                        <div className="border-t border-border/20 bg-muted/5">
+                                                                            <MonthBreakdown month={m} feeStructures={feeStructures} />
+                                                                        </div>
+                                                                    </motion.div>
+                                                                )}
+                                                            </AnimatePresence>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {addingMonth && (
+                                                <div className="mt-2 px-3 py-2 rounded-xl border flex items-center flex-wrap gap-2" style={{ borderColor: fc.border, background: 'rgba(255,255,255,0.5)' }}>
+                                                    <div ref={monthDropdownRef} className="relative">
+                                                        <button type="button" onClick={() => setMonthDropdownOpen(v => !v)}
+                                                            className="flex items-center gap-1.5 h-8 px-3 rounded-xl border text-xs font-medium hover:border-primary/40 transition-all"
+                                                            style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }}>
+                                                            {newMonth || 'Select Month'} <ChevronDown size={11} className={`transition-transform ${monthDropdownOpen ? 'rotate-180' : ''}`} />
+                                                        </button>
+                                                        <AnimatePresence>
+                                                            {monthDropdownOpen && (
+                                                                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                                                                    className="absolute bottom-9 left-0 z-50 rounded-xl shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto border"
+                                                                    style={{ background: '#FFFFFF', borderColor: fc.border }}>
+                                                                    {MONTHS.map(m => (
+                                                                        <button key={m} type="button" onClick={() => { setNewMonth(m); setMonthDropdownOpen(false); }}
+                                                                            className="w-full text-left px-3 py-2 text-xs hover:bg-black/5 transition-colors"
+                                                                            style={{ color: newMonth === m ? '#DA7756' : '#000000', fontWeight: newMonth === m ? 600 : 400 }}>
+                                                                            {m}
+                                                                        </button>
+                                                                    ))}
+                                                                </motion.div>
+                                                            )}
+                                                        </AnimatePresence>
+                                                    </div>
+                                                    <input value={newDueDate} onChange={e => setNewDueDate(e.target.value)} placeholder="Due date (e.g. 10 Jun)"
+                                                        className="w-36 h-8 px-3 rounded-xl border text-xs focus:outline-none focus:border-primary/50 placeholder:text-black/50"
+                                                        style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
+                                                    <button onClick={addMonth} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
+                                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                        <Check size={13} />
+                                                    </button>
+                                                    <button onClick={() => { setAddingMonth(false); setNewMonth(''); setNewDueDate(''); }}
+                                                        className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-black/10 border"
+                                                        style={{ borderColor: fc.border, color: '#000000' }}>
+                                                        <X size={13} />
+                                                    </button>
+                                                </div>
+                                            )}
+
+                                            {feeMonths.length > 0 && (
+                                                <div className="flex items-center justify-between mt-2 px-1">
+                                                    <span className="text-[11px]" style={{ color: '#000000', opacity: 0.6 }}>{feeMonths.length} months</span>
+                                                    <span className="text-xs font-bold">
+                                                        Annual Total: <span style={{ color: '#7C3AED' }}>₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}</span>
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                    </div>
                                 </div>
+
+                                {/* BACK — Rules & Regulations */}
+                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: fc.bg }}
+                                    className={!feeCardFlipped ? 'invisible' : ''}>
+                                    <div className="px-4 py-3 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Rules & Regulations</p>
+                                            <button onClick={() => {
+                                                setRulesAndRegs(prev => [...prev, { id: `r-${Date.now()}`, text: '' }]);
+                                            }} className="text-[11px] font-medium hover:underline flex items-center gap-1" style={{ color: '#000000' }}>
+                                                <Plus size={11} /> Add Rule
+                                            </button>
+                                        </div>
+                                        <div className="space-y-2">
+                                            {rulesAndRegs.map((rule, i) => (
+                                                <div key={rule.id} className="flex items-start gap-2">
+                                                    <span className="text-[11px] font-bold mt-2 w-5 shrink-0" style={{ color: '#000000' }}>{i + 1}.</span>
+                                                    <textarea
+                                                        value={rule.text}
+                                                        onChange={e => setRulesAndRegs(prev => prev.map(r => r.id === rule.id ? { ...r, text: e.target.value } : r))}
+                                                        placeholder="Enter rule or regulation..."
+                                                        rows={2}
+                                                        className="flex-1 px-3 py-2 rounded-xl border bg-white/30 text-xs focus:outline-none transition-all resize-none"
+                                                        style={{ borderColor: fc.border, color: '#000000' }}
+                                                    />
+                                                    <button onClick={() => setRulesAndRegs(prev => prev.filter(r => r.id !== rule.id))}
+                                                        className="w-6 h-6 mt-1.5 rounded flex items-center justify-center hover:text-red-500 shrink-0" style={{ color: '#000000', opacity: 0.4 }}>
+                                                        <X size={11} />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                            {rulesAndRegs.length === 0 && (
+                                                <div className="py-8 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                    <p className="text-xs" style={{ color: '#000000' }}>No rules added yet</p>
+                                                    <p className="text-[11px] mt-1" style={{ color: '#000000', opacity: 0.6 }}>Add fee counter timings, late fee rules, etc.</p>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </motion.div>
                             </div>
 
                             {/* RIGHT — Payment Methods */}
@@ -714,332 +1117,51 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                             </div>
                         </div>
 
-                        {/* ROW 3: Fee Card Template */}
-                        <div className="bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5" style={{ perspective: '1000px' }}>
-                            <div className="px-4 py-2.5 border-b border-border/50 bg-muted/20 flex items-center justify-between">
-                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                    <Wallet size={14} /> Fee Card Template
-                                </p>
-                                <button
-                                    onClick={() => setFeeCardFlipped(v => !v)}
-                                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-all">
-                                    <motion.span animate={{ rotate: feeCardFlipped ? 180 : 0 }} transition={{ duration: 0.4 }}>
-                                        <span style={{ fontSize: '16px', display: 'inline-block', transform: feeCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
-                                    </motion.span>
-                                    {feeCardFlipped ? 'View Front' : 'View Back'}
-                                </button>
-                            </div>
-
-                            <motion.div
-                                animate={{ rotateY: feeCardFlipped ? 180 : 0 }}
-                                transition={{ duration: 0.5, ease: 'easeInOut' }}
-                                style={{ transformStyle: 'preserve-3d', position: 'relative', minHeight: '200px' }}>
-
-                                {/* FRONT */}
-                                <div style={{ backfaceVisibility: 'hidden' }} className={feeCardFlipped ? 'invisible' : ''}>
-                                    <div className="px-4 py-3 space-y-4">
-
-                                        {/* 1. Student Details */}
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Student Details</p>
-                                                <button onClick={() => setAddingStudentField(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
-                                                    <Plus size={11} /> Add Field
-                                                </button>
-                                            </div>
-                                            <div className="rounded-xl border border-border/40 overflow-hidden">
-                                                {[{ label: 'Name', value: 'Student Name' }, { label: 'Roll No', value: 'Roll Number' }, { label: 'Class', value: divisionName.split('-')[0] ?? divisionName }, { label: 'Division', value: divisionName.split('-')[1] ?? '' }, ...extraStudentFields].map((f, i) => (
-                                                    <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border/20 last:border-none">
-                                                        <span className="text-[11px] text-muted-foreground w-24 shrink-0">{f.label}</span>
-                                                        <span className="text-[11px] font-medium text-foreground/50 italic">{f.value}</span>
-                                                    </div>
-                                                ))}
-                                                {addingStudentField && (
-                                                    <div className="flex items-center gap-2 px-3 py-2 border-t border-border/20">
-                                                        <input value={newStudentFieldLabel} onChange={e => setNewStudentFieldLabel(e.target.value)} placeholder="Field name"
-                                                            className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
-                                                        <button onClick={() => {
-                                                            if (!newStudentFieldLabel.trim()) return;
-                                                            setExtraStudentFields(prev => [...prev, { label: newStudentFieldLabel.trim(), value: newStudentFieldLabel.trim() }]);
-                                                            setNewStudentFieldLabel(''); setAddingStudentField(false);
-                                                        }} className="w-7 h-7 rounded-lg flex items-center justify-center text-white"
-                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                            <Check size={11} />
-                                                        </button>
-                                                        <button onClick={() => setAddingStudentField(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
-                                                            <X size={11} />
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="border-t border-border/40" />
-
-                                        {/* 2. Fee Table Columns */}
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Fee Table Columns</p>
-                                                <button onClick={() => setAddingColumn(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
-                                                    <Plus size={11} /> Add Column
-                                                </button>
-                                            </div>
-                                            <div className="rounded-xl border border-border/40 overflow-x-auto">
-                                                <table className="text-xs w-full">
-                                                    <thead>
-                                                        <tr className="bg-muted/30 border-b border-border/40">
-                                                            {['Month', 'Fee Structures', 'Amount', 'Due Date', 'Paid Date', 'Status', 'Remark'].map((col, i) => (
-                                                                <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
-                                                            ))}
-                                                            {extraColumns.map((col, i) => (
-                                                                <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground whitespace-nowrap">
-                                                                    <div className="flex items-center gap-1">
-                                                                        {col.label}
-                                                                        <button onClick={() => setExtraColumns(prev => prev.filter((_, j) => j !== i))}
-                                                                            className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
-                                                                            <X size={9} />
-                                                                        </button>
-                                                                    </div>
-                                                                </th>
-                                                            ))}
-                                                            <th className="px-2 py-2">
-                                                                {addingColumn && (
-                                                                    <div className="flex items-center gap-1">
-                                                                        <input value={newColumnLabel} onChange={e => setNewColumnLabel(e.target.value)}
-                                                                            placeholder="Name" autoFocus
-                                                                            onKeyDown={e => { if (e.key === 'Enter' && newColumnLabel.trim()) { setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); } }}
-                                                                            className="w-20 h-6 px-2 rounded-lg border border-primary/50 bg-primary/5 text-[10px] focus:outline-none" />
-                                                                        <button onClick={() => { if (!newColumnLabel.trim()) return; setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); }}
-                                                                            className="w-5 h-5 rounded flex items-center justify-center text-white"
-                                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                                            <Check size={9} />
-                                                                        </button>
-                                                                        <button onClick={() => setAddingColumn(false)} className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:bg-muted">
-                                                                            <X size={9} />
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr className="text-muted-foreground/40 italic">
-                                                            {['June', '—', '—', '10 Jun', '—', 'Pending', '—', ...extraColumns.map(() => '—')].map((val, i) => (
-                                                                <td key={i} className="px-3 py-2 text-[11px]">{val}</td>
-                                                            ))}
-                                                            <td className="px-2 py-2"></td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-                                        <div className="border-t border-border/40" />
-
-                                        {/* 3. Monthly Fee Schedule */}
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div>
-                                                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Monthly Fee Schedule</p>
-                                                    <p className="text-[10px] text-muted-foreground/60 mt-0.5">Assign fee structures to each month</p>
-                                                </div>
-                                                <button onClick={() => setAddingMonth(true)}
-                                                    className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
-                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                    <Plus size={11} /> Add Month
-                                                </button>
-                                            </div>
-
-                                            {feeMonths.length === 0 && !addingMonth && (
-                                                <div className="py-6 text-center rounded-xl border border-dashed border-border/40">
-                                                    <Calendar size={20} className="mx-auto text-muted-foreground/30 mb-2" />
-                                                    <p className="text-xs text-muted-foreground/60">No months added yet</p>
-                                                </div>
-                                            )}
-
-                                            <div className="space-y-1">
-                                                {feeMonths.map(m => {
-                                                    const total = monthTotal(m);
-                                                    const isExpanded = expandedMonthId === m.id;
-                                                    const isAssigning = assigningMonthId === m.id;
-                                                    const assignedCount = m.assignedStructureIds.length;
-                                                    return (
-                                                        <div key={m.id} className="rounded-xl border border-border/40 overflow-hidden">
-                                                            <div className="flex items-center flex-wrap gap-3 px-3 py-2.5 bg-muted/20 hover:bg-muted/30 transition-colors">
-                                                                <div className="w-20 shrink-0">
-                                                                    <p className="text-xs font-semibold">{m.month}</p>
-                                                                    <p className="text-[10px] text-muted-foreground">{m.dueDate || 'No due date'}</p>
-                                                                </div>
-                                                                <div className="flex-1 flex flex-wrap gap-1 min-w-0">
-                                                                    {m.assignedStructureIds.length === 0 ? (
-                                                                        <span className="text-[11px] text-muted-foreground/50 italic">No structures assigned</span>
-                                                                    ) : (
-                                                                        feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).map(s => (
-                                                                            <span key={s.id} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                                                                                style={{ background: s.color + '20', color: s.color }}>
-                                                                                {s.name}
-                                                                            </span>
-                                                                        ))
-                                                                    )}
-                                                                </div>
-                                                                {total > 0 && <p className="text-xs font-bold shrink-0" style={{ color: '#7C3AED' }}>₹{total.toLocaleString()}</p>}
-                                                                <input value={m.remark} onChange={e => setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, remark: e.target.value } : x))}
-                                                                    placeholder="Remark..." className="w-24 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/40 shrink-0" />
-                                                                <div className="flex items-center gap-1 shrink-0">
-                                                                    <button onClick={() => setAssigningMonthId(isAssigning ? null : m.id)}
-                                                                        className={`h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all ${isAssigning ? 'bg-primary text-white border-primary' : 'border-border/50 text-muted-foreground hover:border-primary/40 hover:text-primary'}`}>
-                                                                        {assignedCount > 0 ? `${assignedCount} assigned` : 'Assign'}
-                                                                    </button>
-                                                                    <button onClick={() => setExpandedMonthId(isExpanded ? null : m.id)}
-                                                                        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                                                                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                                                    </button>
-                                                                    <button onClick={() => setFeeMonths(prev => prev.filter(x => x.id !== m.id))}
-                                                                        className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground/40 hover:text-red-500 transition-all">
-                                                                        <X size={11} />
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-
-                                                            <AnimatePresence>
-                                                                {isAssigning && (
-                                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                                                        <div className="px-3 pb-2.5 pt-2 bg-muted/10 border-t border-border/20">
-                                                                            <p className="text-[10px] font-semibold text-muted-foreground mb-2">Select fee structures for {m.month}</p>
-                                                                            {feeStructures.length === 0 ? (
-                                                                                <p className="text-[11px] text-muted-foreground/60 italic">Create fee structures first</p>
-                                                                            ) : (
-                                                                                <div className="flex flex-wrap gap-1.5">
-                                                                                    {feeStructures.map(s => {
-                                                                                        const active = m.assignedStructureIds.includes(s.id);
-                                                                                        return (
-                                                                                            <button key={s.id} onClick={() => toggleStructureForMonth(m.id, s.id)}
-                                                                                                className="flex items-center gap-1.5 h-7 px-3 rounded-xl border-2 text-[11px] font-semibold transition-all"
-                                                                                                style={active ? { borderColor: s.color, background: s.color + '20', color: s.color } : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}>
-                                                                                                {active && <Check size={10} />}
-                                                                                                {s.name}
-                                                                                                <span className="opacity-60 text-[10px]">₹{structureTotal(s).toLocaleString()}</span>
-                                                                                            </button>
-                                                                                        );
-                                                                                    })}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-
-                                                            <AnimatePresence>
-                                                                {isExpanded && (
-                                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                                                        <div className="border-t border-border/20 bg-muted/5">
-                                                                            <MonthBreakdown month={m} feeStructures={feeStructures} />
-                                                                        </div>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-                                                        </div>
-                                                    );
-                                                })}
-                                            </div>
-
-                                            {addingMonth && (
-                                                <div className="mt-2 px-3 py-2 rounded-xl border border-primary/30 bg-primary/5 flex items-center flex-wrap gap-2">
-                                                    <div ref={monthDropdownRef} className="relative">
-                                                        <button type="button" onClick={() => setMonthDropdownOpen(v => !v)}
-                                                            className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border/50 bg-card text-xs font-medium text-muted-foreground hover:border-primary/40 transition-all">
-                                                            {newMonth || 'Select Month'} <ChevronDown size={11} className={`transition-transform ${monthDropdownOpen ? 'rotate-180' : ''}`} />
-                                                        </button>
-                                                        <AnimatePresence>
-                                                            {monthDropdownOpen && (
-                                                                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                                                                    className="absolute bottom-9 left-0 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto">
-                                                                    {MONTHS.map(m => (
-                                                                        <button key={m} type="button" onClick={() => { setNewMonth(m); setMonthDropdownOpen(false); }}
-                                                                            className={`w-full text-left px-3 py-2 text-xs hover:bg-muted transition-colors ${newMonth === m ? 'text-primary font-semibold' : 'text-foreground'}`}>
-                                                                            {m}
-                                                                        </button>
-                                                                    ))}
-                                                                </motion.div>
-                                                            )}
-                                                        </AnimatePresence>
-                                                    </div>
-                                                    <input value={newDueDate} onChange={e => setNewDueDate(e.target.value)} placeholder="Due date (e.g. 10 Jun)"
-                                                        className="w-36 h-8 px-3 rounded-xl border border-border/50 bg-card text-xs focus:outline-none focus:border-primary/50" />
-                                                    <button onClick={addMonth} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
-                                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                        <Check size={13} />
-                                                    </button>
-                                                    <button onClick={() => { setAddingMonth(false); setNewMonth(''); setNewDueDate(''); }}
-                                                        className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
-                                                        <X size={13} />
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            {feeMonths.length > 0 && (
-                                                <div className="flex items-center justify-between mt-2 px-1">
-                                                    <span className="text-[11px] text-muted-foreground">{feeMonths.length} months</span>
-                                                    <span className="text-xs font-bold">
-                                                        Annual Total: <span style={{ color: '#7C3AED' }}>₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}</span>
+                        {/* ROW 2: Fee Structures */}
+                        <div className="flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0 flex-wrap gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                            <Tag size={13} /> Fee Structures
+                                        </p>
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                            {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
+                                                const cfg = FEE_TYPE_CFG[t];
+                                                return (
+                                                    <span key={t} className={`text-[10px] font-semibold flex items-center gap-1 ${cfg.text}`}>
+                                                        {cfg.emoji} {cfg.label}
                                                     </span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                    </div>
-                                </div>
-
-                                {/* BACK — Rules & Regulations */}
-                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                                    className={!feeCardFlipped ? 'invisible' : ''}>
-                                    <div className="px-4 py-3 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Rules & Regulations</p>
-                                            <button onClick={() => {
-                                                setRulesAndRegs(prev => [...prev, { id: `r-${Date.now()}`, text: '' }]);
-                                            }} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
-                                                <Plus size={11} /> Add Rule
-                                            </button>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {rulesAndRegs.map((rule, i) => (
-                                                <div key={rule.id} className="flex items-start gap-2">
-                                                    <span className="text-[11px] font-bold text-muted-foreground mt-2 w-5 shrink-0">{i + 1}.</span>
-                                                    <textarea
-                                                        value={rule.text}
-                                                        onChange={e => setRulesAndRegs(prev => prev.map(r => r.id === rule.id ? { ...r, text: e.target.value } : r))}
-                                                        placeholder="Enter rule or regulation..."
-                                                        rows={2}
-                                                        className="flex-1 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 text-xs focus:outline-none focus:border-primary/50 transition-all resize-none"
-                                                    />
-                                                    <button onClick={() => setRulesAndRegs(prev => prev.filter(r => r.id !== rule.id))}
-                                                        className="w-6 h-6 mt-1.5 rounded flex items-center justify-center text-muted-foreground/40 hover:text-red-500 shrink-0">
-                                                        <X size={11} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {rulesAndRegs.length === 0 && (
-                                                <div className="py-8 text-center rounded-xl border border-dashed border-border/40">
-                                                    <p className="text-xs text-muted-foreground/60">No rules added yet</p>
-                                                    <p className="text-[11px] text-muted-foreground/40 mt-1">Add fee counter timings, late fee rules, etc.</p>
-                                                </div>
-                                            )}
+                                                );
+                                            })}
                                         </div>
                                     </div>
+                                    <button onClick={() => { setEditingStructure(undefined); setShowStructureModal(true); }}
+                                        className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                        <Plus size={11} /> Add Structure
+                                    </button>
                                 </div>
+                                <div className="h-[260px] overflow-y-auto px-4 py-3 space-y-2"
+                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                    {feeStructures.length === 0 && (
+                                        <div className="text-center py-8">
+                                            <Tag size={24} className="mx-auto text-muted-foreground/30 mb-2" />
+                                            <p className="text-xs text-muted-foreground/60">No fee structures yet</p>
+                                            <p className="text-[11px] text-muted-foreground/40 mt-1">Add Regular, Add-on, or Event fee structures</p>
+                                        </div>
+                                    )}
+                                    {feeStructures.map(fs => (
+                                        <FeeStructureCard key={fs.id} fs={fs}
+                                            onEdit={() => { setEditingStructure(fs); setShowStructureModal(true); }}
+                                            onDelete={() => {
+                                                setFeeStructures(prev => prev.filter(s => s.id !== fs.id));
+                                                setFeeMonths(prev => prev.map(m => ({ ...m, assignedStructureIds: m.assignedStructureIds.filter(id => id !== fs.id) })));
+                                            }}
+                                        />
+                                    ))}
 
-                            </motion.div>
-                        </div>
 
-                        {/* Bottom Save button */}
-                        <div className="flex justify-end pb-1">
-                            <button onClick={handleSave} disabled={saving}
-                                className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-all"
-                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                <Save size={13} />
-                                {saving ? 'Saving…' : 'Save Changes'}
-                            </button>
+                                </div>
                         </div>
 
                     </motion.div>
@@ -1087,8 +1209,8 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                             </div>
                             <div className="flex-1 overflow-y-auto bg-background">
                                 {students.filter(s => studentFilter === 'all' ? true : studentFilter === 'paid' ? s.paid : !s.paid).map(student => (
-                                    <button key={student.id} onClick={() => setSelectedStudent(student)}
-                                        className={`w-full flex items-center gap-3 px-3.5 py-3 border-b border-border/20 text-left hover:bg-muted/30 transition-all ${selectedStudent?.id === student.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
+                                    <button key={student.id} onClick={() => setSelectedStudent(prev => prev?.id === student.id ? null : student)}
+                                        className={`w-full flex items-center gap-3 px-3.5 py-3 border-b border-border/20 text-left hover:bg-muted/30 transition-colors ${selectedStudent?.id === student.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
                                         <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
                                             style={{ background: getAvatarColor(student.name) }}>
                                             {getInitials(student.name)}
@@ -1110,7 +1232,7 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                             <div className="px-4 py-3 border-b border-border/40 shrink-0">
                                 <p className="text-sm font-bold">Fee Details</p>
                             </div>
-                            <div className="flex-1 overflow-y-auto bg-background px-4 py-3">
+                            <div ref={feeDetailsScrollRef} className="flex-1 overflow-y-auto bg-background px-4 py-3">
                                 {!selectedStudent ? (
                                     <div className="flex flex-col items-center justify-center h-full text-center">
                                         <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3"><Users size={20} className="text-muted-foreground" /></div>
@@ -1143,75 +1265,79 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                 style={{ transformStyle: 'preserve-3d', position: 'relative' }}>
 
                                                 {/* FRONT */}
-                                                <div style={{ backfaceVisibility: 'hidden' }}
-                                                    className={`bg-card rounded-2xl border border-border/50 shadow-sm ${studentCardFlipped ? 'invisible' : ''}`}>
+                                                <div style={{ backfaceVisibility: 'hidden', background: fc.bg, borderColor: fc.border }}
+                                                    className={`rounded-2xl border ${studentCardFlipped ? 'invisible' : ''}`}>
 
                                                     {/* Header */}
-                                                    <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between bg-muted/20 rounded-t-2xl">
+                                                    <div className="px-4 py-3 flex items-center justify-between rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                                         <div>
-                                                            <p className="text-sm font-bold">{selectedStudent.name}'s Fee Card</p>
-                                                            <p className="text-[11px] text-muted-foreground">{divisionName}</p>
+                                                            <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
+                                                            <p className="text-[11px]" style={{ color: '#000000' }}>{divisionName}</p>
                                                         </div>
                                                         <button onClick={() => setStudentCardFlipped(true)}
-                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-all">
+                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40"
+                                                            style={{ borderColor: fc.border, color: '#000000' }}>
                                                             <span style={{ fontSize: '16px', display: 'inline-block', transform: studentCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
                                                             View Back
                                                         </button>
                                                     </div>
 
                                                     {/* Content */}
-                                                    <div className="space-y-4 px-4 py-3">
+                                                    <div className="space-y-4 px-4 py-3" style={{ color: '#000000' }}>
 
                                                         {/* Student Details */}
                                                         <div>
-                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Student Details</p>
-                                                            <div className="rounded-xl border border-border/40 overflow-hidden">
-                                                                {[
-                                                                    { label: 'Name', value: selectedStudent.name },
-                                                                    { label: 'Student ID', value: selectedStudent.studentDisplayId },
-                                                                    { label: 'Roll No', value: selectedStudent.rollNo },
-                                                                    { label: 'Class', value: divisionName.split('-')[0] ?? divisionName },
-                                                                    { label: 'Division', value: divisionName.split('-')[1] ?? '' },
-                                                                    ...extraStudentFields,
-                                                                ].map((f, i) => (
-                                                                    <div key={i} className="flex items-center justify-between px-3 py-2 border-b border-border/20 last:border-none">
-                                                                        <span className="text-[11px] text-muted-foreground w-24 shrink-0">{f.label}</span>
-                                                                        <span className="text-[11px] font-medium">{f.value}</span>
-                                                                    </div>
-                                                                ))}
+                                                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Student Details</p>
+                                                            <div className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border, background: fc.bg }}>
+                                                                {studentFields.map((f, i) => {
+                                                                    const value = f.kind === 'default'
+                                                                        ? f.defaultKey === 'name' ? selectedStudent.name
+                                                                            : f.defaultKey === 'rollNo' ? selectedStudent.rollNo
+                                                                                : f.defaultKey === 'studentId' ? selectedStudent.studentDisplayId
+                                                                                    : f.defaultKey === 'class' ? (divisionName.split('-')[0] ?? divisionName)
+                                                                                        : (divisionName.split('-')[1] ?? '')
+                                                                        : f.value;
+                                                                    const isStudentId = f.kind === 'default' && f.defaultKey === 'studentId';
+                                                                    return (
+                                                                        <div key={f.id} className="flex items-center justify-between px-3 py-2 last:border-none" style={{ borderBottom: `1px solid ${fc.border}` }}>
+                                                                            <span className="text-[11px] w-24 shrink-0" style={{ color: '#000000' }}>{f.label}</span>
+                                                                            <span className={`text-[11px] font-semibold ${isStudentId ? 'font-mono' : ''}`} style={{ color: isStudentId ? '#DA7756' : '#000000' }}>{value}</span>
+                                                                        </div>
+                                                                    );
+                                                                })}
                                                             </div>
                                                         </div>
 
-                                                        <div className="border-t border-border/40" />
+                                                        <div style={{ borderTop: `1px dashed ${fc.border}` }} />
 
                                                         {/* Monthly Payment Schedule */}
                                                         {feeMonths.length > 0 && (
                                                             <div>
-                                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Monthly Payment Schedule</p>
-                                                                <div className="rounded-xl border border-border/40 overflow-x-auto">
-                                                                    <table className="text-xs w-full">
+                                                                <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Monthly Payment Schedule</p>
+                                                                <div className="rounded-xl border overflow-x-auto" style={{ borderColor: fc.border }}>
+                                                                    <table className="text-xs w-full" style={{ color: '#000000' }}>
                                                                         <thead>
-                                                                            <tr className="bg-muted/10 border-b border-border/30">
+                                                                            <tr style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                                                                 {['Month', 'Fee Structures', 'Amount (₹)', 'Due Date', 'Paid Date', 'Status', 'Remark', ...extraColumns.map(c => c.label)].map((col, i) => (
-                                                                                    <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold text-muted-foreground whitespace-nowrap">{col}</th>
+                                                                                    <th key={i} className="px-3 py-2 text-left text-[11px] font-bold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{col}</th>
                                                                                 ))}
                                                                             </tr>
                                                                         </thead>
-                                                                        <tbody className="divide-y divide-border/20">
-                                                                            {feeMonths.map(m => {
+                                                                        <tbody>
+                                                                            {feeMonths.map((m, mi) => {
                                                                                 const total = monthTotal(m);
                                                                                 const assigned = feeStructures.filter(s => m.assignedStructureIds.includes(s.id));
                                                                                 return (
-                                                                                    <tr key={m.id} className="hover:bg-muted/10 transition-colors">
-                                                                                        <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer"
+                                                                                    <tr key={m.id} className="transition-colors" style={{ background: selectedMonth === m.id ? `${fc.border}80` : mi % 2 === 1 ? fc.bg : 'transparent', borderTop: `1px solid ${fc.border}` }}>
+                                                                                        <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
                                                                                             onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
                                                                                             {m.month}
                                                                                         </td>
-                                                                                        <td className="px-3 py-2 cursor-pointer"
+                                                                                        <td className="px-3 py-2 cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
                                                                                             onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
                                                                                             <div className="flex flex-wrap gap-0.5">
                                                                                                 {assigned.length === 0
-                                                                                                    ? <span className="text-[10px] text-muted-foreground/50 italic">—</span>
+                                                                                                    ? <span className="text-[10px] italic" style={{ color: '#000000', opacity: 0.4 }}>—</span>
                                                                                                     : assigned.map(s => (
                                                                                                         <span key={s.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
                                                                                                             style={{ background: s.color + '20', color: s.color }}>
@@ -1221,31 +1347,36 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                                                                 }
                                                                                             </div>
                                                                                         </td>
-                                                                                        <td className="px-3 py-2 font-bold">{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
-                                                                                        <td className="px-3 py-2 text-muted-foreground">{m.dueDate}</td>
-                                                                                        <td className="px-3 py-2">
+                                                                                        <td className="px-3 py-2 font-bold" style={{ borderRight: `1px solid ${fc.border}` }}>{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
+                                                                                        <td className="px-3 py-2" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{m.dueDate}</td>
+                                                                                        <td className="px-3 py-2" style={{ borderRight: `1px solid ${fc.border}` }}>
                                                                                             <input value={getPayment(selectedStudent.id, m.id).paidDate ?? ''} onChange={e => setPaymentField(m.id, { paidDate: e.target.value })}
-                                                                                                placeholder="—" className="w-20 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-muted-foreground/40" />
+                                                                                                placeholder="—" className="w-20 h-6 px-2 rounded-lg border bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-black/40"
+                                                                                                style={{ borderColor: fc.border, color: '#000000' }} />
                                                                                         </td>
-                                                                                        <td className="px-3 py-2">
+                                                                                        <td className="px-3 py-2" style={{ borderRight: `1px solid ${fc.border}` }}>
                                                                                             <button onClick={() => setPaymentField(m.id, { status: getPayment(selectedStudent.id, m.id).status === 'PAID' ? 'PENDING' : 'PAID' })}
                                                                                                 className={`flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-semibold transition-all ${STATUS_CFG[getPayment(selectedStudent.id, m.id).status].cls}`}>
                                                                                                 {getPayment(selectedStudent.id, m.id).status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[getPayment(selectedStudent.id, m.id).status].label}
                                                                                             </button>
                                                                                         </td>
-                                                                                        <td className="px-3 py-2 text-muted-foreground text-[11px]">{m.remark || '—'}</td>
+                                                                                        <td className="px-3 py-2" style={{ borderRight: extraColumns.length > 0 ? `1px solid ${fc.border}` : 'none' }}>
+                                                                                            <input value={getPayment(selectedStudent.id, m.id).remark ?? ''} onChange={e => setPaymentField(m.id, { remark: e.target.value })}
+                                                                                                placeholder="e.g. Late payment" className="w-28 h-6 px-2 rounded-lg border bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-black/40"
+                                                                                                style={{ borderColor: fc.border, color: '#000000' }} />
+                                                                                        </td>
                                                                                         {extraColumns.map((col, ci) => (
-                                                                                            <td key={ci} className="px-3 py-2">
-                                                                                                <input placeholder="—" className="w-16 h-6 px-2 rounded-lg border border-border/40 bg-transparent text-[11px] focus:outline-none" />
+                                                                                            <td key={ci} className="px-3 py-2" style={{ borderRight: ci === extraColumns.length - 1 ? 'none' : `1px solid ${fc.border}` }}>
+                                                                                                <input placeholder="—" className="w-16 h-6 px-2 rounded-lg border bg-transparent text-[11px] focus:outline-none" style={{ borderColor: fc.border }} />
                                                                                             </td>
                                                                                         ))}
                                                                                     </tr>
                                                                                 );
                                                                             })}
-                                                                            <tr className="bg-muted/20 border-t-2 border-border/40">
-                                                                                <td className="px-3 py-2 font-bold text-[11px]">Annual Total</td>
+                                                                            <tr style={{ background: fc.bg, borderTop: `2px solid ${fc.border}` }}>
+                                                                                <td className="px-3 py-2 font-bold text-[11px]" style={{ color: '#000000' }}>Annual Total</td>
                                                                                 <td />
-                                                                                <td className="px-3 py-2 text-[11px] font-black" style={{ color: '#7C3AED' }}>
+                                                                                <td className="px-3 py-2 text-[11px] font-black" style={{ color: '#000000' }}>
                                                                                     ₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}
                                                                                 </td>
                                                                                 <td colSpan={4 + extraColumns.length} />
@@ -1256,28 +1387,27 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                             </div>
                                                         )}
 
-                                                        <div className="border-t border-border/40" />
+                                                        <div style={{ borderTop: `1px dashed ${fc.border}` }} />
 
                                                         {/* Fee Structure Breakdown */}
-                                                        <div className="border-t border-border/40" />
                                                         <div>
-                                                            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                                                            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>
                                                                 {selectedMonth
-                                                                    ? `Fee Structure Breakdown — ${feeMonths.find(m => m.id === selectedMonth)?.month}`
+                                                                    ? `Fee Structure Breakdown - ${feeMonths.find(m => m.id === selectedMonth)?.month}`
                                                                     : 'Fee Structure Breakdown'
                                                                 }
                                                             </p>
                                                             {!selectedMonth ? (
-                                                                <div className="py-6 text-center rounded-xl border border-dashed border-border/40">
-                                                                    <p className="text-xs text-muted-foreground/60">Click a month row to view breakdown</p>
+                                                                <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                                    <p className="text-xs" style={{ color: '#000000' }}>Click a month row to view breakdown</p>
                                                                 </div>
                                                             ) : (() => {
                                                                 const month = feeMonths.find(m => m.id === selectedMonth);
                                                                 if (!month) return null;
                                                                 const assigned = feeStructures.filter(s => month.assignedStructureIds.includes(s.id));
                                                                 if (assigned.length === 0) return (
-                                                                    <div className="py-6 text-center rounded-xl border border-dashed border-border/40">
-                                                                        <p className="text-xs text-muted-foreground/60">No fee structures assigned to {month.month}</p>
+                                                                    <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                                        <p className="text-xs" style={{ color: '#000000' }}>No fee structures assigned to {month.month}</p>
                                                                     </div>
                                                                 );
                                                                 return (
@@ -1286,19 +1416,48 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                                             const total = structureTotal(fs);
                                                                             const cfg = FEE_TYPE_CFG[fs.type];
                                                                             return (
-                                                                                <div key={fs.id} className="rounded-xl border border-border/40 overflow-hidden">
-                                                                                    <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
+                                                                                <div key={fs.id} className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border }}>
+                                                                                    <div className="flex items-center gap-2 px-3 py-2" style={{ background: fc.bg }}>
                                                                                         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: fs.color }} />
-                                                                                        <span className="flex-1 text-xs font-semibold">{fs.name}</span>
+                                                                                        <span className="flex-1 text-xs font-semibold" style={{ color: '#000000' }}>{fs.name}</span>
                                                                                         <span className={`text-[10px] font-bold ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
-                                                                                        <span className="text-xs font-bold">₹{total.toLocaleString()}</span>
+                                                                                        <span className="text-xs font-bold" style={{ color: '#000000' }}>₹{total.toLocaleString()}</span>
                                                                                     </div>
-                                                                                    {fs.items.map(item => (
-                                                                                        <div key={item.id} className="flex items-center justify-between px-3 py-1.5 pl-5 border-t border-border/20 bg-background">
-                                                                                            <span className="text-[11px] text-muted-foreground">{item.label}</span>
-                                                                                            <span className="text-[11px] font-medium">₹{(item.subItems.reduce((n, s) => n + s.amount, 0) || item.amount).toLocaleString()}</span>
-                                                                                        </div>
-                                                                                    ))}
+                                                                                    {fs.items.map(item => {
+                                                                                        const subTotal = item.subItems.reduce((n, s) => n + s.amount, 0);
+                                                                                        const hasSub = item.subItems.length > 0;
+                                                                                        const isOpen = expandedBreakdownItemIds.has(item.id);
+                                                                                        const Row = hasSub ? 'button' : 'div';
+                                                                                        return (
+                                                                                            <div key={item.id}>
+                                                                                                <Row type={hasSub ? 'button' : undefined}
+                                                                                                    onClick={hasSub ? () => setExpandedBreakdownItemIds(prev => {
+                                                                                                        const next = new Set(prev);
+                                                                                                        if (next.has(item.id)) next.delete(item.id); else next.add(item.id);
+                                                                                                        return next;
+                                                                                                    }) : undefined}
+                                                                                                    className="w-full flex items-center justify-between px-3 py-1.5 pl-5 text-left" style={{ borderTop: `1px solid ${fc.border}`, background: fc.bg }}>
+                                                                                                    <span className="text-[11px] font-medium flex items-center gap-1" style={{ color: '#000000' }}>
+                                                                                                        {item.label}
+                                                                                                        {hasSub && <ChevronDown size={11} className={`transition-transform ${isOpen ? 'rotate-180' : ''}`} style={{ opacity: 0.5 }} />}
+                                                                                                    </span>
+                                                                                                    <span className="text-[11px] font-semibold" style={{ color: '#000000' }}>₹{(subTotal || item.amount).toLocaleString()}</span>
+                                                                                                </Row>
+                                                                                                <AnimatePresence>
+                                                                                                    {hasSub && isOpen && (
+                                                                                                        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                                                                                            {item.subItems.map(si => (
+                                                                                                                <div key={si.id} className="flex items-center justify-between px-3 py-1 pl-8" style={{ borderTop: `1px solid ${fc.border}`, background: 'rgba(255,255,255,0.35)' }}>
+                                                                                                                    <span className="text-[10px]" style={{ color: '#000000', opacity: 0.65 }}>{si.label}</span>
+                                                                                                                    <span className="text-[10px]" style={{ color: '#000000', opacity: 0.65 }}>₹{si.amount.toLocaleString()}</span>
+                                                                                                                </div>
+                                                                                                            ))}
+                                                                                                        </motion.div>
+                                                                                                    )}
+                                                                                                </AnimatePresence>
+                                                                                            </div>
+                                                                                        );
+                                                                                    })}
                                                                                 </div>
                                                                             );
                                                                         })}
@@ -1309,8 +1468,8 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
 
                                                         {feeMonths.length === 0 && feeStructures.length === 0 && (
                                                             <div className="text-center py-8">
-                                                                <p className="text-sm text-muted-foreground">No fee structure set up yet</p>
-                                                                <p className="text-xs text-muted-foreground/60 mt-1">Go to Fee Setup tab to configure fee structures</p>
+                                                                <p className="text-sm" style={{ color: '#000000' }}>No fee structure set up yet</p>
+                                                                <p className="text-xs mt-1" style={{ color: '#000000' }}>Go to Fee Setup tab to configure fee structures</p>
                                                             </div>
                                                         )}
 
@@ -1318,17 +1477,18 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                 </div>
 
                                                 {/* BACK — Rules & Regulations */}
-                                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }}
-                                                    className={`bg-card rounded-2xl border border-border/50 shadow-sm ${!studentCardFlipped ? 'invisible' : ''}`}>
+                                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: fc.bg, borderColor: fc.border }}
+                                                    className={`rounded-2xl border ${!studentCardFlipped ? 'invisible' : ''}`}>
 
                                                     {/* Header */}
-                                                    <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between bg-muted/20 rounded-t-2xl">
+                                                    <div className="px-4 py-3 flex items-center justify-between rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                                         <div>
-                                                            <p className="text-sm font-bold">{selectedStudent.name}'s Fee Card</p>
-                                                            <p className="text-[11px] text-muted-foreground">{divisionName} · Rules & Regulations</p>
+                                                            <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
+                                                            <p className="text-[11px]" style={{ color: '#000000' }}>{divisionName} · Rules & Regulations</p>
                                                         </div>
                                                         <button onClick={() => setStudentCardFlipped(false)}
-                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border border-border/50 text-muted-foreground hover:text-foreground hover:border-border transition-all">
+                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40"
+                                                            style={{ borderColor: fc.border, color: '#000000' }}>
                                                             <span style={{ fontSize: '16px', display: 'inline-block', transform: 'scaleX(-1)' }}>↺</span>
                                                             View Front
                                                         </button>
@@ -1337,16 +1497,16 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
                                                     {/* Rules Content */}
                                                     <div className="px-4 py-3 space-y-3">
                                                         {rulesAndRegs.length === 0 ? (
-                                                            <div className="py-8 text-center rounded-xl border border-dashed border-border/40">
-                                                                <p className="text-xs text-muted-foreground/60">No rules defined yet</p>
-                                                                <p className="text-[11px] text-muted-foreground/40 mt-1">Add rules from Fee Setup → Fee Card Template → View Back</p>
+                                                            <div className="py-8 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                                <p className="text-xs" style={{ color: '#000000' }}>No rules defined yet</p>
+                                                                <p className="text-[11px] mt-1" style={{ color: '#000000', opacity: 0.7 }}>Add rules from Fee Setup → Fee Card Template → View Back</p>
                                                             </div>
                                                         ) : (
                                                             <div className="space-y-2">
                                                                 {rulesAndRegs.map((rule, i) => (
                                                                     <div key={rule.id} className="flex items-start gap-2">
-                                                                        <span className="text-[11px] font-bold text-muted-foreground mt-0.5 w-5 shrink-0">{i + 1}.</span>
-                                                                        <p className="text-xs text-foreground leading-relaxed">{rule.text}</p>
+                                                                        <span className="text-[11px] font-bold mt-0.5 w-5 shrink-0" style={{ color: '#000000' }}>{i + 1}.</span>
+                                                                        <p className="text-xs leading-relaxed" style={{ color: '#000000' }}>{rule.text}</p>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -1384,4 +1544,4 @@ export function FeesTab({ divisionId, divisionName, feesSubTab }: {
             </AnimatePresence>
         </div>
     );
-}
+});

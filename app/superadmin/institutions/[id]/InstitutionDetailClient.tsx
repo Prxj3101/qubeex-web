@@ -227,8 +227,10 @@ function ViewDetailsTab({
   const [logoErr, setLogoErr] = useState(false);
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(inst.logoUrl ?? null);
   const [logoUploading, setLogoUploading] = useState(false);
+  const [logoExpanded, setLogoExpanded] = useState(false);
   const logoFileRef = useRef<HTMLInputElement>(null);
   const [adminAvatarPreview, setAdminAvatarPreview] = useState<string | null>(null);
+  const [adminAvatarExpanded, setAdminAvatarExpanded] = useState(false);
   const adminAvatarRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [statusConfirm, setStatusConfirm] = useState(false);
@@ -416,9 +418,10 @@ function ViewDetailsTab({
     >
       <div className="bg-card border border-border/50 rounded-2xl p-5">
         <div className="flex items-start gap-4">
-          {/* Logo / initials — click to upload */}
-          <div className="relative shrink-0 cursor-pointer" onClick={() => !logoUploading && logoFileRef.current?.click()}>
-            <div className="w-16 h-16 rounded-2xl bg-muted ring-2 ring-border overflow-hidden flex items-center justify-center">
+          {/* Logo / initials — click photo to view large, click camera badge to upload */}
+          <div className="relative shrink-0">
+            <div className="w-16 h-16 rounded-2xl bg-muted ring-2 ring-border overflow-hidden flex items-center justify-center cursor-pointer"
+              onClick={() => currentLogoUrl && !logoErr ? setLogoExpanded(true) : (!logoUploading && logoFileRef.current?.click())}>
               {currentLogoUrl && !logoErr ? (
                 <img
                   src={currentLogoUrl}
@@ -432,8 +435,9 @@ function ViewDetailsTab({
                 </span>
               )}
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm"
-              style={{ background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" }}>
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm cursor-pointer"
+              style={{ background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" }}
+              onClick={() => !logoUploading && logoFileRef.current?.click()}>
               {logoUploading
                 ? <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 : <Camera size={11} className="text-white" />
@@ -446,6 +450,25 @@ function ViewDetailsTab({
               className="hidden"
               onChange={handleLogoUpload}
             />
+
+            <AnimatePresence>
+              {logoExpanded && currentLogoUrl && !logoErr && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                  onClick={() => setLogoExpanded(false)}>
+                  <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                    onClick={e => e.stopPropagation()}>
+                    <img src={currentLogoUrl} alt={inst.name} className="w-full h-full object-cover" />
+                    <button onClick={() => setLogoExpanded(false)}
+                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                      <X size={14} className="text-white" />
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
@@ -465,11 +488,11 @@ function ViewDetailsTab({
                   </span>
                   {planName !== "—" && (
                     <span
-                      className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+                      className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full uppercase"
                       style={{
                         background:
-                          planName === "PRO" ? "#DA775620" : "#7C3AED20",
-                        color: planName === "PRO" ? "#DA7756" : "#7C3AED",
+                          planName === "PRO" ? "#DA775620" : planName === "TRIAL" ? "#F59E0B20" : "#7C3AED20",
+                        color: planName === "PRO" ? "#DA7756" : planName === "TRIAL" ? "#F59E0B" : "#7C3AED",
                       }}
                     >
                       {planName}
@@ -526,8 +549,9 @@ function ViewDetailsTab({
       {/* Admin Profile Card */}
       <div className="bg-card border border-border/50 rounded-2xl p-5">
         <div className="flex items-start gap-4">
-          <div className="relative shrink-0 cursor-pointer" onClick={() => adminAvatarRef.current?.click()}>
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold bg-primary/10 text-primary overflow-hidden select-none">
+          <div className="relative shrink-0">
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center text-xl font-bold bg-primary/10 text-primary overflow-hidden select-none cursor-pointer"
+              onClick={() => adminAvatarPreview ? setAdminAvatarExpanded(true) : adminAvatarRef.current?.click()}>
               {adminAvatarPreview
                 ? <img src={adminAvatarPreview} alt={adminSaved.adminName} className="w-full h-full object-cover" />
                 : adminSaved.adminName
@@ -535,8 +559,9 @@ function ViewDetailsTab({
                   : <User size={24} />
               }
             </div>
-            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm"
-              style={{ background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" }}>
+            <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full border-2 border-background flex items-center justify-center shadow-sm cursor-pointer"
+              style={{ background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)" }}
+              onClick={() => adminAvatarRef.current?.click()}>
               <Camera size={11} className="text-white" />
             </div>
             <input ref={adminAvatarRef} type="file" accept="image/*" className="hidden"
@@ -550,6 +575,25 @@ function ViewDetailsTab({
                 }
                 e.target.value = "";
               }} />
+
+            <AnimatePresence>
+              {adminAvatarExpanded && adminAvatarPreview && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                  onClick={() => setAdminAvatarExpanded(false)}>
+                  <motion.div initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                    onClick={e => e.stopPropagation()}>
+                    <img src={adminAvatarPreview} alt={adminSaved.adminName} className="w-full h-full object-cover" />
+                    <button onClick={() => setAdminAvatarExpanded(false)}
+                      className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                      <X size={14} className="text-white" />
+                    </button>
+                  </motion.div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
           <div className="flex-1 min-w-0">
             <div>
@@ -1017,8 +1061,11 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
     (inst.subscription?.status ?? "") === "ACTIVE",
   );
   const [plan, setPlan] = useState<"BASIC" | "PRO" | "TRIAL">(initialPlan);
-  const [planOption, setPlanOption] = useState<"FLEXIBLE" | "COMMITTED">(
-    (inst.subscription?.planOption as "FLEXIBLE" | "COMMITTED") ?? "FLEXIBLE",
+  const [planOption, setPlanOption] = useState<"NORMAL" | "COMMITTED">(
+    // "FLEXIBLE" is the old name for this option (pause/half-billing removed —
+    // it's now just "Normal": full rate, no pause, deactivate = full block).
+    // Treat any legacy "FLEXIBLE" value from the backend as "NORMAL" too.
+    inst.subscription?.planOption === "COMMITTED" ? "COMMITTED" : "NORMAL",
   );
   const [showDiscount, setShowDiscount] = useState(false);
   const [discountInput, setDiscountInput] = useState("0");
@@ -1205,7 +1252,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
         plan: plan === "TRIAL" ? "BASIC" : plan,
         paymentReceived: true,
         discountPct: discount,
-        planOption: plan === "TRIAL" ? "FLEXIBLE" : planOption,
+        planOption: plan === "TRIAL" ? "NORMAL" : planOption,
       });
 
       setPlanActive(true);
@@ -3796,12 +3843,12 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
         })()}
       </SectionCard>
 
-      {/* Plan Option — Flexible vs Committed */}
+      {/* Plan Option — Normal vs Committed (pause/half-billing removed — only these two options exist) */}
       {(plan as string) !== "TRIAL" && (
         <div className="mb-4">
           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Plan Option</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {(["FLEXIBLE", "COMMITTED"] as const).map((opt) => {
+            {(["NORMAL", "COMMITTED"] as const).map((opt) => {
               const isSelected = planOption === opt;
               const isCommitted = opt === "COMMITTED";
               return (
@@ -3812,27 +3859,25 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 >
                   <div className="flex items-center justify-between mb-1.5">
                     <p className={`text-sm font-bold ${isSelected ? (isCommitted ? "text-[#DA7756]" : "text-primary") : "text-foreground"}`}>
-                      {isCommitted ? "Committed" : "Flexible"}
+                      {isCommitted ? "Committed" : "Normal"}
                     </p>
                     {isSelected && <div className={`w-2 h-2 rounded-full ${isCommitted ? "bg-[#DA7756]" : "bg-primary"}`} />}
                   </div>
                   {isCommitted ? (
                     <>
                       <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">15% off monthly bill</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">Academic year commitment · Early-exit clawback applies</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Academic year commitment · No deactivate · Early-exit clawback applies</p>
                     </>
                   ) : (
                     <>
-                      <p className="text-[11px] text-muted-foreground font-semibold">Full rate</p>
-                      <p className="text-[10px] text-muted-foreground mt-1">No commitment · Cancel anytime · Full monthly rate</p>
+                      <p className="text-[11px] text-muted-foreground font-semibold">Full rate bill</p>
+                      <p className="text-[10px] text-muted-foreground mt-1">Deactivate blocks all access (data preserved) · Full monthly rate</p>
                     </>
                   )}
-                  {isCommitted && (
-                    <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1.5 font-medium">
-                      Effective: ₹{getEffectiveRate(activeUsers, planBase.baseRate, planBase.marginalRate, "COMMITTED").toFixed(2)}/user
-                      {activeUsers > 1500 ? ` · volume + committed stacked` : ""}
-                    </p>
-                  )}
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-1.5 font-medium">
+                    Effective: ₹{getEffectiveRate(activeUsers, planBase.baseRate, planBase.marginalRate, opt).toFixed(2)}/user
+                    {activeUsers > 1500 ? ` · volume${isCommitted ? " + committed stacked" : " tier"}` : ""}
+                  </p>
                 </button>
               );
             })}

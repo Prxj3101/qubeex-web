@@ -540,10 +540,10 @@ export default function AdminProfilePage() {
                 </span>
                 {planName && (
                   <span
-                    className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full"
+                    className="text-[11px] font-semibold px-2.5 py-0.5 rounded-full uppercase"
                     style={{
-                      background: planName === 'PRO' ? '#DA775620' : '#7C3AED20',
-                      color: planName === 'PRO' ? '#DA7756' : '#7C3AED',
+                      background: planName === 'PRO' ? '#DA775620' : planName === 'Trial' ? '#F59E0B20' : '#7C3AED20',
+                      color: planName === 'PRO' ? '#DA7756' : planName === 'Trial' ? '#F59E0B' : '#7C3AED',
                     }}
                   >
                     {planName}

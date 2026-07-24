@@ -49,7 +49,7 @@ export function RecentActivityCard({ auditLogs }: RecentAuditLogsCardProps) {
                 <p className="text-xs text-muted-foreground py-4">No recent activity.</p>
             ) : (
                 <div className="space-y-0.5">
-                    {auditLogs.map((log) => (
+                    {auditLogs.slice(0, 4).map((log) => (
                         <div key={log.id} className="grid grid-cols-[100px_1fr] sm:grid-cols-[120px_1fr] lg:grid-cols-[140px_1fr] items-start gap-3 py-2.5 border-b border-border/40 last:border-none">
                             <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full w-fit mt-0.5 ${dotBg[log.dot]} ${dotText[log.dot]}`}>
                                 {log.action}

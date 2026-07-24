@@ -359,7 +359,7 @@ export default function InstitutionsPage() {
 
             {/* ── SCROLLABLE CARDS ── */}
             <div className="flex-1 overflow-y-auto pb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-3">
                     {loading
                         ? Array.from({ length: 6 }).map((_, i) => (
                             <div key={i} className="bg-card border border-border/50 rounded-2xl h-48 animate-pulse" />

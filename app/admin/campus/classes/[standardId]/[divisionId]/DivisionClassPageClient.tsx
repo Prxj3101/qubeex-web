@@ -8,7 +8,7 @@ import {
     ArrowLeft, ChevronRight, Users, BookOpen, User, Shield, MapPin, Heart,
     Plus, X, Check, ChevronDown, User as UserIcon, ArrowUp,
     Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink,
-    CalendarCheck, BarChart2, NotebookPen, Smartphone
+    CalendarCheck, BarChart2, NotebookPen, Smartphone, Save
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Lock } from 'lucide-react';
@@ -18,7 +18,7 @@ import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidatio
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { colorForSubject } from '@/lib/subjectColors';
 import { toTitleCase } from '@/lib/utils';
-import { FeesTab } from './fees';
+import { FeesTab, FeesTabHandle } from './fees';
 import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[divisionId]/AttendanceTab';
 import MarksTab, { MarksSubTab, MarksStats } from '@/app/teacher/classes/[divisionId]/MarksTab';
 
@@ -850,6 +850,8 @@ export default function DivisionDetailPage() {
     const [togglingSubject, setTogglingSubject] = useState<string | null>(null);
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
     const [feesSubTab, setFeesSubTab] = useState<'setup' | 'students'>('students');
+    const feesTabRef = useRef<FeesTabHandle>(null);
+    const [feesSaving, setFeesSaving] = useState(false);
     const [attendanceSubTab, setAttendanceSubTab] = useState<AttendanceSubTab>('daily');
     const [attendanceHeaderStats, setAttendanceHeaderStats] = useState<{ overall: number | null; thisMonth: number | null }>({ overall: null, thisMonth: null });
     const [marksheetSubTab, setMarksheetSubTab] = useState<MarksSubTab>('offline');
@@ -1208,6 +1210,17 @@ export default function DivisionDetailPage() {
 
                         {activeTab === 'fees' && (
                             <div className="flex items-center gap-4 flex-wrap">
+                                {feesSubTab === 'setup' && (
+                                    <button
+                                        onClick={() => feesTabRef.current?.save()}
+                                        disabled={feesSaving}
+                                        className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-all shrink-0"
+                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                    >
+                                        <Save size={13} />
+                                        {feesSaving ? 'Saving…' : 'Save Changes'}
+                                    </button>
+                                )}
                                 <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
                                     {[
                                         { key: 'students' as const, label: 'Student Fees' },
@@ -1663,7 +1676,7 @@ export default function DivisionDetailPage() {
                                         return (
                                             <button key={student.id}
                                                 onClick={() => { setSelectedStudent(student); setManageRightTab('student'); }}
-                                                className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-all hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''
+                                                className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-colors hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''
                                                     }`}>
                                                 <div className="w-7 h-7 rounded-full overflow-hidden relative flex items-center justify-center text-[10px] font-bold text-white shrink-0"
                                                     style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(name) }}>
@@ -2098,9 +2111,11 @@ export default function DivisionDetailPage() {
                         <motion.div key="fees" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             className="h-full pt-3 pb-3 px-1 overflow-y-auto">
                             <FeesTab
+                                ref={feesTabRef}
                                 divisionId={divisionId}
                                 divisionName={division.name}
                                 feesSubTab={feesSubTab}
+                                onSavingChange={setFeesSaving}
                             />
                         </motion.div>
                     )}
