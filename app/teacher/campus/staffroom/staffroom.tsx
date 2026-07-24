@@ -132,23 +132,25 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                         : 'bg-muted text-muted-foreground'}`}>
                         {resolveDisplayTitle(post.author.role, post.author.title)}
                     </span>
-                    <span className="text-[10px] text-muted-foreground">{fmtDateTime(post.createdAt)}</span>
-                    {isMe && (
-                        <div className="relative">
-                            <button onClick={() => setShowMenu(v => !v)}
-                                className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
-                                <MoreVertical size={12} />
-                            </button>
-                            {showMenu && (
-                                <div className="absolute top-6 right-0 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[110px]">
-                                    <button onClick={() => { setShowMenu(false); setConfirmDelete(true); }}
-                                        className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-muted transition-colors">
-                                        <Trash2 size={11} /> Delete post
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-                    )}
+                    <div className="flex items-center gap-0">
+                        <span className="text-[10px] text-muted-foreground">{fmtDateTime(post.createdAt)}</span>
+                        {isMe && (
+                            <div className="relative">
+                                <button onClick={() => setShowMenu(v => !v)}
+                                    className="w-5 h-5 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                                    <MoreVertical size={12} />
+                                </button>
+                                {showMenu && (
+                                    <div className="absolute top-6 right-0 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[110px]">
+                                        <button onClick={() => { setShowMenu(false); setConfirmDelete(true); }}
+                                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-muted transition-colors">
+                                            <Trash2 size={11} /> Delete post
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div className={`px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
                     style={isMe ? { background: '#7C3AED' } : {}}>
@@ -258,6 +260,11 @@ export default function TeacherStaffroom() {
     const [dmSubmitting, setDmSubmitting] = useState(false);
     const [dmSearch, setDmSearch] = useState('');
     const [showDmSearch, setShowDmSearch] = useState(false);
+    // Positioned via viewport-fixed coordinates (not absolute inside the scroll
+    // box) so the menu can render below the 3-dot button without being
+    // clipped by the messages list's overflow-y-auto.
+    const [msgMenuAnchor, setMsgMenuAnchor] = useState<{ id: string; bottom: number; x: number; alignRight: boolean } | null>(null);
+    const [confirmUnsendId, setConfirmUnsendId] = useState<string | null>(null);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const feedScrollRef = useRef<HTMLDivElement>(null);
@@ -651,7 +658,7 @@ export default function TeacherStaffroom() {
                                                         <p className="text-xs font-semibold truncate">{formatDisplayName(t.name, t.prefix)}</p>
                                                         <p className="text-[10px] text-muted-foreground shrink-0 ml-1">{t.lastMessageAt ? fmtTime(t.lastMessageAt) : ''}</p>
                                                     </div>
-                                                    <p className="text-[11px] text-muted-foreground truncate">
+                                                    <p className={`text-[11px] truncate ${t.unread > 0 ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                                                         {t.lastMessage ? `${t.lastMessageIsMe ? 'You: ' : ''}${t.lastMessage}` : 'No messages yet'}
                                                     </p>
                                                 </div>
@@ -701,7 +708,10 @@ export default function TeacherStaffroom() {
                                                 return (
                                                     <div key={msg.id} className={`flex gap-2 group ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                                                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 mt-1 ${color}`}>{initials}</div>
-                                                        <div className={`flex flex-col max-w-[75%] ${msg.isMe ? 'items-end' : 'items-start'}`}>
+                                                        <div
+                                                            className={`flex flex-col max-w-[75%] ${msg.isMe ? 'items-end' : 'items-start'}`}
+                                                            style={{ width: '100%' }}
+                                                        >
                                                             <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
                                                                 style={msg.isMe ? { background: '#7C3AED' } : {}}>
                                                                 {msg.text && (
@@ -718,12 +728,24 @@ export default function TeacherStaffroom() {
                                                                     </div>
                                                                 )}
                                                             </div>
-                                                            <div className="flex items-center gap-1.5 mt-0.5 px-1">
+                                                            <div
+                                                                className="flex items-center gap-0 mt-0.5 px-1"
+                                                                style={msg.isMe ? { width: '100%', justifyContent: 'flex-end' } : undefined}
+                                                            >
                                                                 <p className="text-[10px] text-muted-foreground">{fmtDateTime(msg.createdAt)}</p>
                                                                 {canUnsend(msg) && (
-                                                                    <button onClick={() => handleUnsendMessage(msg.id)}
-                                                                        className="opacity-0 group-hover:opacity-100 transition-opacity text-[10px] text-muted-foreground hover:text-red-500 flex items-center gap-0.5">
-                                                                        <X size={10} /> Unsend
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            const rect = e.currentTarget.getBoundingClientRect();
+                                                                            setMsgMenuAnchor(prev => prev?.id === msg.id ? null : {
+                                                                                id: msg.id,
+                                                                                bottom: rect.bottom,
+                                                                                x: msg.isMe ? window.innerWidth - rect.right : rect.left,
+                                                                                alignRight: msg.isMe,
+                                                                            });
+                                                                        }}
+                                                                        className="w-4 h-4 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
+                                                                        <MoreVertical size={11} />
                                                                     </button>
                                                                 )}
                                                             </div>
@@ -784,6 +806,44 @@ export default function TeacherStaffroom() {
                     </AnimatePresence>
                 </div>
             </div>
+
+            {msgMenuAnchor && (
+                <>
+                    <div className="fixed inset-0 z-40" onClick={() => setMsgMenuAnchor(null)} />
+                    <div
+                        className="fixed z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[110px]"
+                        style={{
+                            top: msgMenuAnchor.bottom + 4,
+                            ...(msgMenuAnchor.alignRight ? { right: msgMenuAnchor.x } : { left: msgMenuAnchor.x }),
+                        }}
+                    >
+                        <button onClick={() => { const id = msgMenuAnchor.id; setMsgMenuAnchor(null); setConfirmUnsendId(id); }}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-muted transition-colors">
+                            <Trash2 size={11} /> Unsend
+                        </button>
+                    </div>
+                </>
+            )}
+
+            {confirmUnsendId && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                        <h3 className="text-base font-bold mb-1">Unsend Message?</h3>
+                        <p className="text-sm text-muted-foreground mb-5">This message will be permanently deleted. Are you sure?</p>
+                        <div className="flex gap-2 justify-end">
+                            <button onClick={() => setConfirmUnsendId(null)}
+                                className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                Cancel
+                            </button>
+                            <button onClick={() => { handleUnsendMessage(confirmUnsendId); setConfirmUnsendId(null); }}
+                                className="h-9 px-4 rounded-xl bg-red-500 hover:bg-red-600 text-white text-xs font-semibold transition-all">
+                                Unsend
+                            </button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }

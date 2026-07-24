@@ -49,6 +49,23 @@ function getDivisionInitial(name: string) {
     return name.includes('-') ? name.split('-').pop() ?? name[0] : name[0];
 }
 
+// Ascending by grade number then division letter, e.g. 9-A, 9-B, 10-A, 10-B...
+function classSortKey(divisionName: string): [number, string] {
+    const match = divisionName.match(/(\d+)/);
+    const num = match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
+    const letter = divisionName.includes('-') ? divisionName.split('-').pop() ?? '' : divisionName;
+    return [num, letter];
+}
+
+function sortByClassAscending<T extends { divisionName: string }>(items: T[]): T[] {
+    return [...items].sort((a, b) => {
+        const [numA, letterA] = classSortKey(a.divisionName);
+        const [numB, letterB] = classSortKey(b.divisionName);
+        if (numA !== numB) return numA - numB;
+        return letterA.localeCompare(letterB);
+    });
+}
+
 // ── Class Teacher Card ────────────────────────────────────────────────────────
 function ClassTeacherCard({ item, index }: { item: ClassTeacherAssignment; index: number }) {
     const grad = getGradient(item.standardName);
@@ -201,7 +218,7 @@ export default function TeacherClassesPage() {
         api.get('/teacher/classes')
             .then(res => {
                 setClassTeacher(res.data.data.classTeacher);
-                setSubjectTeacher(res.data.data.subjectTeacher);
+                setSubjectTeacher(sortByClassAscending(res.data.data.subjectTeacher));
             })
             .catch(() => {
                 toast.error('Failed to load classes');
