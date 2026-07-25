@@ -148,7 +148,7 @@ function EditDropdown({ label, value, options, onChange }: {
                 <button type="button" onClick={() => setOpen(v => !v)}
                     className="w-full h-8 px-3 rounded-md border border-primary/50 bg-primary/5 text-xs text-left flex items-center justify-between">
                     <span className={value ? 'text-foreground' : 'text-muted-foreground'}>
-                        {value ? options.find(o => o.value === value)?.label ?? value : 'Select'}
+                        {value ? options.find(o => o.value.toLowerCase() === value.toLowerCase())?.label ?? toTitleCase(value) : 'Select'}
                     </span>
                     <ChevronDown size={11} className="text-muted-foreground" />
                 </button>
@@ -158,7 +158,7 @@ function EditDropdown({ label, value, options, onChange }: {
                         {options.map(o => (
                             <button key={o.value} type="button"
                                 onClick={() => { onChange(o.value); setOpen(false); }}
-                                className={`w-full px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors ${value === o.value ? 'text-primary font-semibold' : 'text-foreground'}`}>
+                                className={`w-full px-3 py-1.5 text-xs text-left hover:bg-muted transition-colors ${value.toLowerCase() === o.value.toLowerCase() ? 'text-primary font-semibold' : 'text-foreground'}`}>
                                 {o.label}
                             </button>
                         ))}

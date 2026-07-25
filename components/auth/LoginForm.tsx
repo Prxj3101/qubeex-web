@@ -30,6 +30,11 @@ export function LoginForm() {
     const { setAuth } = useAuthStore();
 
     const [identifier, setIdentifier] = useState('');
+    // Tracks the identifier exactly as the user typed it (original casing),
+    // so that backspacing past the ID pattern (e.g. deleting the "-0" back
+    // off "SKPS-0") reverts the display to the original as-typed casing
+    // instead of staying stuck uppercase.
+    const [rawIdentifier, setRawIdentifier] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [loading, setLoading] = useState(false);
@@ -56,6 +61,24 @@ export function LoginForm() {
 
     // Detect if identifier is email or ID
     const isEmail = identifier.includes('@');
+
+    // Once the user has typed a 4-letter institution code, a dash, and started
+    // the next segment with a digit (e.g. "SKPS-0..."), we're confident it's an
+    // ID (not an email) — from that point on, force-uppercase everything so
+    // users never have to hit caps lock to type IDs like SKPS-01A2-0001.
+    const ID_DETECT_RE = /^[A-Za-z]{4}-\d/;
+    const handleIdentifierChange = (newDisplayed: string) => {
+        // Reconstruct the as-typed (raw) string: for an append, the newly
+        // typed tail arrives in its natural case (our transform hasn't run
+        // on it yet); for a deletion, just truncate the existing raw value
+        // to match — this preserves original casing so removing the "-0"
+        // reverts display back to whatever was typed before it.
+        const newRaw = newDisplayed.length >= rawIdentifier.length
+            ? rawIdentifier + newDisplayed.slice(rawIdentifier.length)
+            : rawIdentifier.slice(0, newDisplayed.length);
+        setRawIdentifier(newRaw);
+        setIdentifier(ID_DETECT_RE.test(newRaw) ? newRaw.toUpperCase() : newRaw);
+    };
 
     const canSubmit = identifier.trim().length > 0 && password.length >= 1 && !loading;
 
@@ -188,7 +211,7 @@ export function LoginForm() {
                                     <input
                                         type="text"
                                         value={identifier}
-                                        onChange={e => setIdentifier(e.target.value)}
+                                        onChange={e => handleIdentifierChange(e.target.value)}
                                         onFocus={() => setFocused('id')}
                                         onBlur={() => setFocused(null)}
                                         placeholder="you@example.com or INST-0001"
@@ -205,9 +228,6 @@ export function LoginForm() {
                                         </span>
                                     )}
                                 </div>
-                                <p className="text-[11px] text-white/25 mt-1.5 px-0.5">
-                                    Admin: Institute ID &nbsp;·&nbsp; Teacher: Teacher ID &nbsp;·&nbsp; Student: Student ID
-                                </p>
                             </div>
 
                             {/* Password field */}
