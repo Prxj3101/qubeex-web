@@ -45,7 +45,7 @@ function isPathAccessible(pathname: string, permissions: string[]): boolean {
 }
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
-    const { instType } = useMockInstType();
+    const { instType, setInstType } = useMockInstType();
     const { user, setUser } = useAuthStore();
     const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
     useEffect(() => {
@@ -116,9 +116,18 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     });
 
     return (
-        <div className="flex flex-col h-screen bg-background px-0 pt-3 gap-3">
+        <div className={`flex flex-col h-screen bg-background px-0 pt-3 gap-3 ${instType === 'COLLEGE' ? 'theme-college' : ''}`}>
             <Topbar
                 navItems={navItems}
+                devToggle={
+                    <button
+                        onClick={() => setInstType(instType === 'COLLEGE' ? 'SCHOOL' : 'COLLEGE')}
+                        className="text-[10px] font-semibold px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground transition-colors"
+                        title="Dev only — toggle institution type theme"
+                    >
+                        {instType === 'COLLEGE' ? '🎓 College' : '🏫 School'}
+                    </button>
+                }
             />
             <main className="flex-1 overflow-y-auto overflow-x-hidden px-2 outline-none bg-background" tabIndex={-1}>
                 {children}

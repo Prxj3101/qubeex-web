@@ -71,6 +71,33 @@
   --blue-light: #0D1F3C;
 }
 
+/* ── College institution theme — same shade structure as the violet school
+   theme above (--background/--card/--primary/--muted/--border), just the
+   hue swapped to blue. Applied via a `.theme-college` class on a wrapper
+   element so every bg-primary/bg-card/bg-muted/border-border utility that
+   already exists across the app repaints automatically. ── */
+.theme-college {
+  --background: #EAF6FF;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --primary: #1E9BE8;
+  --primary-foreground: #FFFFFF;
+  --muted: #D6EEFC;
+  --muted-foreground: #64748B;
+  --border: #9FD6F7;
+}
+
+.dark .theme-college {
+  --background: #071624;
+  --card: #0F2A40;
+  --card-foreground: #F1F5F9;
+  --primary: #73C2FB;
+  --primary-foreground: #0B1B2A;
+  --muted: #123350;
+  --muted-foreground: #94A3B8;
+  --border: #123350;
+}
+
 @layer base {
   * {
     @apply border-border;

@@ -7,5 +7,8 @@ export function formatDisplayName(name: string, prefix?: string | null): string 
 
 export function resolveDisplayTitle(role: string, title?: string | null): string {
     if (title) return title;
-    return role === 'ADMIN' ? 'Admin' : role === 'TEACHER' ? 'Teacher' : role;
+    if (role === 'ADMIN') return 'Admin';
+    if (role === 'TEACHER') return 'Teacher';
+    if (role === 'SUB_ADMIN') return 'Subadmin';
+    return role;
 }

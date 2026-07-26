@@ -12,7 +12,7 @@ export function getInstitutionAccent(type: InstitutionType): InstitutionAccent {
         case 'SCHOOL':
             return { bg: '#7C3AED', bgDark: '#4C1D95', emoji: '🏫', label: 'School' };
         case 'COLLEGE':
-            return { bg: '#059669', bgDark: '#064E3B', emoji: '🎓', label: 'College' };
+            return { bg: '#2F6FED', bgDark: '#16234A', emoji: '🎓', label: 'College' };
         case 'COACHING':
             return { bg: '#D97706', bgDark: '#78350F', emoji: '📚', label: 'Coaching' };
     }
