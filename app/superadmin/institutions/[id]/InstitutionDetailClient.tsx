@@ -1048,7 +1048,7 @@ function ViewDetailsTab({
   );
 }
 
-function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Partial<InstData>) => void }) {
+function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Omit<Partial<InstData>, "admin"> & { admin?: Partial<AdminUser> }) => void }) {
   const router = useRouter();
   const instType =
     (inst.type as keyof typeof PRICING) in PRICING
