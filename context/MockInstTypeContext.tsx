@@ -1,10 +1,9 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import api from '@/lib/api';
 
 type InstType = 'SCHOOL' | 'COLLEGE' | 'COACHING';
-
-const STORAGE_KEY = 'qubeex_mock_inst_type';
 
 const MockInstTypeContext = createContext<{
     instType: InstType;
@@ -12,24 +11,23 @@ const MockInstTypeContext = createContext<{
 }>({ instType: 'SCHOOL', setInstType: () => { } });
 
 export function MockInstTypeProvider({ children }: { children: React.ReactNode }) {
-    // Always start as 'SCHOOL' on both server and client so the first client
-    // render matches the server-rendered HTML exactly (no hydration mismatch).
-    // The persisted value (if any) is applied right after mount below.
+    // Start as 'SCHOOL' on both server and client so the first render matches the
+    // server-rendered HTML (no hydration mismatch); the real institution type is
+    // fetched right after mount so the UI (theme + terminology) reflects whether
+    // the logged-in institution is a school, college, or coaching institute.
     const [instType, setInstTypeState] = useState<InstType>('SCHOOL');
 
-    const setInstType = (t: InstType) => {
-        setInstTypeState(t);
-        try { window.localStorage.setItem(STORAGE_KEY, t); } catch { /* ignore */ }
-    };
+    const setInstType = (t: InstType) => setInstTypeState(t);
 
-    // Guard against SSR/CSR hydration mismatch — the server always renders
-    // 'SCHOOL', so re-sync from localStorage right after mount too.
     useEffect(() => {
-        const saved = window.localStorage.getItem(STORAGE_KEY);
-        if (saved === 'SCHOOL' || saved === 'COLLEGE' || saved === 'COACHING') {
-            setInstTypeState(saved);
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        api.get('/admin/me')
+            .then((r) => {
+                const t = r.data?.data?.type;
+                if (t === 'SCHOOL' || t === 'COLLEGE' || t === 'COACHING') {
+                    setInstTypeState(t);
+                }
+            })
+            .catch(() => { /* not an admin / not logged in — keep default */ });
     }, []);
 
     return (

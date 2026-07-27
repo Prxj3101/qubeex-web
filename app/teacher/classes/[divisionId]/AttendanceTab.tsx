@@ -21,6 +21,8 @@ interface AttendanceStudent {
     rollNo: string;
     overallPct: number | null;
     avatarUrl?: string | null;
+    /** monthKey (YYYY-MM) → cumulative % from the start of the academic session through that month. */
+    cumulativeByMonth?: Record<string, number | null>;
 }
 
 interface SummaryStudent {
@@ -30,13 +32,13 @@ interface SummaryStudent {
     avatarUrl?: string | null;
     overallPct: number | null;
     currentMonthPct: number | null;
-    monthlyStats: { monthKey: string; p: number; a: number; l: number; pct: number | null }[];
+    monthlyStats: { monthKey: string; p: number; a: number; l: number; pct: number | null; cumulativePct: number | null }[];
 }
 
 interface ClassStats {
     overallPct: number | null;
     currentMonthPct: number | null;
-    monthlyStats: { monthKey: string; avg: number | null }[];
+    monthlyStats: { monthKey: string; avg: number | null; cumulativeAvg: number | null }[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -133,6 +135,11 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     const year = activeMonth >= 5 ? startYear : startYear + 1;
     const daysInMonth = new Date(year, activeMonth + 1, 0).getDate();
     const visibleDates = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+    // The "Σ%" column is the cumulative % from the start of the academic
+    // session (June) through the currently active month — it must be looked
+    // up per-month, not a single frozen value.
+    const activeMonthKey = `${year}-${String(activeMonth + 1).padStart(2, '0')}`;
+    const cumulativePctFor = (student: AttendanceStudent) => student.cumulativeByMonth?.[activeMonthKey] ?? null;
 
     const isWeekend = (d: number) => new Date(year, activeMonth, d).getDay() === 0;
     const isSelectedDateCell = (d: number) => d === selectedDate.getDate() && activeMonth === selectedDate.getMonth();
@@ -182,7 +189,8 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         const exportYear = monthKey >= 5 ? startYear : startYear + 1;
         const days = new Date(exportYear, monthKey + 1, 0).getDate();
         const dates = Array.from({ length: days }, (_, i) => i + 1);
-        const headers = ['Roll No.', 'Name', 'Student ID', ...dates.map(String), 'P', 'A', 'L', '%', 'Overall %'];
+        const exportMonthStr = `${exportYear}-${String(monthKey + 1).padStart(2, '0')}`;
+        const headers = ['Roll No.', 'Name', 'Student ID', ...dates.map(String), 'P', 'A', 'L', '%', 'Cumulative %'];
         const rows = students.map(student => {
             let p = 0, a = 0, l = 0;
             const dateCells = dates.map(d => {
@@ -196,7 +204,8 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
             });
             const total = p + a + l;
             const pct = total > 0 ? `${Math.round(((p + l) / total) * 100)}%` : '—';
-            return [student.rollNo, student.name, student.studentId, ...dateCells, p || '—', a || '—', l || '—', pct, student.overallPct !== null ? `${student.overallPct}%` : '—'];
+            const cumulativePct = student.cumulativeByMonth?.[exportMonthStr] ?? null;
+            return [student.rollNo, student.name, student.studentId, ...dateCells, p || '—', a || '—', l || '—', pct, cumulativePct !== null ? `${cumulativePct}%` : '—'];
         });
         return { headers, rows, sheetName: MONTHS_S[monthKey], exportYear };
     };
@@ -397,7 +406,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                             <th title="Total Late" className="sticky right-[159px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-amber-600 whitespace-nowrap w-[40px] min-w-[40px]">L</th>
                             <th title="Total Working Days" className="sticky right-[114px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-1 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap w-[45px] min-w-[45px]">T</th>
                             <th title="Current Month %" className="sticky right-[58px] z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap w-[56px] min-w-[56px]">%</th>
-                            <th title="Overall %" className="sticky right-0 z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap w-[58px] min-w-[58px]">&#x2211;%</th>
+                            <th title="Cumulative % — start of session through this month" className="sticky right-0 z-20 bg-[#ECF3D0] border border-[#BACE85]/50 px-2 py-1 text-center font-semibold text-[#2A3A10] whitespace-nowrap w-[58px] min-w-[58px]">&#x2211;%</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -488,8 +497,8 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                                     <td className={`sticky right-[58px] z-10 border border-[#BACE85]/50 px-2 py-2 text-center text-[11.5px] font-black bg-[#F5F8EE] w-[56px] ${pct !== null ? pctColor(pct) : 'text-[#BACE85]'}`}>
                                         {pct !== null ? `${pct}%` : '—'}
                                     </td>
-                                    <td className={`sticky right-0 z-10 border border-[#BACE85]/50 px-2 py-2 text-center text-[11.5px] font-black bg-[#F5F8EE] w-[58px] ${pctColor(student.overallPct)}`}>
-                                        {student.overallPct !== null ? `${student.overallPct}%` : '—'}
+                                    <td title="Cumulative % — start of session through this month" className={`sticky right-0 z-10 border border-[#BACE85]/50 px-2 py-2 text-center text-[11.5px] font-black bg-[#F5F8EE] w-[58px] ${pctColor(cumulativePctFor(student))}`}>
+                                        {cumulativePctFor(student) !== null ? `${cumulativePctFor(student)}%` : '—'}
                                     </td>
                                 </tr>
                             );
@@ -1157,7 +1166,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
 }
 
 // ── Daily Attendance Tab ──────────────────────────────────────────────────────
-function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHolidayChange, onStudentsWithPctLoad, attBase, readOnly }: {
+function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHolidayChange, onAttendanceSaved, attBase, readOnly }: {
     divisionName: string;
     divisionId: string;
     students: AttendanceStudent[];
@@ -1165,7 +1174,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     attBase: string;
     readOnly?: boolean;
     onHolidayChange: (dk: string, name: string | null) => void;
-    onStudentsWithPctLoad: (pcts: Record<string, number | null>) => void;
+    onAttendanceSaved?: () => void;
 }) {
     const today = new Date();
     const [selectedDate, setSelectedDate] = useState<Date>(today);
@@ -1266,6 +1275,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
             });
             setSaveStatus('saved');
             setRefreshKey(k => k + 1);
+            onAttendanceSaved?.();
             setTimeout(() => setSaveStatus('idle'), 2000);
         } catch (err) {
             console.error('Failed to save attendance', err);
@@ -1533,6 +1543,26 @@ export default function AttendanceTab({
     const [students, setStudents] = useState<AttendanceStudent[]>([]);
     const [holidays, setHolidays] = useState<Record<string, string>>({});
 
+    // Re-fetches just the cumulative/summary figures (not the whole student
+    // list) — called on mount and again after every attendance save, since
+    // saving changes the cumulative % for the current and all later months.
+    const refreshSummary = useCallback(() => {
+        return api.get(`${attBase}/summary`).then(summaryRes => {
+            const summaryByStudentId = new Map<string, SummaryStudent>(
+                (summaryRes.data.data.students as SummaryStudent[]).map(ss => [ss.studentId, ss])
+            );
+            setStudents(prev => prev.map(s => {
+                const summary = summaryByStudentId.get(s.id);
+                const cumulativeByMonth: Record<string, number | null> = {};
+                summary?.monthlyStats.forEach(m => { cumulativeByMonth[m.monthKey] = m.cumulativePct; });
+                return { ...s, overallPct: summary?.overallPct ?? null, cumulativeByMonth };
+            }));
+            const cs = summaryRes.data.data.classStats;
+            onHeaderStatsLoad?.({ overall: cs?.overallPct ?? null, thisMonth: cs?.currentMonthPct ?? null });
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [attBase]);
+
     useEffect(() => {
         let cancelled = false;
         Promise.all([
@@ -1541,15 +1571,24 @@ export default function AttendanceTab({
             api.get(`${attBase}/summary`),
         ]).then(([studRes, holRes, summaryRes]) => {
             if (cancelled) return;
+            const summaryByStudentId = new Map<string, SummaryStudent>(
+                (summaryRes.data.data.students as SummaryStudent[]).map(ss => [ss.studentId, ss])
+            );
             const s: AttendanceStudent[] = studRes.data.data.map((st: {
                 id: string; studentId: string; user: { name: string }; rollNo: string | null;
-            }) => ({
-                id: st.id,
-                studentId: st.studentId,
-                name: st.user.name,
-                rollNo: st.rollNo ?? '',
-                overallPct: null,
-            }));
+            }) => {
+                const summary = summaryByStudentId.get(st.id);
+                const cumulativeByMonth: Record<string, number | null> = {};
+                summary?.monthlyStats.forEach(m => { cumulativeByMonth[m.monthKey] = m.cumulativePct; });
+                return {
+                    id: st.id,
+                    studentId: st.studentId,
+                    name: st.user.name,
+                    rollNo: st.rollNo ?? '',
+                    overallPct: summary?.overallPct ?? null,
+                    cumulativeByMonth,
+                };
+            });
             setStudents(s);
             const h: Record<string, string> = {};
             holRes.data.data.forEach((hol: { date: string; name: string }) => { h[hol.date] = hol.name; });
@@ -1558,7 +1597,7 @@ export default function AttendanceTab({
             onHeaderStatsLoad?.({ overall: cs?.overallPct ?? null, thisMonth: cs?.currentMonthPct ?? null });
         }).catch(err => { if (!cancelled) console.error('Failed to load attendance base data', err); });
         return () => { cancelled = true; };
-    }, [divisionId]);
+    }, [divisionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleHolidayChange = (dk: string, name: string | null) => {
         setHolidays(prev => {
@@ -1568,10 +1607,6 @@ export default function AttendanceTab({
             return next;
         });
     };
-
-    const handleStudentsWithPctLoad = useCallback((pcts: Record<string, number | null>) => {
-        setStudents(prev => prev.map(s => ({ ...s, overallPct: pcts[s.id] ?? s.overallPct })));
-    }, []);
 
     return (
         <div className="flex flex-col h-full pt-3 pb-3 px-1 min-h-0">
@@ -1595,7 +1630,7 @@ export default function AttendanceTab({
                             students={students}
                             holidays={holidays}
                             onHolidayChange={handleHolidayChange}
-                            onStudentsWithPctLoad={handleStudentsWithPctLoad}
+                            onAttendanceSaved={refreshSummary}
                             attBase={attBase}
                             readOnly={readOnly}
                         />
