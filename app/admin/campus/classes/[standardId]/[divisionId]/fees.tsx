@@ -6,7 +6,7 @@ import {
     Plus, X, Check, Upload, QrCode, CreditCard, Building2,
     ChevronDown, ChevronRight, Landmark, Wallet, Users,
     Info, FileText, Tag, Calendar, Pencil, Trash2, ChevronUp,
-    RotateCw, RefreshCw, Rotate3d, GripVertical,
+    RotateCw, RefreshCw, Rotate3d, GripVertical, ImagePlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -397,6 +397,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
     const [uploadingQr, setUploadingQr] = useState(false);
     const qrInputRef = useRef<HTMLInputElement>(null);
+    const logoInputRef = useRef<HTMLInputElement>(null);
 
     // Fee card template
     const [studentFields, setStudentFields] = useState<StudentDetailField[]>(DEFAULT_STUDENT_FIELDS);
@@ -408,6 +409,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const [feeCardFlipped, setFeeCardFlipped] = useState(false);
     const [feeCardTheme, setFeeCardTheme] = useState<FeeCardThemeKey>('yellow');
     const fc = FEE_CARD_THEMES[feeCardTheme];
+    const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
+    const [schoolName, setSchoolName] = useState('');
+    const [uploadingLogo, setUploadingLogo] = useState(false);
     const [rulesAndRegs, setRulesAndRegs] = useState<{ id: string; text: string }[]>([]);
     const [studentCardFlipped, setStudentCardFlipped] = useState(false);
 
@@ -487,9 +491,13 @@ export const FeesTab = forwardRef<FeesTabHandle, {
         studentFields?: StudentDetailField[];
         generalRemark?: string | null;
         feeCardTheme?: string;
+        schoolLogoUrl?: string | null;
+        schoolName?: string | null;
     }) => {
         setFeeStructures(data.feeStructures ?? []);
         setFeeCardTheme((data.feeCardTheme && data.feeCardTheme in FEE_CARD_THEMES ? data.feeCardTheme : 'yellow') as FeeCardThemeKey);
+        setSchoolLogoUrl(data.schoolLogoUrl ?? null);
+        setSchoolName(data.schoolName ?? '');
         setFeeMonths((data.feeMonths ?? []).map(m => ({
             ...m,
             assignedStructureIds: m.assignedStructureIds ?? [],
@@ -563,6 +571,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                 studentFields,
                 generalRemark: generalRemark.trim() || null,
                 feeCardTheme,
+                schoolLogoUrl,
+                schoolName: schoolName.trim() || null,
             });
             setTemplateFrom(null);
             if (!opts?.silent) toast.success('Fee structure saved');
@@ -594,7 +604,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
         }, 1500);
         return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [feeStructures, feeMonths, bankDetails, qrImageUrl, extraColumns, studentFields, generalRemark, feeCardTheme]);
+    }, [feeStructures, feeMonths, bankDetails, qrImageUrl, extraColumns, studentFields, generalRemark, feeCardTheme, schoolLogoUrl, schoolName]);
 
     useImperativeHandle(ref, () => ({
         save: () => handleSaveRef.current(),
@@ -615,6 +625,24 @@ export const FeesTab = forwardRef<FeesTabHandle, {
             toast.error('QR upload failed');
         } finally {
             setUploadingQr(false);
+        }
+    };
+
+    const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        e.target.value = '';
+        setUploadingLogo(true);
+        try {
+            const form = new FormData();
+            form.append('file', file);
+            const res = await api.post('/admin/campus/feed/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } });
+            setSchoolLogoUrl(res.data.data.url);
+            toast.success('Logo uploaded');
+        } catch {
+            toast.error('Logo upload failed');
+        } finally {
+            setUploadingLogo(false);
         }
     };
 
@@ -673,31 +701,47 @@ export const FeesTab = forwardRef<FeesTabHandle, {
 
                             {/* LEFT — Fee Card Template */}
                             <div className="w-full lg:w-[55%] flex flex-col rounded-2xl shadow-sm shadow-black/5 border" style={{ perspective: '1000px', background: fc.bg, borderColor: fc.border }}>
+
+                            {/* School branding — logo + name shown at the top of the card */}
+                            <div className="px-4 py-2.5 flex items-center justify-between gap-2.5 rounded-t-2xl" style={{ borderBottom: `1px solid ${fc.border}` }}>
+                                <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                    <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}
+                                        className="w-9 h-9 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 hover:bg-white/30 transition-all"
+                                        style={{ borderColor: fc.border, background: '#FFFFFF' }} title="Upload your school PNG logo">
+                                        {schoolLogoUrl
+                                            ? <img src={schoolLogoUrl} alt="School logo" className="w-full h-full object-contain" />
+                                            : <ImagePlus size={15} style={{ color: '#000000', opacity: 0.5 }} />}
+                                    </button>
+                                    <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
+                                    <input value={schoolName} onChange={e => setSchoolName(e.target.value)} placeholder="School name (shown on fee card)"
+                                        className="flex-1 h-8 px-3 rounded-lg border text-xs focus:outline-none placeholder:text-black/40"
+                                        style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
+                                </div>
+                                <button
+                                    onClick={() => setFeeCardFlipped(v => !v)}
+                                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/30 shrink-0"
+                                    style={{ borderColor: fc.border, color: '#000000' }}>
+                                    <motion.span animate={{ rotate: feeCardFlipped ? 180 : 0 }} transition={{ duration: 0.4 }}>
+                                        <span style={{ fontSize: '16px', display: 'inline-block', transform: feeCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
+                                    </motion.span>
+                                    {feeCardFlipped ? 'View Front' : 'View Back'}
+                                </button>
+                            </div>
+
                             <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: `1px solid ${fc.border}` }}>
                                 <p className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2" style={{ color: '#000000' }}>
                                     <Wallet size={14} /> Fee Card Template
                                 </p>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex items-center gap-1 pr-1.5 mr-0.5 border-r" style={{ borderColor: fc.border }}>
-                                        {(Object.keys(FEE_CARD_THEMES) as FeeCardThemeKey[]).map(key => {
-                                            const t = FEE_CARD_THEMES[key];
-                                            const active = feeCardTheme === key;
-                                            return (
-                                                <button key={key} type="button" onClick={() => setFeeCardTheme(key)} title={t.name}
-                                                    className="w-5 h-5 rounded-full transition-all"
-                                                    style={{ background: t.bg, border: `1.5px solid ${t.border}`, boxShadow: active ? `0 0 0 2px ${t.border}` : 'none', transform: active ? 'scale(1.15)' : 'scale(1)' }} />
-                                            );
-                                        })}
-                                    </div>
-                                    <button
-                                        onClick={() => setFeeCardFlipped(v => !v)}
-                                        className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/30"
-                                        style={{ borderColor: fc.border, color: '#000000' }}>
-                                        <motion.span animate={{ rotate: feeCardFlipped ? 180 : 0 }} transition={{ duration: 0.4 }}>
-                                            <span style={{ fontSize: '16px', display: 'inline-block', transform: feeCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
-                                        </motion.span>
-                                        {feeCardFlipped ? 'View Front' : 'View Back'}
-                                    </button>
+                                <div className="flex items-center gap-1" style={{ borderColor: fc.border }}>
+                                    {(Object.keys(FEE_CARD_THEMES) as FeeCardThemeKey[]).map(key => {
+                                        const t = FEE_CARD_THEMES[key];
+                                        const active = feeCardTheme === key;
+                                        return (
+                                            <button key={key} type="button" onClick={() => setFeeCardTheme(key)} title={t.name}
+                                                className="w-5 h-5 rounded-full transition-all"
+                                                style={{ background: t.bg, border: `1.5px solid ${t.border}`, boxShadow: active ? `0 0 0 2px ${t.border}` : 'none', transform: active ? 'scale(1.15)' : 'scale(1)' }} />
+                                        );
+                                    })}
                                 </div>
                             </div>
 
@@ -1268,14 +1312,18 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                 <div style={{ backfaceVisibility: 'hidden', background: fc.bg, borderColor: fc.border }}
                                                     className={`rounded-2xl border ${studentCardFlipped ? 'invisible' : ''}`}>
 
-                                                    {/* Header */}
-                                                    <div className="px-4 py-3 flex items-center justify-between rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
-                                                        <div>
-                                                            <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
-                                                            <p className="text-[11px]" style={{ color: '#000000' }}>{divisionName}</p>
+                                                    {/* School branding */}
+                                                    <div className="px-4 py-2.5 flex items-center justify-between gap-2.5 rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            {schoolLogoUrl
+                                                                ? <img src={schoolLogoUrl} alt="School logo" className="w-8 h-8 rounded-lg object-contain shrink-0" style={{ background: '#FFFFFF', border: `1px solid ${fc.border}` }} />
+                                                                : <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#FFFFFF', border: `1px dashed ${fc.border}` }}><ImagePlus size={13} style={{ color: '#000000', opacity: 0.3 }} /></div>}
+                                                            {schoolName
+                                                                ? <p className="text-sm font-bold" style={{ color: '#000000' }}>{schoolName}</p>
+                                                                : <p className="text-xs italic" style={{ color: '#000000', opacity: 0.4 }}>School name not added yet</p>}
                                                         </div>
                                                         <button onClick={() => setStudentCardFlipped(true)}
-                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40"
+                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40 shrink-0"
                                                             style={{ borderColor: fc.border, color: '#000000' }}>
                                                             <span style={{ fontSize: '16px', display: 'inline-block', transform: studentCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
                                                             View Back
