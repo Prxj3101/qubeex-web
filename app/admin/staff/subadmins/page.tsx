@@ -78,8 +78,13 @@ interface SubAdminRecord {
     createdAt: string;
     designation?: string;
     phone?: string;
+    dob?: string;
+    gender?: string;
+    address?: string;
     city?: string;
     state?: string;
+    pincode?: string;
+    country?: string;
     qualification?: string;
     experience?: string;
 }
@@ -494,13 +499,13 @@ export default function SubadminsPage() {
             designation: subadmin.designation ?? '',
             phoneCode: matchedCode,
             phoneNumber: existingNumber,
-            dob: '',
-            gender: '',
-            address: '',
+            dob: subadmin.dob ?? '',
+            gender: subadmin.gender ?? '',
+            address: subadmin.address ?? '',
             city: subadmin.city ?? '',
             state: subadmin.state ?? '',
-            pincode: '',
-            country: 'India',
+            pincode: subadmin.pincode ?? '',
+            country: subadmin.country ?? 'India',
             qualification: subadmin.qualification ?? '',
             experience: subadmin.experience ?? '',
             permissions: [...subadmin.permissions],
@@ -545,22 +550,40 @@ export default function SubadminsPage() {
 
     const handleEditPermissions = useCallback(async () => {
         if (modal.type !== 'edit') return;
+        if (!form.name.trim()) return;
         if (form.permissions.length === 0) { toast.error('Grant at least one permission'); return; }
         setActionLoading(true);
         try {
-            await api.patch(`/admin/subadmins/${modal.subadmin.id}/permissions`, {
-                permissions: form.permissions,
-            });
+            const [detailsRes] = await Promise.all([
+                api.patch(`/admin/subadmins/${modal.subadmin.id}`, {
+                    name: form.name.trim(),
+                    designation: form.designation || undefined,
+                    phone: form.phoneNumber ? `${form.phoneCode} ${form.phoneNumber}` : undefined,
+                    dob: form.dob || undefined,
+                    gender: form.gender || undefined,
+                    address: form.address || undefined,
+                    city: form.city || undefined,
+                    state: form.state || undefined,
+                    pincode: form.pincode || undefined,
+                    country: form.country || undefined,
+                    qualification: form.qualification || undefined,
+                    experience: form.experience || undefined,
+                }),
+                api.patch(`/admin/subadmins/${modal.subadmin.id}/permissions`, {
+                    permissions: form.permissions,
+                }),
+            ]);
+            const updated = detailsRes.data.data;
             setSubadmins(prev => prev.map(s =>
-                s.id === modal.subadmin.id ? { ...s, permissions: form.permissions } : s
+                s.id === modal.subadmin.id ? { ...s, ...updated, permissions: form.permissions } : s
             ));
-            toast.success('Permissions updated');
+            toast.success('Subadmin updated');
             closeModal();
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { error?: string } } })?.response?.data?.error;
-            toast.error(msg ?? 'Failed to update permissions');
+            toast.error(msg ?? 'Failed to update subadmin');
         } finally { setActionLoading(false); }
-    }, [modal, form.permissions]);
+    }, [modal, form]);
 
     const handleToggleStatus = useCallback(async (subadmin: SubAdminRecord) => {
         const nextActive = !subadmin.isActive;
