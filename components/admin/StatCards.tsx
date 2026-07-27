@@ -16,7 +16,7 @@ export function StatCards({ stats, institutionType, plan }: StatCardsProps) {
 
     const items = [
         {
-            label: 'Total users',
+            label: 'Total Users',
             value: stats.totalUsers.toLocaleString('en-IN'),
             sub: '∞ limit',
             icon: Users,

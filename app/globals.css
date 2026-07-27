@@ -87,15 +87,25 @@
   --border: #C7E6F5;
 }
 
-.dark .theme-college {
-  --background: #080B16;
-  --card: #0E1222;
-  --card-foreground: #F1F5F9;
-  --primary: #6495ED;
-  --primary-foreground: #0B1B2A;
-  --muted: #12182A;
-  --muted-foreground: #94A3B8;
-  --border: #12182A;
+/* Both selectors are needed: `.dark .theme-college` covers the case where
+   theme-college sits on a descendant of the dark root (e.g. an inner page
+   wrapper), while `.dark.theme-college` (no space) covers the case where
+   both classes land on the very same element — which happens on <html>,
+   since that's the only element portaled content (dropdowns, dialogs,
+   toasts) actually inherits CSS variables from. Without the compound
+   selector, dark mode on a college account silently fell back to the
+   light-mode college colors because the descendant-only selector never
+   matched a same-element pairing. */
+.dark .theme-college,
+.dark.theme-college {
+  --background: #080B16 !important;
+  --card: #0E1222 !important;
+  --card-foreground: #F1F5F9 !important;
+  --primary: #6495ED !important;
+  --primary-foreground: #0B1B2A !important;
+  --muted: #12182A !important;
+  --muted-foreground: #94A3B8 !important;
+  --border: #12182A !important;
 }
 
 @layer base {

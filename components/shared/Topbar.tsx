@@ -33,7 +33,6 @@ interface NavItem {
 
 interface TopbarProps {
     navItems?: NavItem[];
-    devToggle?: React.ReactNode; // ← add
     restrictNav?: boolean;
 }
 
@@ -136,7 +135,7 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
                 <button className="outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full">
                     <Avatar className="h-8 w-8 cursor-pointer ring-2 ring-border">
                         {photoUrl && <AvatarImage src={photoUrl} alt={displayName} className="object-cover" />}
-                        <AvatarFallback className="text-[11px] font-semibold bg-violet-100 dark:bg-[#7C3AED]/25 text-violet-700 dark:text-violet-300">
+                        <AvatarFallback className="text-[11px] font-semibold bg-muted text-primary">
                             {isStudent && studentName
                                 ? studentName.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
                                 : initialMap[role]}
@@ -144,11 +143,11 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
                     </Avatar>
                 </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 p-2 rounded-2xl border border-border/50 shadow-lg bg-card">
+            <DropdownMenuContent align="end" className="w-52 p-2 rounded-2xl border border-border/50 shadow-lg bg-card text-card-foreground">
                 <div className="flex items-center gap-3 px-2 py-2.5 mb-1">
                     <Avatar className="w-9 h-9 rounded-xl shrink-0">
                         {photoUrl && <AvatarImage src={photoUrl} alt={displayName} className="object-cover rounded-xl" />}
-                        <AvatarFallback className="rounded-xl bg-violet-100 dark:bg-[#7C3AED]/25 text-sm font-bold text-violet-700 dark:text-violet-300">
+                        <AvatarFallback className="rounded-xl bg-muted text-sm font-bold text-primary">
                             {isStudent && studentName
                                 ? studentName.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
                                 : initialMap[role]}
@@ -168,8 +167,8 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
                         "flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors",
                         restrictNav ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"
                     )}>
-                    <div className="w-7 h-7 rounded-lg bg-violet-100 dark:bg-[#7C3AED]/25 flex items-center justify-center shrink-0">
-                        <User size={13} className="text-violet-600 dark:text-violet-400" />
+                    <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                        <User size={13} className="text-primary" />
                     </div>
                     <span className="text-sm font-medium">My Profile</span>
                 </DropdownMenuItem>
@@ -199,7 +198,7 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
     );
 }
 
-export function Topbar({ navItems, devToggle, restrictNav }: TopbarProps) {
+export function Topbar({ navItems, restrictNav }: TopbarProps) {
     const pathname = usePathname();
 
     return (
@@ -225,7 +224,6 @@ export function Topbar({ navItems, devToggle, restrictNav }: TopbarProps) {
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                    {devToggle}  {/* ← add */}
                     <NotificationsBell />
                     <ThemeToggle />
                     <AvatarMenu restrictNav={restrictNav} />

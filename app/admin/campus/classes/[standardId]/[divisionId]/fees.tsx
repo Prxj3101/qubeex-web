@@ -706,15 +706,15 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                             <div className="px-4 py-2.5 flex items-center justify-between gap-2.5 rounded-t-2xl" style={{ borderBottom: `1px solid ${fc.border}` }}>
                                 <div className="flex items-center gap-2.5 flex-1 min-w-0">
                                     <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}
-                                        className="w-9 h-9 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 hover:bg-white/30 transition-all"
-                                        style={{ borderColor: fc.border, background: '#FFFFFF' }} title="Upload your school PNG logo">
+                                        className="w-20 h-20 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 hover:bg-white/30 transition-all"
+                                        style={{ borderColor: fc.border, background: schoolLogoUrl ? fc.bg : '#FFFFFF' }} title="Upload your school PNG logo">
                                         {schoolLogoUrl
                                             ? <img src={schoolLogoUrl} alt="School logo" className="w-full h-full object-contain" />
-                                            : <ImagePlus size={15} style={{ color: '#000000', opacity: 0.5 }} />}
+                                            : <ImagePlus size={30} style={{ color: '#000000', opacity: 0.5 }} />}
                                     </button>
                                     <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
                                     <input value={schoolName} onChange={e => setSchoolName(e.target.value)} placeholder="School name (shown on fee card)"
-                                        className="flex-1 h-8 px-3 rounded-lg border text-xs focus:outline-none placeholder:text-black/40"
+                                        className="flex-1 h-14 px-3 rounded-lg border text-2xl font-semibold focus:outline-none placeholder:text-black/40 placeholder:font-normal"
                                         style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
                                 </div>
                                 <button
@@ -730,7 +730,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
 
                             <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: `1px solid ${fc.border}` }}>
                                 <p className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2" style={{ color: '#000000' }}>
-                                    <Wallet size={14} /> Fee Card Template
+                                    Fee Card Template
                                 </p>
                                 <div className="flex items-center gap-1" style={{ borderColor: fc.border }}>
                                     {(Object.keys(FEE_CARD_THEMES) as FeeCardThemeKey[]).map(key => {
@@ -1316,10 +1316,10 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                     <div className="px-4 py-2.5 flex items-center justify-between gap-2.5 rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                                         <div className="flex items-center gap-2.5 min-w-0">
                                                             {schoolLogoUrl
-                                                                ? <img src={schoolLogoUrl} alt="School logo" className="w-8 h-8 rounded-lg object-contain shrink-0" style={{ background: '#FFFFFF', border: `1px solid ${fc.border}` }} />
-                                                                : <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#FFFFFF', border: `1px dashed ${fc.border}` }}><ImagePlus size={13} style={{ color: '#000000', opacity: 0.3 }} /></div>}
+                                                                ? <img src={schoolLogoUrl} alt="School logo" className="w-20 h-20 rounded-lg object-contain shrink-0" style={{ background: fc.bg }} />
+                                                                : <div className="w-20 h-20 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#FFFFFF', border: `1px dashed ${fc.border}` }}><ImagePlus size={30} style={{ color: '#000000', opacity: 0.3 }} /></div>}
                                                             {schoolName
-                                                                ? <p className="text-sm font-bold" style={{ color: '#000000' }}>{schoolName}</p>
+                                                                ? <p className="text-3xl font-bold" style={{ color: '#000000' }}>{schoolName}</p>
                                                                 : <p className="text-xs italic" style={{ color: '#000000', opacity: 0.4 }}>School name not added yet</p>}
                                                         </div>
                                                         <button onClick={() => setStudentCardFlipped(true)}
@@ -1328,6 +1328,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                             <span style={{ fontSize: '16px', display: 'inline-block', transform: studentCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
                                                             View Back
                                                         </button>
+                                                    </div>
+
+                                                    {/* Strip — student name's fee card */}
+                                                    <div className="px-4 py-2 border-b" style={{ borderColor: fc.border }}>
+                                                        <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
                                                     </div>
 
                                                     {/* Content */}
@@ -1528,18 +1533,28 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                 <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: fc.bg, borderColor: fc.border }}
                                                     className={`rounded-2xl border ${!studentCardFlipped ? 'invisible' : ''}`}>
 
-                                                    {/* Header */}
-                                                    <div className="px-4 py-3 flex items-center justify-between rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
-                                                        <div>
-                                                            <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
-                                                            <p className="text-[11px]" style={{ color: '#000000' }}>Rules & Regulations</p>
+                                                    {/* Header — school branding, same as front */}
+                                                    <div className="px-4 py-2.5 flex items-center justify-between gap-2.5 rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
+                                                        <div className="flex items-center gap-2.5 min-w-0">
+                                                            {schoolLogoUrl
+                                                                ? <img src={schoolLogoUrl} alt="School logo" className="w-20 h-20 rounded-lg object-contain shrink-0" style={{ background: fc.bg }} />
+                                                                : <div className="w-20 h-20 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#FFFFFF', border: `1px dashed ${fc.border}` }}><ImagePlus size={30} style={{ color: '#000000', opacity: 0.3 }} /></div>}
+                                                            {schoolName
+                                                                ? <p className="text-3xl font-bold" style={{ color: '#000000' }}>{schoolName}</p>
+                                                                : <p className="text-xs italic" style={{ color: '#000000', opacity: 0.4 }}>School name not added yet</p>}
                                                         </div>
                                                         <button onClick={() => setStudentCardFlipped(false)}
-                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40"
+                                                            className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40 shrink-0"
                                                             style={{ borderColor: fc.border, color: '#000000' }}>
                                                             <span style={{ fontSize: '16px', display: 'inline-block', transform: 'scaleX(-1)' }}>↺</span>
                                                             View Front
                                                         </button>
+                                                    </div>
+
+                                                    {/* Strip — student name's fee card / rules & regulations */}
+                                                    <div className="px-4 py-2 border-b" style={{ borderColor: fc.border }}>
+                                                        <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
+                                                        <p className="text-[11px]" style={{ color: '#000000', opacity: 0.7 }}>Rules & Regulations</p>
                                                     </div>
 
                                                     {/* Rules Content */}

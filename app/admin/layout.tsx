@@ -45,7 +45,7 @@ function isPathAccessible(pathname: string, permissions: string[]): boolean {
 }
 
 function AdminLayoutInner({ children }: { children: React.ReactNode }) {
-    const { instType, setInstType } = useMockInstType();
+    const { instType } = useMockInstType();
     const { user, setUser } = useAuthStore();
     const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
     useEffect(() => {
@@ -115,19 +115,24 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         return { ...item, locked: !hasAccess };
     });
 
+    // The `theme-college` class also needs to live on <html>, not just the
+    // inner wrapper below — Radix's dropdown/popover/dialog content renders
+    // through a Portal straight into document.body, which sits outside the
+    // wrapper div's scope. Without this, portaled UI (the avatar dropdown,
+    // any modal, etc.) falls back to the default violet CSS variables even
+    // when the rest of the page is correctly showing the college blue theme.
+    useEffect(() => {
+        document.documentElement.classList.toggle('theme-college', instType === 'COLLEGE');
+        return () => { document.documentElement.classList.remove('theme-college'); };
+    }, [instType]);
+
     return (
-        <div className={`flex flex-col h-screen bg-background px-0 pt-3 gap-3 ${instType === 'COLLEGE' ? 'theme-college' : ''}`}>
+        <div
+            suppressHydrationWarning
+            className={`flex flex-col h-screen bg-background px-0 pt-3 gap-3 ${instType === 'COLLEGE' ? 'theme-college' : ''}`}
+        >
             <Topbar
                 navItems={navItems}
-                devToggle={
-                    <button
-                        onClick={() => setInstType(instType === 'COLLEGE' ? 'SCHOOL' : 'COLLEGE')}
-                        className="text-[10px] font-semibold px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground transition-colors"
-                        title="Dev only — toggle institution type theme"
-                    >
-                        {instType === 'COLLEGE' ? '🎓 College' : '🏫 School'}
-                    </button>
-                }
             />
             <main className="flex-1 overflow-y-auto overflow-x-hidden px-2 outline-none bg-background" tabIndex={-1}>
                 {children}

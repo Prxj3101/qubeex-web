@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ChevronDown, X, Users, ChevronRight, ChevronUp,
+    ChevronDown, X, Users, ChevronRight, ChevronUp, ImagePlus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -113,12 +113,16 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
     const [expandedBreakdownItemIds, setExpandedBreakdownItemIds] = useState<Set<string>>(new Set());
     const [feeCardTheme, setFeeCardTheme] = useState<FeeCardThemeKey>('yellow');
     const fc = FEE_CARD_THEMES[feeCardTheme];
+    const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
+    const [schoolName, setSchoolName] = useState('');
 
     useEffect(() => {
         api.get(`/admin/campus/divisions/${divisionId}/fee-structure`)
             .then(res => {
                 const theme = res.data?.data?.feeCardTheme;
                 if (theme && theme in FEE_CARD_THEMES) setFeeCardTheme(theme as FeeCardThemeKey);
+                setSchoolLogoUrl(res.data?.data?.schoolLogoUrl ?? null);
+                setSchoolName(res.data?.data?.schoolName ?? '');
             })
             .catch(() => { /* fall back to default yellow theme */ });
     }, [divisionId]);
@@ -249,17 +253,26 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                     <div style={{ backfaceVisibility: 'hidden', background: fc.bg, borderColor: fc.border }}
                                         className={`rounded-2xl border ${studentCardFlipped ? 'invisible' : ''}`}>
 
-                                        <div className="px-4 py-3 flex items-center justify-between rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
-                                            <div>
-                                                <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
-                                                <p className="text-[11px]" style={{ color: '#000000' }}>{divisionName}</p>
+                                        <div className="px-4 py-2.5 flex items-center justify-between gap-2.5 rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                {schoolLogoUrl
+                                                    ? <img src={schoolLogoUrl} alt="School logo" className="w-20 h-20 rounded-lg object-contain shrink-0" style={{ background: fc.bg }} />
+                                                    : <div className="w-20 h-20 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#FFFFFF', border: `1px dashed ${fc.border}` }}><ImagePlus size={30} style={{ color: '#000000', opacity: 0.3 }} /></div>}
+                                                {schoolName
+                                                    ? <p className="text-3xl font-bold" style={{ color: '#000000' }}>{schoolName}</p>
+                                                    : <p className="text-xs italic" style={{ color: '#000000', opacity: 0.4 }}>School name not added yet</p>}
                                             </div>
                                             <button onClick={() => setStudentCardFlipped(true)}
-                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40"
+                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40 shrink-0"
                                                 style={{ borderColor: fc.border, color: '#000000' }}>
                                                 <span style={{ fontSize: '16px', display: 'inline-block' }}>↺</span>
                                                 View Back
                                             </button>
+                                        </div>
+
+                                        {/* Strip — student name's fee card */}
+                                        <div className="px-4 py-2 border-b" style={{ borderColor: fc.border }}>
+                                            <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
                                         </div>
 
                                         <div className="space-y-4 px-4 py-3" style={{ color: '#000000' }}>
@@ -434,17 +447,27 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                     <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: fc.bg, borderColor: fc.border }}
                                         className={`rounded-2xl border ${!studentCardFlipped ? 'invisible' : ''}`}>
 
-                                        <div className="px-4 py-3 flex items-center justify-between rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
-                                            <div>
-                                                <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
-                                                <p className="text-[11px]" style={{ color: '#000000' }}>Rules & Regulations</p>
+                                        <div className="px-4 py-2.5 flex items-center justify-between gap-2.5 rounded-t-2xl" style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                {schoolLogoUrl
+                                                    ? <img src={schoolLogoUrl} alt="School logo" className="w-20 h-20 rounded-lg object-contain shrink-0" style={{ background: fc.bg }} />
+                                                    : <div className="w-20 h-20 rounded-lg flex items-center justify-center shrink-0" style={{ background: '#FFFFFF', border: `1px dashed ${fc.border}` }}><ImagePlus size={30} style={{ color: '#000000', opacity: 0.3 }} /></div>}
+                                                {schoolName
+                                                    ? <p className="text-3xl font-bold" style={{ color: '#000000' }}>{schoolName}</p>
+                                                    : <p className="text-xs italic" style={{ color: '#000000', opacity: 0.4 }}>School name not added yet</p>}
                                             </div>
                                             <button onClick={() => setStudentCardFlipped(false)}
-                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40"
+                                                className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/40 shrink-0"
                                                 style={{ borderColor: fc.border, color: '#000000' }}>
                                                 <span style={{ fontSize: '16px', display: 'inline-block', transform: 'scaleX(-1)' }}>↺</span>
                                                 View Front
                                             </button>
+                                        </div>
+
+                                        {/* Strip — student name's fee card / rules & regulations */}
+                                        <div className="px-4 py-2 border-b" style={{ borderColor: fc.border }}>
+                                            <p className="text-sm font-bold tracking-wide" style={{ color: '#000000' }}>{selectedStudent.name}'s Fee Card</p>
+                                            <p className="text-[11px]" style={{ color: '#000000', opacity: 0.7 }}>Rules & Regulations</p>
                                         </div>
 
                                         <div className="px-4 py-3 space-y-3">

@@ -1048,7 +1048,7 @@ function ViewDetailsTab({
   );
 }
 
-function ManagePlanTab({ inst }: { inst: InstData }) {
+function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Partial<InstData>) => void }) {
   const router = useRouter();
   const instType =
     (inst.type as keyof typeof PRICING) in PRICING
@@ -3255,7 +3255,20 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                     if (!days || days < 1 || days > 365) { toast.error("Enter a number between 1 and 365"); return; }
                     setExtending(true);
                     try {
-                      await api.post(`/superadmin/institutions/${inst.id}/trial/extend`, { extraDays: days });
+                      const res = await api.post(`/superadmin/institutions/${inst.id}/trial/extend`, { extraDays: days });
+                      const updatedSub = res.data?.data?.subscription ?? res.data?.data;
+                      // Reflect the extended total + new end date on the parent's
+                      // `inst` state right away — without this, `trialDays` (used
+                      // as the meter's total) stayed stuck at the old value since
+                      // only trialUsage (daysRemaining) was refetched, making the
+                      // bar show e.g. "12/12" instead of "12/28" after extending.
+                      onPatch?.({
+                        subscription: {
+                          ...inst.subscription,
+                          trialDays: updatedSub?.trialDays ?? (trialDays + days),
+                          endDate: updatedSub?.endDate ?? inst.subscription?.endDate,
+                        },
+                      });
                       toast.success(`Trial extended by ${days} days`);
                       setExtendOpen(false);
                       setExtendDays("");
@@ -3394,7 +3407,7 @@ function ManagePlanTab({ inst }: { inst: InstData }) {
                 used={trialDays - (daysRemaining ?? 0)}
                 total={trialDays}
                 unitLabel="days"
-                formatter={() => String(daysRemaining ?? 0)}
+                formatter={(v) => String(v === trialDays ? trialDays : (daysRemaining ?? 0))}
               />
               <TrialUsageBar
                 label="Users"
@@ -4185,7 +4198,7 @@ export default function InstitutionDetailPage() {
             onInstitutionPatch={handleInstitutionPatch}
           />
         ) : (
-          <ManagePlanTab key="plan" inst={institution} />
+          <ManagePlanTab key="plan" inst={institution} onPatch={handleInstitutionPatch} />
         )}
       </AnimatePresence>
       <div className="pb-6" />
