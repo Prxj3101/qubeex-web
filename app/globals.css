@@ -77,25 +77,25 @@
    element so every bg-primary/bg-card/bg-muted/border-border utility that
    already exists across the app repaints automatically. ── */
 .theme-college {
-  --background: #EAF6FF;
+  --background: #F1F8FD;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
-  --primary: #1E9BE8;
+  --primary: #3970E0;
   --primary-foreground: #FFFFFF;
-  --muted: #D6EEFC;
+  --muted: #E3F1FA;
   --muted-foreground: #64748B;
-  --border: #9FD6F7;
+  --border: #C7E6F5;
 }
 
 .dark .theme-college {
-  --background: #071624;
-  --card: #0F2A40;
+  --background: #080B16;
+  --card: #0E1222;
   --card-foreground: #F1F5F9;
-  --primary: #73C2FB;
+  --primary: #6495ED;
   --primary-foreground: #0B1B2A;
-  --muted: #123350;
+  --muted: #12182A;
   --muted-foreground: #94A3B8;
-  --border: #123350;
+  --border: #12182A;
 }
 
 @layer base {
@@ -154,8 +154,17 @@
   overflow-y: auto !important;
   max-height: 220px;
 }
+
 @keyframes gradShift {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
