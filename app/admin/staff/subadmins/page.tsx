@@ -375,18 +375,20 @@ function SubAdminCard({
             <div className="px-4 py-3 space-y-2 flex-1">
                 <div className="flex items-center gap-2">
                     <Hash size={13} className="shrink-0 text-muted-foreground/60" />
+                    <span className="text-[12px] text-muted-foreground w-24 shrink-0">Sub-Admin ID</span>
                     {subadmin.displayId
                         ? <span className="font-mono text-[12px] font-semibold tracking-wider" style={{ color: '#DA7756' }}>{subadmin.displayId}</span>
                         : <span className="italic text-muted-foreground/40 text-[11px]">—</span>}
                 </div>
                 {[
-                    { icon: Mail,         value: subadmin.email },
-                    { icon: Phone,        value: subadmin.phone ?? '—' },
-                    { icon: CalendarDays, value: formatDate(subadmin.createdAt) },
-                ].map(({ icon: Icon, value }) => (
-                    <div key={value} className="flex items-center gap-2">
+                    { icon: Mail,         label: 'Email',  value: subadmin.email },
+                    { icon: Phone,        label: 'Phone',  value: subadmin.phone ?? '—' },
+                    { icon: CalendarDays, label: 'Joined', value: formatDate(subadmin.createdAt) },
+                ].map(({ icon: Icon, label, value }) => (
+                    <div key={label} className="flex items-center gap-2">
                         <Icon size={13} className="shrink-0 text-muted-foreground/60" />
-                        <span className="text-[12px] truncate">{value}</span>
+                        <span className="text-[12px] text-muted-foreground w-24 shrink-0">{label}</span>
+                        <span className="text-[12px] font-medium truncate">{value}</span>
                     </div>
                 ))}
 

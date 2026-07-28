@@ -21,7 +21,7 @@ export function getInstitutionAccent(type: InstitutionType): InstitutionAccent {
 export function getFourthStatLabel(type: InstitutionType): string {
     switch (type) {
         case 'SCHOOL': return 'Classes';
-        case 'COLLEGE': return 'Courses';
+        case 'COLLEGE': return 'Departments';
         case 'COACHING': return 'Batches';
     }
 }
@@ -31,7 +31,7 @@ export function getStructureLabels(type: InstitutionType) {
         case 'SCHOOL':
             return { l1: 'Standard', l2: 'Subject', l3: 'Division', l1Plural: 'Standards', l2Plural: 'Subjects', l3Plural: 'Divisions' };
         case 'COLLEGE':
-            return { l1: 'Course', l2: 'Stream', l3: 'Division', l1Plural: 'Courses', l2Plural: 'Streams', l3Plural: 'Divisions' };
+            return { l1: 'Department', l2: 'Year', l3: 'Division', l1Plural: 'Departments', l2Plural: 'Years', l3Plural: 'Divisions' };
         case 'COACHING':
             return { l1: 'Course', l2: 'Subject', l3: 'Batch', l1Plural: 'Courses', l2Plural: 'Subjects', l3Plural: 'Batches' };
     }

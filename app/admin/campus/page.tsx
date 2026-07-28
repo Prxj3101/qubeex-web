@@ -48,6 +48,63 @@ const FILTERS: { key: PostType | 'all'; label: string; emoji: string }[] = [
     { key: 'result', label: 'Results', emoji: '✅' },
 ];
 
+// ── Themed inline dropdown ───────────────────────────────────────────────────
+// Replaces native <select> in the composer toolbar — the browser's own
+// option-list popup can't be restyled to follow the app's (or College's blue)
+// theme, so this renders its own themed panel instead, same visual language
+// (bg-card/border-border, primary-colored active row) as dropdowns elsewhere.
+function InlineSelect({ value, onChange, options, placeholder, widthClass }: {
+    value: string;
+    onChange: (v: string) => void;
+    options: { value: string; label: string }[];
+    placeholder: string;
+    widthClass?: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const onClickOutside = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', onClickOutside);
+        return () => document.removeEventListener('mousedown', onClickOutside);
+    }, []);
+
+    const current = options.find(o => o.value === value);
+
+    return (
+        <div ref={ref} className={`relative ${widthClass ?? ''}`}>
+            <button type="button" onClick={() => setOpen(v => !v)}
+                className="w-full flex items-center justify-between gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors focus:outline-none">
+                <span className="truncate">{current ? current.label : placeholder}</span>
+                <ChevronDown size={11} className={`shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`} />
+            </button>
+            <AnimatePresence>
+                {open && (
+                    <motion.div
+                        initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.15 }}
+                        className="absolute left-0 bottom-full mb-1.5 z-50 min-w-[170px] max-h-56 overflow-y-auto bg-card border border-border/60 rounded-xl shadow-lg py-1">
+                        <button
+                            onClick={() => { onChange(''); setOpen(false); }}
+                            className={`w-full text-left px-3 py-1.5 text-xs transition-colors hover:bg-muted/60 ${!value ? 'text-primary font-semibold' : 'text-foreground'}`}>
+                            {placeholder}
+                        </button>
+                        {options.map(o => (
+                            <button key={o.value}
+                                onClick={() => { onChange(o.value); setOpen(false); }}
+                                className={`w-full text-left px-3 py-1.5 text-xs transition-colors hover:bg-muted/60 ${value === o.value ? 'text-primary font-semibold' : 'text-foreground'}`}>
+                                {o.label}
+                            </button>
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function getDaysInMonth(y: number, m: number) { return new Date(y, m + 1, 0).getDate(); }
 function getFirstDay(y: number, m: number) { return new Date(y, m, 1).getDay(); }
@@ -613,23 +670,23 @@ export default function AdminCampusPage() {
                                     placeholder="Title..."
                                     className="flex-1 bg-transparent text-sm font-bold placeholder:text-muted-foreground/60 placeholder:font-normal focus:outline-none" />
                                 <div className="w-px h-4 bg-border/50 shrink-0" />
-                                <select value={postDivisionId} onChange={e => { setPostDivisionId(e.target.value); setPostSubjectId(''); }}
-                                    className="w-32 bg-transparent text-xs text-muted-foreground focus:outline-none">
-                                    <option value="">Whole institution</option>
-                                    {divisionOptions.map(d => (
-                                        <option key={d.id} value={d.id}>{d.label}</option>
-                                    ))}
-                                </select>
+                                <InlineSelect
+                                    value={postDivisionId}
+                                    onChange={v => { setPostDivisionId(v); setPostSubjectId(''); }}
+                                    options={divisionOptions.map(d => ({ value: d.id, label: d.label }))}
+                                    placeholder="Whole institution"
+                                    widthClass="w-32 shrink-0"
+                                />
                                 {postDivisionId && selectedDivisionSubjects.length > 0 && (
                                     <>
                                         <div className="w-px h-4 bg-border/50 shrink-0" />
-                                        <select value={postSubjectId} onChange={e => setPostSubjectId(e.target.value)}
-                                            className="w-28 bg-transparent text-xs text-muted-foreground focus:outline-none">
-                                            <option value="">General (no subject)</option>
-                                            {selectedDivisionSubjects.map(s => (
-                                                <option key={s.id} value={s.id}>{s.name}</option>
-                                            ))}
-                                        </select>
+                                        <InlineSelect
+                                            value={postSubjectId}
+                                            onChange={setPostSubjectId}
+                                            options={selectedDivisionSubjects.map(s => ({ value: s.id, label: s.name }))}
+                                            placeholder="General (no subject)"
+                                            widthClass="w-28 shrink-0"
+                                        />
                                     </>
                                 )}
                             </div>

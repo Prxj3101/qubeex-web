@@ -15,6 +15,7 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
     const { user } = useAuthStore();
 
     const classesLabel = instType === 'COLLEGE' ? 'Departments' : instType === 'COACHING' ? 'Batches' : 'Classes';
+    const classesHref = instType === 'COLLEGE' ? '/admin/campus/departments' : '/admin/campus/classes';
 
     const isSubAdmin = user?.role === 'SUB_ADMIN';
     const permissions = user?.permissions ?? [];
@@ -25,18 +26,18 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
     const needsRedirect = !!user && isSubAdmin && !canSeeFeed && onCampusRoot;
 
     useEffect(() => {
-        if (needsRedirect) router.replace('/admin/campus/classes');
-    }, [needsRedirect, router]);
+        if (needsRedirect) router.replace(classesHref);
+    }, [needsRedirect, router, classesHref]);
 
     const TABS = [
         { key: 'feed', label: 'Feed', icon: Rss, href: '/admin/campus', locked: !canSeeFeed },
-        { key: 'classes', label: classesLabel, icon: LayoutGrid, href: '/admin/campus/classes', locked: false },
+        { key: 'classes', label: classesLabel, icon: LayoutGrid, href: classesHref, locked: false },
     ];
 
-    const activeTab = pathname.startsWith('/admin/campus/classes') ? 'classes' : 'feed';
+    const activeTab = (pathname.startsWith('/admin/campus/classes') || pathname.startsWith('/admin/campus/departments')) ? 'classes' : 'feed';
 
     // Only show the tab bar on the top-level campus pages (not inside a class detail)
-    const showTabs = pathname === '/admin/campus' || pathname === '/admin/campus/classes';
+    const showTabs = pathname === '/admin/campus' || pathname === '/admin/campus/classes' || pathname === '/admin/campus/departments';
 
     if (needsRedirect) return null;
 
@@ -74,9 +75,11 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
                                             transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                                         />
                                     )}
-                                    <div className={`relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl transition-colors ${
-                                        isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'
-                                    }`}>
+                                    <div
+                                        suppressHydrationWarning
+                                        className={`relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl transition-colors ${
+                                            isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'
+                                        }`}>
                                         <Icon size={14} />
                                         {tab.label}
                                     </div>

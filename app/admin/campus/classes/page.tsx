@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronDown, Plus, Check, X, BookOpen, Users,
-    ArrowUpRight, LayoutGrid, GripVertical,
+    ArrowUpRight, LayoutGrid, GripVertical, Pencil, Trash2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
@@ -115,6 +115,21 @@ export default function ClassesPage() {
     const [addingSubject, setAddingSubject] = useState<string | null>(null);
     const [confirmDeleteSubject, setConfirmDeleteSubject] = useState<{ id: string; name: string; standardId: string } | null>(null);
 
+    // Rename (edit) state — one entity editable at a time, across both levels
+    type EditTarget =
+        | { type: 'standard'; id: string }
+        | { type: 'division'; standardId: string; id: string };
+    const [editing, setEditing] = useState<EditTarget | null>(null);
+    const [editValue, setEditValue] = useState('');
+    const [savingEdit, setSavingEdit] = useState(false);
+
+    // Delete confirmation for Standard/Division — separate from subject delete above
+    type DeleteTarget =
+        | { type: 'standard'; id: string; name: string }
+        | { type: 'division'; standardId: string; id: string; name: string };
+    const [confirmDeleteEntity, setConfirmDeleteEntity] = useState<DeleteTarget | null>(null);
+    const [deletingEntity, setDeletingEntity] = useState(false);
+
     const standardLabel = instType === 'COLLEGE' ? 'Department' : instType === 'COACHING' ? 'Batch' : 'Standard';
     const divisionLabel = instType === 'COLLEGE' ? 'Section' : instType === 'COACHING' ? 'Group' : 'Division';
 
@@ -209,7 +224,145 @@ export default function ClassesPage() {
         }
     };
 
+    // ── Rename ────────────────────────────────────────────────────────────────
+    const startEdit = (target: EditTarget, currentName: string) => {
+        setEditing(target);
+        setEditValue(currentName);
+    };
+    const cancelEdit = () => {
+        setEditing(null);
+        setEditValue('');
+    };
+    const saveEdit = async () => {
+        if (!editing || !editValue.trim()) return;
+        const name = editValue.trim();
+        setSavingEdit(true);
+        try {
+            if (editing.type === 'standard') {
+                await api.patch(`/admin/campus/standards/${editing.id}`, { name });
+                setStandards(prev => prev.map(s => s.id !== editing.id ? s : { ...s, name }));
+            } else {
+                await api.patch(`/admin/campus/divisions/${editing.id}`, { name });
+                setStandards(prev => prev.map(s => s.id !== editing.standardId ? s : {
+                    ...s, divisions: s.divisions.map(d => d.id !== editing.id ? d : { ...d, name }),
+                }));
+            }
+            toast.success('Renamed');
+            cancelEdit();
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to rename');
+        } finally {
+            setSavingEdit(false);
+        }
+    };
+
+    // ── Delete Standard / Division ───────────────────────────────────────────
+    const performEntityDelete = async () => {
+        if (!confirmDeleteEntity) return;
+        const target = confirmDeleteEntity;
+        setDeletingEntity(true);
+        try {
+            if (target.type === 'standard') {
+                await api.delete(`/admin/campus/standards/${target.id}`);
+                setStandards(prev => prev.filter(s => s.id !== target.id));
+                if (expandedId === target.id) setExpandedId(null);
+            } else {
+                await api.delete(`/admin/campus/divisions/${target.id}`);
+                setStandards(prev => prev.map(s => s.id !== target.standardId ? s : {
+                    ...s, divisions: s.divisions.filter(d => d.id !== target.id),
+                }));
+            }
+            toast.success(`${target.type === 'standard' ? standardLabel : divisionLabel} deleted`);
+            setConfirmDeleteEntity(null);
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to delete');
+        } finally {
+            setDeletingEntity(false);
+        }
+    };
+
+    // ── Drag & drop reorder — Standards, Divisions ───────────────────────────
+    // Same optimistic-then-persist pattern as subject reordering below.
+    const [dragStdId, setDragStdId] = useState<string | null>(null);
+    const [dragDivId, setDragDivId] = useState<string | null>(null);
+    // Same reasoning as the subject pills — draggable only flips on while the
+    // pointer is held down on that card's grip icon, so dragging can't start
+    // by grabbing anywhere else on the card.
+    const [stdDragReady, setStdDragReady] = useState(false);
+    const [divDragReady, setDivDragReady] = useState(false);
+
+    const reorderStandards = async (orderedIds: string[]) => {
+        setStandards(prev => orderedIds
+            .map(id => prev.find(s => s.id === id))
+            .filter((s): s is Standard => !!s));
+        try {
+            const res = await api.patch('/admin/campus/standards/reorder', { orderedIds });
+            const reordered: Standard[] = res.data.data;
+            setStandards(reordered);
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to save order');
+            fetchStandards();
+        }
+    };
+
+    const handleStdDrop = (targetStdId: string) => {
+        const draggedId = dragStdId;
+        setDragStdId(null);
+        if (!draggedId || draggedId === targetStdId) return;
+        const ids = standards.map(s => s.id);
+        const fromIdx = ids.indexOf(draggedId);
+        const toIdx = ids.indexOf(targetStdId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        const newIds = [...ids];
+        newIds.splice(fromIdx, 1);
+        newIds.splice(toIdx, 0, draggedId);
+        reorderStandards(newIds);
+    };
+
+    const reorderDivisions = async (standardId: string, orderedIds: string[]) => {
+        setStandards(prev => prev.map(s => s.id !== standardId ? s : {
+            ...s,
+            divisions: orderedIds
+                .map(id => s.divisions.find(d => d.id === id))
+                .filter((d): d is Division => !!d),
+        }));
+        try {
+            const res = await api.patch(`/admin/campus/standards/${standardId}/divisions/reorder`, { orderedIds });
+            const reordered: Division[] = res.data.data;
+            setStandards(prev => prev.map(s => s.id !== standardId ? s : { ...s, divisions: reordered }));
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+            toast.error(msg ?? 'Failed to save order');
+            fetchStandards();
+        }
+    };
+
+    const handleDivDrop = (standardId: string, targetDivId: string) => {
+        const draggedId = dragDivId;
+        setDragDivId(null);
+        if (!draggedId || draggedId === targetDivId) return;
+        const std = standards.find(s => s.id === standardId);
+        if (!std) return;
+        const ids = std.divisions.map(d => d.id);
+        const fromIdx = ids.indexOf(draggedId);
+        const toIdx = ids.indexOf(targetDivId);
+        if (fromIdx === -1 || toIdx === -1) return;
+        const newIds = [...ids];
+        newIds.splice(fromIdx, 1);
+        newIds.splice(toIdx, 0, draggedId);
+        reorderDivisions(standardId, newIds);
+    };
+
     const [dragSubjectId, setDragSubjectId] = useState<string | null>(null);
+    // Native HTML5 drag makes the WHOLE element a drag source the moment
+    // draggable=true — there's no built-in way to restrict the pickup point to
+    // just the grip icon. So `draggable` only flips to true while the pointer
+    // is actually held down on the grip icon (dragReady), instead of being
+    // true for the pill at all times.
+    const [dragReady, setDragReady] = useState(false);
 
     const reorderSubjects = async (standardId: string, orderedIds: string[]) => {
         // Optimistic reorder — colors are placeholders here (same as before the
@@ -322,29 +475,88 @@ export default function ClassesPage() {
                     const totalStudents = std.divisions.reduce((sum, div) => sum + div.studentCount, 0);
 
                     return (
-                        <div key={std.id} className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+                        <div key={std.id}
+                            draggable={isAdmin && stdDragReady}
+                            onDragStart={() => setDragStdId(std.id)}
+                            onDragOver={(e) => isAdmin && e.preventDefault()}
+                            onDrop={(e) => { e.preventDefault(); handleStdDrop(std.id); }}
+                            onDragEnd={() => { setDragStdId(null); setStdDragReady(false); }}
+                            className={`bg-card border border-border/50 rounded-2xl overflow-hidden transition-opacity ${dragStdId === std.id ? 'opacity-40' : ''}`}>
 
                             {/* Standard header */}
-                            <button
-                                onClick={() => setExpandedId(isExpanded ? null : std.id)}
-                                className="w-full flex items-center justify-between px-3 sm:px-5 py-4 hover:bg-muted/20 transition-colors">
-                                <div className="flex items-center gap-3">
+                            <div className="group/std w-full flex items-center justify-between px-3 sm:px-5 py-4 hover:bg-muted/20 transition-colors">
+                                {isAdmin && (
+                                    <GripVertical
+                                        size={15}
+                                        className="text-muted-foreground/40 shrink-0 opacity-0 group-hover/std:opacity-100 transition-opacity cursor-grab active:cursor-grabbing mr-1"
+                                        onMouseDown={() => setStdDragReady(true)}
+                                        onMouseUp={() => setStdDragReady(false)}
+                                    />
+                                )}
+                                <button
+                                    onClick={() => setExpandedId(isExpanded ? null : std.id)}
+                                    disabled={editing?.type === 'standard' && editing.id === std.id}
+                                    className="flex items-center gap-3 flex-1 min-w-0 text-left">
                                     <div
                                         className="w-11 h-11 rounded-2xl flex items-center justify-center text-base font-black text-white shrink-0"
                                         style={{ background: grad }}>
                                         {std.name.replace(/[^0-9A-Za-z]/g, '').slice(0, 2) || std.name[0]}
                                     </div>
-                                    <div className="text-left">
-                                        <p className="text-sm font-bold">{std.name}</p>
-                                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                            <span className="text-[11px] text-muted-foreground">{std.divisions.length} {divisionLabel.toLowerCase()}s</span>
-                                            <span className="text-muted-foreground/40 text-[11px]">·</span>
-                                            <span className="text-[11px] text-muted-foreground">{totalStudents} students</span>
+                                    {editing?.type === 'standard' && editing.id === std.id ? (
+                                        <input
+                                            autoFocus
+                                            value={editValue}
+                                            onChange={e => setEditValue(e.target.value)}
+                                            onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                                            onClick={e => e.stopPropagation()}
+                                            className="h-9 px-3 rounded-xl border border-primary/50 bg-primary/5 text-sm font-bold focus:outline-none focus:border-primary transition-all w-48"
+                                        />
+                                    ) : (
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-bold truncate">{std.name}</p>
+                                            <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                                <span className="text-[11px] text-muted-foreground">{std.divisions.length} {divisionLabel.toLowerCase()}s</span>
+                                                <span className="text-muted-foreground/40 text-[11px]">·</span>
+                                                <span className="text-[11px] text-muted-foreground">{totalStudents} students</span>
+                                            </div>
                                         </div>
-                                    </div>
+                                    )}
+                                </button>
+
+                                <div className="flex items-center gap-1 shrink-0 ml-2">
+                                    {isAdmin && editing?.type === 'standard' && editing.id === std.id ? (
+                                        <>
+                                            <button onClick={saveEdit} disabled={savingEdit}
+                                                className="w-7 h-7 rounded-lg flex items-center justify-center text-white disabled:opacity-50"
+                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                <Check size={13} />
+                                            </button>
+                                            <button onClick={cancelEdit}
+                                                className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
+                                                <X size={13} />
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <>
+                                            {isAdmin && (
+                                                <div className="flex items-center gap-0.5 opacity-0 group-hover/std:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => startEdit({ type: 'standard', id: std.id }, std.name)}
+                                                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                                                        <Pencil size={13} className="text-muted-foreground" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setConfirmDeleteEntity({ type: 'standard', id: std.id, name: std.name })}
+                                                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                                                        <Trash2 size={13} className="text-red-500" />
+                                                    </button>
+                                                </div>
+                                            )}
+                                            <ChevronDown size={16} className={`text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
+                                        </>
+                                    )}
                                 </div>
-                                <ChevronDown size={16} className={`text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`} />
-                            </button>
+                            </div>
 
                             {/* Expanded */}
                             <AnimatePresence>
@@ -367,18 +579,25 @@ export default function ClassesPage() {
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         {(std.subjects ?? []).map((sub) => (
                                                             <span key={sub.id}
-                                                                draggable={isAdmin}
+                                                                draggable={isAdmin && dragReady}
                                                                 onDragStart={() => setDragSubjectId(sub.id)}
                                                                 onDragOver={(e) => isAdmin && e.preventDefault()}
                                                                 onDrop={(e) => { e.preventDefault(); handleSubjectDrop(std.id, sub.id); }}
-                                                                onDragEnd={() => setDragSubjectId(null)}
-                                                                className={`group flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-full text-xs font-medium transition-opacity ${isAdmin ? 'cursor-grab active:cursor-grabbing' : ''} ${dragSubjectId === sub.id ? 'opacity-40' : ''}`}
+                                                                onDragEnd={() => { setDragSubjectId(null); setDragReady(false); }}
+                                                                className={`group flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-full text-xs font-medium transition-opacity ${dragSubjectId === sub.id ? 'opacity-40' : ''}`}
                                                                 style={{
                                                                     background: colorForSubject(sub) + '20',
                                                                     color: colorForSubject(sub),
                                                                     border: `1px solid ${colorForSubject(sub)}40`,
                                                                 }}>
-                                                                {isAdmin && <GripVertical size={11} className="opacity-50" />}
+                                                                {isAdmin && (
+                                                                    <GripVertical
+                                                                        size={11}
+                                                                        className="opacity-50 cursor-grab active:cursor-grabbing"
+                                                                        onMouseDown={() => setDragReady(true)}
+                                                                        onMouseUp={() => setDragReady(false)}
+                                                                    />
+                                                                )}
                                                                 <BookOpen size={11} />
                                                                 {sub.name}
                                                                 {isAdmin && (
@@ -422,11 +641,24 @@ export default function ClassesPage() {
                                                                     initial={{ opacity: 0, y: 20 }}
                                                                     animate={{ opacity: 1, y: 0 }}
                                                                     transition={{ delay: divIdx * 0.05, duration: 0.3 }}
-                                                                    className="rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-background hover:shadow-md hover:shadow-black/5 hover:border-border transition-all duration-200">
+                                                                    draggable={isAdmin && divDragReady}
+                                                                    onDragStart={() => setDragDivId(div.id)}
+                                                                    onDragOver={(e) => isAdmin && e.preventDefault()}
+                                                                    onDrop={(e) => { e.preventDefault(); handleDivDrop(std.id, div.id); }}
+                                                                    onDragEnd={() => { setDragDivId(null); setDivDragReady(false); }}
+                                                                    className={`group/divcard rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-background hover:shadow-md hover:shadow-black/5 hover:border-border transition-all duration-200 ${dragDivId === div.id ? 'opacity-40' : ''}`}>
 
                                                                     <div className="px-4 pt-4 pb-3">
-                                                                        <div className="flex items-center justify-between mb-2">
-                                                                            <div className="flex items-center gap-2.5">
+                                                                        <div className="flex items-center justify-between mb-2 gap-2">
+                                                                            <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                                                                                {isAdmin && (
+                                                                                    <GripVertical
+                                                                                        size={13}
+                                                                                        className="text-muted-foreground/40 shrink-0 opacity-0 group-hover/divcard:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+                                                                                        onMouseDown={() => setDivDragReady(true)}
+                                                                                        onMouseUp={() => setDivDragReady(false)}
+                                                                                    />
+                                                                                )}
                                                                                 <div
                                                                                     className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 border-2 border-white/20"
                                                                                     style={{ background: grad }}>
@@ -434,16 +666,59 @@ export default function ClassesPage() {
                                                                                         {div.name.includes('-') ? div.name.split('-').pop() : div.name[0]}
                                                                                     </span>
                                                                                 </div>
-                                                                                <div>
-                                                                                    <p className="text-sm font-bold">{div.name}</p>
-                                                                                    <p className="text-[11px] text-muted-foreground">{div.studentCount} student{div.studentCount === 1 ? '' : 's'}</p>
-                                                                                </div>
+                                                                                {editing?.type === 'division' && editing.id === div.id ? (
+                                                                                    <input
+                                                                                        autoFocus
+                                                                                        value={editValue}
+                                                                                        onChange={e => setEditValue(e.target.value)}
+                                                                                        onKeyDown={e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') cancelEdit(); }}
+                                                                                        className="h-8 px-2.5 rounded-lg border border-primary/50 bg-primary/5 text-sm font-bold focus:outline-none focus:border-primary transition-all w-full"
+                                                                                    />
+                                                                                ) : (
+                                                                                    <div className="min-w-0">
+                                                                                        <p className="text-sm font-bold truncate">{div.name}</p>
+                                                                                        <p className="text-[11px] text-muted-foreground">{div.studentCount} student{div.studentCount === 1 ? '' : 's'}</p>
+                                                                                    </div>
+                                                                                )}
                                                                             </div>
-                                                                            <div
-                                                                                className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 cursor-pointer"
-                                                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                                                                                onClick={() => router.push(`/admin/campus/classes/${std.id}/${div.id}`)}>
-                                                                                <ArrowUpRight size={19} className="text-white" />
+
+                                                                            <div className="flex items-center gap-1 shrink-0">
+                                                                                {isAdmin && editing?.type === 'division' && editing.id === div.id ? (
+                                                                                    <>
+                                                                                        <button onClick={saveEdit} disabled={savingEdit}
+                                                                                            className="w-7 h-7 rounded-lg flex items-center justify-center text-white disabled:opacity-50"
+                                                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                                                            <Check size={13} />
+                                                                                        </button>
+                                                                                        <button onClick={cancelEdit}
+                                                                                            className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
+                                                                                            <X size={13} />
+                                                                                        </button>
+                                                                                    </>
+                                                                                ) : (
+                                                                                    <>
+                                                                                        {isAdmin && (
+                                                                                            <div className="flex items-center gap-0.5 opacity-0 group-hover/divcard:opacity-100 transition-opacity">
+                                                                                                <button
+                                                                                                    onClick={() => startEdit({ type: 'division', standardId: std.id, id: div.id }, div.name)}
+                                                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                                                                                                    <Pencil size={13} className="text-muted-foreground" />
+                                                                                                </button>
+                                                                                                <button
+                                                                                                    onClick={() => setConfirmDeleteEntity({ type: 'division', standardId: std.id, id: div.id, name: div.name })}
+                                                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                                                                                                    <Trash2 size={13} className="text-red-500" />
+                                                                                                </button>
+                                                                                            </div>
+                                                                                        )}
+                                                                                        <div
+                                                                                            className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 cursor-pointer"
+                                                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                                                                            onClick={() => router.push(`/admin/campus/classes/${std.id}/${div.id}`)}>
+                                                                                            <ArrowUpRight size={19} className="text-white" />
+                                                                                        </div>
+                                                                                    </>
+                                                                                )}
                                                                             </div>
                                                                         </div>
 
@@ -544,6 +819,35 @@ export default function ClassesPage() {
                                 </button>
                                 <button onClick={() => { deleteSubject(confirmDeleteSubject.id, confirmDeleteSubject.standardId); setConfirmDeleteSubject(null); }}
                                     className="h-9 px-4 rounded-xl text-xs font-semibold text-white bg-red-500 hover:opacity-90 transition-all">
+                                    Yes, Delete
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {confirmDeleteEntity && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            <h3 className="text-base font-bold mb-2">
+                                Delete {confirmDeleteEntity.type === 'standard' ? standardLabel : divisionLabel}?
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-5">
+                                <span className="font-semibold text-foreground">{confirmDeleteEntity.name}</span>{' '}
+                                {confirmDeleteEntity.type === 'standard'
+                                    ? `will be removed along with all its ${divisionLabel.toLowerCase()}s and subjects.`
+                                    : 'will be removed. Student data linked to this division may be affected.'}
+                            </p>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setConfirmDeleteEntity(null)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={performEntityDelete} disabled={deletingEntity}
+                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white bg-red-500 hover:opacity-90 transition-all disabled:opacity-50">
                                     Yes, Delete
                                 </button>
                             </div>

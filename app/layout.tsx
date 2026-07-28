@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Script from 'next/script';
 import './globals.css';
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
@@ -29,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <script dangerouslySetInnerHTML={{ __html: NO_FLASH_INST_TYPE_SCRIPT }} />
+        <Script id="no-flash-inst-type" strategy="beforeInteractive" dangerouslySetInnerHTML={{ __html: NO_FLASH_INST_TYPE_SCRIPT }} />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
