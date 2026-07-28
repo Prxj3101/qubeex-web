@@ -384,29 +384,29 @@ if (typeof window !== 'undefined' && !apiAny.__collegeMockPatched) {
     const originalPut = api.put.bind(api);
     const originalDelete = api.delete.bind(api);
 
-    apiAny.get = ((url: string, config?: { params?: Record<string, unknown> }) => {
-        const mocked = handle('get', url, undefined, config?.params, config);
+    apiAny.get = ((url: string, config?: Parameters<typeof originalGet>[1]) => {
+        const mocked = handle('get', url, undefined, (config as { params?: Record<string, unknown> } | undefined)?.params, config);
         return mocked ?? originalGet(url, config);
     }) as typeof api.get;
 
-    apiAny.post = ((url: string, body?: unknown, config?: unknown) => {
+    apiAny.post = ((url: string, body?: unknown, config?: Parameters<typeof originalPost>[2]) => {
         // FormData (file uploads) never come from our mock tree — always real.
         if (typeof FormData !== 'undefined' && body instanceof FormData) return originalPost(url, body, config);
         const mocked = handle('post', url, body, undefined, config);
         return mocked ?? originalPost(url, body, config);
     }) as typeof api.post;
 
-    apiAny.patch = ((url: string, body?: unknown, config?: unknown) => {
+    apiAny.patch = ((url: string, body?: unknown, config?: Parameters<typeof originalPatch>[2]) => {
         const mocked = handle('patch', url, body, undefined, config);
         return mocked ?? originalPatch(url, body, config);
     }) as typeof api.patch;
 
-    apiAny.put = ((url: string, body?: unknown, config?: unknown) => {
+    apiAny.put = ((url: string, body?: unknown, config?: Parameters<typeof originalPut>[2]) => {
         const mocked = handle('put', url, body, undefined, config);
         return mocked ?? originalPut(url, body, config);
     }) as typeof api.put;
 
-    apiAny.delete = ((url: string, config?: unknown) => {
+    apiAny.delete = ((url: string, config?: Parameters<typeof originalDelete>[1]) => {
         const mocked = handle('delete', url, undefined, undefined, config);
         return mocked ?? originalDelete(url, config);
     }) as typeof api.delete;
