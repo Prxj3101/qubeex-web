@@ -229,9 +229,14 @@ function ViewDetailsTab({
   const [logoUploading, setLogoUploading] = useState(false);
   const [logoExpanded, setLogoExpanded] = useState(false);
   const logoFileRef = useRef<HTMLInputElement>(null);
-  const [adminAvatarPreview, setAdminAvatarPreview] = useState<string | null>(null);
+  const [adminAvatarPreview, setAdminAvatarPreview] = useState<string | null>(inst.adminAvatarUrl ?? null);
   const [adminAvatarExpanded, setAdminAvatarExpanded] = useState(false);
   const adminAvatarRef = useRef<HTMLInputElement>(null);
+  // Keep the shown photo in sync with the fetched value so an admin's updated
+  // profile photo is reflected here automatically on refetch (no manual reload).
+  useEffect(() => {
+    setAdminAvatarPreview(inst.adminAvatarUrl ?? null);
+  }, [inst.adminAvatarUrl]);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [statusConfirm, setStatusConfirm] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
@@ -2984,6 +2989,7 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
     const trialDays = inst.subscription?.trialDays ?? 14;
     const trialEndDate = trialUsage?.trialEndDate ? new Date(trialUsage.trialEndDate) : null;
     const daysRemaining = trialUsage?.daysRemaining ?? null;
+    const trialExpired = daysRemaining !== null && daysRemaining <= 0;
     const trialStartDate = inst.subscription?.startDate ? new Date(inst.subscription.startDate) : null;
 
     const TrialPieTooltip = ({ active, payload }: { active?: boolean; payload?: Array<{ name: string; value: number }> }) => {
@@ -3031,6 +3037,7 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
       formatter,
       pending,
       onAction,
+      urgentWhenLow,
     }: {
       label: string;
       icon: React.ElementType;
@@ -3040,11 +3047,14 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
       formatter?: (v: number) => string;
       pending?: boolean;
       onAction?: () => void;
+      urgentWhenLow?: boolean;
     }) => {
       const f = formatter ?? ((v: number) => v.toLocaleString("en-IN"));
-      const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
-      const danger = pct >= 90;
-      const warn = pct >= 70;
+      const pct = total > 0 ? Math.min(100, Math.max(0, (used / total) * 100)) : 0;
+      // For "remaining"-style bars (e.g. days left) the bar depletes over time,
+      // so a LOW fill is the urgent state; usage bars are the opposite.
+      const danger = urgentWhenLow ? pct <= 20 : pct >= 90;
+      const warn = urgentWhenLow ? pct <= 40 : pct >= 70;
       const barColor = danger ? "#ef4444" : warn ? "#f59e0b" : "linear-gradient(90deg,#7C3AED,#9D5AFF)";
       return (
         <div className="space-y-2">
@@ -3096,9 +3106,9 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                  Trial Active
+                <span className={`w-2 h-2 rounded-full ${trialExpired ? "bg-red-500" : "bg-emerald-500 animate-pulse"}`} />
+                <span className={`text-xs font-semibold ${trialExpired ? "text-red-600 dark:text-red-400" : "text-emerald-600 dark:text-emerald-400"}`}>
+                  {trialExpired ? "Trial Expired" : "Trial Active"}
                 </span>
               </div>
               <h2 className="text-2xl font-black" style={{ color: "#F59E0B" }}>
@@ -3404,10 +3414,12 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
               <TrialUsageBar
                 label="Days Remaining"
                 icon={CalendarIcon}
-                used={trialDays - (daysRemaining ?? 0)}
+                // Numerator = remaining days (clamped to [0, total]); denominator is
+                // always the full trial duration, so the format stays <remaining>/<total>.
+                used={Math.max(0, Math.min(daysRemaining ?? 0, trialDays))}
                 total={trialDays}
                 unitLabel="days"
-                formatter={(v) => String(v === trialDays ? trialDays : (daysRemaining ?? 0))}
+                urgentWhenLow
               />
               <TrialUsageBar
                 label="Users"

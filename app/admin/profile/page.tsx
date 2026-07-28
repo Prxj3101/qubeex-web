@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
+import { useUserTitleStore } from '@/store/userTitleStore';
 import { formatDisplayName } from '@/lib/displayName';
 import NextImage from 'next/image';
 
@@ -263,6 +264,8 @@ function Skeleton({ className }: { className?: string }) {
 export default function AdminProfilePage() {
   const { user, setUser } = useAuthStore();
   const setUserAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
+  const setUserTitle = useUserTitleStore(s => s.setTitle);
+  const setUserPrefix = useUserTitleStore(s => s.setPrefix);
   const [inst, setInst] = useState<InstData | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoErr, setLogoErr] = useState(false);
@@ -365,6 +368,8 @@ export default function AdminProfilePage() {
           gender: adminDraft.adminGender || undefined,
         });
         setAdminSaved({ ...adminDraft });
+        setUserTitle(adminDraft.adminTitle || null);
+        setUserPrefix(adminDraft.adminPrefix || null);
         if (adminDraft.adminName && user && adminDraft.adminName !== user.name) {
           setUser({ ...user, name: adminDraft.adminName });
         }

@@ -12,6 +12,7 @@ import {
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
+import { useUserTitleStore } from '@/store/userTitleStore';
 import { useAuthStore } from '@/store/authStore';
 import NextImage from 'next/image';
 
@@ -203,6 +204,8 @@ export default function TeacherProfilePage() {
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [photoExpanded, setPhotoExpanded] = useState(false);
     const setUserAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
+    const setUserTitle = useUserTitleStore(s => s.setTitle);
+    const setUserPrefix = useUserTitleStore(s => s.setPrefix);
     const { user, setUser } = useAuthStore();
     const [uploadingPhoto, setUploadingPhoto] = useState(false);
     const fileRef = useRef<HTMLInputElement>(null);
@@ -301,7 +304,9 @@ export default function TeacherProfilePage() {
                 });
                 setPersonalSaved({ ...personalDraft });
                 setTitleSaved(titleDraft);
+                setUserTitle(titleDraft || null);
                 setPrefixSaved(prefixDraft);
+                setUserPrefix(prefixDraft || null);
                 if (personalDraft.name && user && personalDraft.name !== user.name) {
                     setUser({ ...user, name: personalDraft.name });
                 }

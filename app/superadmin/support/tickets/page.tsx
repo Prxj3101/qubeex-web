@@ -49,6 +49,7 @@ interface Ticket {
     updatedAt: string;
     replies: TicketReply[];
     attachments?: TicketAttachment[] | null;
+    adminAvatarUrl?: string | null;
 }
 
 // ─── Attachment upload helper ─────────────────────────────────────────────────
@@ -271,11 +272,21 @@ function TicketCard({ ticket, index, onReply, onStatusChange }: {
                                             const isSA = r.role === 'SUPER_ADMIN';
                                             return (
                                                 <div key={r.id} className={`flex gap-2.5 ${isSA ? 'flex-row-reverse' : ''}`}>
-                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${isSA
-                                                        ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
-                                                        : 'bg-muted text-muted-foreground'}`}>
-                                                        {r.author.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                                    </div>
+                                                    {isSA ? (
+                                                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden" style={{ background: '#1A112E' }}>
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src="/QubeEx_darkmode_DA7756.png" alt="QubeEx"
+                                                                className="w-5 h-5 object-contain" />
+                                                        </div>
+                                                    ) : ticket.adminAvatarUrl ? (
+                                                        // eslint-disable-next-line @next/next/no-img-element
+                                                        <img src={ticket.adminAvatarUrl} alt={r.author}
+                                                            className="w-7 h-7 rounded-full object-cover shrink-0" />
+                                                    ) : (
+                                                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 bg-muted text-muted-foreground">
+                                                            {r.author.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                                        </div>
+                                                    )}
                                                     <div className={`flex-1 flex flex-col ${isSA ? 'items-end' : 'items-start'}`}>
                                                         <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${isSA
                                                             ? 'bg-violet-100 text-violet-900 dark:bg-violet-950/50 dark:text-violet-100'

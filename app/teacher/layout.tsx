@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { Topbar } from '@/components/shared/Topbar';
 import { MockInstTypeProvider } from '@/context/MockInstTypeContext';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
+import { useUserTitleStore } from '@/store/userTitleStore';
 import api from '@/lib/api';
 import {
     LayoutDashboard,
@@ -25,9 +26,16 @@ const TEACHER_NAV_ITEMS = [
 
 function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
     const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
+    const setTitle = useUserTitleStore(s => s.setTitle);
+    const setPrefix = useUserTitleStore(s => s.setPrefix);
     useEffect(() => {
-        api.get('/teacher/me').then(r => setAvatarUrl(r.data?.data?.avatarUrl ?? null)).catch(() => {});
-    }, [setAvatarUrl]);
+        api.get('/teacher/me').then(r => {
+            const d = r.data?.data;
+            setAvatarUrl(d?.avatarUrl ?? null);
+            setTitle(d?.title ?? null);
+            setPrefix(d?.prefix ?? null);
+        }).catch(() => {});
+    }, [setAvatarUrl, setTitle, setPrefix]);
     return (
         <div className="flex flex-col h-screen bg-background px-0 pt-3 gap-3">
             <Topbar navItems={TEACHER_NAV_ITEMS} />

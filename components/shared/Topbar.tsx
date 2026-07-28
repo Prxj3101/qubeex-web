@@ -20,7 +20,9 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { useStudentStore } from '@/store/studentStore';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
+import { useUserTitleStore } from '@/store/userTitleStore';
 import { AvatarImage } from '@/components/ui/avatar';
+import { formatDisplayName } from '@/lib/displayName';
 
 interface NavItem {
     label: string;
@@ -79,6 +81,8 @@ function RoleBadge() {
     const { user } = useAuthStore();
     const pathname = usePathname();
     const role = getRole(pathname, user?.role);
+    const customTitle = useUserTitleStore(s => s.title);
+    const roleLabel = (role === 'ADMIN' || role === 'TEACHER') && customTitle ? customTitle : labelMap[role];
 
     return (
         <div className="group relative flex items-center cursor-pointer">
@@ -93,7 +97,7 @@ function RoleBadge() {
                 px-2 py-1 text-xs rounded-md bg-black/90 text-white
                 opacity-0 group-hover:opacity-100 transition duration-200
                 whitespace-nowrap pointer-events-none">
-                {labelMap[role]}
+                {roleLabel}
             </div>
         </div>
     );
@@ -104,12 +108,16 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
     const router = useRouter();
     const pathname = usePathname();
     const role = getRole(pathname, user?.role);
+    const customTitle = useUserTitleStore(s => s.title);
+    const customPrefix = useUserTitleStore(s => s.prefix);
+    const roleLabel = (role === 'ADMIN' || role === 'TEACHER') && customTitle ? customTitle : labelMap[role];
     const studentPhoto = useStudentStore(s => s.photo);
     const studentName = useStudentStore(s => s.name);
     const userAvatarUrl = useUserAvatarStore(s => s.avatarUrl);
     const isStudent = pathname.startsWith('/student');
     const photoUrl = isStudent ? studentPhoto : userAvatarUrl;
-    const displayName = isStudent && studentName ? studentName : (user?.name || user?.email || 'Signed in');
+    const rawName = isStudent && studentName ? studentName : (user?.name || user?.email || 'Signed in');
+    const displayName = (role === 'ADMIN' || role === 'TEACHER') ? formatDisplayName(rawName, customPrefix) : rawName;
 
     const settingsHref =
         pathname.startsWith('/superadmin') ? '/superadmin/settings' :
@@ -155,7 +163,7 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
                     </Avatar>
                     <div className="min-w-0">
                         <p className="text-xs font-semibold truncate">{displayName}</p>
-                        <p className="text-[11px] text-muted-foreground">{labelMap[role]}</p>
+                        <p className="text-[11px] text-muted-foreground">{roleLabel}</p>
                     </div>
                 </div>
 

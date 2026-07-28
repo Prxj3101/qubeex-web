@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Topbar } from '@/components/shared/Topbar';
 import { useAuthStore } from '@/store/authStore';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
+import { useUserTitleStore } from '@/store/userTitleStore';
 import api from '@/lib/api';
 import {
     LayoutDashboard,
@@ -48,10 +49,14 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const { instType } = useMockInstType();
     const { user, setUser } = useAuthStore();
     const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
+    const setTitle = useUserTitleStore(s => s.setTitle);
+    const setPrefix = useUserTitleStore(s => s.setPrefix);
     useEffect(() => {
         api.get('/admin/me').then(r => {
             const d = r.data?.data;
             if (d?.adminAvatarUrl) setAvatarUrl(d.adminAvatarUrl);
+            setTitle(d?.adminTitle ?? null);
+            setPrefix(d?.adminPrefix ?? null);
         }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);

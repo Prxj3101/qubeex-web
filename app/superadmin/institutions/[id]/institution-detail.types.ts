@@ -58,6 +58,7 @@ export type InstData = {
   board?: string | null;
   medium?: string | null;
   logoUrl?: string | null;
+  adminAvatarUrl?: string | null;
   establishedOn?: string | null;
   adminPhone?: string | null;
   adminDob?: string | null;

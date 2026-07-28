@@ -44,6 +44,7 @@ interface Ticket {
     updatedAt: string;
     replies: TicketReply[];
     attachments?: TicketAttachment[] | null;
+    adminAvatarUrl?: string | null;
 }
 
 // ── Attachment upload helper ──────────────────────────────────────────────────
@@ -315,10 +316,22 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                             const isAdmin = r.role === 'ADMIN';
                                             return (
                                                 <div key={r.id} className={`flex gap-2.5 ${isAdmin ? 'flex-row-reverse' : ''}`}>
-                                                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 text-white"
-                                                        style={{ background: isAdmin ? '#7C3AED' : '#DA7756' }}>
-                                                        {isAdmin ? 'AD' : 'QX'}
-                                                    </div>
+                                                    {isAdmin ? (
+                                                        ticket.adminAvatarUrl ? (
+                                                            // eslint-disable-next-line @next/next/no-img-element
+                                                            <img src={ticket.adminAvatarUrl} alt={r.author}
+                                                                className="w-7 h-7 rounded-full object-cover shrink-0" />
+                                                        ) : (
+                                                            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 text-white"
+                                                                style={{ background: '#7C3AED' }}>AD</div>
+                                                        )
+                                                    ) : (
+                                                        <div className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 overflow-hidden" style={{ background: '#1A112E' }}>
+                                                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                            <img src="/QubeEx_darkmode_DA7756.png" alt="QubeEx"
+                                                                className="w-5 h-5 object-contain" />
+                                                        </div>
+                                                    )}
                                                     <div className={`flex-1 flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
                                                         <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${isAdmin ? 'text-white rounded-tr-sm' : 'bg-muted text-foreground rounded-tl-sm'}`}
                                                             style={isAdmin ? { background: '#7C3AED' } : {}}>
