@@ -222,9 +222,9 @@ export default function TeacherStudentProfilePage() {
                     </div>
                 ))}
             </div>
-            <div className="mt-3 p-3 rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200/50 dark:border-violet-900/50 flex items-center gap-2">
-                <User size={13} className="text-violet-500 shrink-0" />
-                <p className="text-[11px] text-violet-600 dark:text-violet-400">Share your projects & certificates to build your academic profile</p>
+            <div className="mt-3 p-3 rounded-xl bg-[var(--muted)] dark:bg-[var(--muted)] border border-[var(--border)] flex items-center gap-2">
+                <User size={13} className="text-[var(--primary)] shrink-0" />
+                <p className="text-[11px] text-[var(--primary)]">Share your projects & certificates to build your academic profile</p>
             </div>
         </SectionCard>
     );

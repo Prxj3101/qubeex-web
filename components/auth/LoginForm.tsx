@@ -92,7 +92,19 @@ export function LoginForm() {
                 password,
             });
             const { token, user, institution } = res.data.data;
-            setAuth({ ...user, permissions: user.permissions ?? null }, token);
+            // The institution type actually lives on `institution.type`, not
+            // `user.institutionType` (that field is rarely populated for any
+            // role). setAuth's cookie-write only fires off `institutionType`
+            // on the user object, so merge it in here — this is what makes
+            // the login-time theme write (School violet vs College blue)
+            // actually work for EVERY role, teacher included, not just admin.
+            // Uppercased defensively — isInstType() only matches
+            // 'SCHOOL'|'COLLEGE'|'COACHING' exactly, and we don't want a
+            // lowercase 'college' from the API to silently fail that check
+            // and fall back to the School theme.
+            const rawInstType = institution?.type ?? user.institutionType ?? null;
+            const normalizedInstType = typeof rawInstType === 'string' ? rawInstType.toUpperCase() : rawInstType;
+            setAuth({ ...user, institutionType: normalizedInstType, permissions: user.permissions ?? null }, token);
 
             const subStatus = institution?.subscriptionStatus;
             const instStatus = institution?.status;
@@ -118,7 +130,7 @@ export function LoginForm() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0F0A1E' }}>
+        <div className="min-h-screen flex items-center justify-center px-4" style={{ background: '#0B0B0F' }}>
 
             {/* ── Background ── */}
             <CursorWave />
@@ -126,11 +138,11 @@ export function LoginForm() {
             <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 15 }}>
                 {/* Gradient blobs */}
                 <div className="absolute top-0 left-0 w-[600px] h-[600px] rounded-full opacity-20"
-                    style={{ background: 'radial-gradient(circle at 30% 30%, #7C3AED, transparent 60%)', transform: 'translate(-30%, -30%)' }} />
+                    style={{ background: 'radial-gradient(circle at 30% 30%, #71717A, transparent 60%)', transform: 'translate(-30%, -30%)' }} />
                 <div className="absolute bottom-0 right-0 w-[500px] h-[500px] rounded-full opacity-15"
                     style={{ background: 'radial-gradient(circle at 70% 70%, #DA7756, transparent 60%)', transform: 'translate(20%, 20%)' }} />
                 <div className="absolute top-1/2 left-1/2 w-[300px] h-[300px] rounded-full opacity-8"
-                    style={{ background: 'radial-gradient(circle, #7C3AED40, transparent 70%)', transform: 'translate(-50%, -50%)' }} />
+                    style={{ background: 'radial-gradient(circle, #71717A40, transparent 70%)', transform: 'translate(-50%, -50%)' }} />
 
                 {/* Floating particles */}
                 {particles.map(p => (
@@ -159,13 +171,13 @@ export function LoginForm() {
             >
                 {/* Glow behind card */}
                 <div className="absolute inset-0 rounded-3xl opacity-30 blur-2xl -z-10"
-                    style={{ background: 'linear-gradient(135deg, #7C3AED40, #DA775640)' }} />
+                    style={{ background: 'linear-gradient(135deg, #71717A40, #DA775640)' }} />
 
                 <div className="relative bg-white/[0.04] border border-white/[0.09] rounded-3xl overflow-hidden backdrop-blur-2xl shadow-2xl">
 
                     {/* Top accent line */}
                     <div className="h-[2px] w-full"
-                        style={{ background: 'linear-gradient(90deg, transparent, #7C3AED, #DA7756, transparent)' }} />
+                        style={{ background: 'linear-gradient(90deg, transparent 0%, #7C3AED 33%, #6946EB 40%, #5652EA 44%, #425EE8 48%, #2F6AE6 52%, #5A6DC2 56%, #85719E 60%, #AF747A 63%, #DA7756 66%, transparent 100%)' }} />
 
                     <div className="px-5 sm:px-8 pt-8 pb-9">
 
@@ -204,10 +216,10 @@ export function LoginForm() {
                                     Email or ID
                                 </label>
                                 <div className={`relative flex items-center rounded-xl border transition-all duration-200 ${focused === 'id'
-                                    ? 'border-[#7C3AED]/70 bg-[#7C3AED]/8 shadow-[0_0_0_3px_#7C3AED18]'
+                                    ? 'border-[#71717A]/70 bg-[#71717A]/8 shadow-[0_0_0_3px_#71717A18]'
                                     : 'border-white/10 bg-white/[0.04] hover:border-white/20'
                                     }`}>
-                                    <AtSign size={15} className={`absolute left-3.5 transition-colors duration-200 ${focused === 'id' ? 'text-[#7C3AED]' : 'text-white/25'}`} />
+                                    <AtSign size={15} className={`absolute left-3.5 transition-colors duration-200 ${focused === 'id' ? 'text-[#71717A]' : 'text-white/25'}`} />
                                     <input
                                         type="text"
                                         value={identifier}
@@ -221,7 +233,7 @@ export function LoginForm() {
                                     {/* Email/ID badge */}
                                     {identifier.length > 0 && (
                                         <span className={`absolute right-3 text-[10px] font-bold px-1.5 py-0.5 rounded-md ${isEmail
-                                            ? 'bg-violet-500/15 text-violet-400'
+                                            ? 'bg-[#71717A]/15 text-[#A1A1AA]'
                                             : 'bg-[#DA7756]/15 text-[#DA7756]'
                                             }`}>
                                             {isEmail ? 'EMAIL' : 'ID'}
@@ -236,10 +248,10 @@ export function LoginForm() {
                                     Password
                                 </label>
                                 <div className={`relative flex items-center rounded-xl border transition-all duration-200 ${focused === 'pw'
-                                    ? 'border-[#7C3AED]/70 bg-[#7C3AED]/8 shadow-[0_0_0_3px_#7C3AED18]'
+                                    ? 'border-[#71717A]/70 bg-[#71717A]/8 shadow-[0_0_0_3px_#71717A18]'
                                     : 'border-white/10 bg-white/[0.04] hover:border-white/20'
                                     }`}>
-                                    <Lock size={15} className={`absolute left-3.5 transition-colors duration-200 ${focused === 'pw' ? 'text-[#7C3AED]' : 'text-white/25'}`} />
+                                    <Lock size={15} className={`absolute left-3.5 transition-colors duration-200 ${focused === 'pw' ? 'text-[#71717A]' : 'text-white/25'}`} />
                                     <input
                                         type={showPassword ? 'text' : 'password'}
                                         value={password}

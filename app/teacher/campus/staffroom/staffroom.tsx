@@ -46,7 +46,7 @@ interface PendingAttachment { url: string; name: string; type: 'image' | 'file';
 const UNSEND_WINDOW_MS = 60 * 60 * 1000;
 function canUnsend(msg: DmMessage) { return msg.isMe && Date.now() - new Date(msg.createdAt).getTime() < UNSEND_WINDOW_MS; }
 const AVATAR_COLORS = [
-    'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',
+    'bg-[var(--muted)] text-[var(--primary)]',
     'bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300',
     'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300',
     'bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300',
@@ -106,7 +106,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
     const [confirmDelete, setConfirmDelete] = useState(false);
     const isMe = post.author.id === myUserId;
     const avatarColor = post.author.role === 'ADMIN'
-        ? 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300'
+        ? 'bg-[var(--muted)] text-[var(--primary)]'
         : getAvatarColor(post.author.id);
 
     const handleComment = async () => {
@@ -128,7 +128,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                 <div className={`flex items-center gap-2 mb-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                     <span className="text-[11px] font-semibold">{formatDisplayName(post.author.name, post.author.prefix)}</span>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${post.author.role === 'ADMIN'
-                        ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
+                        ? 'bg-[var(--muted)] text-[var(--primary)] bg-[var(--muted)] text-[var(--primary)]'
                         : 'bg-muted text-muted-foreground'}`}>
                         {resolveDisplayTitle(post.author.role, post.author.title)}
                     </span>
@@ -153,7 +153,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                     </div>
                 </div>
                 <div className={`px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
-                    style={isMe ? { background: '#7C3AED' } : {}}>
+                    style={isMe ? { background: 'var(--primary)' } : {}}>
                     <LinkifiedText
                         text={post.text}
                         className={isMe ? 'text-white underline decoration-white/70 hover:opacity-80 break-all' : 'text-primary underline hover:opacity-80 break-all'}
@@ -183,7 +183,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                             <div className="space-y-1.5 mb-2">
                                 {post.comments.map(c => (
                                     <div key={c.id} className={`flex items-start gap-2 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
-                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${c.author.role === 'ADMIN' ? 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300' : getAvatarColor(c.author.id)}`}>
+                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${c.author.role === 'ADMIN' ? 'bg-[var(--muted)] text-[var(--primary)]' : getAvatarColor(c.author.id)}`}>
                                             {getInitials(c.author.name)}
                                         </div>
                                         <div className="px-2.5 py-1.5 rounded-xl bg-muted/60 border border-border/30 group relative">
@@ -580,7 +580,7 @@ export default function TeacherStaffroom() {
 
                     <div className="border-t border-border/40 px-3 py-1.5 shrink-0">
                         <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-950 flex items-center justify-center text-[10px] font-bold text-violet-700 dark:text-violet-300 shrink-0">
+                            <div className="w-7 h-7 rounded-full bg-[var(--muted)] flex items-center justify-center text-[10px] font-bold text-[var(--primary)] shrink-0">
                                 {myInitials || 'T'}
                             </div>
                             <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
@@ -703,7 +703,7 @@ export default function TeacherStaffroom() {
                                                 <p className="text-xs text-muted-foreground">No messages yet — say hello!</p>
                                             </div>
                                             : messages.map(msg => {
-                                                const color = msg.isMe ? 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300' : getAvatarColor(activeDm.teacherUserId);
+                                                const color = msg.isMe ? 'bg-[var(--muted)] text-[var(--primary)]' : getAvatarColor(activeDm.teacherUserId);
                                                 const initials = msg.isMe ? myInitials || 'T' : getInitials(activeDm.name);
                                                 return (
                                                     <div key={msg.id} className={`flex gap-2 group ${msg.isMe ? 'flex-row-reverse' : 'flex-row'}`}>
@@ -713,7 +713,7 @@ export default function TeacherStaffroom() {
                                                             style={{ width: '100%' }}
                                                         >
                                                             <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
-                                                                style={msg.isMe ? { background: '#7C3AED' } : {}}>
+                                                                style={msg.isMe ? { background: 'var(--primary)' } : {}}>
                                                                 {msg.text && (
                                                                     <p>
                                                                         <LinkifiedText

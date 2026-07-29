@@ -24,7 +24,7 @@ interface FeeStructure { id: string; name: string; type: FeeStructureType; color
 interface FeeMonth { id: string; month: string; dueDate: string; assignedStructureIds: string[]; remark: string; status: 'PAID' | 'PENDING'; paidDate?: string; }
 
 const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg: string; text: string; emoji: string }> = {
-    REGULAR: { label: 'Regular Monthly', color: '#7C3AED', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', emoji: '📅' },
+    REGULAR: { label: 'Regular Monthly', color: 'var(--primary)', bg: 'bg-[var(--muted)]', text: 'text-[var(--primary)]', emoji: '📅' },
     ADDON: { label: 'Add-on', color: '#DA7756', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', emoji: '➕' },
     PENALTY: { label: 'Penalty / Fine', color: '#DC2626', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', emoji: '⚠️' },
     ONE_TIME: { label: 'One-time', color: '#059669', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', emoji: '⭐' },
@@ -48,7 +48,7 @@ const MOCK_STUDENTS = [
     { id: 'st10', name: 'Ishaan Verma', rollNo: '10', paid: false },
 ];
 
-const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
+const AVATAR_COLORS = ['var(--primary)', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 function getAvatarColor(n: string) { return AVATAR_COLORS[n.charCodeAt(0) % AVATAR_COLORS.length]; }
 function getInitials(n: string) { return n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
 
@@ -61,7 +61,7 @@ function structureTotal(s: FeeStructure) {
 
 const MOCK_FEE_STRUCTURES: FeeStructure[] = [
     {
-        id: 'fs1', name: 'Regular Monthly Fee', type: 'REGULAR', color: '#7C3AED', items: [
+        id: 'fs1', name: 'Regular Monthly Fee', type: 'REGULAR', color: 'var(--primary)', items: [
             {
                 id: 'i1', label: 'Tuition Fee', amount: 6000, subItems: [
                     { id: 's1', label: 'Term 1', amount: 2000 },

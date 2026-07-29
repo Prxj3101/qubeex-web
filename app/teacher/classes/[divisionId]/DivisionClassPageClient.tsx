@@ -41,7 +41,7 @@ export function getInitials(name: string) {
     return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
 }
 
-export const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
+export const AVATAR_COLORS = ['var(--primary)', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 export function getAvatarColor(name: string) {
     return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 }
@@ -122,14 +122,14 @@ export default function DivisionClassPageClient() {
                 capacity: 45,
                 standard: { id: 'std1', name: 'Class 10' },
                 subjects: [
-                    { id: 's1', name: 'Mathematics', code: 'MATH', color: '#7C3AED', order: 1 },
+                    { id: 's1', name: 'Mathematics', code: 'MATH', color: 'var(--primary)', order: 1 },
                     { id: 's2', name: 'Science', code: 'SCI', color: '#0891B2', order: 2 },
                     { id: 's3', name: 'English', code: 'ENG', color: '#DA7756', order: 3 },
                     { id: 's4', name: 'Hindi', code: 'HIN', color: '#059669', order: 4 },
                 ],
                 assignments: [
                     { id: 'a1', subjectId: null, teacher: { id: 't1', prefix: null, user: { id: 'u1', name: 'Ritu Sharma' } }, subject: null },
-                    { id: 'a2', subjectId: 's1', teacher: { id: 't2', prefix: null, user: { id: 'u2', name: 'Amit Verma' } }, subject: { id: 's1', name: 'Mathematics', color: '#7C3AED' } },
+                    { id: 'a2', subjectId: 's1', teacher: { id: 't2', prefix: null, user: { id: 'u2', name: 'Amit Verma' } }, subject: { id: 's1', name: 'Mathematics', color: 'var(--primary)' } },
                     { id: 'a3', subjectId: 's2', teacher: { id: 't3', prefix: null, user: { id: 'u3', name: 'Priya Nair' } }, subject: { id: 's2', name: 'Science', color: '#0891B2' } },
                 ],
             });
@@ -184,7 +184,7 @@ export default function DivisionClassPageClient() {
                                 ) : (() => {
                                     const sub = division.subjects.find(s => s.id === subjectId);
                                     return (
-                                        <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 flex items-center gap-1">
+                                        <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--muted)] text-[var(--primary)] flex items-center gap-1">
                                             Subject Teacher
                                             {sub && <>
                                                 <span className="opacity-40">·</span>
@@ -430,7 +430,7 @@ export default function DivisionClassPageClient() {
                                 subjects={division.subjects.map(s => ({
                                     id: s.id, name: s.name,
                                     code: s.code ?? s.name.slice(0, 4).toUpperCase(),
-                                    color: s.color ?? '#7C3AED',
+                                    color: s.color ?? 'var(--primary)',
                                 }))}
                                 subTab={marksSubTab}
                                 onSubTabChange={setMarksSubTab}

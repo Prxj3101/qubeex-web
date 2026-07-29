@@ -52,7 +52,7 @@ const strengthConfig = {
     weak: { label: 'Weak', color: 'bg-red-500', text: 'text-red-500', width: '25%' },
     medium: { label: 'Medium', color: 'bg-amber-500', text: 'text-amber-500', width: '50%' },
     strong: { label: 'Strong', color: 'bg-emerald-500', text: 'text-emerald-500', width: '75%' },
-    'very-strong': { label: 'Very Strong', color: 'bg-violet-500', text: 'text-violet-500', width: '100%' },
+    'very-strong': { label: 'Very Strong', color: 'bg-[var(--muted)]0', text: 'text-[var(--primary)]', width: '100%' },
 };
 
 type LoginActivity = {
@@ -78,8 +78,8 @@ function SectionCard({ title, icon: Icon, description, children, action }: {
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
             <div className="bg-muted/20 px-5 py-4 border-b border-border/50 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-[#7C3AED]/25 flex items-center justify-center shrink-0">
-                        <Icon size={15} className="text-violet-600 dark:text-violet-400" />
+                    <div className="w-8 h-8 rounded-lg bg-[var(--muted)] dark:bg-[var(--primary)]/25 flex items-center justify-center shrink-0">
+                        <Icon size={15} className="text-[var(--primary)]" />
                     </div>
                     <div className="min-w-0">
                         <p className="text-sm font-semibold truncate">{title}</p>

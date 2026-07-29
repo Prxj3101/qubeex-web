@@ -23,7 +23,7 @@ type Tab = 'ACTIVITY' | 'SECURITY';
 // ─── Action Config ────────────────────────────────────────────────────────────
 const ACTION_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
     // Students
-    STUDENT_ADDED: { label: 'Student Added', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400', dot: 'bg-violet-500' },
+    STUDENT_ADDED: { label: 'Student Added', cls: 'bg-[var(--muted)] text-[var(--primary)] bg-[var(--muted)] text-[var(--primary)]', dot: 'bg-[var(--muted)]0' },
     STUDENT_UPDATED: { label: 'Student Updated', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400', dot: 'bg-blue-500' },
     STUDENT_DEACTIVATED: { label: 'Student Deactivated', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
     STUDENT_ACTIVATED: { label: 'Student Activated', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },

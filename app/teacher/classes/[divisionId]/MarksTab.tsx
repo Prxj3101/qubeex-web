@@ -893,7 +893,7 @@ function MarkSheet({
                             {/* Graded section header */}
                             {mode === 'offline' && effectiveGradedSubjects.length > 0 && (
                                 <th colSpan={effectiveGradedSubjects.length * 2 + (!readOnly && !restrictToSubjectId ? 1 : 0)} className="px-2 py-1.5 text-center group/gtitle"
-                                    style={{ background: 'linear-gradient(#7C3AED18, #7C3AED18), #EDE4D6', border: `0.5px solid ${msColors.hdrBorder}`, fontWeight: 700, fontSize: 11 }}>
+                                    style={{ background: 'linear-gradient(color-mix(in srgb, var(--primary), transparent 90%), color-mix(in srgb, var(--primary), transparent 90%)), #EDE4D6', border: `0.5px solid ${msColors.hdrBorder}`, fontWeight: 700, fontSize: 11 }}>
                                     {editingGradedTitle ? (
                                         <input
                                             ref={gradedTitleInputRef}
@@ -923,7 +923,7 @@ function MarkSheet({
                             {mode === 'offline' && effectiveGradedSubjects.length === 0 && !readOnly && !restrictToSubjectId && (
                                 <th className="px-1 py-1.5 text-center cursor-pointer group/gadd"
                                     onClick={() => setAddGradedOpen(true)}
-                                    style={{ background: 'linear-gradient(#7C3AED10, #7C3AED10), #EDE4D6', border: `0.5px dashed ${msColors.hdrBorder}`, minWidth: 28 }}>
+                                    style={{ background: 'linear-gradient(color-mix(in srgb, var(--primary), transparent 94%), color-mix(in srgb, var(--primary), transparent 94%)), #EDE4D6', border: `0.5px dashed ${msColors.hdrBorder}`, minWidth: 28 }}>
                                     <span className="opacity-40 group-hover/gadd:opacity-100 transition-opacity flex items-center justify-center">
                                         <Plus size={11} color={msColors.hdrText} />
                                     </span>
@@ -1012,8 +1012,8 @@ function MarkSheet({
                                 const isGOver = dragOverGraded === gs.id;
                                 const isGDrag = dragGraded === gs.id;
                                 const gradedThStyle = {
-                                    background: isGOver && !restrictToSubjectId ? `linear-gradient(#7C3AED30, #7C3AED30), #EDE4D6` : '#EDE4D6',
-                                    border: isGOver && !restrictToSubjectId ? `1.5px solid #7C3AED` : `0.5px solid ${msColors.hdrBorder}`,
+                                    background: isGOver && !restrictToSubjectId ? `linear-gradient(color-mix(in srgb, var(--primary), transparent 81%), color-mix(in srgb, var(--primary), transparent 81%)), #EDE4D6` : '#EDE4D6',
+                                    border: isGOver && !restrictToSubjectId ? `1.5px solid var(--primary)` : `0.5px solid ${msColors.hdrBorder}`,
                                     color: msColors.hdrText, width: 52, minWidth: 52, maxWidth: 52,
                                     opacity: isGDrag ? 0.4 : 1,
                                     cursor: readOnly || restrictToSubjectId ? 'default' : 'grab',
@@ -1066,7 +1066,7 @@ function MarkSheet({
                                     onClick={() => setAddGradedOpen(true)}
                                     style={{ background: '#EDE4D6', border: `0.5px dashed ${msColors.hdrBorder}`, width: 28, minWidth: 28 }}>
                                     <span className="opacity-40 group-hover/gadd:opacity-100 transition-opacity flex items-center justify-center">
-                                        <Plus size={11} color="#7C3AED" />
+                                        <Plus size={11} color="var(--primary)" />
                                     </span>
                                 </th>
                             )}

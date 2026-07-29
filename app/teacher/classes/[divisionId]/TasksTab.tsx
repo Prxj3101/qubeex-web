@@ -136,8 +136,8 @@ interface TestDetail extends TestBase {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 const TYPE_META: Record<QuestionType, { label: string; color: string; section: string }> = {
-    MCQ:          { label: 'MCQ',        color: 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',   section: 'Section A' },
-    CONCEPTUAL:   { label: 'MCQ',         color: 'bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300',   section: 'Section A' },
+    MCQ:          { label: 'MCQ',        color: 'bg-[var(--muted)] text-[var(--primary)]',   section: 'Section A' },
+    CONCEPTUAL:   { label: 'MCQ',         color: 'bg-[var(--muted)] text-[var(--primary)]',   section: 'Section A' },
     FILL_BLANK:   { label: 'Fill Blank', color: 'bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300',           section: 'Section B' },
     TRUE_FALSE:   { label: 'True/False', color: 'bg-pink-100 dark:bg-pink-950 text-pink-700 dark:text-pink-300',           section: 'Section B' },
     SHORT_ANSWER: { label: 'Short Ans',  color: 'bg-cyan-100 dark:bg-cyan-950 text-cyan-700 dark:text-cyan-300', section: 'Section C' },
@@ -858,11 +858,11 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                             <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="url(#brainGrad)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                                 <defs>
                                     <linearGradient id="brainGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" stopColor="#7C3AED">
-                                            <animate attributeName="stop-color" values="#7C3AED;#DA7756;#7C3AED" dur="3s" repeatCount="indefinite" />
+                                        <stop offset="0%" stopColor="var(--primary)">
+                                            <animate attributeName="stop-color" values="var(--primary);#DA7756;var(--primary)" dur="3s" repeatCount="indefinite" />
                                         </stop>
                                         <stop offset="100%" stopColor="#DA7756">
-                                            <animate attributeName="stop-color" values="#DA7756;#7C3AED;#DA7756" dur="3s" repeatCount="indefinite" />
+                                            <animate attributeName="stop-color" values="#DA7756;var(--primary);#DA7756" dur="3s" repeatCount="indefinite" />
                                         </stop>
                                     </linearGradient>
                                 </defs>

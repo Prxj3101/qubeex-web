@@ -2,16 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import api from '@/lib/api';
-
-type InstType = 'SCHOOL' | 'COLLEGE' | 'COACHING';
-
-const CACHE_KEY = 'qubeex:instType';
-
-function readCachedInstType(): InstType {
-    if (typeof window === 'undefined') return 'SCHOOL';
-    const cached = window.localStorage.getItem(CACHE_KEY);
-    return cached === 'SCHOOL' || cached === 'COLLEGE' || cached === 'COACHING' ? cached : 'SCHOOL';
-}
+import { type InstType, isInstType, readCachedInstType, writeCachedInstType } from '@/lib/instTypeCache';
 
 const MockInstTypeContext = createContext<{
     instType: InstType;
@@ -35,9 +26,9 @@ export function MockInstTypeProvider({ children }: { children: React.ReactNode }
         api.get('/admin/me')
             .then((r) => {
                 const t = r.data?.data?.type;
-                if (t === 'SCHOOL' || t === 'COLLEGE' || t === 'COACHING') {
+                if (isInstType(t)) {
                     setInstTypeState(t);
-                    window.localStorage.setItem(CACHE_KEY, t);
+                    writeCachedInstType(t);
                 }
             })
             .catch(() => { /* not an admin / not logged in — keep default */ });

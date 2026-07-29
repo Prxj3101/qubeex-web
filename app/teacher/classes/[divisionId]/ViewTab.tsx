@@ -107,7 +107,7 @@ interface CalEvent {
 const CAL_EVENT_CFG = {
     holiday: { dot: '#EF4444', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', label: 'Holiday', emoji: '🏖️' },
     event: { dot: '#3B82F6', bg: 'bg-blue-100 dark:bg-blue-950/40', text: 'text-blue-700 dark:text-blue-400', label: 'Event', emoji: '📅' },
-    test: { dot: '#8B5CF6', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', label: 'Test', emoji: '📝' },
+    test: { dot: '#8B5CF6', bg: 'bg-[var(--muted)]', text: 'text-[var(--primary)]', label: 'Test', emoji: '📝' },
     termtest: { dot: '#10B981', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', label: 'Term Test', emoji: '📋' },
     exam: { dot: '#F59E0B', bg: 'bg-amber-100 dark:bg-amber-950/40', text: 'text-amber-700 dark:text-amber-400', label: 'Semester Exam', emoji: '🎓' },
     meeting: { dot: '#F97316', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', label: 'Meeting', emoji: '🤝' },
@@ -953,7 +953,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                 return (
                                     <div key={mat.id} className="flex items-start gap-2.5 py-1.5 border-b border-border/20 last:border-none">
                                         {mat.attachmentUrl && ext ? (
-                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[9px] font-bold shrink-0 mt-0.5 ${isPdf ? 'bg-red-500' : isImg ? 'bg-violet-500' : 'bg-blue-500'}`}>
+                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[9px] font-bold shrink-0 mt-0.5 ${isPdf ? 'bg-red-500' : isImg ? 'bg-[var(--muted)]0' : 'bg-blue-500'}`}>
                                                 {ext.slice(0, 4)}
                                             </div>
                                         ) : (
@@ -965,7 +965,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                             <p className="text-xs font-semibold truncate">{mat.title}</p>
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 {mat.subject && (
-                                                    <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400">{mat.subject}</span>
+                                                    <span className="text-[10px] font-medium text-[var(--primary)]">{mat.subject}</span>
                                                 )}
                                                 <p className="text-[10px] text-muted-foreground">
                                                     {new Date(mat.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -1035,7 +1035,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                 return (
                                     <div key={result.id} className="flex items-start gap-2.5 py-1.5 border-b border-border/20 last:border-none">
                                         {result.attachmentUrl && ext ? (
-                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[9px] font-bold shrink-0 mt-0.5 ${isPdf ? 'bg-red-500' : isImg ? 'bg-violet-500' : 'bg-emerald-600'}`}>
+                                            <div className={`w-7 h-7 rounded-lg flex items-center justify-center text-white text-[9px] font-bold shrink-0 mt-0.5 ${isPdf ? 'bg-red-500' : isImg ? 'bg-[var(--muted)]0' : 'bg-emerald-600'}`}>
                                                 {ext.slice(0, 4)}
                                             </div>
                                         ) : (
@@ -1047,7 +1047,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                             <p className="text-xs font-semibold truncate">{result.title}</p>
                                             <div className="flex items-center gap-1.5 flex-wrap">
                                                 {result.subject && (
-                                                    <span className="text-[10px] font-medium text-violet-600 dark:text-violet-400">{result.subject}</span>
+                                                    <span className="text-[10px] font-medium text-[var(--primary)]">{result.subject}</span>
                                                 )}
                                                 <p className="text-[10px] text-muted-foreground">
                                                     {new Date(result.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}

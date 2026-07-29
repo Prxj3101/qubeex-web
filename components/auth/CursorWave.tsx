@@ -35,7 +35,7 @@ export function CursorWave() {
         const LIFT_RADIUS = 180;
         const MAX_LIFT = 95;
         const THRESHOLD = 2;
-        const BG = '#0F0A1E';
+        const BG = '#0B0B0F';
 
         const draw = () => {
             timeRef.current += 0.016;
@@ -148,7 +148,7 @@ export function CursorWave() {
                     ctx.beginPath();
                     ctx.moveTo(a.sx, a.sy);
                     ctx.lineTo(b.sx, b.sy);
-                    ctx.strokeStyle = `rgba(${bright},${Math.round(bright * 0.72)},${bright},${alpha})`;
+                    ctx.strokeStyle = `rgba(${bright},${bright},${bright},${alpha})`;
                     ctx.lineWidth = 0.5 + zT * 1.0;
                     ctx.stroke();
                 }
@@ -169,7 +169,7 @@ export function CursorWave() {
                     ctx.beginPath();
                     ctx.moveTo(a.sx, a.sy);
                     ctx.lineTo(b.sx, b.sy);
-                    ctx.strokeStyle = `rgba(${bright},${Math.round(bright * 0.72)},${bright},${alpha})`;
+                    ctx.strokeStyle = `rgba(${bright},${bright},${bright},${alpha})`;
                     ctx.lineWidth = 0.5 + zT * 1.0;
                     ctx.stroke();
                 }

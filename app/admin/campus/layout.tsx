@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Rss, LayoutGrid, Lock } from 'lucide-react';
@@ -13,6 +13,17 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
     const pathname = usePathname();
     const { instType } = useMockInstType();
     const { user } = useAuthStore();
+
+    // The server always renders as if instType === 'SCHOOL' (it has no way to
+    // know the real value, which only lives in localStorage/the /admin/me
+    // fetch). Rendering the tab label only after mount means there's nothing
+    // server-rendered here to conflict with — no hydration mismatch, no stuck
+    // stale text, no error overlay. By the time `mounted` flips true (next
+    // tick after the first commit), instType is already correct thanks to
+    // MockInstTypeContext's cached lazy init, so this doesn't reintroduce the
+    // flash the caching was added to avoid.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
 
     const classesLabel = instType === 'COLLEGE' ? 'Departments' : instType === 'COACHING' ? 'Batches' : 'Classes';
     const classesHref = instType === 'COLLEGE' ? '/admin/campus/departments' : '/admin/campus/classes';
@@ -43,7 +54,7 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
 
     return (
         <div className="flex flex-col h-full overflow-hidden">
-            {showTabs && (
+            {showTabs && mounted && (
                 <div className="shrink-0 pt-0 pb-2 px-1 overflow-x-auto">
                     <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
                         {TABS.map(tab => {
@@ -76,7 +87,6 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
                                         />
                                     )}
                                     <div
-                                        suppressHydrationWarning
                                         className={`relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl transition-colors ${
                                             isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'
                                         }`}>

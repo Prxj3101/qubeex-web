@@ -929,7 +929,7 @@ function FloatingAIButton({ activeMode, onSelect, showControls }: {
     const isDark = resolvedTheme === 'dark';
 
     const options = [
-        { key: 'scan' as AIMode, icon: ScanLine, label: 'AI Scan', color: '#7C3AED', iconSize: 13 },
+        { key: 'scan' as AIMode, icon: ScanLine, label: 'AI Scan', color: 'var(--primary)', iconSize: 13 },
         { key: 'prompt' as AIMode, icon: Bot, label: 'AI Prompt', color: '#DA7756', iconSize: 15 },
         { key: 'quiz' as AIMode, icon: HelpCircle, label: 'AI Quiz', color: '#059669', iconSize: 13 },
     ];

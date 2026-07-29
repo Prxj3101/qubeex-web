@@ -49,7 +49,7 @@ interface TeacherData {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const AVATAR_COLORS = [
-    { bg: 'bg-violet-100 dark:bg-violet-950', text: 'text-violet-700 dark:text-violet-300' },
+    { bg: 'bg-[var(--muted)]', text: 'text-[var(--primary)]' },
     { bg: 'bg-amber-100 dark:bg-amber-950', text: 'text-amber-700 dark:text-amber-300' },
     { bg: 'bg-emerald-100 dark:bg-emerald-950', text: 'text-emerald-700 dark:text-emerald-300' },
     { bg: 'bg-sky-100 dark:bg-sky-950', text: 'text-sky-700 dark:text-sky-300' },
@@ -570,7 +570,7 @@ export default function TeacherProfilePage() {
                                     <span className="text-xs font-bold">1.2M <span className="text-muted-foreground font-normal">/ 10M pool</span></span>
                                 </div>
                                 <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full" style={{ width: '12%', background: '#7C3AED' }} />
+                                    <div className="h-full rounded-full" style={{ width: '12%', background: 'var(--primary)' }} />
                                 </div>
                                 <p className="text-[11px] text-muted-foreground mt-1">12% of institution pool</p>
                             </div>
@@ -584,7 +584,7 @@ export default function TeacherProfilePage() {
                                     <p className="text-[10px] text-muted-foreground">Remaining</p>
                                 </div>
                                 <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(124,58,237,0.08)' }}>
-                                    <p className="text-sm font-bold" style={{ color: '#7C3AED' }}>12%</p>
+                                    <p className="text-sm font-bold" style={{ color: 'var(--primary)' }}>12%</p>
                                     <p className="text-[10px] text-muted-foreground">Pool share</p>
                                 </div>
                             </div>
@@ -679,20 +679,20 @@ export default function TeacherProfilePage() {
                             {teacher.assignments.filter(a => a.role === 'SUBJECT_TEACHER').length > 0 && (
                                 <div>
                                     <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--muted)]0" />
                                         <p className="text-xs font-semibold text-muted-foreground">Subject Teacher</p>
                                     </div>
                                     <div className="space-y-1.5">
                                         {teacher.assignments.filter(a => a.role === 'SUBJECT_TEACHER').map(a => (
                                             <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border/50 bg-muted/20">
-                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-violet-100 dark:bg-violet-950">
-                                                    <BookOpen size={13} className="text-violet-600 dark:text-violet-400" />
+                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[var(--muted)]">
+                                                    <BookOpen size={13} className="text-[var(--primary)]" />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs font-semibold">{a.level3Name}</p>
                                                     <p className="text-[11px] text-muted-foreground">{a.level2Name}</p>
                                                 </div>
-                                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300">
+                                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--muted)] text-[var(--primary)] bg-[var(--muted)] text-[var(--primary)]">
                                                     Subject Teacher
                                                 </span>
                                             </div>

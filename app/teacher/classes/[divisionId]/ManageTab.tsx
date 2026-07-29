@@ -628,7 +628,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                             )}
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[11px] font-bold" style={{ color: '#7C3AED' }}>{lb ? `#${lb.rank}` : '—'}</p>
+                                            <p className="text-[11px] font-bold" style={{ color: 'var(--primary)' }}>{lb ? `#${lb.rank}` : '—'}</p>
                                             <p className="text-[9px] text-muted-foreground/60">rank</p>
                                         </div>
                                         <div className="text-right">
@@ -780,7 +780,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     sub: 'by score',
                                                     color: studentStats?.classRank == null ? undefined :
                                                         studentStats.classRank === 1 ? '#F59E0B' :
-                                                            studentStats.classRank <= 3 ? '#7C3AED' :
+                                                            studentStats.classRank <= 3 ? 'var(--primary)' :
                                                                 studentStats.classRank <= 10 ? 'var(--blue)' :
                                                                     'var(--muted-foreground)',
                                                 },

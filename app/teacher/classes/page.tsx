@@ -32,7 +32,7 @@ interface SubjectTeacherAssignment {
 
 
 const GRADIENTS = [
-    'linear-gradient(135deg, #7C3AED, #9F67FF)',
+    'linear-gradient(135deg, var(--primary), color-mix(in srgb, var(--primary), white 35%))',
     'linear-gradient(135deg, #DA7756, #E8876A)',
     'linear-gradient(135deg, #0891B2, #38BDF8)',
     'linear-gradient(135deg, #059669, #34D399)',
@@ -296,7 +296,7 @@ export default function TeacherClassesPage() {
                 {/* RIGHT — Subject Teacher */}
                 <div className="w-full lg:flex-1 h-[65vh] lg:h-auto flex flex-col min-h-0">
                     <div className="flex items-center gap-2 mb-3">
-                        <div className="w-1.5 h-1.5 rounded-full bg-violet-500" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--muted)]0" />
                         <p className="text-xs font-semibold text-muted-foreground">Subject Teacher</p>
                         <span className="ml-auto text-[11px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                             {subjectTeacher.length}

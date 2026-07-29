@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     ChevronDown, Plus, Check, X, BookOpen,
-    ArrowUpRight, GripVertical, Building2, Pencil, Trash2,
+    ArrowUpRight, GripVertical, Building2, Pencil, Trash2, LayoutGrid,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/authStore';
@@ -492,7 +492,7 @@ export default function DepartmentsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                     <div>
                         <h1 className="text-lg lg:text-xl font-bold flex items-center gap-2">
-                            <Building2 size={21} />
+                            <LayoutGrid size={21} />
                             Departments
                         </h1>
                         <p className="text-[13px] text-muted-foreground">

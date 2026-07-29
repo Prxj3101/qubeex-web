@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { Topbar } from '@/components/shared/Topbar';
-import { MockInstTypeProvider } from '@/context/MockInstTypeContext';
+import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
 import { useUserTitleStore } from '@/store/userTitleStore';
 import api from '@/lib/api';
@@ -25,6 +25,7 @@ const TEACHER_NAV_ITEMS = [
 ];
 
 function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
+    const { instType } = useMockInstType();
     const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
     const setTitle = useUserTitleStore(s => s.setTitle);
     const setPrefix = useUserTitleStore(s => s.setPrefix);
@@ -36,8 +37,26 @@ function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
             setPrefix(d?.prefix ?? null);
         }).catch(() => {});
     }, [setAvatarUrl, setTitle, setPrefix]);
+
+    // Same fix as app/admin/layout.tsx: the `theme-college` class on <html>
+    // only gets set server-side on a hard page load (RootLayout reads the
+    // cookie once per request). Logging in redirects via router.push — a
+    // client-side navigation that never re-runs the root Server Component —
+    // so <html> keeps whatever class it had *before* login. This effect
+    // patches it in immediately client-side. Also mirrored onto the wrapper
+    // div below for the non-portaled content, and onto <html> for portaled
+    // content (dropdowns/dialogs/toasts render via Portal straight into
+    // document.body, outside this div's scope).
+    useEffect(() => {
+        document.documentElement.classList.toggle('theme-college', instType === 'COLLEGE');
+        return () => { document.documentElement.classList.remove('theme-college'); };
+    }, [instType]);
+
     return (
-        <div className="flex flex-col h-screen bg-background px-0 pt-3 gap-3">
+        <div
+            suppressHydrationWarning
+            className={`flex flex-col h-screen bg-background px-0 pt-3 gap-3 ${instType === 'COLLEGE' ? 'theme-college' : ''}`}
+        >
             <Topbar navItems={TEACHER_NAV_ITEMS} />
             <main className="flex-1 min-h-0 px-2 overflow-y-auto">
                 {children}

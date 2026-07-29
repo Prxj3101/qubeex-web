@@ -46,6 +46,17 @@
   --red-light: #FEE2E2;
   --blue: #2563EB;
   --blue-light: #DBEAFE;
+  /* Overview hero background — same violet/blue split as getInstitutionAccent()
+     in lib/getInstitutionAccent.ts, mirrored here as a CSS var so the hero
+     (teacher + admin overview) can be pure-CSS driven instead of computing it
+     from client-side React state. That state defaults to 'SCHOOL' on the
+     server (no way to know instType during SSR) while the client immediately
+     resolves the real value from cache, which caused a hydration mismatch on
+     the hero's inline style. Reading it from CSS instead means the value
+     comes from the 'theme-college' class on <html> — already resolved
+     server-side from a cookie (see app/layout.tsx) — so server and client
+     agree from the very first paint. */
+  --hero-accent: #7C3AED;
 }
 
 .dark {
@@ -69,6 +80,7 @@
   --red-light: #2B0D0D;
   --blue: #60A5FA;
   --blue-light: #0D1F3C;
+  --hero-accent: #4C1D95;
 }
 
 /* ── College institution theme — same shade structure as the violet school
@@ -85,6 +97,7 @@
   --muted: #E3F1FA;
   --muted-foreground: #64748B;
   --border: #C7E6F5;
+  --hero-accent: #2F6AE6;
 }
 
 /* Both selectors are needed: `.dark .theme-college` covers the case where
@@ -106,6 +119,7 @@
   --muted: #12182A !important;
   --muted-foreground: #94A3B8 !important;
   --border: #12182A !important;
+  --hero-accent: #3557AB !important;
 }
 
 @layer base {

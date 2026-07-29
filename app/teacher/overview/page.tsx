@@ -16,7 +16,7 @@ import { formatDisplayName } from '@/lib/displayName';
 // ── Mock Data ─────────────────────────────────────────────────────────────────
 
 const MOCK_STATS = [
-    { label: 'Classes Assigned', value: '5', sub: '+1 this month', trend: 'up', icon: LayoutGrid, iconBg: 'bg-violet-100 dark:bg-violet-950', iconColor: 'text-violet-600 dark:text-violet-400' },
+    { label: 'Classes Assigned', value: '5', sub: '+1 this month', trend: 'up', icon: LayoutGrid, iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--primary)]' },
     { label: 'Subjects Teaching', value: '3', sub: 'this academic year', trend: 'up', icon: BookOpen, iconBg: 'bg-amber-100 dark:bg-amber-950', iconColor: 'text-amber-600 dark:text-amber-400' },
     { label: 'Tests Conducted', value: '24', sub: '+3 this month', trend: 'up', icon: ClipboardList, iconBg: 'bg-green-100 dark:bg-green-950', iconColor: 'text-green-600 dark:text-green-400' },
     { label: 'Avg Attendance', value: '87%', sub: '+2% this month', trend: 'up', icon: TrendingUp, iconBg: 'bg-sky-100 dark:bg-sky-950', iconColor: 'text-sky-600 dark:text-sky-400' },
@@ -28,7 +28,7 @@ type LogEntry = {
 };
 
 const ACTION_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
-    STUDENT_ADDED: { label: 'Student Added', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400', dot: 'bg-violet-500' },
+    STUDENT_ADDED: { label: 'Student Added', cls: 'bg-[var(--muted)] text-[var(--primary)] bg-[var(--muted)] text-[var(--primary)]', dot: 'bg-[var(--muted)]0' },
     STUDENT_UPDATED: { label: 'Student Updated', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400', dot: 'bg-blue-500' },
     STUDENT_DEACTIVATED: { label: 'Student Deactivated', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
     STUDENT_ACTIVATED: { label: 'Student Activated', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
@@ -111,7 +111,7 @@ function CustomTooltip({ active, payload, label }: any) {
     return (
         <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-xl text-xs">
             <p className="font-semibold mb-1">{label}</p>
-            <p className="text-violet-500 font-bold">{payload[0].value}%</p>
+            <p className="text-[var(--primary)] font-bold">{payload[0].value}%</p>
         </div>
     );
 }
@@ -240,6 +240,19 @@ const greeting = hour < 12
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function TeacherOverviewPage() {
     const { user } = useAuthStore();
+    // Background is driven by the --hero-accent CSS var (globals.css), not
+    // JS. A JS instType/isDark check (same as admin's OverviewHero) cannot
+    // be flash-free here: admin's hero only mounts after its data fetch
+    // resolves (well past hydration), so it never has server-rendered markup
+    // to conflict with; this hero renders immediately, so the server (always
+    // defaulting to 'SCHOOL', no way to know the real value during SSR)
+    // and the client's first paint (already correct from cache) would
+    // genuinely differ — no way to fix that with JS alone without either a
+    // hydration error or a visible flash while it corrects itself. CSS
+    // doesn't have this problem: --hero-accent comes from the
+    // 'theme-college'/'dark' classes on <html>, which are already correct
+    // server-side (see app/layout.tsx's cookie read), so server and client
+    // render the same value from byte one.
 
     type OverviewData = {
         teacher: { name: string; prefix: string | null; institutionName: string; classTeacherDivisionName: string | null };
@@ -294,8 +307,11 @@ export default function TeacherOverviewPage() {
     return (
         <div className="space-y-3 pb-3">
 
-            {/* ── Hero — same as OverviewHero ── */}
-            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-5 lg:px-13 py-5 flex items-center justify-between min-h-[160px]">
+            {/* ── Hero ── */}
+            <div
+                className="-mx-4 relative overflow-hidden rounded-b-[65px] px-5 lg:px-13 py-5 flex items-center justify-between min-h-[160px]"
+                style={{ background: 'var(--hero-accent)' }}
+            >
                 {/* Orbs */}
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
@@ -375,7 +391,7 @@ export default function TeacherOverviewPage() {
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {(overview ? [
-                        { label: 'Classes Assigned', value: String(overview.stats.classesAssigned), sub: 'this academic year', trend: 'up' as const, icon: LayoutGrid, iconBg: 'bg-violet-100 dark:bg-violet-950', iconColor: 'text-violet-600 dark:text-violet-400' },
+                        { label: 'Classes Assigned', value: String(overview.stats.classesAssigned), sub: 'this academic year', trend: 'up' as const, icon: LayoutGrid, iconBg: 'bg-[var(--muted)]', iconColor: 'text-[var(--primary)]' },
                         { label: 'Subjects Teaching', value: String(overview.stats.subjectsTeaching), sub: 'this academic year', trend: 'up' as const, icon: BookOpen, iconBg: 'bg-amber-100 dark:bg-amber-950', iconColor: 'text-amber-600 dark:text-amber-400' },
                         { label: 'Tests Conducted', value: String(overview.stats.testsConducted), sub: 'this academic year', trend: 'up' as const, icon: ClipboardList, iconBg: 'bg-green-100 dark:bg-green-950', iconColor: 'text-green-600 dark:text-green-400' },
                         { label: 'Avg Attendance', value: overview.stats.avgAttendancePct !== null ? `${overview.stats.avgAttendancePct}%` : '—', sub: 'this academic year', trend: 'up' as const, icon: TrendingUp, iconBg: 'bg-sky-100 dark:bg-sky-950', iconColor: 'text-sky-600 dark:text-sky-400' },
@@ -437,7 +453,7 @@ export default function TeacherOverviewPage() {
                                 <span className="text-xs font-bold">1.2M <span className="text-muted-foreground font-normal">/ 10M pool</span></span>
                             </div>
                             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: '12%', background: '#7C3AED' }} />
+                                <div className="h-full rounded-full" style={{ width: '12%', background: 'var(--primary)' }} />
                             </div>
                             <p className="text-[11px] text-muted-foreground mt-1">12% of institution pool</p>
                         </div>
@@ -451,7 +467,7 @@ export default function TeacherOverviewPage() {
                                 <p className="text-[10px] text-muted-foreground">Remaining</p>
                             </div>
                             <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(124,58,237,0.08)' }}>
-                                <p className="text-sm font-bold" style={{ color: '#7C3AED' }}>12%</p>
+                                <p className="text-sm font-bold" style={{ color: 'var(--primary)' }}>12%</p>
                                 <p className="text-[10px] text-muted-foreground">Pool share</p>
                             </div>
                         </div>

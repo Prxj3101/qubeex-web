@@ -169,10 +169,10 @@ function SetPasswordContent() {
     return (
       <div
         className="min-h-screen flex items-center justify-center"
-        style={{ background: "#0F0A1E" }}
+        style={{ background: "#0B0B0F" }}
       >
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-2 border-[#7C3AED]/30 border-t-[#7C3AED] rounded-full animate-spin" />
+          <div className="w-10 h-10 border-2 border-[#71717A]/30 border-t-[#71717A] rounded-full animate-spin" />
           <p className="text-sm text-white/50">Verifying invite link…</p>
         </div>
       </div>
@@ -184,7 +184,7 @@ function SetPasswordContent() {
     return (
       <div
         className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: "#0F0A1E" }}
+        style={{ background: "#0B0B0F" }}
       >
         {/* bg blobs */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
@@ -227,7 +227,7 @@ function SetPasswordContent() {
     return (
       <div
         className="min-h-screen flex items-center justify-center px-4"
-        style={{ background: "#0F0A1E" }}
+        style={{ background: "#0B0B0F" }}
       >
         <div className="fixed inset-0 pointer-events-none overflow-hidden">
           <div
@@ -271,7 +271,7 @@ function SetPasswordContent() {
   return (
     <div
       className="h-screen overflow-hidden flex items-center justify-center px-4"
-      style={{ background: "#0F0A1E" }}
+      style={{ background: "#0B0B0F" }}
     >
       <CursorWave />
       {/* Background effects */}
@@ -282,7 +282,7 @@ function SetPasswordContent() {
         <div
           className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full opacity-20"
           style={{
-            background: "radial-gradient(circle, #7C3AED, transparent 70%)",
+            background: "radial-gradient(circle, #71717A, transparent 70%)",
           }}
         />
         <div
@@ -329,7 +329,7 @@ function SetPasswordContent() {
           className="h-[2px] w-full shrink-0"
           style={{
             background:
-              "linear-gradient(90deg, transparent, #7C3AED, #DA7756, transparent)",
+              "linear-gradient(90deg, transparent 0%, #7C3AED 33%, #6946EB 40%, #5652EA 44%, #425EE8 48%, #2F6AE6 52%, #5A6DC2 56%, #85719E 60%, #AF747A 63%, #DA7756 66%, transparent 100%)",
           }}
         />
 
@@ -437,7 +437,7 @@ function SetPasswordContent() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Create a strong password"
-                  className="w-full h-11 pl-10 pr-10 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#7C3AED]/60 focus:bg-white/8 transition-all"
+                  className="w-full h-11 pl-10 pr-10 rounded-xl bg-white/5 border border-white/10 text-sm text-white placeholder:text-white/25 focus:outline-none focus:border-[#71717A]/60 focus:bg-white/8 transition-all"
                 />
                 <button
                   onClick={() => setShowPassword((v) => !v)}
@@ -498,7 +498,7 @@ function SetPasswordContent() {
                       ? passwordsMatch
                         ? "border-emerald-500/50 focus:border-emerald-500/70"
                         : "border-red-500/50 focus:border-red-500/70"
-                      : "border-white/10 focus:border-[#7C3AED]/60"
+                      : "border-white/10 focus:border-[#71717A]/60"
                   }`}
                 />
                 <button
@@ -591,10 +591,10 @@ export default function SetPasswordPage() {
       fallback={
         <div
           className="min-h-screen flex items-center justify-center"
-          style={{ background: "#0F0A1E" }}
+          style={{ background: "#0B0B0F" }}
         >
           <div className="flex flex-col items-center gap-4">
-            <div className="w-10 h-10 border-2 border-[#7C3AED]/30 border-t-[#7C3AED] rounded-full animate-spin" />
+            <div className="w-10 h-10 border-2 border-[#71717A]/30 border-t-[#71717A] rounded-full animate-spin" />
             <p className="text-sm text-white/50">Loading...</p>
           </div>
         </div>
