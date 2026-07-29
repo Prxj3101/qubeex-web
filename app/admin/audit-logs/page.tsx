@@ -279,13 +279,14 @@ export default function AdminAuditLogsPage() {
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
                   <div className="overflow-x-auto">
                     <div className="min-w-[700px]">
-                    <div className="grid grid-cols-[140px_200px_180px_1fr] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30">
-                        {['TIMESTAMP (IST)', 'ACTION', 'ACTOR', 'DETAILS'].map(h => (
-                            <p key={h} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</p>
-                        ))}
-                    </div>
 
                     <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 360px)' }}>
+                    <div className="grid grid-cols-[140px_200px_180px_1fr] gap-4 px-5 py-3 border-b border-border/50 sticky top-0 z-10"
+                        style={{ backgroundColor: 'color-mix(in srgb, var(--muted) 30%, var(--card) 70%)' }}>
+                        {['TIMESTAMP (IST)', 'ACTION', 'ACTOR', 'DETAILS'].map((h, i) => (
+                            <p key={h} className={`text-[11px] font-semibold text-muted-foreground uppercase tracking-wider ${i === 2 || i === 3 ? 'ml-8' : ''}`}>{h}</p>
+                        ))}
+                    </div>
                         {loading ? (
                             <div>
                                 {[...Array(8)].map((_, i) => (
@@ -336,7 +337,7 @@ export default function AdminAuditLogsPage() {
                                         </div>
 
                                         {/* Actor */}
-                                        <div>
+                                        <div className="ml-8">
                                             <p className="text-xs font-medium truncate">
                                                 {log.user?.name ? formatDisplayName(log.user.name, log.user.prefix) : log.user?.email ?? '—'}
                                             </p>
@@ -346,7 +347,7 @@ export default function AdminAuditLogsPage() {
                                         </div>
 
                                         {/* Details */}
-                                        <div>
+                                        <div className="ml-8">
                                             <p className="text-xs text-foreground leading-relaxed">
                                                 {log.details ?? <span className="text-muted-foreground/50 italic">No details</span>}
                                             </p>

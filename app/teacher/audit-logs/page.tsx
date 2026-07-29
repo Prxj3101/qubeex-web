@@ -253,13 +253,14 @@ export default function TeacherAuditLogsPage() {
                 <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
                   <div className="overflow-x-auto">
                     <div className="min-w-[640px]">
-                    <div className="grid grid-cols-[140px_200px_1fr_120px] gap-4 px-5 py-3 border-b border-border/50 bg-muted/30">
+
+                    <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
+                    <div className="grid grid-cols-[140px_200px_1fr_120px] gap-4 px-5 py-3 border-b border-border/50 sticky top-0 z-10"
+                        style={{ backgroundColor: 'color-mix(in srgb, var(--muted) 30%, var(--card) 70%)' }}>
                         {['TIMESTAMP (IST)', 'ACTION', 'DETAILS', 'IP'].map(h => (
                             <p key={h} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</p>
                         ))}
                     </div>
-
-                    <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 380px)' }}>
                         {paginated.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-center">
                                 <ScrollText size={32} className="text-muted-foreground/30 mb-3" />
