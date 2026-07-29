@@ -2640,6 +2640,51 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                             <span className="text-[#DA7756]">{fmt(finalUpgradeCharge)}</span>
                           </div>
                         </div>
+                        {/* New core PRO features unlocked by upgrading */}
+                        {proNewFeatures.length > 0 && (
+                          <div>
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                              Unlocked with PRO
+                              <span className="text-[10px] text-[#DA7756] normal-case font-normal ml-2">
+                                {proNewFeatures.length} new {proNewFeatures.length === 1 ? "feature" : "features"}
+                              </span>
+                            </p>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                              {proNewFeatures.map((f) => (
+                                <div
+                                  key={f.key}
+                                  className="flex items-center gap-2 p-2 rounded-lg border border-[#DA7756]/30 bg-[#DA7756]/5"
+                                >
+                                  <f.icon size={12} className="text-[#DA7756] shrink-0" />
+                                  <span className="text-[11px] font-medium truncate">{f.label}</span>
+                                  {f.comingSoon && (
+                                    <span className="ml-auto text-[9px] text-muted-foreground shrink-0">soon</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                        {/* Retained from Basic — all current features stay included on PRO */}
+                        <div>
+                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                            Included from Basic
+                            <span className="text-[10px] text-muted-foreground normal-case font-normal ml-2">
+                              kept on PRO
+                            </span>
+                          </p>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                            {basicDefaults.map((f) => (
+                              <div
+                                key={f.key}
+                                className="flex items-center gap-2 p-2 rounded-lg bg-muted/30 border border-border/40"
+                              >
+                                <f.icon size={12} className="text-muted-foreground shrink-0" />
+                                <span className="text-[11px] font-medium truncate">{f.label}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                         {/* Add-on — only smart_board */}
                         <div>
                           <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
