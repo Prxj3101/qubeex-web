@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { motion } from 'framer-motion';
+import { useAuthStore } from '@/store/authStore';
 
 // ── Permission tree definition ────────────────────────────────────────────────
 
@@ -304,7 +305,7 @@ function SectionLabel({ label }: { label: string }) {
 // ── SubAdmin Card ─────────────────────────────────────────────────────────────
 
 function SubAdminCard({
-    subadmin, index, onEdit, onToggleStatus, onResendInvite, onDelete,
+    subadmin, index, onEdit, onToggleStatus, onResendInvite, onDelete, isSubAdmin,
 }: {
     subadmin: SubAdminRecord;
     index: number;
@@ -312,6 +313,7 @@ function SubAdminCard({
     onToggleStatus: (s: SubAdminRecord) => void;
     onResendInvite: (s: SubAdminRecord) => void;
     onDelete: (s: SubAdminRecord) => void;
+    isSubAdmin: boolean;
 }) {
     const avatarColor = getAvatarColor(subadmin.id);
     const isActive = subadmin.isActive;
@@ -409,42 +411,44 @@ function SubAdminCard({
                 )}
             </div>
 
-            <div className="px-4 pb-4 pt-2 flex gap-2 mt-auto">
-                <button
-                    onClick={() => onEdit(subadmin)}
-                    className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all duration-150"
-                >
-                    <Edit2 size={12} />
-                    Edit Access
-                </button>
-                {subadmin.invitePending ? (
+            {!isSubAdmin && (
+                <div className="px-4 pb-4 pt-2 flex gap-2 mt-auto">
                     <button
-                        onClick={() => onResendInvite(subadmin)}
-                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-950/30 text-xs font-medium transition-all"
+                        onClick={() => onEdit(subadmin)}
+                        className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-border/60 text-xs font-medium text-muted-foreground hover:text-primary hover:border-primary/40 hover:bg-primary/5 transition-all duration-150"
                     >
-                        <MailCheck size={12} />
-                        Resend Invite
+                        <Edit2 size={12} />
+                        Edit Access
                     </button>
-                ) : (
+                    {subadmin.invitePending ? (
+                        <button
+                            onClick={() => onResendInvite(subadmin)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:hover:bg-amber-950/30 text-xs font-medium transition-all"
+                        >
+                            <MailCheck size={12} />
+                            Resend Invite
+                        </button>
+                    ) : (
+                        <button
+                            onClick={() => onToggleStatus(subadmin)}
+                            className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-medium transition-all ${isActive
+                                ? 'border-red-200 text-red-500 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30'
+                                : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-950/30'
+                            }`}
+                        >
+                            {isActive ? <PowerOff size={12} /> : <Power size={12} />}
+                            {isActive ? 'Deactivate' : 'Activate'}
+                        </button>
+                    )}
                     <button
-                        onClick={() => onToggleStatus(subadmin)}
-                        className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-medium transition-all ${isActive
-                            ? 'border-red-200 text-red-500 hover:bg-red-50 dark:border-red-800 dark:hover:bg-red-950/30'
-                            : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50 dark:border-emerald-800 dark:hover:bg-emerald-950/30'
-                        }`}
+                        onClick={() => onDelete(subadmin)}
+                        className="w-9 h-9 flex items-center justify-center rounded-xl border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 dark:border-red-800 dark:hover:bg-red-950/30 transition-all shrink-0"
+                        title="Permanently delete subadmin"
                     >
-                        {isActive ? <PowerOff size={12} /> : <Power size={12} />}
-                        {isActive ? 'Deactivate' : 'Activate'}
+                        <Trash2 size={13} />
                     </button>
-                )}
-                <button
-                    onClick={() => onDelete(subadmin)}
-                    className="w-9 h-9 flex items-center justify-center rounded-xl border border-red-200 text-red-400 hover:bg-red-50 hover:text-red-600 dark:border-red-800 dark:hover:bg-red-950/30 transition-all shrink-0"
-                    title="Permanently delete subadmin"
-                >
-                    <Trash2 size={13} />
-                </button>
-            </div>
+                </div>
+            )}
         </motion.div>
     );
 }
@@ -452,6 +456,8 @@ function SubAdminCard({
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function SubadminsPage() {
+    const { user: authUser } = useAuthStore();
+    const isSubAdmin = authUser?.role === 'SUB_ADMIN';
     const [subadmins, setSubadmins] = useState<SubAdminRecord[]>([]);
     const [loading, setLoading] = useState(true);
     const [modal, setModal] = useState<ModalState>({ type: 'closed' });
@@ -669,13 +675,15 @@ export default function SubadminsPage() {
                                 </button>
                             )}
                         </div>
-                        <button
-                            onClick={openAdd}
-                            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 active:scale-95 transition-all"
-                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                        >
-                            <Plus size={15} /> Add Subadmin
-                        </button>
+                        {!isSubAdmin && (
+                            <button
+                                onClick={openAdd}
+                                className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 active:scale-95 transition-all"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                            >
+                                <Plus size={15} /> Add Subadmin
+                            </button>
+                        )}
                     </div>
                 </div>
                 <div className="h-px bg-border/60 mt-2" />
@@ -702,6 +710,7 @@ export default function SubadminsPage() {
                                 onToggleStatus={handleToggleStatus}
                                 onResendInvite={handleResendInvite}
                                 onDelete={s => setModal({ type: 'delete', subadmin: s })}
+                                isSubAdmin={isSubAdmin}
                             />
                         ))}
                     </div>
