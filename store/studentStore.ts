@@ -116,7 +116,7 @@ export const useStudentStore = create<StudentState>()(persist((set, get) => ({
                 mustChangePassword: s.user?.mustChangePassword ?? false,
                 photo: s.avatarUrl ?? null,
                 name: s.user?.name ?? '',
-                email: s.user?.email ?? '',
+                email: s.user?.email?.endsWith('@students.qubeex.local') ? '' : (s.user?.email ?? ''),
                 dob: s.dob ?? '',
                 phone: s.phone ?? '',
                 gender: s.gender ?? '',
