@@ -56,6 +56,14 @@ interface Division {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Students created without a real email get an auto-generated placeholder
+// (e.g. skps01s260003@students.qubeex.local) purely so the account has a
+// unique login identifier — it was never entered by anyone and shouldn't be
+// displayed as if it were a real address.
+function isPlaceholderEmail(email: string): boolean {
+    return email.endsWith('@students.qubeex.local');
+}
+
 const GENDERS = [
     { value: 'MALE', label: 'Male' },
     { value: 'FEMALE', label: 'Female' },
@@ -2005,7 +2013,7 @@ export default function DivisionDetailPage() {
                                                                     <ReadField label="Nationality" value={selectedStudent.nationality ?? '—'} />
                                                                     <ReadField label="Admission Year" value={selectedStudent.admissionYear ?? '—'} />
                                                                 </div>
-                                                                <ReadField label="Email" value={selectedStudent.user.email} />
+                                                                <ReadField label="Email" value={isPlaceholderEmail(selectedStudent.user.email) ? '' : selectedStudent.user.email} />
                                                                 <ReadField label="Contact No" value={selectedStudent.phone ?? '—'} />
                                                             </div>
 

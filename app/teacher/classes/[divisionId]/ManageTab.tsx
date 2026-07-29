@@ -59,6 +59,14 @@ const GENDERS = [
 ];
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
+// Students created without a real email get an auto-generated placeholder
+// (e.g. skps01s260003@students.qubeex.local) purely so the account has a
+// unique login identifier — it was never entered by anyone and shouldn't be
+// displayed as if it were a real address.
+function isPlaceholderEmail(email: string): boolean {
+    return email.endsWith('@students.qubeex.local');
+}
+
 function formatAadhar(val: string): string {
     const digits = val.replace(/\D/g, '').slice(0, 12);
     return (digits.match(/.{1,4}/g) ?? []).join(' ');
@@ -278,7 +286,7 @@ export default function ManageTab({ division, isClassTeacher }: {
     const [savingSections, setSavingSections] = useState({
         studentInfo: false, academic: false, medical: false, address: false, guardians: false,
     });
-    const [editDraft, setEditDraft] = useState<Partial<Student & { name: string }>>({});
+    const [editDraft, setEditDraft] = useState<Partial<Student & { name: string; email: string }>>({});
     const [showPassword, setShowPassword] = useState(false);
     const [resettingPassword, setResettingPassword] = useState(false);
     const [resetResult, setResetResult] = useState<string | null>(null);
@@ -422,6 +430,15 @@ export default function ManageTab({ division, isClassTeacher }: {
             const payload: Record<string, unknown> = {};
             if (section === 'studentInfo') {
                 if (editDraft.name !== undefined) payload.name = editDraft.name;
+                if (editDraft.email !== undefined) {
+                    const trimmedEmail = editDraft.email.trim();
+                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+                        toast.error('Enter a valid email address');
+                        setSavingSections(p => ({ ...p, [section]: false }));
+                        return;
+                    }
+                    payload.email = trimmedEmail;
+                }
                 if (editDraft.dob !== undefined) payload.dob = editDraft.dob;
                 if (editDraft.gender !== undefined) payload.gender = editDraft.gender;
                 if (editDraft.religion !== undefined) payload.religion = editDraft.religion;
@@ -534,6 +551,11 @@ export default function ManageTab({ division, isClassTeacher }: {
     const dName = () => {
         if (editDraft.name !== undefined) return editDraft.name;
         return selectedStudent?.user.name ?? '';
+    };
+    const dEmail = () => {
+        if (editDraft.email !== undefined) return editDraft.email;
+        const email = selectedStudent?.user.email ?? '';
+        return isPlaceholderEmail(email) ? '' : email;
     };
     const set = (key: string) => (v: string) => setEditDraft(p => ({ ...p, [key]: v }));
 
@@ -904,12 +926,12 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                 </div>
                                                 {editingSections.studentInfo ? (
                                                     <>
-                                                        <EditField label="Email" value={selectedStudent.user.email} onChange={() => {}} placeholder="" />
+                                                        <EditField label="Email" value={dEmail()} onChange={set('email')} placeholder="student@example.com" />
                                                         <PhoneField label="Contact No" value={d('phone')} onChange={set('phone')} />
                                                     </>
                                                 ) : (
                                                     <>
-                                                        <ReadField label="Email" value={selectedStudent.user.email} />
+                                                        <ReadField label="Email" value={isPlaceholderEmail(selectedStudent.user.email) ? '' : selectedStudent.user.email} />
                                                         <ReadField label="Contact No" value={d('phone')} />
                                                     </>
                                                 )}
