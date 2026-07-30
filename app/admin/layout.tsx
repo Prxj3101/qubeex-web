@@ -34,7 +34,7 @@ const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/staff/staffroom',       keys: ['STAFF_STAFFROOM'] },
     { prefix: '/admin/staff/subadmins',       keys: ['STAFF_SUBADMINS'] },
     { prefix: '/admin/campus/classes',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
-    { prefix: '/admin/campus/departments',    keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
+    { prefix: '/admin/campus/courses',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { prefix: '/admin/campus',                keys: ['CAMPUS_FEED'] },
     { prefix: '/admin/insights/analytics',    keys: ['INSIGHTS_ANALYTICS'] },
     { prefix: '/admin/insights/subscription', keys: ['INSIGHTS_SUBSCRIPTION'] },

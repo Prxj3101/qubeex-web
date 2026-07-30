@@ -793,8 +793,10 @@ export default function DivisionDetailPage() {
     const params = useParams();
     const searchParams = useSearchParams();
     const divisionId = params.divisionId as string;
+    const courseId = params.courseId as string;
     const departmentId = params.departmentId as string;
     const yearId = params.yearId as string;
+    const semesterId = params.semesterId as string;
     const wantedStudentId = searchParams.get('student');
 
     const [division, setDivision] = useState<Division | null>(null);
@@ -1780,8 +1782,8 @@ export default function DivisionDetailPage() {
                                                 const params = new URLSearchParams(searchParams.toString());
                                                 params.set('tab', 'manage');
                                                 params.set('student', selectedStudent.id);
-                                                window.history.replaceState(null, '', `/admin/campus/departments/${departmentId}/${yearId}/${divisionId}?${params.toString()}`);
-                                                router.push(`/admin/campus/departments/${departmentId}/${yearId}/${divisionId}/students/${selectedStudent.id}/reports?name=${encodeURIComponent(selectedStudent.user.name ?? 'Student')}&class=${encodeURIComponent(division?.name ?? '')}`);
+                                                window.history.replaceState(null, '', `/admin/campus/courses/${courseId}/${departmentId}/${yearId}/${semesterId}/${divisionId}?${params.toString()}`);
+                                                router.push(`/admin/campus/courses/${courseId}/${departmentId}/${yearId}/${semesterId}/${divisionId}/students/${selectedStudent.id}/reports?name=${encodeURIComponent(selectedStudent.user.name ?? 'Student')}&class=${encodeURIComponent(division?.name ?? '')}`);
                                             }}
                                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
                                                 <Flag size={11} /> Report
@@ -1791,8 +1793,8 @@ export default function DivisionDetailPage() {
                                                     const params = new URLSearchParams(searchParams.toString());
                                                     params.set('tab', 'manage');
                                                     params.set('student', selectedStudent.id);
-                                                    window.history.replaceState(null, '', `/admin/campus/departments/${departmentId}/${yearId}/${divisionId}?${params.toString()}`);
-                                                    router.push(`/admin/campus/departments/${departmentId}/${yearId}/${divisionId}/students/${selectedStudent.id}/profile`);
+                                                    window.history.replaceState(null, '', `/admin/campus/courses/${courseId}/${departmentId}/${yearId}/${semesterId}/${divisionId}?${params.toString()}`);
+                                                    router.push(`/admin/campus/courses/${courseId}/${departmentId}/${yearId}/${semesterId}/${divisionId}/students/${selectedStudent.id}/profile`);
                                                 }}
                                                 className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
                                                 <ExternalLink size={10} /> View Profile

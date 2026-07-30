@@ -1,14 +1,18 @@
-// Shared localStorage-backed mock data layer for College's Department → Year →
-// Division structure, used by:
-//   - app/admin/campus/departments/page.tsx (structure CRUD)
+// Shared localStorage-backed mock data layer for College's Course → Department →
+// Year → Semester → Division structure, used by:
+//   - app/admin/campus/courses/page.tsx (structure CRUD)
 //   - lib/collegeMockAdapter.ts (intercepts the real `api` calls made by the
 //     REUSED school division-workspace components — DivisionClassPageClient,
 //     fees.tsx, AttendanceTab, MarksTab — so those files run completely
 //     unmodified against this mock data)
 //
-// Backend for Department/Year/Division doesn't exist yet — everything here
-// lives in localStorage under MOCK_KEY. Shapes intentionally mirror the real
-// school API responses so this can be swapped for real `api` calls later.
+// Backend for Course/Department/Year/Semester/Division doesn't exist yet —
+// everything here lives in localStorage under MOCK_KEY. Shapes intentionally
+// mirror the real school API responses so this can be swapped for real `api`
+// calls later. Subjects live on Semester (the level immediately above
+// Division) — same spot School's Standard held them, since the reused
+// division-workspace components only know "the level one above Division",
+// not our specific level names.
 
 export function uid(): string {
     try {
@@ -18,7 +22,7 @@ export function uid(): string {
     }
 }
 
-export const MOCK_KEY = 'qubeex:mockDepartments';
+export const MOCK_KEY = 'qubeex:mockCourses';
 
 export interface Assignment {
     id: string;
@@ -139,12 +143,19 @@ export interface DivisionRecord {
     feePayments?: FeePaymentRecord[];
 }
 
-export interface YearRecord {
+export interface SemesterRecord {
     id: string;
     name: string;
     order: number;
     subjects: Subject[];
     divisions: DivisionRecord[];
+}
+
+export interface YearRecord {
+    id: string;
+    name: string;
+    order: number;
+    semesters: SemesterRecord[];
 }
 
 export interface DepartmentRecord {
@@ -154,7 +165,14 @@ export interface DepartmentRecord {
     years: YearRecord[];
 }
 
-export function readDepartments(): DepartmentRecord[] {
+export interface CourseRecord {
+    id: string;
+    name: string;
+    order: number;
+    departments: DepartmentRecord[];
+}
+
+export function readCourses(): CourseRecord[] {
     if (typeof window === 'undefined') return [];
     try {
         const raw = window.localStorage.getItem(MOCK_KEY);
@@ -164,89 +182,122 @@ export function readDepartments(): DepartmentRecord[] {
     }
 }
 
-export function writeDepartments(depts: DepartmentRecord[]) {
-    try { window.localStorage.setItem(MOCK_KEY, JSON.stringify(depts)); } catch { /* ignore */ }
+export function writeCourses(courses: CourseRecord[]) {
+    try { window.localStorage.setItem(MOCK_KEY, JSON.stringify(courses)); } catch { /* ignore */ }
 }
 
-export function findDivisionPath(departmentId: string, yearId: string, divisionId: string): {
-    depts: DepartmentRecord[]; department: DepartmentRecord; year: YearRecord; division: DivisionRecord;
-} | null {
-    const depts = readDepartments();
-    const department = depts.find(d => d.id === departmentId);
+export interface TreeLocation {
+    courses: CourseRecord[];
+    course: CourseRecord;
+    department: DepartmentRecord;
+    year: YearRecord;
+    semester: SemesterRecord;
+    division: DivisionRecord;
+}
+
+export function findDivisionPath(courseId: string, departmentId: string, yearId: string, semesterId: string, divisionId: string): TreeLocation | null {
+    const courses = readCourses();
+    const course = courses.find(c => c.id === courseId);
+    const department = course?.departments.find(d => d.id === departmentId);
     const year = department?.years.find(y => y.id === yearId);
-    const division = year?.divisions.find(dv => dv.id === divisionId);
-    if (!department || !year || !division) return null;
-    return { depts, department, year, division };
+    const semester = year?.semesters.find(s => s.id === semesterId);
+    const division = semester?.divisions.find(dv => dv.id === divisionId);
+    if (!course || !department || !year || !semester || !division) return null;
+    return { courses, course, department, year, semester, division };
 }
 
 // Mutates the division in place (via the found path), then persists the whole tree.
 export function updateDivision(
-    departmentId: string, yearId: string, divisionId: string,
+    courseId: string, departmentId: string, yearId: string, semesterId: string, divisionId: string,
     updater: (division: DivisionRecord) => DivisionRecord,
 ): DivisionRecord | null {
-    const found = findDivisionPath(departmentId, yearId, divisionId);
+    const found = findDivisionPath(courseId, departmentId, yearId, semesterId, divisionId);
     if (!found) return null;
-    const { depts, department, year, division } = found;
-    const updated = updater(division);
-    const newDepts = depts.map(d => d.id !== department.id ? d : {
-        ...d,
-        years: d.years.map(y => y.id !== year.id ? y : {
-            ...y,
-            divisions: y.divisions.map(dv => dv.id !== division.id ? dv : updated),
+    const updated = updater(found.division);
+    writeCourses(applyDivisionUpdate(found, updated));
+    return updated;
+}
+
+function applyDivisionUpdate(loc: TreeLocation, updated: DivisionRecord): CourseRecord[] {
+    return loc.courses.map(c => c.id !== loc.course.id ? c : {
+        ...c,
+        departments: c.departments.map(d => d.id !== loc.department.id ? d : {
+            ...d,
+            years: d.years.map(y => y.id !== loc.year.id ? y : {
+                ...y,
+                semesters: y.semesters.map(s => s.id !== loc.semester.id ? s : {
+                    ...s,
+                    divisions: s.divisions.map(dv => dv.id !== loc.division.id ? dv : updated),
+                }),
+            }),
         }),
     });
-    writeDepartments(newDepts);
-    return updated;
 }
 
 // ── Tree-wide lookups (for endpoints that only carry a nested id, e.g.
 // assignmentId / subjectId / a division's id alone) ─────────────────────────
 
-export interface TreeLocation {
-    depts: DepartmentRecord[]; department: DepartmentRecord; year: YearRecord; division: DivisionRecord;
-}
-
 export function findDivisionById(divisionId: string): TreeLocation | null {
-    const depts = readDepartments();
-    for (const department of depts) {
-        for (const year of department.years) {
-            const division = year.divisions.find(dv => dv.id === divisionId);
-            if (division) return { depts, department, year, division };
-        }
-    }
-    return null;
-}
-
-export function findByYearId(yearId: string): { depts: DepartmentRecord[]; department: DepartmentRecord; year: YearRecord } | null {
-    const depts = readDepartments();
-    for (const department of depts) {
-        const year = department.years.find(y => y.id === yearId);
-        if (year) return { depts, department, year };
-    }
-    return null;
-}
-
-export function findDivisionByAssignmentId(assignmentId: string): TreeLocation | null {
-    const depts = readDepartments();
-    for (const department of depts) {
-        for (const year of department.years) {
-            for (const division of year.divisions) {
-                if (division.assignments.some(a => a.id === assignmentId)) return { depts, department, year, division };
+    const courses = readCourses();
+    for (const course of courses) {
+        for (const department of course.departments) {
+            for (const year of department.years) {
+                for (const semester of year.semesters) {
+                    const division = semester.divisions.find(dv => dv.id === divisionId);
+                    if (division) return { courses, course, department, year, semester, division };
+                }
             }
         }
     }
     return null;
 }
 
-export function findDivisionBySubjectId(subjectId: string): TreeLocation & { yearId: string } | null {
-    const depts = readDepartments();
-    for (const department of depts) {
-        for (const year of department.years) {
-            if (year.subjects.some(s => s.id === subjectId)) {
-                // Subject lives on the Year — return the first division as an anchor
-                // plus yearId so the caller can update the right level.
-                const division = year.divisions[0];
-                if (division) return { depts, department, year, division, yearId: year.id };
+export interface SemesterLocation {
+    courses: CourseRecord[]; course: CourseRecord; department: DepartmentRecord; year: YearRecord; semester: SemesterRecord;
+}
+
+export function findBySemesterId(semesterId: string): SemesterLocation | null {
+    const courses = readCourses();
+    for (const course of courses) {
+        for (const department of course.departments) {
+            for (const year of department.years) {
+                const semester = year.semesters.find(s => s.id === semesterId);
+                if (semester) return { courses, course, department, year, semester };
+            }
+        }
+    }
+    return null;
+}
+
+export function findDivisionByAssignmentId(assignmentId: string): TreeLocation | null {
+    const courses = readCourses();
+    for (const course of courses) {
+        for (const department of course.departments) {
+            for (const year of department.years) {
+                for (const semester of year.semesters) {
+                    for (const division of semester.divisions) {
+                        if (division.assignments.some(a => a.id === assignmentId)) return { courses, course, department, year, semester, division };
+                    }
+                }
+            }
+        }
+    }
+    return null;
+}
+
+export function findDivisionBySubjectId(subjectId: string): TreeLocation | null {
+    const courses = readCourses();
+    for (const course of courses) {
+        for (const department of course.departments) {
+            for (const year of department.years) {
+                for (const semester of year.semesters) {
+                    if (semester.subjects.some(s => s.id === subjectId)) {
+                        // Subject lives on the Semester — return the first division as an
+                        // anchor so the caller has a valid TreeLocation to work from.
+                        const division = semester.divisions[0];
+                        if (division) return { courses, course, department, year, semester, division };
+                    }
+                }
             }
         }
     }
@@ -254,11 +305,15 @@ export function findDivisionBySubjectId(subjectId: string): TreeLocation & { yea
 }
 
 export function findDivisionByPostId(postId: string): TreeLocation | null {
-    const depts = readDepartments();
-    for (const department of depts) {
-        for (const year of department.years) {
-            for (const division of year.divisions) {
-                if ((division.posts ?? []).some(p => p.id === postId)) return { depts, department, year, division };
+    const courses = readCourses();
+    for (const course of courses) {
+        for (const department of course.departments) {
+            for (const year of department.years) {
+                for (const semester of year.semesters) {
+                    for (const division of semester.divisions) {
+                        if ((division.posts ?? []).some(p => p.id === postId)) return { courses, course, department, year, semester, division };
+                    }
+                }
             }
         }
     }
@@ -266,11 +321,15 @@ export function findDivisionByPostId(postId: string): TreeLocation | null {
 }
 
 export function findDivisionByEventId(eventId: string): TreeLocation | null {
-    const depts = readDepartments();
-    for (const department of depts) {
-        for (const year of department.years) {
-            for (const division of year.divisions) {
-                if ((division.events ?? []).some(e => e.id === eventId)) return { depts, department, year, division };
+    const courses = readCourses();
+    for (const course of courses) {
+        for (const department of course.departments) {
+            for (const year of department.years) {
+                for (const semester of year.semesters) {
+                    for (const division of semester.divisions) {
+                        if ((division.events ?? []).some(e => e.id === eventId)) return { courses, course, department, year, semester, division };
+                    }
+                }
             }
         }
     }
@@ -278,20 +337,28 @@ export function findDivisionByEventId(eventId: string): TreeLocation | null {
 }
 
 export function updateDivisionByLocation(loc: TreeLocation, updater: (d: DivisionRecord) => DivisionRecord): DivisionRecord {
-    return updateDivision(loc.department.id, loc.year.id, loc.division.id, updater) as DivisionRecord;
+    const updated = updater(loc.division);
+    writeCourses(applyDivisionUpdate(loc, updated));
+    return updated;
 }
 
-// Updates a Year's subjects (id is the year id, mirroring how the school API
-// treats division.standard.id as the subjects-owner).
-export function updateYearSubjects(yearId: string, updater: (subjects: Subject[]) => Subject[]): Subject[] | null {
-    const found = findByYearId(yearId);
+// Updates a Semester's subjects (id is the semester id, mirroring how the
+// school API treats division.standard.id as the subjects-owner).
+export function updateSemesterSubjects(semesterId: string, updater: (subjects: Subject[]) => Subject[]): Subject[] | null {
+    const found = findBySemesterId(semesterId);
     if (!found) return null;
-    const { depts, department, year } = found;
-    const newSubjects = updater(year.subjects);
-    const newDepts = depts.map(d => d.id !== department.id ? d : {
-        ...d,
-        years: d.years.map(y => y.id !== year.id ? y : { ...y, subjects: newSubjects }),
+    const { courses, course, department, year, semester } = found;
+    const newSubjects = updater(semester.subjects);
+    const newCourses = courses.map(c => c.id !== course.id ? c : {
+        ...c,
+        departments: c.departments.map(d => d.id !== department.id ? d : {
+            ...d,
+            years: d.years.map(y => y.id !== year.id ? y : {
+                ...y,
+                semesters: y.semesters.map(s => s.id !== semester.id ? s : { ...s, subjects: newSubjects }),
+            }),
+        }),
     });
-    writeDepartments(newDepts);
+    writeCourses(newCourses);
     return newSubjects;
 }

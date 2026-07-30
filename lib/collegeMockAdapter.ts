@@ -19,8 +19,8 @@ import { assignSubjectColor, colorForSubject } from './subjectColors';
 import {
     uid, Assignment, Subject, MockStudent, MockPost, MockCalEvent, PostType, CalEventType,
     FeeDataBlob, FeePaymentRecord,
-    findDivisionById, findByYearId, findDivisionByAssignmentId, findDivisionBySubjectId,
-    findDivisionByPostId, findDivisionByEventId, updateDivisionByLocation, updateYearSubjects,
+    findDivisionById, findBySemesterId, findDivisionByAssignmentId, findDivisionBySubjectId,
+    findDivisionByPostId, findDivisionByEventId, updateDivisionByLocation, updateSemesterSubjects,
     makeMockStudent,
 } from './collegeMock';
 
@@ -109,10 +109,10 @@ function handle(method: Method, url: string, body: unknown, params: Record<strin
     if (method === 'get' && (m = url.match(RE.division))) {
         const loc = findDivisionById(m[1]);
         if (!loc) return null;
-        const { department, year, division } = loc;
+        const { course, department, year, semester, division } = loc;
         return fakeAxiosResponse({
             id: division.id, name: division.name, capacity: division.capacity,
-            standard: { id: year.id, name: `${department.name} · ${year.name}`, subjects: year.subjects },
+            standard: { id: semester.id, name: `${course.name} · ${department.name} · ${year.name} · ${semester.name}`, subjects: semester.subjects },
             divisionSubjects: division.divisionSubjects, assignments: division.assignments,
         }, 200, config);
     }
@@ -184,7 +184,7 @@ function handle(method: Method, url: string, body: unknown, params: Record<strin
             const teachers: { id: string; name: string; prefix?: string | null; avatarUrl?: string | null }[] = res.data?.data ?? [];
             const teacher = teachers.find(t => t.id === teacherId);
             if (!teacher) return fakeError(400, 'Teacher not found');
-            const assignment = toAssignment(subjectId, loc.year.subjects, teacher);
+            const assignment = toAssignment(subjectId, loc.semester.subjects, teacher);
             updateDivisionByLocation(loc, d => ({
                 ...d,
                 assignments: [...d.assignments.filter(a => (subjectId !== null ? a.subjectId !== subjectId : a.subjectId !== null)), assignment],
@@ -201,13 +201,13 @@ function handle(method: Method, url: string, body: unknown, params: Record<strin
         return fakeAxiosResponse({}, 200, config);
     }
 
-    // POST /admin/campus/standards/:id/subjects  (id = our Year id)
+    // POST /admin/campus/standards/:id/subjects  (id = our Semester id)
     if (method === 'post' && (m = url.match(RE.standardSubjects))) {
-        const found = findByYearId(m[1]);
+        const found = findBySemesterId(m[1]);
         if (!found) return null;
         const { name } = (body ?? {}) as { name: string };
         let newSubject: Subject | undefined;
-        updateYearSubjects(m[1], subjects => {
+        updateSemesterSubjects(m[1], subjects => {
             newSubject = { id: uid(), name, code: null, color: assignSubjectColor(subjects.length), order: subjects.length };
             return [...subjects, newSubject];
         });
@@ -219,9 +219,9 @@ function handle(method: Method, url: string, body: unknown, params: Record<strin
         const found = findDivisionBySubjectId(m[1]);
         if (!found) return null;
         const subjectId = m[1];
-        updateYearSubjects(found.year.id, subjects => subjects.filter(s => s.id !== subjectId));
-        // Also strip it out of every division under this year (real backend cascades this too).
-        found.year.divisions.forEach(dv => {
+        updateSemesterSubjects(found.semester.id, subjects => subjects.filter(s => s.id !== subjectId));
+        // Also strip it out of every division under this semester (real backend cascades this too).
+        found.semester.divisions.forEach(dv => {
             updateDivisionByLocation({ ...found, division: dv }, d => ({
                 ...d,
                 divisionSubjects: d.divisionSubjects.filter(ds => ds.subjectId !== subjectId),

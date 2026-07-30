@@ -25,8 +25,8 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
     const [mounted, setMounted] = useState(false);
     useEffect(() => { setMounted(true); }, []);
 
-    const classesLabel = instType === 'COLLEGE' ? 'Departments' : instType === 'COACHING' ? 'Batches' : 'Classes';
-    const classesHref = instType === 'COLLEGE' ? '/admin/campus/departments' : '/admin/campus/classes';
+    const classesLabel = instType === 'COLLEGE' ? 'Courses' : instType === 'COACHING' ? 'Batches' : 'Classes';
+    const classesHref = instType === 'COLLEGE' ? '/admin/campus/courses' : '/admin/campus/classes';
 
     const isSubAdmin = user?.role === 'SUB_ADMIN';
     const permissions = user?.permissions ?? [];
@@ -45,10 +45,10 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
         { key: 'classes', label: classesLabel, icon: LayoutGrid, href: classesHref, locked: false },
     ];
 
-    const activeTab = (pathname.startsWith('/admin/campus/classes') || pathname.startsWith('/admin/campus/departments')) ? 'classes' : 'feed';
+    const activeTab = (pathname.startsWith('/admin/campus/classes') || pathname.startsWith('/admin/campus/courses')) ? 'classes' : 'feed';
 
     // Only show the tab bar on the top-level campus pages (not inside a class detail)
-    const showTabs = pathname === '/admin/campus' || pathname === '/admin/campus/classes' || pathname === '/admin/campus/departments';
+    const showTabs = pathname === '/admin/campus' || pathname === '/admin/campus/classes' || pathname === '/admin/campus/courses';
 
     if (needsRedirect) return null;
 
