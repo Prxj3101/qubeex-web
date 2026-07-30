@@ -66,6 +66,17 @@ function getLeafKeys(node: PermNode): string[] {
     return node.children.flatMap(getLeafKeys);
 }
 
+// Finds the label path (e.g. ["Campus", "Classes", "View"]) to the node whose
+// key matches `key`, searching at any depth — not just direct children.
+function findLabelPath(node: PermNode, key: string): string[] | null {
+    if (node.key === key) return [node.label];
+    for (const child of node.children ?? []) {
+        const path = findLabelPath(child, key);
+        if (path) return [node.label, ...path];
+    }
+    return null;
+}
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface SubAdminRecord {
@@ -327,8 +338,8 @@ function SubAdminCard({
             permLabels.push(node.label);
         } else {
             for (const k of granted) {
-                const child = node.children?.find(c => c.key === k);
-                if (child) permLabels.push(`${node.label} › ${child.label}`);
+                const path = findLabelPath(node, k);
+                if (path) permLabels.push(path.join(' › '));
             }
         }
     }
