@@ -81,7 +81,7 @@ export default function DemoModal({ open, onClose }: { open: boolean; onClose: (
                             <div className="relative">
                                 <h3 className="text-xl font-bold text-[#1D1433]">Request a demo</h3>
                                 <p className="mt-1.5 text-sm text-[#6B6480]">
-                                    See QubeEx running on your institution&apos;s structure — takes 20 minutes.
+                                    See QubeEx running on your institution&apos;s structure - takes 20 minutes.
                                 </p>
                                 <form onSubmit={submit} className="mt-6 space-y-3.5">
                                     <input required value={form.name} onChange={set('name')} placeholder="Your name" className={INPUT} />

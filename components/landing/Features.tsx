@@ -25,20 +25,20 @@ interface StackFeature {
 const STACK: StackFeature[] = [
     {
         icon: Brain, no: '01',
-        title: 'AI that watches out for every student',
-        desc: 'QubeEx reads the signals your classrooms generate — attendance dips, score trends, fee delays — and turns them into clear, early warnings with suggested next steps.',
+        title: 'AI Tests, generated in minutes',
+        desc: 'Pick a chapter or upload a PDF, choose the question count and difficulty, and QubeEx builds the test for you - ready to assign or use live in the SmartBoard.',
         chips: [
-            { icon: Sparkles, label: 'At-risk alerts' },
-            { icon: Bell, label: 'Smart nudges' },
-            { icon: Brain, label: 'Insight feed' },
+            { icon: Brain, label: 'AI-generated questions' },
+            { icon: Sparkles, label: 'Difficulty levels' },
+            { icon: FileSpreadsheet, label: 'PDF-aware' },
         ],
         bg: 'linear-gradient(135deg, #2A1454 0%, #4C1D95 55%, #6D28D9 100%)',
         accent: '#C4B5FD', text: '#FFFFFF', sub: 'rgba(255,255,255,0.72)', chipBg: 'rgba(255,255,255,0.12)',
     },
     {
         icon: Presentation, no: '02',
-        title: 'A blackboard that teaches with you',
-        desc: 'SmartBoard puts live teaching material on the class display with an AI assist panel beside it — explanations, questions and full tests generated on demand. Free addon for the first year, on every plan.',
+        title: 'AI Blackboard that teaches with you',
+        desc: 'SmartBoard puts live teaching material on the class display with an AI assist panel beside it - explanations, questions and full tests generated on demand. Free addon for the first year, on every plan.',
         chips: [
             { icon: Presentation, label: 'Live teaching material' },
             { icon: Sparkles, label: 'AI assist panel' },
@@ -50,7 +50,7 @@ const STACK: StackFeature[] = [
     {
         icon: CalendarCheck, no: '03',
         title: 'Attendance in two minutes flat',
-        desc: 'Mark a whole class in seconds. Holidays, short-attendance alerts, month-wise trends and one-click exports — the register, retired for good.',
+        desc: 'Mark a whole class in seconds. Holidays, short-attendance alerts, month-wise trends and one-click exports - the register, retired for good.',
         chips: [
             { icon: CalendarCheck, label: 'Daily & overall' },
             { icon: Bell, label: 'Short-attendance alerts' },
@@ -62,7 +62,7 @@ const STACK: StackFeature[] = [
     {
         icon: Wallet, no: '04',
         title: 'Fees everyone can finally follow',
-        desc: 'Payment schedules, breakdowns and rules — visible to admins, teachers and parents alike. No more spreadsheet archaeology at the end of the term.',
+        desc: 'Payment schedules, breakdowns and rules - visible to admins, teachers and parents alike. No more spreadsheet archaeology at the end of the term.',
         chips: [
             { icon: Wallet, label: 'Schedules & breakdowns' },
             { icon: Bell, label: 'Due reminders' },
@@ -74,7 +74,7 @@ const STACK: StackFeature[] = [
     {
         icon: BarChart3, no: '05',
         title: 'Analytics with an audit trail',
-        desc: 'Enrollment growth, usage and performance — live for every level of the institution. And every action logged, so compliance reviews take minutes, not days.',
+        desc: 'Enrollment growth, usage and performance - live for every level of the institution. And every action logged, so compliance reviews take minutes, not days.',
         chips: [
             { icon: BarChart3, label: 'Live dashboards' },
             { icon: ShieldCheck, label: 'Full audit logs' },
@@ -194,33 +194,52 @@ export default function Features() {
             {/* audiences */}
             <Reveal className="mx-auto mt-24 max-w-6xl">
                 <div className="grid gap-4 sm:grid-cols-3">
-                    {AUDIENCES.map((a) => (
-                        <div
-                            key={a.title}
-                            className={`relative flex items-start gap-4 rounded-3xl border p-6 transition-transform hover:-translate-y-1 ${
-                                a.live
-                                    ? 'border-[#D9C9F8] bg-gradient-to-br from-white to-[#F1E9FE] shadow-[0_16px_40px_-24px_rgba(124,58,237,0.4)]'
-                                    : 'border-[#ECE6F8] bg-white/60'
-                            }`}
-                        >
-                            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${a.live ? 'bg-gradient-to-br from-[#7C3AED] to-[#A855F7] text-white' : 'bg-[#F1EBFD] text-[#7C3AED]'}`}>
-                                <a.icon size={20} />
-                            </span>
-                            <div>
-                                <div className="flex items-center gap-2">
-                                    <h4 style={DISPLAY} className="font-bold text-[#190D2E]">{a.title}</h4>
-                                    <span
-                                        className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
-                                            a.live ? 'bg-[#D1FAE5] text-[#047857]' : 'bg-[#FDF3E3] text-[#B45309]'
-                                        }`}
-                                    >
-                                        {a.live ? 'Live' : 'Coming soon'}
-                                    </span>
+                    {AUDIENCES.map((a) => {
+                        // Schools get the violet "live" treatment; Colleges get
+                        // the same touch but in the College theme's blue instead
+                        // — both are real, styled institution types, not just a
+                        // generic "coming soon" placeholder.
+                        const isCollege = a.title === 'Colleges';
+                        return (
+                            <div
+                                key={a.title}
+                                className={`relative flex items-start gap-4 rounded-3xl border p-6 transition-transform hover:-translate-y-1 ${
+                                    a.live
+                                        ? 'border-[#D9C9F8] bg-gradient-to-br from-white to-[#F1E9FE] shadow-[0_16px_40px_-24px_rgba(124,58,237,0.4)]'
+                                        : isCollege
+                                            ? 'border-[#C6DCFB] bg-gradient-to-br from-white to-[#E9F1FE] shadow-[0_16px_40px_-24px_rgba(37,99,235,0.35)]'
+                                            : 'border-[#ECE6F8] bg-white/60'
+                                }`}
+                            >
+                                <span
+                                    className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${
+                                        a.live
+                                            ? 'bg-gradient-to-br from-[#7C3AED] to-[#A855F7] text-white'
+                                            : isCollege
+                                                ? 'bg-gradient-to-br from-[#2563EB] to-[#60A5FA] text-white'
+                                                : 'bg-[#F1EBFD] text-[#7C3AED]'
+                                    }`}
+                                >
+                                    <a.icon size={20} />
+                                </span>
+                                <div>
+                                    <div className="flex items-center gap-2">
+                                        <h4 style={DISPLAY} className="font-bold text-[#190D2E]">{a.title}</h4>
+                                        <span
+                                            className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                                                a.live
+                                                    ? 'bg-[#D1FAE5] text-[#047857]'
+                                                    : 'bg-[#FDF3E3] text-[#B45309]'
+                                            }`}
+                                        >
+                                            {a.live ? 'Live' : 'In development'}
+                                        </span>
+                                    </div>
+                                    <p className="mt-1 text-sm text-[#6B6480]">{a.desc}</p>
                                 </div>
-                                <p className="mt-1 text-sm text-[#6B6480]">{a.desc}</p>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             </Reveal>
         </section>

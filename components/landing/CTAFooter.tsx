@@ -11,8 +11,8 @@ export default function CTAFooter({ onDemo }: { onDemo: () => void }) {
             {/* CTA */}
             <section className="mx-auto max-w-5xl px-6 pb-24">
                 <Reveal>
-                    <div className="relative overflow-hidden rounded-[2.5rem] bg-[#190D2E] px-8 py-16 text-center sm:px-16 sm:py-24">
-                        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#7C3AED]/50 blur-3xl" />
+                    <div className="relative overflow-hidden rounded-[2.5rem] bg-[#1C1B22] px-8 py-16 text-center sm:px-16 sm:py-24">
+                        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-[#71717A]/50 blur-3xl" />
                         <div className="pointer-events-none absolute -bottom-28 -right-20 h-72 w-72 rounded-full bg-[#DA7756]/40 blur-3xl" />
                         <div
                             className="pointer-events-none absolute inset-0 opacity-20"
@@ -27,7 +27,7 @@ export default function CTAFooter({ onDemo }: { onDemo: () => void }) {
                                 <SplitWords text="Ready to see your institution differently?" />
                             </h2>
                             <p className="mx-auto mt-4 max-w-lg text-pretty text-base text-white/65">
-                                Book a walkthrough and watch QubeEx run on your own school&apos;s structure — classes, fees and all.
+                                Book a walkthrough and watch QubeEx run on your own institution&apos;s structure - classes, fees and all.
                             </p>
                             <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
                                 <button

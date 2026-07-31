@@ -133,7 +133,7 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                     <SplitWords text="Paperwork out." delay={0.25} />
                     <br />
                     <motion.span
-                        className="inline-block bg-gradient-to-r from-[#C2410C] via-[#DA7756] to-[#7C3AED] bg-clip-text text-transparent"
+                        className="inline-block bg-gradient-to-r from-[#C2410C] via-[#DA7756] to-[#514FEC] bg-clip-text text-transparent"
                         initial={{ opacity: 0, y: 40, rotate: 3 }}
                         animate={{ opacity: 1, y: 0, rotate: 0 }}
                         transition={{ duration: 1.1, ease: EASE, delay: 0.65 }}
@@ -148,8 +148,8 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                     transition={{ duration: 0.8, ease: EASE, delay: 0.9 }}
                     className="mt-7 max-w-xl text-pretty text-base leading-relaxed text-[#5C5470] sm:text-lg"
                 >
-                    QubeEx turns attendance, assessments and fees into live insight — one calm
-                    platform for schools today. Colleges &amp; coaching, coming soon.
+                    From a &quot;Regular Institute&quot; to an &quot;AI Institute&quot; - QubeEx makes
+                    the shift, running your campus smarter, every single day.
                 </motion.p>
 
                 <motion.div
@@ -162,13 +162,13 @@ export default function Hero({ onDemo }: { onDemo: () => void }) {
                         onClick={onDemo}
                         className="group relative inline-flex items-center gap-2.5 overflow-hidden rounded-2xl bg-[#190D2E] px-8 py-4 text-sm font-bold text-white transition-transform hover:scale-[1.04] active:scale-[0.97]"
                     >
-                        <span className="absolute inset-0 bg-gradient-to-r from-[#7C3AED] to-[#DA7756] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
+                        <span className="absolute inset-0 bg-gradient-to-r from-[#DA7756] via-[#7C3AED] to-[#2563EB] opacity-0 transition-opacity duration-500 group-hover:opacity-100" />
                         <span className="relative">Request a Demo</span>
                         <ArrowRight size={16} className="relative transition-transform duration-300 group-hover:translate-x-1" />
                     </button>
                     <a
                         href="#features"
-                        className="inline-flex items-center gap-2 rounded-2xl border border-[#D9CDF5] bg-white/60 px-8 py-4 text-sm font-bold text-[#190D2E] backdrop-blur transition-colors hover:border-[#7C3AED] hover:bg-white"
+                        className="inline-flex items-center gap-2 rounded-2xl border border-[#E3E0E8] bg-white/60 px-8 py-4 text-sm font-bold text-[#190D2E] backdrop-blur transition-colors hover:border-[#71717A] hover:bg-white"
                     >
                         See it in action
                     </a>

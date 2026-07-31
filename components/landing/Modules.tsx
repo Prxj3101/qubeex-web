@@ -107,11 +107,17 @@ export default function Modules() {
                 {/* header */}
                 <div className="flex items-end justify-between px-6 pt-24 sm:px-16">
                     <div>
-                        <span className="inline-block rounded-full border border-[#F0DFD4] bg-white/80 px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] text-[#DA7756]">
+                        <span
+                            className="inline-block rounded-full bg-[#F3EAE2] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#DA7756]"
+                            style={{
+                                boxShadow:
+                                    'inset 0 2px 5px rgba(122,62,32,0.22), inset 0 -1px 2px rgba(255,255,255,0.95), 0 1px 0 rgba(255,255,255,0.85)',
+                            }}
+                        >
                             Modules
                         </span>
                         <h2 style={DISPLAY} className="mt-4 text-3xl font-bold tracking-tight text-[#190D2E] sm:text-[2.6rem]">
-                            One platform. Every role.
+                            One AI platform. Every role.
                         </h2>
                     </div>
                     <div className="mb-1 hidden items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#9A93AC] sm:flex">

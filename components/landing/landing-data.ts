@@ -1,6 +1,6 @@
 import {
     CalendarCheck, Brain, Wallet, ShieldCheck, BarChart3, StickyNote,
-    GraduationCap, Building2, Users, type LucideIcon,
+    School, Building2, Users, type LucideIcon,
 } from 'lucide-react';
 
 /* ---------------- Features ---------------- */
@@ -17,19 +17,19 @@ export const FEATURES: Feature[] = [
     {
         icon: Brain,
         title: 'AI-driven insights',
-        desc: 'Every classroom generates signals. QubeEx turns them into clear, actionable insights — flagging falling attendance, learning gaps and at-risk students before they become problems.',
+        desc: 'Every classroom generates signals. QubeEx turns them into clear, actionable insights - flagging falling attendance, learning gaps and at-risk students before they become problems.',
         accent: '#7C3AED', accentSoft: '#F1EBFD', span: true,
     },
     {
         icon: CalendarCheck,
         title: 'Effortless attendance',
-        desc: 'Daily marking, holidays, short-attendance alerts and month-wise trends — exportable in one click.',
+        desc: 'Daily marking, holidays, short-attendance alerts and month-wise trends - exportable in one click.',
         accent: '#0D9488', accentSoft: '#E6F7F5',
     },
     {
         icon: Wallet,
         title: 'Fees, simplified',
-        desc: 'Payment schedules, breakdowns and rules — visible to the right people at the right time.',
+        desc: 'Payment schedules, breakdowns and rules - visible to the right people at the right time.',
         accent: '#DA7756', accentSoft: '#FBEFEA',
     },
     {
@@ -47,7 +47,7 @@ export const FEATURES: Feature[] = [
     {
         icon: StickyNote,
         title: 'Teacher workspace',
-        desc: 'To-dos, sticky notes and a personal notepad — the little things that make daily work lighter.',
+        desc: 'To-dos, sticky notes and a personal notepad - the little things that make daily work lighter.',
         accent: '#DB2777', accentSoft: '#FCEDF4',
     },
 ];
@@ -61,7 +61,7 @@ export interface Audience {
 }
 
 export const AUDIENCES: Audience[] = [
-    { icon: GraduationCap, title: 'Schools', desc: 'Complete day-to-day management — live now.', live: true },
+    { icon: School, title: 'Schools', desc: 'Complete day-to-day management - live now.', live: true },
     { icon: Building2, title: 'Colleges', desc: 'Department-level assessment at scale.', live: false },
     { icon: Users, title: 'Coaching', desc: 'Batch-wise tracking built for institutes.', live: false },
 ];
@@ -77,24 +77,24 @@ export interface Module {
 
 export const MODULES: Module[] = [
     {
-        tag: 'For Teachers',
-        title: 'A classroom command centre',
-        desc: 'Everything a teacher touches in a day — one calm dashboard.',
-        points: ['SmartBoard — AI-assisted live teaching', 'Daily & overall attendance with smart alerts', 'Tasks, tests, marks & AI question generation', 'Student profiles, fee visibility & personal notes'],
-        accent: '#7C3AED',
-    },
-    {
         tag: 'For Admins',
         title: 'The whole campus, at a glance',
-        desc: 'From enrollment growth to subscription usage — admins see it all.',
-        points: ['Campus, classes and teacher management', 'Analytics and enrollment trends', 'Plan usage: storage, users, AI tokens', 'Full audit logs'],
+        desc: 'From enrollment growth to subscription usage - admins see it all, and can delegate scoped access to subadmins for day-to-day work.',
+        points: ['Campus, classes and teacher management', 'Subadmin roles with granular, per-module permissions', 'AI-powered analytics and enrollment trends', 'Plan usage: storage, users, AI tokens', 'Full audit logs'],
         accent: '#DA7756',
+    },
+    {
+        tag: 'For Teachers',
+        title: 'A classroom command centre',
+        desc: 'Everything a teacher touches in a day - one calm dashboard.',
+        points: ['AI Smartboard - AI-assisted live teaching', 'Daily & overall attendance with smart alerts', 'Tasks, tests, marks & AI question generation', 'Student profiles, fee visibility & personal notes'],
+        accent: '#7C3AED',
     },
     {
         tag: 'For Students',
         title: 'Learning, in their pocket',
         desc: 'A companion app that keeps students connected and on track.',
-        points: ['Campus feed, tasks, tests & course material', 'Marksheets & report cards with progress tracking', 'Fee visibility for students & parents', 'Available on web and mobile'],
+        points: ['Campus feed, tasks, AI-generated tests & course material', 'Marksheets & report cards with progress tracking', 'Fee visibility for students & parents', 'Available on web and mobile'],
         accent: '#0D9488',
     },
 ];
@@ -163,12 +163,12 @@ export const TESTIMONIALS: Testimonial[] = [];
 export interface Faq { q: string; a: string }
 
 export const FAQS: Faq[] = [
-    { q: 'What exactly is QubeEx?', a: 'QubeEx is an AI-powered Student Assessment System (SAS) — a single platform where institutions manage attendance, assessments, fees and analytics, with AI insights layered on top.' },
-    { q: 'Is it only for schools?', a: 'Schools are fully live today. College and coaching editions are in active development and launching soon — you can register interest via the demo form.' },
+    { q: 'What exactly is QubeEx?', a: 'QubeEx is an AI-powered Student Assessment System (SAS) - a single platform where institutions manage attendance, assessments, fees and analytics, with AI insights layered on top.' },
+    { q: 'Is it only for schools?', a: 'Schools are fully live today. College and coaching editions are in active development and launching soon - you can register interest via the demo form.' },
     { q: 'How does pricing work?', a: 'A one-time licence fee plus a small monthly rate per active user (admins, teachers and students). The rate drops automatically once your institution crosses 1,500 users. No hidden charges.' },
-    { q: 'Is there a free trial?', a: 'Yes — every institution gets a 14-day free trial with full access. No payment details needed to start.' },
-    { q: 'We have multiple branches — how does that work?', a: 'Each branch runs as its own account with its own licence, since principals, class structures and staff differ per branch. With 2 or more branches, every licence gets a flat 20% discount. Monthly per-user billing stays standard for each branch.' },
-    { q: 'What is SmartBoard AI?', a: 'SmartBoard lets teachers run live teaching material on the class blackboard with an AI assist panel alongside — explanations, questions and material on demand. It ships as an addon that is free for the first year on every plan.' },
+    { q: 'Is there a free trial?', a: 'Yes - every institution gets a 14-day free trial with full access. No payment details needed to start.' },
+    { q: 'We have multiple branches - how does that work?', a: 'Each branch runs as its own account with its own licence, since principals, class structures and staff differ per branch. With 2 or more branches, every licence gets a flat 20% discount. Monthly per-user billing stays standard for each branch.' },
+    { q: 'What is SmartBoard AI?', a: 'SmartBoard lets teachers run live teaching material on the class blackboard with an AI assist panel alongside - explanations, questions and material on demand. It ships as an addon that is free for the first year on every plan.' },
     { q: 'Does it work on mobile?', a: 'Yes. QubeEx runs in any modern browser, and a dedicated mobile app keeps teachers and students connected on the go.' },
-    { q: 'How is our data protected?', a: 'Role-based access control, full audit trails of every action, and encrypted storage — built to align with India’s DPDP Act. Since much of the data involves minors, we treat it with extra care: your institution remains the data fiduciary, QubeEx acts only as processor, and data is never shared or sold. On exit, your institution’s data can be exported and deleted on request.' },
+    { q: 'How is our data protected?', a: 'Role-based access control, full audit trails of every action, and encrypted storage - built to align with India’s DPDP Act. Since much of the data involves minors, we treat it with extra care: your institution remains the data fiduciary, QubeEx acts only as processor, and data is never shared or sold. On exit, your institution’s data can be exported and deleted on request.' },
 ];

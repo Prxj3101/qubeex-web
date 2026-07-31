@@ -97,7 +97,7 @@ export default function LandingNav({ onDemo }: { onDemo: () => void }) {
                         boxShadow:
                             'inset 0 1px 0 rgba(255,255,255,0.14), inset 0 -1px 0 rgba(0,0,0,0.35), 0 12px 28px -10px rgba(25,13,46,0.55), 0 32px 64px -20px rgba(25,13,46,0.4)',
                     }}
-                    className="relative flex w-full items-center justify-between rounded-full bg-[#1A1030]/95 px-4 py-2.5 backdrop-blur-xl sm:px-6"
+                    className="relative flex w-full items-center justify-between rounded-full bg-[#1C1B22]/95 px-4 py-2.5 backdrop-blur-xl sm:px-6"
                 >
                     <BrandLockup hidden={brandHidden} rot={rot} />
 
@@ -140,7 +140,7 @@ export default function LandingNav({ onDemo }: { onDemo: () => void }) {
                             {/* shimmer sweep */}
                             <motion.span
                                 aria-hidden
-                                className="absolute inset-y-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-[#7C3AED]/20 to-transparent"
+                                className="absolute inset-y-0 w-1/3 -skew-x-12 bg-gradient-to-r from-transparent via-[#71717A]/20 to-transparent"
                                 initial={{ x: '-150%' }}
                                 animate={{ x: '400%' }}
                                 transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 3.2, ease: 'easeInOut' }}
@@ -153,7 +153,7 @@ export default function LandingNav({ onDemo }: { onDemo: () => void }) {
                     <motion.div
                         aria-hidden
                         style={{ scaleX: progress }}
-                        className="absolute inset-x-6 bottom-0 h-[2px] origin-left rounded-full bg-gradient-to-r from-[#7C3AED] via-[#A855F7] to-[#DA7756]"
+                        className="absolute inset-x-6 bottom-0 h-[2px] origin-left rounded-full bg-gradient-to-r from-[#71717A] via-[#8A8A93] to-[#DA7756]"
                     />
                 </nav>
             </div>

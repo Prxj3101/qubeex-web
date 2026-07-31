@@ -31,7 +31,7 @@ export default function FAQ() {
                                     <motion.span
                                         animate={{ rotate: isOpen ? 45 : 0 }}
                                         transition={{ duration: 0.3, ease: EASE }}
-                                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${isOpen ? 'bg-[#7C3AED] text-white' : 'bg-[#F1EBFD] text-[#7C3AED]'}`}
+                                        className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${isOpen ? 'bg-[#DA7756] text-white' : 'bg-[#FBEFEA] text-[#DA7756]'}`}
                                     >
                                         <Plus size={15} strokeWidth={2.5} />
                                     </motion.span>

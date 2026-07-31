@@ -7,7 +7,18 @@ import {
 import { useRef } from 'react';
 import { DISPLAY } from './motion';
 
-const WORDS = ['Attendance', 'AI Insights', 'Assessments', 'Fees', 'Analytics', 'Audit Logs'];
+const WORDS = [
+    'AI Smart Board',
+    'Fees',
+    'AI Tests & Exams',
+    'Student App',
+    'AI Insights & Analytics',
+    'Attendance',
+    'Audit Logs',
+    'Announcements & Feed',
+    'Staffroom',
+    'More...',
+];
 
 function Line({ baseVelocity, outline }: { baseVelocity: number; outline?: boolean }) {
     const baseX = useMotionValue(0);

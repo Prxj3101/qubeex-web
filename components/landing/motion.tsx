@@ -84,9 +84,14 @@ export function SectionHead({ eyebrow, title, sub, light }: { eyebrow: string; t
     return (
         <Reveal className="mx-auto max-w-3xl text-center">
             <span
-                className={`inline-block rounded-full border px-4 py-1.5 text-[11px] font-bold uppercase tracking-[0.22em] ${
-                    light ? 'border-white/25 bg-white/10 text-white/90' : 'border-[#F0DFD4] bg-white/80 text-[#DA7756]'
+                className={`inline-block rounded-full px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] ${
+                    light ? 'bg-white/10 text-white/90' : 'bg-[#F3EAE2] text-[#DA7756]'
                 }`}
+                style={{
+                    boxShadow: light
+                        ? 'inset 0 2px 5px rgba(0,0,0,0.25), inset 0 -1px 2px rgba(255,255,255,0.12), 0 1px 0 rgba(255,255,255,0.08)'
+                        : 'inset 0 2px 5px rgba(122,62,32,0.22), inset 0 -1px 2px rgba(255,255,255,0.95), 0 1px 0 rgba(255,255,255,0.85)',
+                }}
             >
                 {eyebrow}
             </span>

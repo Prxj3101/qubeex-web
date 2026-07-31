@@ -35,6 +35,12 @@ export default function Qube3D({ className }: { className?: string }) {
         const warm = new THREE.PointLight(0xda7756, 22, 30);
         warm.position.set(6, 4, -4);
         scene.add(warm);
+        // Blue accent light — matches the College theme's primary blue, added
+        // alongside the existing School violet + terracotta so the hero cube
+        // represents all institution types, not just School.
+        const blue = new THREE.PointLight(0x2563eb, 24, 30);
+        blue.position.set(0, 5, 6);
+        scene.add(blue);
 
         /* cube cluster */
         const group = new THREE.Group();
@@ -46,11 +52,16 @@ export default function Qube3D({ className }: { className?: string }) {
         const matBase = new THREE.MeshStandardMaterial({ color: 0xf6f2ff, roughness: 0.25, metalness: 0.12 });
         const matViolet = new THREE.MeshStandardMaterial({ color: 0x7c3aed, roughness: 0.3, metalness: 0.2, emissive: 0x4c1d95, emissiveIntensity: 0.25 });
         const matTerra = new THREE.MeshStandardMaterial({ color: 0xda7756, roughness: 0.35, metalness: 0.15, emissive: 0x7c2d12, emissiveIntensity: 0.15 });
+        // Blue accent — represents the College theme, alongside violet
+        // (School) and terracotta (brand accent), one corner cube each.
+        const matBlue = new THREE.MeshStandardMaterial({ color: 0x2563eb, roughness: 0.3, metalness: 0.2, emissive: 0x1e3a8a, emissiveIntensity: 0.22 });
         const edgeMat = new THREE.LineBasicMaterial({ color: 0xcabcf0, transparent: true, opacity: 0.55 });
 
-        // accent positions (corner-ish cubes get color)
-        const accents = new Set(['2,2,2', '0,0,2', '2,0,0']);
-        const terras = new Set(['0,2,0']);
+        // accent positions — one violet corner, one blue corner, and two
+        // terracotta corners (diagonally opposite within the bottom face)
+        const accents = new Set(['2,2,2']);
+        const terras = new Set(['0,0,2', '2,0,0']);
+        const blues = new Set(['0,2,0']);
 
         interface Cell { mesh: THREE.Mesh; home: THREE.Vector3; dir: THREE.Vector3 }
         const cells: Cell[] = [];
@@ -60,7 +71,7 @@ export default function Qube3D({ className }: { className?: string }) {
             for (let y = 0; y < 3; y++)
                 for (let z = 0; z < 3; z++) {
                     const k = `${x},${y},${z}`;
-                    const mat = accents.has(k) ? matViolet : terras.has(k) ? matTerra : matBase;
+                    const mat = accents.has(k) ? matViolet : terras.has(k) ? matTerra : blues.has(k) ? matBlue : matBase;
                     const mesh = new THREE.Mesh(geo, mat);
                     const home = new THREE.Vector3((x - 1) * GAP, (y - 1) * GAP, (z - 1) * GAP);
                     mesh.position.copy(home);
@@ -144,6 +155,7 @@ export default function Qube3D({ className }: { className?: string }) {
             matBase.dispose();
             matViolet.dispose();
             matTerra.dispose();
+            matBlue.dispose();
             edgeMat.dispose();
             wrap.removeChild(renderer.domElement);
         };

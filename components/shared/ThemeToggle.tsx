@@ -6,7 +6,7 @@ import { useTheme } from 'next-themes';
 import { useSyncExternalStore } from 'react';
 
 export function ThemeToggle() {
-    const { theme, setTheme } = useTheme();
+    const { resolvedTheme, setTheme } = useTheme();
     const mounted = useSyncExternalStore(
         () => () => undefined,
         () => true,
@@ -15,7 +15,15 @@ export function ThemeToggle() {
 
     if (!mounted) return <button className="h-9 w-9" />;
 
-    const isDark = theme === 'dark';
+    // `theme` stays 'system' until the user explicitly picks a mode, so on a
+    // fresh login it doesn't reflect what's actually on screen. If the
+    // system preference happens to already be dark, clicking once just sets
+    // theme to 'dark' explicitly — same as what's already rendered, so
+    // nothing visibly changes and it looks like the button needs a second
+    // click. `resolvedTheme` always reflects the actual rendered mode
+    // (system preference already resolved), so toggling off of it flips the
+    // UI on the very first click.
+    const isDark = resolvedTheme === 'dark';
 
     return (
         <button

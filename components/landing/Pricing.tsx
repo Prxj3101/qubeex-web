@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Check, Sparkles } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { PLANS } from './landing-data';
 import { Reveal, SectionHead, EASE, DISPLAY } from './motion';
 
@@ -13,8 +13,14 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
             <SectionHead
                 eyebrow="Pricing"
                 title="Simple pricing that scales with you"
-                sub="One licence, a small per-user rate, and a 14-day free trial to make sure it fits. School pricing shown — college & coaching coming soon."
+                sub="One licence, a small per-user rate, and a 14-day free trial to make sure it fits. College & coaching pricing coming soon."
             />
+
+            <Reveal className="mt-10 flex justify-center">
+                <span className="inline-flex items-center rounded-full bg-[#190D2E] px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_20px_-8px_rgba(25,13,46,0.5)]">
+                    State Edition
+                </span>
+            </Reveal>
 
             <div className="mt-14 grid gap-6 md:grid-cols-2">
                 {PLANS.map((p, i) => (
@@ -24,17 +30,14 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                             transition={{ duration: 0.35, ease: EASE }}
                             className={`relative h-full overflow-hidden rounded-[2rem] p-8 ${
                                 p.highlight
-                                    ? 'bg-[#190D2E] text-white shadow-[0_48px_96px_-32px_rgba(76,29,149,0.6)] ring-2 ring-[#A855F7]/60'
+                                    ? 'bg-[#1C1B22] text-white shadow-[0_48px_96px_-32px_rgba(150,70,40,0.55)] ring-2 ring-[#DA7756]/60'
                                     : 'border border-[#ECE6F8] bg-white shadow-[0_2px_24px_-12px_rgba(29,20,51,0.12)]'
                             }`}
                         >
                             {p.highlight && (
                                 <>
-                                    <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#7C3AED]/40 blur-3xl" />
+                                    <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#E8876A]/40 blur-3xl" />
                                     <div className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-[#DA7756]/30 blur-3xl" />
-                                    <span className="absolute right-6 top-6 inline-flex items-center gap-1.5 rounded-full bg-gradient-to-r from-[#9F67F8] to-[#DA7756] px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">
-                                        <Sparkles size={11} /> Most popular
-                                    </span>
                                 </>
                             )}
 
@@ -62,7 +65,7 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                                         <li key={pt} className={`flex items-start gap-3 text-sm ${p.highlight ? 'text-white/85' : 'text-[#3D3552]'}`}>
                                             <span
                                                 className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full ${
-                                                    p.highlight ? 'bg-white/15 text-[#C9B3F9]' : 'bg-[#F1EBFD] text-[#7C3AED]'
+                                                    p.highlight ? 'bg-white/15 text-[#F0B49C]' : 'bg-[#FBEFEA] text-[#DA7756]'
                                                 }`}
                                             >
                                                 <Check size={12} strokeWidth={3} />
@@ -77,7 +80,7 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                                     className={`mt-9 w-full rounded-2xl py-3.5 text-sm font-semibold transition-all hover:scale-[1.02] active:scale-[0.98] ${
                                         p.highlight
                                             ? 'bg-white text-[#1D1433] shadow-[0_12px_28px_-12px_rgba(255,255,255,0.5)]'
-                                            : 'bg-[#7C3AED] text-white shadow-[0_12px_28px_-12px_rgba(124,58,237,0.6)]'
+                                            : 'bg-[#DA7756] text-white shadow-[0_12px_28px_-12px_rgba(218,119,86,0.6)]'
                                     }`}
                                 >
                                     Start free trial
@@ -89,11 +92,11 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
             </div>
 
             <Reveal delay={0.2} className="mt-8 text-center">
-                <p className="text-sm text-[#9A93AC]">
-                    Every plan starts with a <span className="font-semibold text-[#7C3AED]">14-day free trial</span> — full access, no payment details required.
+                <p className="text-base text-[#9A93AC]">
+                    Every plan starts with a <span className="font-semibold text-[#DA7756]">14-day free trial</span> - full access, no payment details required.
                 </p>
-                <p className="mt-2 text-sm text-[#9A93AC]">
-                    <span className="font-semibold text-[#DB2777]">SmartBoard AI</span> addon included free for the first year on all plans. Multiple branches? Flat 20% off every licence.
+                <p className="mt-2 text-base text-[#9A93AC]">
+                    <span className="font-semibold text-[#DB2777]">AI Smartboard</span> addon included free for the first year on all plans. Multiple branches? Flat 20% off every licence.
                 </p>
             </Reveal>
         </section>
