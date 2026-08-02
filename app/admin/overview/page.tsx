@@ -99,6 +99,11 @@ export default function AdminOverviewPage() {
                     institutionName={overview.institution.name}
                     institutionType={instType}
                     plan={planName}
+                    storagePct={
+                        overview.plan.usage.storage.limit
+                            ? (overview.plan.usage.storage.used / overview.plan.usage.storage.limit) * 100
+                            : 0
+                    }
                 />
             )}
             <BirthdayBanner

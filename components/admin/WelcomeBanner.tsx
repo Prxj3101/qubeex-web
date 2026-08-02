@@ -16,6 +16,8 @@ interface WelcomeBannerProps {
     institutionName: string;
     institutionType: InstitutionType;
     plan: 'BASIC' | 'PRO' | 'TRIAL';
+    /** Real storage-used percentage (0–100) from the backend; falls back to a placeholder if omitted. */
+    storagePct?: number;
 }
 
 // ── All features ──────────────────────────────────────────────────────────────
@@ -156,11 +158,12 @@ function FeaturePill({ icon: Icon, label, isAddon, color, colorBgStrong }: {
     );
 }
 
-function StorageTokenRow({ plan, color, colorBg, colorBgStrong }: {
+function StorageTokenRow({ plan, color, colorBg, colorBgStrong, storagePct: realStoragePct }: {
     plan: 'BASIC' | 'PRO' | 'TRIAL';
     color: string;
     colorBg: string;
     colorBgStrong: string;
+    storagePct?: number;
 }) {
     const cfg = PLAN_CONFIG[plan];
 
@@ -173,7 +176,10 @@ function StorageTokenRow({ plan, color, colorBg, colorBgStrong }: {
         return { circ, offset };
     };
 
-    const storagePct = plan === 'PRO' ? 100 : plan === 'BASIC' ? 75 : 15;
+    // Prefer the real usage % from the backend; fall back to a placeholder only if absent.
+    const storagePct = realStoragePct != null
+        ? Math.min(100, Math.max(0, Math.round(realStoragePct)))
+        : (plan === 'PRO' ? 100 : plan === 'BASIC' ? 75 : 15);
     const { circ, offset } = arcPath(storagePct);
 
     // Token dots — 30 total
@@ -313,7 +319,7 @@ function StorageTokenRow({ plan, color, colorBg, colorBgStrong }: {
 
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export function WelcomeBanner({ adminName, institutionName, institutionType, plan }: WelcomeBannerProps) {
+export function WelcomeBanner({ adminName, institutionName, institutionType, plan, storagePct }: WelcomeBannerProps) {
     const router = useRouter();
     const [visible, setVisible] = useState(() => {
         if (typeof window === 'undefined') return true;
@@ -579,6 +585,7 @@ export function WelcomeBanner({ adminName, institutionName, institutionType, pla
                                                         color={cfg.color}
                                                         colorBg={cfg.colorBg}
                                                         colorBgStrong={cfg.colorBgStrong}
+                                                        storagePct={storagePct}
                                                     />
 
                                                     {/* Upgrade CTA */}

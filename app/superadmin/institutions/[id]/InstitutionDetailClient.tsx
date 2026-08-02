@@ -98,6 +98,13 @@ function VerifiedBadge() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+// Format a storage figure given in GB: show MB below 1 GB, otherwise GB.
+function fmtStorageGb(gb: number): string {
+  if (!gb || gb <= 0) return "0 MB";
+  if (gb < 1) return `${(gb * 1024).toFixed(gb * 1024 < 10 ? 1 : 0)} MB`;
+  return `${gb.toFixed(gb < 10 ? 2 : 1)} GB`;
+}
+
 function formatDob(raw: string) {
   const digits = raw.replace(/\D/g, "");
   if (digits.length > 6) return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
@@ -1425,7 +1432,7 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
     }));
 
     const storageBase = dashboardData?.usageMeters?.storageGb?.total ?? (plan === "PRO" ? 1024 : 500);
-    const storageUsed = 0;
+    const storageUsed = dashboardData?.usageMeters?.storageGb?.used ?? 0;
     const storageUsedPct = Math.min(
       100,
       Math.round((storageUsed / storageBase) * 100),
@@ -1746,7 +1753,7 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                   <p className="text-xs font-semibold">Storage</p>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {storageUsed}GB / {storageBase}GB used
+                  {fmtStorageGb(storageUsed)} / {storageBase}GB used
                 </span>
               </div>
               <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
@@ -1765,7 +1772,7 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
               </div>
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>{storageUsedPct}% used</span>
-                <span>{storageBase - storageUsed}GB remaining</span>
+                <span>{fmtStorageGb(Math.max(0, storageBase - storageUsed))} remaining</span>
               </div>
               <div className="bg-muted/40 rounded-xl p-4 space-y-3">
                 <p className="text-xs font-semibold">Add Storage</p>
@@ -3268,8 +3275,8 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
             />
             <InfoBox
               label="Storage Used"
-              value="—"
-              sub="Not tracked yet"
+              value={fmtStorageGb(trialUsage?.storageGb.used ?? 0)}
+              sub={`of ${trialUsage?.storageGb.limit ?? 10} GB`}
             />
           </div>
         </div>
@@ -3490,7 +3497,6 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                 total={trialUsage?.storageGb.limit ?? 10}
                 unitLabel="GB"
                 formatter={(v) => v.toFixed(2)}
-                pending
               />
             </div>
           )}
