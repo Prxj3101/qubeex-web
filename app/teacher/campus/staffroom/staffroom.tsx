@@ -128,7 +128,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                 <div className={`flex items-center gap-2 mb-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
                     <span className="text-[11px] font-semibold">{formatDisplayName(post.author.name, post.author.prefix)}</span>
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${post.author.role === 'ADMIN'
-                        ? 'bg-[var(--muted)] text-[var(--primary)] bg-[var(--muted)] text-[var(--primary)]'
+                        ? 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300'
                         : 'bg-muted text-muted-foreground'}`}>
                         {resolveDisplayTitle(post.author.role, post.author.title)}
                     </span>
@@ -153,7 +153,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                     </div>
                 </div>
                 <div className={`px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
-                    style={isMe ? { background: 'var(--primary)' } : {}}>
+                    style={isMe ? { background: '#7C3AED' } : {}}>
                     <LinkifiedText
                         text={post.text}
                         className={isMe ? 'text-white underline decoration-white/70 hover:opacity-80 break-all' : 'text-primary underline hover:opacity-80 break-all'}
@@ -713,7 +713,7 @@ export default function TeacherStaffroom() {
                                                             style={{ width: '100%' }}
                                                         >
                                                             <div className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.isMe ? 'text-white rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
-                                                                style={msg.isMe ? { background: 'var(--primary)' } : {}}>
+                                                                style={msg.isMe ? { background: '#7C3AED' } : {}}>
                                                                 {msg.text && (
                                                                     <p>
                                                                         <LinkifiedText
