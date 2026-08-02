@@ -493,6 +493,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
         feeCardTheme?: string;
         schoolLogoUrl?: string | null;
         schoolName?: string | null;
+        rulesAndRegs?: { id: string; text: string }[];
     }) => {
         setFeeStructures(data.feeStructures ?? []);
         setFeeCardTheme((data.feeCardTheme && data.feeCardTheme in FEE_CARD_THEMES ? data.feeCardTheme : 'yellow') as FeeCardThemeKey);
@@ -518,6 +519,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
             setStudentFields(DEFAULT_STUDENT_FIELDS);
         }
         setGeneralRemark(data.generalRemark ?? '');
+        setRulesAndRegs(data.rulesAndRegs ?? []);
     }, []);
 
     useEffect(() => {
@@ -573,6 +575,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                 feeCardTheme,
                 schoolLogoUrl,
                 schoolName: schoolName.trim() || null,
+                rulesAndRegs,
             });
             setTemplateFrom(null);
             if (!opts?.silent) toast.success('Fee structure saved');
@@ -604,7 +607,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
         }, 1500);
         return () => { if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [feeStructures, feeMonths, bankDetails, qrImageUrl, extraColumns, studentFields, generalRemark, feeCardTheme, schoolLogoUrl, schoolName]);
+    }, [feeStructures, feeMonths, bankDetails, qrImageUrl, extraColumns, studentFields, generalRemark, feeCardTheme, schoolLogoUrl, schoolName, rulesAndRegs]);
 
     useImperativeHandle(ref, () => ({
         save: () => handleSaveRef.current(),
