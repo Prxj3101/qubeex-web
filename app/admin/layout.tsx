@@ -22,7 +22,7 @@ const ALL_NAV_ITEMS = [
     { label: 'Overview',   href: '/admin/overview',           icon: LayoutDashboard, childKeys: [] as string[] },
     { label: 'Staff',      href: '/admin/staff',              icon: Users,           childKeys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
     { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
-    { label: 'Insights',   href: '/admin/insights/analytics', icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION'] },
+    { label: 'Insights',   href: '/admin/insights',           icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION'] },
     { label: 'Support',    href: '/admin/support/tickets',    icon: Headset,         activePath: '/admin/support',  childKeys: ['SUPPORT'] },
     { label: 'Audit Logs', href: '/admin/audit-logs',         icon: ScrollText,      childKeys: ['AUDIT_LOGS'] },
 ];
@@ -35,9 +35,16 @@ const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/staff/subadmins',       keys: ['STAFF_SUBADMINS'] },
     { prefix: '/admin/campus/classes',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { prefix: '/admin/campus/courses',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
-    { prefix: '/admin/campus',                keys: ['CAMPUS_FEED'] },
+    // Bare '/admin/campus' (the Feed page) is intentionally NOT gated here —
+    // CampusLayout owns that redirect itself (Feed → Classes/Courses when the
+    // sub-admin lacks CAMPUS_FEED). Gating it here too raced against that
+    // effect: both fire on mount, and whichever router.replace() lands last
+    // won, sometimes bouncing a sub-admin with real Classes access all the
+    // way out to Overview. If they end up on Classes/Courses without any
+    // class permission either, the rule above still catches that.
     { prefix: '/admin/insights/analytics',    keys: ['INSIGHTS_ANALYTICS'] },
     { prefix: '/admin/insights/subscription', keys: ['INSIGHTS_SUBSCRIPTION'] },
+    { prefix: '/admin/insights/users',        keys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION'] },
     { prefix: '/admin/support',               keys: ['SUPPORT'] },
     { prefix: '/admin/audit-logs',            keys: ['AUDIT_LOGS'] },
 ];

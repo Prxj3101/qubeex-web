@@ -261,12 +261,35 @@ function Skeleton({ className }: { className?: string }) {
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
+type SubAdminSelfData = {
+  id: string;
+  name?: string | null;
+  email: string;
+  displayId?: string | null;
+  avatarUrl?: string | null;
+  designation?: string | null;
+  phone?: string | null;
+  dob?: string | null;
+  gender?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  pincode?: string | null;
+  country?: string | null;
+  qualification?: string | null;
+  experience?: string | null;
+  createdAt: string;
+  isActive: boolean;
+};
+
 export default function AdminProfilePage() {
   const { user, setUser } = useAuthStore();
+  const isSubAdmin = user?.role === 'SUB_ADMIN';
   const setUserAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
   const setUserTitle = useUserTitleStore(s => s.setTitle);
   const setUserPrefix = useUserTitleStore(s => s.setPrefix);
   const [inst, setInst] = useState<InstData | null>(null);
+  const [subAdminSelf, setSubAdminSelf] = useState<SubAdminSelfData | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoErr, setLogoErr] = useState(false);
   const [currentLogoUrl, setCurrentLogoUrl] = useState<string | null>(null);
@@ -287,7 +310,7 @@ export default function AdminProfilePage() {
         if (d) {
           setInst(d as InstData);
           setCurrentLogoUrl(d.logoUrl ?? null);
-          if (d.adminAvatarUrl) {
+          if (!isSubAdmin && d.adminAvatarUrl) {
             setAdminAvatarPreview(d.adminAvatarUrl);
             setUserAvatarUrl(d.adminAvatarUrl);
           }
@@ -295,6 +318,21 @@ export default function AdminProfilePage() {
       })
       .catch(() => { /* non-critical */ })
       .finally(() => setLoading(false));
+
+    if (isSubAdmin) {
+      api.get('/admin/subadmin/me')
+        .then((res) => {
+          const d = res.data?.data ?? res.data;
+          if (d) {
+            setSubAdminSelf(d as SubAdminSelfData);
+            if (d.avatarUrl) {
+              setAdminAvatarPreview(d.avatarUrl);
+              setUserAvatarUrl(d.avatarUrl);
+            }
+          }
+        })
+        .catch(() => { /* non-critical */ });
+    }
   }, []);
 
   // ── Edit state ────────────────────────────────────────────────────────────
@@ -313,9 +351,17 @@ export default function AdminProfilePage() {
           if (d) setInst(d as InstData);
         })
         .catch(() => {});
+      if (isSubAdmin) {
+        api.get('/admin/subadmin/me')
+          .then((res) => {
+            const d = res.data?.data ?? res.data;
+            if (d) setSubAdminSelf(d as SubAdminSelfData);
+          })
+          .catch(() => {});
+      }
     }, 30_000);
     return () => clearInterval(poll);
-  }, []);
+  }, [isSubAdmin]);
   const [instDraft, setInstDraft] = useState({ name: '', email: '', phone: '', board: '', medium: '', establishedOn: '' });
   const [instSaved, setInstSaved] = useState({ name: '', email: '', phone: '', board: '', medium: '', establishedOn: '' });
   const [locDraft, setLocDraft] = useState({ address: '', city: '', state: '', country: '', pincode: '' });
@@ -327,6 +373,10 @@ export default function AdminProfilePage() {
     if (!inst) return;
     const i = { name: inst.name, email: inst.email, phone: inst.phone ?? '', board: inst.board ?? '', medium: inst.medium ?? '', establishedOn: inst.establishedOn ?? '' };
     const l = { address: inst.address ?? '', city: inst.city ?? '', state: inst.state ?? '', country: inst.country ?? '', pincode: inst.pincode ?? '' };
+    setInstDraft(i); setInstSaved(i);
+    setLocDraft(l); setLocSaved(l);
+
+    if (isSubAdmin) return;
     const adminUser_ = inst.admin ?? inst.users?.find((u) => u.role === 'ADMIN') ?? null;
     const a = {
       adminName: adminUser_?.name ?? adminUser_?.email?.split('@')[0] ?? '',
@@ -336,10 +386,21 @@ export default function AdminProfilePage() {
       adminDob: adminUser_?.dob ?? inst.adminDob ?? '',
       adminGender: adminUser_?.gender ?? inst.adminGender ?? 'Male',
     };
-    setInstDraft(i); setInstSaved(i);
-    setLocDraft(l); setLocSaved(l);
     setAdminDraft(a); setAdminSaved(a);
-  }, [inst]);
+  }, [inst, isSubAdmin]);
+
+  useEffect(() => {
+    if (!isSubAdmin || !subAdminSelf) return;
+    const a = {
+      adminName: subAdminSelf.name ?? subAdminSelf.email.split('@')[0] ?? '',
+      adminPrefix: '',
+      adminTitle: subAdminSelf.designation ?? '',
+      adminPhone: subAdminSelf.phone ?? '',
+      adminDob: subAdminSelf.dob ?? '',
+      adminGender: subAdminSelf.gender ?? '',
+    };
+    setAdminDraft(a); setAdminSaved(a);
+  }, [subAdminSelf, isSubAdmin]);
 
   const cancelEdit = (s: string) => {
     if (s === 'inst') setInstDraft({ ...instSaved });
@@ -359,17 +420,28 @@ export default function AdminProfilePage() {
         setLocSaved({ ...locDraft });
       }
       if (s === 'admin') {
-        await api.patch('/admin/me', {
-          name: adminDraft.adminName || undefined,
-          prefix: adminDraft.adminPrefix || undefined,
-          title: adminDraft.adminTitle || undefined,
-          phone: adminDraft.adminPhone || undefined,
-          dob: adminDraft.adminDob || undefined,
-          gender: adminDraft.adminGender || undefined,
-        });
+        if (isSubAdmin) {
+          const res = await api.patch('/admin/subadmin/me', {
+            name: adminDraft.adminName || undefined,
+            designation: adminDraft.adminTitle || undefined,
+            phone: adminDraft.adminPhone || undefined,
+            dob: adminDraft.adminDob || undefined,
+            gender: adminDraft.adminGender || undefined,
+          });
+          setSubAdminSelf(prev => prev ? { ...prev, ...res.data.data } : prev);
+        } else {
+          await api.patch('/admin/me', {
+            name: adminDraft.adminName || undefined,
+            prefix: adminDraft.adminPrefix || undefined,
+            title: adminDraft.adminTitle || undefined,
+            phone: adminDraft.adminPhone || undefined,
+            dob: adminDraft.adminDob || undefined,
+            gender: adminDraft.adminGender || undefined,
+          });
+          setUserPrefix(adminDraft.adminPrefix || null);
+        }
         setAdminSaved({ ...adminDraft });
         setUserTitle(adminDraft.adminTitle || null);
-        setUserPrefix(adminDraft.adminPrefix || null);
         if (adminDraft.adminName && user && adminDraft.adminName !== user.name) {
           setUser({ ...user, name: adminDraft.adminName });
         }
@@ -469,10 +541,19 @@ export default function AdminProfilePage() {
   const studentCount = inst.studentCount ?? 0;
   const teacherCount = inst.teacherCount ?? 0;
   const adminUser = inst.admin ?? inst.users?.find((u) => u.role === 'ADMIN') ?? null;
-  const adminName = formatDisplayName(
-    adminUser?.name ?? adminUser?.email?.split('@')[0] ?? user?.name ?? '—',
-    adminUser?.prefix ?? inst.adminPrefix
-  );
+  // profileUser is "whoever is viewing their own profile" — the real admin for
+  // an ADMIN viewer, the sub-admin's own record for a SUB_ADMIN viewer. Used
+  // for the read-only email/role/joined/active fields in the Admin Info card
+  // so a sub-admin never sees the institution admin's account details.
+  const profileUser = isSubAdmin
+    ? (subAdminSelf ? { email: subAdminSelf.email, role: 'SUB_ADMIN', createdAt: subAdminSelf.createdAt, isActive: subAdminSelf.isActive } : null)
+    : adminUser;
+  const adminName = isSubAdmin
+    ? (subAdminSelf?.name ?? subAdminSelf?.email?.split('@')[0] ?? user?.name ?? '—')
+    : formatDisplayName(
+        adminUser?.name ?? adminUser?.email?.split('@')[0] ?? user?.name ?? '—',
+        adminUser?.prefix ?? inst.adminPrefix
+      );
   const myUser = inst.users?.find((u) => u.id === user?.id) ?? null;
   const myDisplayId = myUser?.displayId ?? null;
 
@@ -624,7 +705,7 @@ export default function AdminProfilePage() {
                   };
                   reader.readAsDataURL(file);
                   try {
-                    const res = await api.post('/admin/me/photo', file, {
+                    const res = await api.post(isSubAdmin ? '/admin/subadmin/me/photo' : '/admin/me/photo', file, {
                       headers: { 'Content-Type': file.type },
                     });
                     const signedUrl: string = res.data.data.avatarUrl;
@@ -646,16 +727,16 @@ export default function AdminProfilePage() {
                   {adminSaved.adminTitle && <p className="text-[11px] text-muted-foreground">{adminSaved.adminTitle}</p>}
                   <VerifiedBadge />
                 </div>
-                {adminUser && (
+                {profileUser && (
                   <p className="text-[12px] font-semibold mt-1.5" style={{ color: '#DA7756' }}>
-                    {adminUser.email}
+                    {profileUser.email}
                   </p>
                 )}
               </div>
               <div className="flex flex-wrap items-center gap-4 mt-3 pt-3 border-t border-border/50">
                 {[
-                  { label: 'Role', value: adminUser?.role ?? '—' },
-                  { label: 'Joined', value: adminUser ? toIST(adminUser.createdAt) : '—' },
+                  { label: 'Role', value: profileUser?.role ?? '—' },
+                  { label: 'Joined', value: profileUser ? toIST(profileUser.createdAt) : '—' },
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p className="text-sm font-bold leading-tight">{value}</p>
@@ -671,7 +752,7 @@ export default function AdminProfilePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
 
           {/* Institution Info */}
-          <SectionCard title="Institution Info" editBtn={editBtns('inst')}>
+          <SectionCard title="Institution Info" editBtn={isSubAdmin ? undefined : editBtns('inst')}>
             {editingSection === 'inst' ? (
               <>
                 <EditableField label="Name" value={instDraft.name} onChange={(v) => setInstDraft((d) => ({ ...d, name: v }))} placeholder="e.g. Delhi Public School" />
@@ -713,9 +794,9 @@ export default function AdminProfilePage() {
             )}
           </SectionCard>
 
-          {/* Admin Info */}
-          <SectionCard title="Admin Info" editBtn={editBtns('admin')}>
-            {adminUser ? (
+          {/* Admin / Sub-Admin Info */}
+          <SectionCard title={isSubAdmin ? 'My Info' : 'Admin Info'} editBtn={editBtns('admin')}>
+            {profileUser ? (
               <>
                 {editingSection === 'admin' ? (
                   <>
@@ -723,20 +804,22 @@ export default function AdminProfilePage() {
                     <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
                       <span className="text-xs text-muted-foreground w-28 shrink-0 mt-2">Full Name</span>
                       <div className="flex-1 space-y-2">
-                        <div className="flex flex-wrap gap-1.5">
-                          {ADMIN_PREFIX_OPTIONS.map((opt) => (
-                            <button key={opt} type="button"
-                              onClick={() => setAdminDraft((d) => ({ ...d, adminPrefix: d.adminPrefix === opt ? '' : opt }))}
-                              className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
-                                adminDraft.adminPrefix === opt
-                                  ? 'border-transparent text-white'
-                                  : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
-                              }`}
-                              style={adminDraft.adminPrefix === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
-                              {opt}
-                            </button>
-                          ))}
-                        </div>
+                        {!isSubAdmin && (
+                          <div className="flex flex-wrap gap-1.5">
+                            {ADMIN_PREFIX_OPTIONS.map((opt) => (
+                              <button key={opt} type="button"
+                                onClick={() => setAdminDraft((d) => ({ ...d, adminPrefix: d.adminPrefix === opt ? '' : opt }))}
+                                className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
+                                  adminDraft.adminPrefix === opt
+                                    ? 'border-transparent text-white'
+                                    : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
+                                }`}
+                                style={adminDraft.adminPrefix === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
+                                {opt}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         <div className="flex items-center gap-2">
                           {adminDraft.adminPrefix && (
                             <span className="text-xs font-semibold shrink-0" style={{ color: '#DA7756' }}>{adminDraft.adminPrefix}</span>
@@ -750,25 +833,29 @@ export default function AdminProfilePage() {
                         </div>
                       </div>
                     </div>
-                    {/* Display Title */}
-                    <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
-                      <span className="text-xs text-muted-foreground w-28 shrink-0 mt-0.5">Display Title</span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {ADMIN_TITLE_OPTIONS.map((opt) => (
-                          <button key={opt} type="button"
-                            onClick={() => setAdminDraft((d) => ({ ...d, adminTitle: d.adminTitle === opt ? '' : opt }))}
-                            className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
-                              adminDraft.adminTitle === opt
-                                ? 'border-transparent text-white'
-                                : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
-                            }`}
-                            style={adminDraft.adminTitle === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
-                            {opt}
-                          </button>
-                        ))}
+                    {/* Display Title / Designation */}
+                    {isSubAdmin ? (
+                      <EditableField label="Designation" value={adminDraft.adminTitle} onChange={(v) => setAdminDraft((d) => ({ ...d, adminTitle: v }))} placeholder="e.g. Accounts Coordinator" />
+                    ) : (
+                      <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
+                        <span className="text-xs text-muted-foreground w-28 shrink-0 mt-0.5">Display Title</span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {ADMIN_TITLE_OPTIONS.map((opt) => (
+                            <button key={opt} type="button"
+                              onClick={() => setAdminDraft((d) => ({ ...d, adminTitle: d.adminTitle === opt ? '' : opt }))}
+                              className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-all ${
+                                adminDraft.adminTitle === opt
+                                  ? 'border-transparent text-white'
+                                  : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
+                              }`}
+                              style={adminDraft.adminTitle === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                    <PhoneEditField label="Admin Phone" value={adminDraft.adminPhone} onChange={(v) => setAdminDraft((d) => ({ ...d, adminPhone: v }))} />
+                    )}
+                    <PhoneEditField label={isSubAdmin ? 'Phone' : 'Admin Phone'} value={adminDraft.adminPhone} onChange={(v) => setAdminDraft((d) => ({ ...d, adminPhone: v }))} />
                     <EditableField label="DOB" value={adminDraft.adminDob} onChange={(v) => setAdminDraft((d) => ({ ...d, adminDob: formatDob(v) }))} placeholder="YYYY-MM-DD" />
                     {/* Gender pills */}
                     <div className="flex items-center gap-3 py-2 border-b border-border/40 last:border-none">
@@ -794,7 +881,7 @@ export default function AdminProfilePage() {
                     <div className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-none">
                       <Hash size={14} className="text-muted-foreground shrink-0" />
                       <span className="text-xs text-muted-foreground w-28 shrink-0 flex items-center gap-1">
-                        Admin ID
+                        User ID
                         <div className="relative group/tip">
                           <Info size={11} className="text-muted-foreground/50 cursor-pointer hover:text-primary transition-colors" />
                           <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/tip:block z-50 pointer-events-none">
@@ -814,14 +901,14 @@ export default function AdminProfilePage() {
                         )}
                       </span>
                     </div>
-                    <InfoRow icon={User} label="Admin Name" value={
+                    <InfoRow icon={User} label="Full Name" value={
                       <span>
                         {adminSaved.adminPrefix && <span className="font-semibold mr-1" style={{ color: '#DA7756' }}>{adminSaved.adminPrefix}</span>}
                         {adminSaved.adminName || '—'}
                       </span>
                     } />
                     {adminSaved.adminTitle && (
-                      <InfoRow icon={ShieldCheck} label="Display Title" value={
+                      <InfoRow icon={ShieldCheck} label={isSubAdmin ? 'Designation' : 'Display Title'} value={
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(218,119,86,0.12)', color: '#DA7756' }}>
                           {adminSaved.adminTitle}
                         </span>
@@ -830,34 +917,34 @@ export default function AdminProfilePage() {
                     <div className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-none">
                       <Mail size={14} className="text-muted-foreground shrink-0" />
                       <span className="text-xs text-muted-foreground w-28 shrink-0 flex items-center gap-1">
-                        Admin Email
+                        Email
                         <div className="relative group/tip">
                           <Info size={11} className="text-muted-foreground/50 cursor-pointer hover:text-primary transition-colors" />
                           <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/tip:block z-50 pointer-events-none">
                             <div className="bg-gray-900 dark:bg-gray-800 text-[11px] text-white rounded-lg px-2.5 py-1.5 shadow-lg whitespace-nowrap">
-                              This email is used for admin login
+                              This email is used for login
                             </div>
                           </div>
                         </div>
                       </span>
-                      <span className="text-xs font-medium text-foreground flex-1">{adminUser.email}</span>
+                      <span className="text-xs font-medium text-foreground flex-1">{profileUser?.email ?? '—'}</span>
                     </div>
-                    <InfoRow icon={Phone} label="Admin Phone" value={adminSaved.adminPhone || '—'} />
-                    <InfoRow icon={Calendar} label="Admin DOB" value={adminSaved.adminDob ? toIST(adminSaved.adminDob) : '—'} />
-                    <InfoRow icon={User} label="Admin Gender" value={adminSaved.adminGender || '—'} />
-                    <InfoRow icon={ShieldCheck} label="Role" value={adminUser.role} />
-                    <InfoRow icon={CheckCircle} label="Account Active" value={adminUser.isActive ? 'Yes' : 'Pending setup'} />
-                    <InfoRow icon={Calendar} label="Created (IST)" value={toIST(adminUser.createdAt)} />
+                    <InfoRow icon={Phone} label="Phone" value={adminSaved.adminPhone || '—'} />
+                    <InfoRow icon={Calendar} label="Date of Birth" value={adminSaved.adminDob ? toIST(adminSaved.adminDob) : '—'} />
+                    <InfoRow icon={User} label="Gender" value={adminSaved.adminGender || '—'} />
+                    <InfoRow icon={ShieldCheck} label="Role" value={profileUser?.role ?? '—'} />
+                    <InfoRow icon={CheckCircle} label="Account Active" value={profileUser?.isActive ? 'Yes' : 'Pending setup'} />
+                    <InfoRow icon={Calendar} label="Created (IST)" value={profileUser ? toIST(profileUser.createdAt) : '—'} />
                   </>
                 )}
               </>
             ) : (
-              <InfoRow icon={User} label="Admin Name" value={adminName} />
+              <InfoRow icon={User} label="Name" value={adminName} />
             )}
           </SectionCard>
 
           {/* Location */}
-          <SectionCard title="Location" editBtn={editBtns('loc')}>
+          <SectionCard title="Location" editBtn={isSubAdmin ? undefined : editBtns('loc')}>
             {editingSection === 'loc' ? (
               <>
                 <EditableField label="Address" value={locDraft.address} onChange={(v) => setLocDraft((d) => ({ ...d, address: v }))} placeholder="Street / Building / Area" />
