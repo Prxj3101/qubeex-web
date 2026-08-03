@@ -38,7 +38,7 @@ interface ClassData {
     subjectLeaderboards: Record<string, LbEntry[]>;
 }
 
-// ── Helper ──────────────────────────────────────────────────────────────────
+// ── Helper ─────────────────────────────────────────────────────────────────
 type LbMode = 'offline' | 'online' | 'combined';
 const AVATAR_COLORS = ['#7C3AED', '#2563EB', '#10B981', '#F59E0B', '#EF4444', '#EC4899', '#0891B2', '#059669'];
 function getAvatarColor(name: string) { return AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length]; }
