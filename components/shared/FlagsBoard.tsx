@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { ArrowLeft, BookOpen, Calendar, User, ShieldAlert, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
 import { FlagItem, CardType } from '@/lib/flags';
+import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 
 const CATEGORY_ICONS: Record<string, string> = {
     'Late Submission': '⏰',
@@ -17,9 +18,17 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 const STATUS_CFG = {
-    active:   { label: 'Active',   emoji: '🔴', color: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
-    resolved: { label: 'Resolved', emoji: '✅', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-    appealed: { label: 'Appealed', emoji: '⚖️', color: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
+    open:         { label: 'Open',         emoji: '🔴', color: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
+    under_review: { label: 'Under Review', emoji: '🕓', color: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
+    resolved:     { label: 'Resolved',     emoji: '✅', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
+    rejected:     { label: 'Rejected',     emoji: '🚫', color: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400' },
+    appealed:     { label: 'Appealed',     emoji: '⚖️', color: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
+};
+
+const SEVERITY_CFG = {
+    low:    { label: 'Low',    color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
+    medium: { label: 'Medium', color: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400' },
+    high:   { label: 'High',   color: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
 };
 
 export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: string }) {
@@ -60,6 +69,14 @@ export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: st
                         }`}>
                             {flag.category}
                         </span>
+                        {flag.severity && (
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${SEVERITY_CFG[flag.severity].color}`}>
+                                {SEVERITY_CFG[flag.severity].label}
+                            </span>
+                        )}
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${status.color}`}>
+                            <span>{status.emoji}</span>{status.label}
+                        </span>
                     </div>
                     {/* Title */}
                     <p className={`text-sm font-semibold ${
@@ -97,6 +114,12 @@ export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: st
                     <User size={11} className={isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} />
                     <span className={`text-[10px] ${isYellow ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'}`}>{flag.reportedBy}</span>
                 </div>
+                {flag.assignedToName && (
+                    <div className="flex items-center gap-1">
+                        <ShieldAlert size={11} className={isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} />
+                        <span className={`text-[10px] ${isYellow ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'}`}>Assigned to {flag.assignedToName}</span>
+                    </div>
+                )}
             </div>
 
             {/* Expanded detail */}
@@ -120,11 +143,29 @@ export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: st
                         </p>
                     </div>
 
+                    {/* Attachment */}
+                    {flag.attachmentUrl && flag.attachmentName && flag.attachmentType && (
+                        <AttachmentPreview
+                            attachment={{ url: flag.attachmentUrl, name: flag.attachmentName, type: flag.attachmentType }}
+                            compact
+                        />
+                    )}
+
                     {/* Action taken */}
                     {flag.actionTaken && (
                         <div className="p-3 rounded-xl border bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/50">
                             <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 mb-1.5">⚡ Action Taken</p>
                             <p className="text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">{flag.actionTaken}</p>
+                        </div>
+                    )}
+
+                    {/* Review remark */}
+                    {flag.reviewRemark && (
+                        <div className="p-3 rounded-xl border bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900/50">
+                            <p className="text-[11px] font-bold text-blue-700 dark:text-blue-400 mb-1.5">
+                                💬 Reviewer Remark{flag.reviewedBy ? ` — ${flag.reviewedBy}` : ''}
+                            </p>
+                            <p className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">{flag.reviewRemark}</p>
                         </div>
                     )}
                 </div>

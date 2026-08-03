@@ -80,6 +80,7 @@ export default function TeacherStudentReportsPage() {
                 studentName={studentName}
                 loading={submitting}
                 onSubmit={handleSubmit}
+                uploadUrl="/teacher/campus/feed/upload"
             />
         </>
     );

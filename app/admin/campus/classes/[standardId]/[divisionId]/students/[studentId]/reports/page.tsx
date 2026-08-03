@@ -81,6 +81,7 @@ export default function AdminStudentReportsPage() {
                 studentName={studentName}
                 loading={submitting}
                 onSubmit={handleSubmit}
+                uploadUrl="/admin/campus/feed/upload"
             />
         </>
     );

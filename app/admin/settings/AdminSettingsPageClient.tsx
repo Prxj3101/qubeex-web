@@ -206,7 +206,7 @@ export default function AdminSettingsPageClient() {
         const load = async () => {
             try {
                 setProfileLoading(true);
-                const res = await api.get('/admin/me');
+                const res = await api.get('/admin/profile');
                 const p = res.data.data;
                 setName(p.name ?? '');
                 setEmail(p.email ?? '');
@@ -227,7 +227,7 @@ export default function AdminSettingsPageClient() {
         const load = async () => {
             try {
                 setActivityLoading(true);
-                const res = await api.get('/admin/me/login-activity?limit=5');
+                const res = await api.get('/admin/profile/login-activity?limit=5');
                 setLoginActivity(res.data.data ?? []);
             } catch {
                 // non-blocking
@@ -256,7 +256,7 @@ export default function AdminSettingsPageClient() {
         if (!email.trim()) return toast.error('Email is required');
         try {
             setSavingProfile(true);
-            await api.put('/admin/me', { name, email });
+            await api.put('/admin/profile', { name, email });
             setEditing(false);
             setSnapshot({ name, email });
             toast.success('Profile updated successfully');
@@ -271,7 +271,7 @@ export default function AdminSettingsPageClient() {
         if (!canSubmitPwd) return;
         try {
             setSavingPwd(true);
-            await api.put('/admin/me/password', { oldPassword: oldPwd, newPassword: newPwd });
+            await api.put('/admin/profile/password', { oldPassword: oldPwd, newPassword: newPwd });
             setOldPwd(''); setNewPwd(''); setConfirmPwd('');
             setShowOld(false); setShowNew(false); setShowConfirm(false);
             toast.success('Password changed successfully');
