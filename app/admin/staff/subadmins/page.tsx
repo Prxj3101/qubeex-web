@@ -12,8 +12,10 @@ import {
     User, Phone, Lock, Trash2, Hash,
 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
+import { formatDisplayName } from '@/lib/displayName';
+import NextImage from 'next/image';
 
 // ── Permission tree definition ────────────────────────────────────────────────
 
@@ -88,6 +90,8 @@ interface SubAdminRecord {
     permissions: string[];
     invitePending?: boolean;
     createdAt: string;
+    avatarUrl?: string | null;
+    prefix?: string | null;
     designation?: string;
     phone?: string;
     dob?: string;
@@ -328,6 +332,7 @@ function SubAdminCard({
 }) {
     const avatarColor = getAvatarColor(subadmin.id);
     const isActive = subadmin.isActive;
+    const [photoExpanded, setPhotoExpanded] = useState(false);
 
     const permLabels: string[] = [];
     for (const node of PERMISSION_TREE) {
@@ -356,14 +361,46 @@ function SubAdminCard({
                 }`}
         >
             <div className="flex items-start gap-3 p-4 pb-3">
-                <div className={`w-12 h-12 rounded-xl ring-2 ring-border shrink-0 flex items-center justify-center ${avatarColor.bg}`}>
-                    <span className={`text-base font-bold select-none ${avatarColor.text}`}>
-                        {getInitials(subadmin.name)}
-                    </span>
+                <div
+                    className={`relative w-12 h-12 rounded-xl ring-2 ring-border shrink-0 flex items-center justify-center overflow-hidden ${avatarColor.bg} ${subadmin.avatarUrl ? 'cursor-pointer' : ''}`}
+                    onClick={() => subadmin.avatarUrl && setPhotoExpanded(true)}
+                >
+                    {subadmin.avatarUrl ? (
+                        <NextImage src={subadmin.avatarUrl} alt={subadmin.name} fill sizes="48px" className="object-cover" />
+                    ) : (
+                        <span className={`text-base font-bold select-none ${avatarColor.text}`}>
+                            {getInitials(subadmin.name)}
+                        </span>
+                    )}
                 </div>
+
+                <AnimatePresence>
+                    {photoExpanded && subadmin.avatarUrl && (
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                            onClick={() => setPhotoExpanded(false)}
+                        >
+                            <motion.div
+                                initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }}
+                                transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                                className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <img src={subadmin.avatarUrl} alt={subadmin.name} className="w-full h-full object-cover" />
+                                <button
+                                    onClick={() => setPhotoExpanded(false)}
+                                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all"
+                                >
+                                    <X size={14} className="text-white" />
+                                </button>
+                            </motion.div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-semibold leading-snug truncate pr-1">{subadmin.name}</p>
+                        <p className="text-sm font-semibold leading-snug truncate pr-1">{formatDisplayName(subadmin.name, subadmin.prefix)}</p>
                         {subadmin.invitePending ? (
                             <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
                                 Invite Pending
@@ -733,6 +770,7 @@ export default function SubadminsPage() {
                 <DialogContent
                     className="p-0 gap-0 bg-card flex flex-col mx-4 lg:mx-0"
                     style={{ width: '80vw', maxWidth: '860px', maxHeight: '88vh' }}
+                    onOpenAutoFocus={(e) => e.preventDefault()}
                 >
                     {/* Header */}
                     <div className="px-6 pt-5 pb-3.5 border-b border-border/50 shrink-0">

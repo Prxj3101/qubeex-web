@@ -130,7 +130,7 @@ function SectionCard({ title, children, editBtn }: {
 }) {
   return (
     <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-muted/30">
+      <div className="flex items-center justify-between px-5 h-14 border-b border-border/50 bg-muted/30">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
         {editBtn}
       </div>
@@ -267,6 +267,7 @@ type SubAdminSelfData = {
   email: string;
   displayId?: string | null;
   avatarUrl?: string | null;
+  prefix?: string | null;
   designation?: string | null;
   phone?: string | null;
   dob?: string | null;
@@ -302,6 +303,12 @@ export default function AdminProfilePage() {
   const fetchedRef = useRef(false);
 
   useEffect(() => {
+    // Wait for the persisted auth store to actually hydrate before deciding
+    // which role's data to fetch — right after a hard refresh `user` can
+    // still be null/undefined for a moment, which would make `isSubAdmin`
+    // wrongly evaluate to false and permanently fetch/show the real Admin's
+    // data instead of the sub-admin's own (this effect only ever runs once).
+    if (!user) return;
     if (fetchedRef.current) return;
     fetchedRef.current = true;
     api.get('/admin/me')
@@ -333,7 +340,7 @@ export default function AdminProfilePage() {
         })
         .catch(() => { /* non-critical */ });
     }
-  }, []);
+  }, [user, isSubAdmin]);
 
   // ── Edit state ────────────────────────────────────────────────────────────
   const [editingSection, setEditingSection] = useState<string | null>(null);
@@ -378,13 +385,16 @@ export default function AdminProfilePage() {
 
     if (isSubAdmin) return;
     const adminUser_ = inst.admin ?? inst.users?.find((u) => u.role === 'ADMIN') ?? null;
+    const resolvedGender = adminUser_?.gender ?? inst.adminGender ?? 'Male';
     const a = {
       adminName: adminUser_?.name ?? adminUser_?.email?.split('@')[0] ?? '',
-      adminPrefix: adminUser_?.prefix ?? inst.adminPrefix ?? 'Mr.',
+      // Default from gender only when no prefix has been explicitly saved yet —
+      // once the admin picks one in My Profile, that saved value always wins.
+      adminPrefix: adminUser_?.prefix ?? inst.adminPrefix ?? (resolvedGender === 'Female' ? 'Ms.' : 'Mr.'),
       adminTitle: adminUser_?.title ?? inst.adminTitle ?? 'Admin',
       adminPhone: adminUser_?.phone ?? inst.adminPhone ?? '',
       adminDob: adminUser_?.dob ?? inst.adminDob ?? '',
-      adminGender: adminUser_?.gender ?? inst.adminGender ?? 'Male',
+      adminGender: resolvedGender,
     };
     setAdminDraft(a); setAdminSaved(a);
   }, [inst, isSubAdmin]);
@@ -393,7 +403,9 @@ export default function AdminProfilePage() {
     if (!isSubAdmin || !subAdminSelf) return;
     const a = {
       adminName: subAdminSelf.name ?? subAdminSelf.email.split('@')[0] ?? '',
-      adminPrefix: '',
+      // Default from gender only when the sub-admin hasn't explicitly chosen/saved
+      // a prefix yet — once they pick one in My Profile, that saved value always wins.
+      adminPrefix: subAdminSelf.prefix ?? (subAdminSelf.gender === 'Male' ? 'Mr.' : subAdminSelf.gender === 'Female' ? 'Ms.' : ''),
       adminTitle: subAdminSelf.designation ?? '',
       adminPhone: subAdminSelf.phone ?? '',
       adminDob: subAdminSelf.dob ?? '',
@@ -423,6 +435,7 @@ export default function AdminProfilePage() {
         if (isSubAdmin) {
           const res = await api.patch('/admin/subadmin/me', {
             name: adminDraft.adminName || undefined,
+            prefix: adminDraft.adminPrefix || undefined,
             designation: adminDraft.adminTitle || undefined,
             phone: adminDraft.adminPhone || undefined,
             dob: adminDraft.adminDob || undefined,
@@ -804,22 +817,20 @@ export default function AdminProfilePage() {
                     <div className="flex items-start gap-3 py-2.5 border-b border-border/40">
                       <span className="text-xs text-muted-foreground w-28 shrink-0 mt-2">Full Name</span>
                       <div className="flex-1 space-y-2">
-                        {!isSubAdmin && (
-                          <div className="flex flex-wrap gap-1.5">
-                            {ADMIN_PREFIX_OPTIONS.map((opt) => (
-                              <button key={opt} type="button"
-                                onClick={() => setAdminDraft((d) => ({ ...d, adminPrefix: d.adminPrefix === opt ? '' : opt }))}
-                                className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
-                                  adminDraft.adminPrefix === opt
-                                    ? 'border-transparent text-white'
-                                    : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
-                                }`}
-                                style={adminDraft.adminPrefix === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
-                                {opt}
-                              </button>
-                            ))}
-                          </div>
-                        )}
+                        <div className="flex flex-wrap gap-1.5">
+                          {ADMIN_PREFIX_OPTIONS.map((opt) => (
+                            <button key={opt} type="button"
+                              onClick={() => setAdminDraft((d) => ({ ...d, adminPrefix: d.adminPrefix === opt ? '' : opt }))}
+                              className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border transition-all ${
+                                adminDraft.adminPrefix === opt
+                                  ? 'border-transparent text-white'
+                                  : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground bg-transparent'
+                              }`}
+                              style={adminDraft.adminPrefix === opt ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : {}}>
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
                         <div className="flex items-center gap-2">
                           {adminDraft.adminPrefix && (
                             <span className="text-xs font-semibold shrink-0" style={{ color: '#DA7756' }}>{adminDraft.adminPrefix}</span>
@@ -881,7 +892,7 @@ export default function AdminProfilePage() {
                     <div className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-none">
                       <Hash size={14} className="text-muted-foreground shrink-0" />
                       <span className="text-xs text-muted-foreground w-28 shrink-0 flex items-center gap-1">
-                        User ID
+                        {isSubAdmin ? 'Subadmin ID' : 'Admin ID'}
                         <div className="relative group/tip">
                           <Info size={11} className="text-muted-foreground/50 cursor-pointer hover:text-primary transition-colors" />
                           <div className="absolute bottom-full left-0 mb-1.5 hidden group-hover/tip:block z-50 pointer-events-none">

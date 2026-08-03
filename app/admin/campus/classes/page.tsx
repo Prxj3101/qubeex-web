@@ -104,7 +104,11 @@ export default function ClassesPage() {
     const router = useRouter();
     const { instType } = useMockInstType();
     const { user } = useAuthStore();
-    const isAdmin = user?.role === 'ADMIN';
+    // A sub-admin granted CAMPUS_MANAGE gets the exact same add/edit/delete/
+    // reorder access as an Admin here — the backend routes for standards,
+    // divisions, and subjects now check this same permission instead of
+    // rejecting SUB_ADMIN outright.
+    const isAdmin = user?.role === 'ADMIN' || (user?.role === 'SUB_ADMIN' && (user.permissions ?? []).includes('CAMPUS_MANAGE'));
     const [standards, setStandards] = useState<Standard[]>([]);
     const [loading, setLoading] = useState(true);
     const [expandedId, setExpandedId] = useState<string | null>(null);

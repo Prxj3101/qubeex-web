@@ -82,7 +82,7 @@ function RoleBadge() {
     const pathname = usePathname();
     const role = getRole(pathname, user?.role);
     const customTitle = useUserTitleStore(s => s.title);
-    const roleLabel = (role === 'ADMIN' || role === 'TEACHER') && customTitle ? customTitle : labelMap[role];
+    const roleLabel = (role === 'ADMIN' || role === 'TEACHER' || role === 'SUB_ADMIN') && customTitle ? customTitle : labelMap[role];
 
     return (
         <div className="group relative flex items-center cursor-pointer">
@@ -110,14 +110,14 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
     const role = getRole(pathname, user?.role);
     const customTitle = useUserTitleStore(s => s.title);
     const customPrefix = useUserTitleStore(s => s.prefix);
-    const roleLabel = (role === 'ADMIN' || role === 'TEACHER') && customTitle ? customTitle : labelMap[role];
+    const roleLabel = (role === 'ADMIN' || role === 'TEACHER' || role === 'SUB_ADMIN') && customTitle ? customTitle : labelMap[role];
     const studentPhoto = useStudentStore(s => s.photo);
     const studentName = useStudentStore(s => s.name);
     const userAvatarUrl = useUserAvatarStore(s => s.avatarUrl);
     const isStudent = pathname.startsWith('/student');
     const photoUrl = isStudent ? studentPhoto : userAvatarUrl;
     const rawName = isStudent && studentName ? studentName : (user?.name || user?.email || 'Signed in');
-    const displayName = (role === 'ADMIN' || role === 'TEACHER') ? formatDisplayName(rawName, customPrefix) : rawName;
+    const displayName = (role === 'ADMIN' || role === 'TEACHER' || role === 'SUB_ADMIN') ? formatDisplayName(rawName, customPrefix) : rawName;
 
     const settingsHref =
         pathname.startsWith('/superadmin') ? '/superadmin/settings' :

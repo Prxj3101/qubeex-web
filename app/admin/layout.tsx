@@ -64,7 +64,28 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
     const setTitle = useUserTitleStore(s => s.setTitle);
     const setPrefix = useUserTitleStore(s => s.setPrefix);
+    const isSubAdmin = user?.role === 'SUB_ADMIN';
+
+    // Populate the shared avatar/title/prefix stores from the correct source
+    // depending on role — a sub-admin must never inherit the institution's
+    // actual Admin's photo/title/prefix, since /admin/me always describes the
+    // Admin, not whoever is currently logged in.
     useEffect(() => {
+        // Right after a hard refresh the persisted auth store can still be
+        // hydrating, so `user` (and therefore `isSubAdmin`) may briefly be
+        // stale/undefined. Wait for it before firing either request — otherwise
+        // a wrong-role request can go out first and its (slower) response can
+        // arrive after the correct one and clobber it back to the wrong data.
+        if (!user) return;
+        if (isSubAdmin) {
+            api.get('/admin/subadmin/me').then(r => {
+                const d = r.data?.data;
+                setAvatarUrl(d?.avatarUrl ?? null);
+                setTitle(d?.designation ?? null);
+                setPrefix(d?.prefix ?? null);
+            }).catch(() => {});
+            return;
+        }
         api.get('/admin/me').then(r => {
             const d = r.data?.data;
             if (d?.adminAvatarUrl) setAvatarUrl(d.adminAvatarUrl);
@@ -72,11 +93,10 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             setPrefix(d?.adminPrefix ?? null);
         }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [user, isSubAdmin]);
     const pathname = usePathname();
     const router = useRouter();
 
-    const isSubAdmin = user?.role === 'SUB_ADMIN';
     const permissions = user?.permissions ?? [];
 
     // Keep a ref to user so the async callback always reads the latest value without being a dep

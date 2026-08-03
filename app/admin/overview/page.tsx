@@ -26,8 +26,14 @@ export default function AdminOverviewPage() {
     const fetchedRef = useRef(false);
     const [adminDob, setAdminDob] = useState<string | null>(null);
     const [institutionEstablishedOn, setInstitutionEstablishedOn] = useState<string | null>(null);
+    const isSubAdmin = user?.role === 'SUB_ADMIN';
+    const [subAdminPrefix, setSubAdminPrefix] = useState<string | null>(null);
 
     useEffect(() => {
+        // Wait for the auth store to actually hydrate — right after a refresh
+        // `user` (and isSubAdmin) can briefly be stale, which would fetch the
+        // wrong role's data on this one-time effect.
+        if (!user) return;
         if (fetchedRef.current) return;
         fetchedRef.current = true;
         api.get('/admin/overview')
@@ -39,12 +45,22 @@ export default function AdminOverviewPage() {
             .then(res => {
                 const d = res.data?.data ?? res.data;
                 if (!d) return;
-                const adminUser = d.admin ?? d.users?.find((u: any) => u.role === 'ADMIN');
+                const adminUser = d.admin ?? d.users?.find((u: { role: string }) => u.role === 'ADMIN');
                 setAdminDob(adminUser?.dob ?? d.adminDob ?? null);
                 setInstitutionEstablishedOn(d.establishedOn ?? null);
             })
             .catch(() => {});
-    }, []);
+        // A sub-admin's own prefix lives on their own SubAdmin row, never on
+        // Institution.adminPrefix (that always describes the real Admin).
+        if (isSubAdmin) {
+            api.get('/admin/subadmin/me')
+                .then(res => {
+                    const d = res.data?.data ?? res.data;
+                    setSubAdminPrefix(d?.prefix ?? null);
+                })
+                .catch(() => {});
+        }
+    }, [user, isSubAdmin]);
 
     // Background poll — surfaces superadmin-side plan/feature/status changes without a manual reload.
     useEffect(() => {
@@ -80,7 +96,7 @@ export default function AdminOverviewPage() {
 
     const adminName = formatDisplayName(
         user?.name ?? user?.email?.split('@')[0] ?? 'Admin',
-        overview.institution.adminPrefix
+        isSubAdmin ? subAdminPrefix : overview.institution.adminPrefix
     );
     const planName = overview.plan.name.toUpperCase() as 'PRO' | 'BASIC' | 'TRIAL';
 
