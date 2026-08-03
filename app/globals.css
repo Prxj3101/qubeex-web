@@ -192,3 +192,69 @@
     background-position: 0% 50%;
   }
 }
+
+/* Sonner shifts/expands the toast on hover (its built-in "peek" behavior) —
+   kill that completely so hovering never moves or resizes the card. */
+[data-sonner-toast] {
+  transform: none !important;
+  height: auto !important;
+}
+
+/* Modern terracotta toast notifications */
+.cn-toast {
+  background: linear-gradient(135deg, #E8876A 0%, #DA7756 45%, #C06040 100%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.25) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 8px 24px -4px rgba(192, 96, 64, 0.45), 0 2px 8px -2px rgba(0, 0, 0, 0.15) !important;
+  backdrop-filter: blur(8px);
+  padding: 14px 30px 16px 16px !important;
+  gap: 10px !important;
+  position: relative !important;
+}
+
+.cn-toast::after {
+  content: '';
+  position: absolute !important;
+  left: 16px !important;
+  right: 16px !important;
+  bottom: 6px !important;
+  top: auto !important;
+  height: 2.5px !important;
+  width: auto !important;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  transform-origin: left;
+  animation: toastProgress 4s linear forwards;
+  pointer-events: none;
+}
+
+@keyframes toastProgress {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+.cn-toast [data-icon] {
+  color: #FFFFFF !important;
+  opacity: 0.95;
+}
+
+.cn-toast [data-title] {
+  font-weight: 600 !important;
+  letter-spacing: 0.1px;
+}
+
+.cn-toast [data-close-button] {
+  background: rgba(255, 255, 255, 0.18) !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  color: #FFFFFF !important;
+  top: 6px !important;
+  right: 6px !important;
+  left: auto !important;
+  bottom: auto !important;
+  transform: none !important;
+}

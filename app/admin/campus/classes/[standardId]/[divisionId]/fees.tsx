@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react';
-import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import NextImage from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
     Plus, X, Check, Upload, QrCode, CreditCard, Building2,
     ChevronDown, ChevronRight, Landmark, Wallet, Users,
@@ -24,6 +25,73 @@ interface BankDetails { accountName: string; accountNumber: string; ifsc: string
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+// Parses flexible free-text dates like "10 Aug 26", "Aug 10 2026", "10 August"
+// (year defaults to current year if omitted) into a comparable Date.
+function parseFlexDate(input: string | null | undefined): Date | null {
+    if (!input) return null;
+    const str = input.trim();
+    if (!str) return null;
+    const monthIdx = MONTHS.findIndex(m => new RegExp(`\\b${m.slice(0, 3)}`, 'i').test(str));
+    if (monthIdx === -1) return null;
+    const nums = str.match(/\d+/g);
+    if (!nums || nums.length === 0) return null;
+    const day = parseInt(nums[0], 10);
+    if (Number.isNaN(day) || day < 1 || day > 31) return null;
+    let year = new Date().getFullYear();
+    if (nums.length > 1) {
+        const y = parseInt(nums[1], 10);
+        if (!Number.isNaN(y)) year = y < 100 ? 2000 + y : y;
+    }
+    const d = new Date(year, monthIdx, day);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
+// Paid date is "late" if it's strictly after the due date (day-level comparison).
+function isPaidLate(dueDate: string | null | undefined, paidDate: string | null | undefined): boolean {
+    const due = parseFlexDate(dueDate);
+    const paid = parseFlexDate(paidDate);
+    if (!due || !paid) return false;
+    return paid.getTime() > due.getTime();
+}
+
+// Live-formats raw typed digits into "DD-MM-YY" as you type — same masking
+// pattern as the DOB field elsewhere in the app (e.g. admin/profile).
+function formatDateMaskLive(raw: string): string {
+    const digits = raw.replace(/\D/g, '').slice(0, 6);
+    if (digits.length > 4) return `${digits.slice(0, 2)}-${digits.slice(2, 4)}-${digits.slice(4, 6)}`;
+    if (digits.length > 2) return `${digits.slice(0, 2)}-${digits.slice(2)}`;
+    return digits;
+}
+
+// Once a full "DD-MM-YY" mask has been typed (on blur/enter), convert it into
+// the friendly display format "D Mon YY". Leaves the value untouched if it
+// isn't a complete/valid mask yet.
+function maskToDisplayDate(val: string): string {
+    const m = val.trim().match(/^(\d{1,2})-(\d{1,2})-(\d{2,4})$/);
+    if (!m) return val;
+    const day = parseInt(m[1], 10);
+    const month = parseInt(m[2], 10);
+    let year = parseInt(m[3], 10);
+    if (day < 1 || day > 31 || month < 1 || month > 12) return val;
+    if (year < 100) year += 2000;
+    const check = new Date(year, month - 1, day);
+    if (check.getMonth() !== month - 1 || check.getDate() !== day) return val;
+    return `${day} ${MONTHS[month - 1].slice(0, 3)} ${String(year).slice(-2)}`;
+}
+
+// Converts an already-saved "D Mon YY" display value back into the "DD-MM-YY"
+// typing mask when the field is re-focused, so editing stays consistent.
+function displayDateToMask(val: string): string {
+    const m = val.trim().match(/^(\d{1,2})\s+([A-Za-z]{3,})\s+(\d{2,4})$/);
+    if (!m) return val;
+    const monthIdx = MONTHS.findIndex(mm => mm.slice(0, 3).toLowerCase() === m[2].slice(0, 3).toLowerCase());
+    if (monthIdx === -1) return val;
+    const day = String(parseInt(m[1], 10)).padStart(2, '0');
+    const month = String(monthIdx + 1).padStart(2, '0');
+    const year = m[3].length > 2 ? m[3].slice(-2) : m[3];
+    return `${day}-${month}-${year}`;
+}
 
 const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg: string; text: string; emoji: string }> = {
     REGULAR: { label: 'Regular Monthly', color: '#7C3AED', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', emoji: '📅' },
@@ -60,8 +128,8 @@ const STATUS_CFG = {
     PENDING: { label: 'Pending', cls: 'bg-red-100 text-red-700' },
 };
 
-interface FeesStudent { id: string; studentDisplayId: string; name: string; rollNo: string; paid: boolean; }
-interface FeePayment { studentId: string; feeMonthId: string; status: 'PAID' | 'PENDING'; paidDate: string | null; remark: string | null; }
+interface FeesStudent { id: string; studentDisplayId: string; name: string; rollNo: string; paid: boolean; avatarUrl: string | null; }
+interface FeePayment { studentId: string; feeMonthId: string; status: 'PAID' | 'PENDING'; paidDate: string | null; remark: string | null; extraFields: Record<string, string> | null; extraStructureIds: string[] | null; }
 const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 function getAvatarColor(n: string) { return AVATAR_COLORS[n.charCodeAt(0) % AVATAR_COLORS.length]; }
 function getInitials(n: string) { return n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
@@ -78,11 +146,14 @@ function structureTotal(s: FeeStructure) {
 // ── Fee Structure Card ────────────────────────────────────────────────────────
 
 function FeeStructureCard({
-    fs, onEdit, onDelete,
+    fs, onEdit, onDelete, onSelect, isAdded, isShared,
 }: {
     fs: FeeStructure;
     onEdit: () => void;
     onDelete: () => void;
+    onSelect?: () => void;
+    isAdded?: boolean;
+    isShared?: boolean;
 }) {
     const [expanded, setExpanded] = useState(false);
     const cfg = FEE_TYPE_CFG[fs.type];
@@ -98,6 +169,17 @@ function FeeStructureCard({
                     <ChevronRight size={13} className={`text-muted-foreground transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`} />
                 </button>
                 <span className="text-sm font-bold ml-auto shrink-0">₹{total.toLocaleString()}</span>
+                {onSelect && (
+                    isShared ? (
+                        <span className="text-[10px] font-semibold px-2 py-1 rounded-md text-muted-foreground/60">Assigned</span>
+                    ) : (
+                        <button onClick={onSelect}
+                            className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md transition-all ${isAdded ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30' : 'text-white'}`}
+                            style={!isAdded ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : undefined}>
+                            {isAdded ? <>Remove <X size={11} /></> : <>Add <Plus size={11} /></>}
+                        </button>
+                    )
+                )}
                 <button onClick={onEdit} className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all">
                     <Pencil size={11} />
                 </button>
@@ -179,16 +261,19 @@ function MonthBreakdown({ month, feeStructures }: { month: FeeMonth; feeStructur
     );
 }
 
-// ── Add/Edit Fee Structure Modal ──────────────────────────────────────────────
+// ── Add/Edit Fee Structure Form (reusable — used both as a standalone modal
+// and embedded inline inside the per-student "add structure" panel) ──────────
 
-function FeeStructureModal({
+function FeeStructureForm({
     initial,
     onSave,
-    onClose,
+    onCancel,
+    compact,
 }: {
     initial?: FeeStructure;
     onSave: (s: FeeStructure) => void;
-    onClose: () => void;
+    onCancel?: () => void;
+    compact?: boolean;
 }) {
     const [name, setName] = useState(initial?.name ?? '');
     const [type, setType] = useState<FeeStructureType>(initial?.type ?? 'REGULAR');
@@ -218,6 +303,149 @@ function FeeStructureModal({
     };
 
     return (
+        <div className="flex flex-col min-h-0 flex-1">
+            <div className={`flex-1 overflow-y-auto space-y-4 ${compact ? 'px-0 py-0' : 'px-5 py-4'}`}>
+                {/* Name */}
+                <div>
+                    <p className="text-[11px] font-semibold text-muted-foreground mb-1">Name</p>
+                    <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Regular Monthly Fee, Add-on, Penalty..."
+                        className="w-full h-9 px-3 rounded-xl border border-border/50 bg-muted/30 text-sm focus:outline-none focus:border-primary/50 transition-all" />
+                </div>
+
+                {/* Type */}
+                <div>
+                    <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Type</p>
+                    <div className="grid grid-cols-2 gap-1.5">
+                        {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
+                            const cfg = FEE_TYPE_CFG[t];
+                            const isActive = type === t;
+                            return (
+                                <button key={t} onClick={() => { setType(t); setColor(cfg.color); }}
+                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${isActive ? `border-current ${cfg.bg} ${cfg.text}` : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                                    <span>{cfg.emoji}</span> {cfg.label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+
+                {/* Fee Items */}
+                <div>
+                    <div className="flex items-center justify-between mb-2">
+                        <p className="text-[11px] font-semibold text-muted-foreground">Fee Items <span className="text-red-500">*</span></p>
+                        <button onClick={() => setAddingItem(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
+                            <Plus size={11} /> Add Item
+                        </button>
+                    </div>
+                    <div className="space-y-1.5">
+                        {items.map(item => {
+                            const sub = item.subItems.reduce((n, s) => n + s.amount, 0);
+                            return (
+                                <div key={item.id} className="rounded-xl border border-border/40 overflow-hidden">
+                                    <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
+                                        <span className="flex-1 text-xs font-medium">{item.label}</span>
+                                        <span className="text-xs font-semibold">₹{(sub > 0 ? sub : item.amount).toLocaleString()}</span>
+                                        <button onClick={() => setAddingSubFor(item.id)} className="text-[10px] text-muted-foreground hover:text-primary">+ sub</button>
+                                        <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
+                                            <X size={10} />
+                                        </button>
+                                    </div>
+                                    {item.subItems.map(si => (
+                                        <div key={si.id} className="flex items-center justify-between px-3 py-1.5 pl-6 border-t border-border/20 bg-background">
+                                            <span className="text-[11px] text-muted-foreground">{si.label}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[11px]">₹{si.amount.toLocaleString()}</span>
+                                                <button onClick={() => setItems(prev => prev.map(it => it.id !== item.id ? it : { ...it, subItems: it.subItems.filter(s => s.id !== si.id) }))} className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
+                                                    <X size={9} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    {addingSubFor === item.id && (
+                                        <div className="flex items-center gap-1.5 px-3 py-1.5 pl-6 border-t border-border/20 bg-primary/5">
+                                            <input value={newSubLabel} onChange={e => setNewSubLabel(e.target.value)} placeholder="Sub-item name"
+                                                className="flex-1 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
+                                            <input value={newSubAmount} onChange={e => setNewSubAmount(e.target.value)} type="number" placeholder="₹"
+                                                className="w-16 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
+                                            <button onClick={() => addSub(item.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white"
+                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                <Check size={10} />
+                                            </button>
+                                            <button onClick={() => { setAddingSubFor(null); setNewSubLabel(''); setNewSubAmount(''); }}
+                                                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
+                                                <X size={10} />
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                        {addingItem && (
+                            <div className="flex items-center gap-1.5">
+                                <input value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="Item name (e.g. Tuition Fee)"
+                                    onKeyDown={e => e.key === 'Enter' && addItem()}
+                                    className="flex-1 h-8 px-3 rounded-xl border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
+                                <input value={newItemAmount} onChange={e => setNewItemAmount(e.target.value)} type="number" placeholder="₹"
+                                    className="w-20 h-8 px-3 rounded-xl border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
+                                <button onClick={addItem} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                    <Check size={12} />
+                                </button>
+                                <button onClick={() => { setAddingItem(false); setNewItemLabel(''); setNewItemAmount(''); }}
+                                    className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
+                                    <X size={12} />
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {total > 0 && (
+                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40">
+                            <span className="text-xs font-semibold text-muted-foreground">Total</span>
+                            <span className="text-sm font-black" style={{ color }}> ₹{total.toLocaleString()}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Footer */}
+            <div className={`flex gap-2 justify-end shrink-0 ${compact ? 'pt-3' : 'px-5 py-4 border-t border-border/40'}`}>
+                {onCancel && (
+                    <button onClick={onCancel} className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                        Cancel
+                    </button>
+                )}
+                <button
+                    disabled={items.length === 0}
+                    onClick={() => {
+                        if (!name.trim()) { toast.error('Enter a name'); return; }
+                        onSave({ id: initial?.id ?? `fs-${Date.now()}`, name: name.trim(), type, color, items });
+                        if (!initial) {
+                            // Reset for the next entry when reused as an always-open inline form.
+                            setName(''); setType('REGULAR'); setColor(FEE_TYPE_CFG['REGULAR'].color); setItems([]);
+                        }
+                    }}
+                    className="h-9 px-5 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:opacity-40"
+                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                    {initial ? 'Save Changes' : 'Add Structure'}
+                </button>
+            </div>
+        </div>
+    );
+}
+
+// ── Add/Edit Fee Structure Modal (standalone overlay wrapper around the form) ─
+
+function FeeStructureModal({
+    initial,
+    onSave,
+    onClose,
+}: {
+    initial?: FeeStructure;
+    onSave: (s: FeeStructure) => void;
+    onClose: () => void;
+}) {
+    return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col"
@@ -231,126 +459,7 @@ function FeeStructureModal({
                     </button>
                 </div>
 
-                <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
-                    {/* Name */}
-                    <div>
-                        <p className="text-[11px] font-semibold text-muted-foreground mb-1">Name</p>
-                        <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Regular Monthly Fee, Add-on, Penalty..."
-                            className="w-full h-9 px-3 rounded-xl border border-border/50 bg-muted/30 text-sm focus:outline-none focus:border-primary/50 transition-all" />
-                    </div>
-
-                    {/* Type */}
-                    <div>
-                        <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Type</p>
-                        <div className="grid grid-cols-2 gap-1.5">
-                            {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
-                                const cfg = FEE_TYPE_CFG[t];
-                                const isActive = type === t;
-                                return (
-                                    <button key={t} onClick={() => { setType(t); setColor(cfg.color); }}
-                                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${isActive ? `border-current ${cfg.bg} ${cfg.text}` : 'border-border/50 text-muted-foreground hover:border-border'}`}>
-                                        <span>{cfg.emoji}</span> {cfg.label}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Fee Items */}
-                    <div>
-                        <div className="flex items-center justify-between mb-2">
-                            <p className="text-[11px] font-semibold text-muted-foreground">Fee Items <span className="text-red-500">*</span></p>
-                            <button onClick={() => setAddingItem(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
-                                <Plus size={11} /> Add Item
-                            </button>
-                        </div>
-                        <div className="space-y-1.5">
-                            {items.map(item => {
-                                const sub = item.subItems.reduce((n, s) => n + s.amount, 0);
-                                return (
-                                    <div key={item.id} className="rounded-xl border border-border/40 overflow-hidden">
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
-                                            <span className="flex-1 text-xs font-medium">{item.label}</span>
-                                            <span className="text-xs font-semibold">₹{(sub > 0 ? sub : item.amount).toLocaleString()}</span>
-                                            <button onClick={() => setAddingSubFor(item.id)} className="text-[10px] text-muted-foreground hover:text-primary">+ sub</button>
-                                            <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
-                                                <X size={10} />
-                                            </button>
-                                        </div>
-                                        {item.subItems.map(si => (
-                                            <div key={si.id} className="flex items-center justify-between px-3 py-1.5 pl-6 border-t border-border/20 bg-background">
-                                                <span className="text-[11px] text-muted-foreground">{si.label}</span>
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-[11px]">₹{si.amount.toLocaleString()}</span>
-                                                    <button onClick={() => setItems(prev => prev.map(it => it.id !== item.id ? it : { ...it, subItems: it.subItems.filter(s => s.id !== si.id) }))} className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
-                                                        <X size={9} />
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {addingSubFor === item.id && (
-                                            <div className="flex items-center gap-1.5 px-3 py-1.5 pl-6 border-t border-border/20 bg-primary/5">
-                                                <input value={newSubLabel} onChange={e => setNewSubLabel(e.target.value)} placeholder="Sub-item name"
-                                                    className="flex-1 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
-                                                <input value={newSubAmount} onChange={e => setNewSubAmount(e.target.value)} type="number" placeholder="₹"
-                                                    className="w-16 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
-                                                <button onClick={() => addSub(item.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white"
-                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                    <Check size={10} />
-                                                </button>
-                                                <button onClick={() => { setAddingSubFor(null); setNewSubLabel(''); setNewSubAmount(''); }}
-                                                    className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
-                                                    <X size={10} />
-                                                </button>
-                                            </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                            {addingItem && (
-                                <div className="flex items-center gap-1.5">
-                                    <input value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="Item name (e.g. Tuition Fee)"
-                                        onKeyDown={e => e.key === 'Enter' && addItem()}
-                                        className="flex-1 h-8 px-3 rounded-xl border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
-                                    <input value={newItemAmount} onChange={e => setNewItemAmount(e.target.value)} type="number" placeholder="₹"
-                                        className="w-20 h-8 px-3 rounded-xl border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
-                                    <button onClick={addItem} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
-                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                        <Check size={12} />
-                                    </button>
-                                    <button onClick={() => { setAddingItem(false); setNewItemLabel(''); setNewItemAmount(''); }}
-                                        className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
-                                        <X size={12} />
-                                    </button>
-                                </div>
-                            )}
-                        </div>
-
-                        {total > 0 && (
-                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40">
-                                <span className="text-xs font-semibold text-muted-foreground">Total</span>
-                                <span className="text-sm font-black" style={{ color }}> ₹{total.toLocaleString()}</span>
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Footer */}
-                <div className="px-5 py-4 border-t border-border/40 flex gap-2 justify-end shrink-0">
-                    <button onClick={onClose} className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
-                        Cancel
-                    </button>
-                    <button
-                        disabled={items.length === 0}
-                        onClick={() => {
-                            if (!name.trim()) { toast.error('Enter a name'); return; }
-                            onSave({ id: initial?.id ?? `fs-${Date.now()}`, name: name.trim(), type, color, items });
-                        }}
-                        className="h-9 px-5 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:opacity-40"
-                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                        {initial ? 'Save Changes' : 'Add Structure'}
-                    </button>
-                </div>
+                <FeeStructureForm initial={initial} onSave={onSave} onCancel={onClose} />
             </motion.div>
         </div>
     );
@@ -374,11 +483,18 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
     const [showStructureModal, setShowStructureModal] = useState(false);
     const [editingStructure, setEditingStructure] = useState<FeeStructure | undefined>(undefined);
+    const [draggedStructureId, setDraggedStructureId] = useState<string | null>(null);
 
     // Monthly schedule
     const [feeMonths, setFeeMonths] = useState<FeeMonth[]>([]);
     const [expandedMonthId, setExpandedMonthId] = useState<string | null>(null);
     const [assigningMonthId, setAssigningMonthId] = useState<string | null>(null);
+    const [editingMonthId, setEditingMonthId] = useState<string | null>(null);
+    const [editMonthName, setEditMonthName] = useState('');
+    const [editDueDate, setEditDueDate] = useState('');
+    const [editMonthDropdownOpen, setEditMonthDropdownOpen] = useState(false);
+    const editMonthDropdownRef = useRef<HTMLDivElement>(null);
+    const [addStructureModalMonthId, setAddStructureModalMonthId] = useState<string | null>(null);
     const [addingMonth, setAddingMonth] = useState(false);
     const [newMonth, setNewMonth] = useState('');
     const [newDueDate, setNewDueDate] = useState('');
@@ -403,6 +519,24 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const [studentFields, setStudentFields] = useState<StudentDetailField[]>(DEFAULT_STUDENT_FIELDS);
     const [addingStudentField, setAddingStudentField] = useState(false);
     const [newStudentFieldLabel, setNewStudentFieldLabel] = useState('');
+    const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
+    const [confirmDelete, setConfirmDelete] = useState<{ kind: 'studentField' | 'extraColumn' | 'feeMonth' | 'rule' | 'feeStructure' | 'extraStructure'; id: string; index?: number; label: string; feeMonthId?: string } | null>(null);
+
+    const runConfirmedDelete = () => {
+        if (!confirmDelete) return;
+        if (confirmDelete.kind === 'studentField') setStudentFields(prev => prev.filter(x => x.id !== confirmDelete.id));
+        else if (confirmDelete.kind === 'extraColumn') setExtraColumns(prev => prev.filter((_, j) => j !== confirmDelete.index));
+        else if (confirmDelete.kind === 'feeMonth') setFeeMonths(prev => prev.filter(x => x.id !== confirmDelete.id));
+        else if (confirmDelete.kind === 'rule') setRulesAndRegs(prev => prev.filter(r => r.id !== confirmDelete.id));
+        else if (confirmDelete.kind === 'feeStructure') {
+            setFeeStructures(prev => prev.filter(s => s.id !== confirmDelete.id));
+            setFeeMonths(prev => prev.map(m => ({ ...m, assignedStructureIds: m.assignedStructureIds.filter(id => id !== confirmDelete.id) })));
+        }
+        else if (confirmDelete.kind === 'extraStructure' && confirmDelete.feeMonthId) {
+            setPaymentField(confirmDelete.feeMonthId, { toggleStructureId: confirmDelete.id });
+        }
+        setConfirmDelete(null);
+    };
     const [extraColumns, setExtraColumns] = useState<{ label: string }[]>([]);
     const [addingColumn, setAddingColumn] = useState(false);
     const [newColumnLabel, setNewColumnLabel] = useState('');
@@ -416,7 +550,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const [studentCardFlipped, setStudentCardFlipped] = useState(false);
 
     // Students tab
-    const [rosterStudents, setRosterStudents] = useState<{ id: string; studentDisplayId: string; name: string; rollNo: string }[]>([]);
+    const [rosterStudents, setRosterStudents] = useState<{ id: string; studentDisplayId: string; name: string; rollNo: string; extraDetailFields: Record<string, string> | null; avatarUrl: string | null }[]>([]);
     const [feePayments, setFeePayments] = useState<FeePayment[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<FeesStudent | null>(null);
     const [studentFilter, setStudentFilter] = useState<'all' | 'paid' | 'pending'>('all');
@@ -426,27 +560,50 @@ export const FeesTab = forwardRef<FeesTabHandle, {
 
     const getPayment = useCallback((studentId: string, feeMonthId: string): FeePayment =>
         feePayments.find(p => p.studentId === studentId && p.feeMonthId === feeMonthId)
-            ?? { studentId, feeMonthId, status: 'PENDING', paidDate: null, remark: null },
+            ?? { studentId, feeMonthId, status: 'PENDING', paidDate: null, remark: null, extraFields: null, extraStructureIds: null },
         [feePayments]);
 
-    const isStudentPaid = useCallback((studentId: string) =>
-        feeMonths.length > 0 && feeMonths.every(m => getPayment(studentId, m.id).status === 'PAID'),
-        [feeMonths, getPayment]);
+    // Overall paid/pending status tracks only the CURRENT calendar month's fee status
+    // (the most recently applicable configured month, at or before "now") — not every
+    // month ever added. e.g. if it's August and August is paid, overall = Paid, even if
+    // an older month like April is still pending. Once September starts, September's
+    // status takes over.
+    const isStudentPaid = useCallback((studentId: string) => {
+        if (feeMonths.length === 0) return false;
+        const currentMonthIndex = new Date().getMonth();
+        const withIdx = feeMonths
+            .map(m => ({ m, idx: MONTHS.indexOf(m.month) }))
+            .filter(x => x.idx !== -1);
+        if (withIdx.length === 0) return false;
+        const pastOrCurrent = withIdx.filter(x => x.idx <= currentMonthIndex).sort((a, b) => b.idx - a.idx)[0];
+        const target = pastOrCurrent ?? [...withIdx].sort((a, b) => a.idx - b.idx)[0];
+        return getPayment(studentId, target.m.id).status === 'PAID';
+    }, [feeMonths, getPayment]);
 
     const students: FeesStudent[] = rosterStudents.map(s => ({ ...s, paid: isStudentPaid(s.id) }));
 
     const paymentSyncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
-    const setPaymentField = (feeMonthId: string, updates: { status?: 'PAID' | 'PENDING'; paidDate?: string; remark?: string }) => {
+    const setPaymentField = (feeMonthId: string, updates: { status?: 'PAID' | 'PENDING'; paidDate?: string; remark?: string; extraFieldLabel?: string; extraFieldValue?: string; toggleStructureId?: string }) => {
         if (!selectedStudent) return;
         const studentId = selectedStudent.id;
         const current = getPayment(studentId, feeMonthId);
+        const nextExtraFields = updates.extraFieldLabel !== undefined
+            ? { ...(current.extraFields ?? {}), [updates.extraFieldLabel]: updates.extraFieldValue ?? '' }
+            : current.extraFields;
+        const nextExtraStructureIds = updates.toggleStructureId !== undefined
+            ? ((current.extraStructureIds ?? []).includes(updates.toggleStructureId)
+                ? (current.extraStructureIds ?? []).filter(id => id !== updates.toggleStructureId)
+                : [...(current.extraStructureIds ?? []), updates.toggleStructureId])
+            : current.extraStructureIds;
         const next: FeePayment = {
             studentId,
             feeMonthId,
             status: updates.status ?? current.status,
             paidDate: updates.paidDate ?? current.paidDate,
             remark: updates.remark ?? current.remark,
+            extraFields: nextExtraFields,
+            extraStructureIds: nextExtraStructureIds,
         };
         // Optimistic local update so typing feels instant.
         setFeePayments(prev => {
@@ -465,6 +622,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                     status: next.status,
                     paidDate: next.paidDate,
                     remark: next.remark,
+                    extraFields: next.extraFields,
+                    extraStructureIds: next.extraStructureIds,
                 });
                 const saved: FeePayment = res.data.data;
                 setFeePayments(prev => {
@@ -475,6 +634,29 @@ export const FeesTab = forwardRef<FeesTabHandle, {
             } catch (err: unknown) {
                 const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
                 toast.error(msg ?? 'Failed to update payment');
+            }
+        }, 500);
+    };
+
+    const getStudentDetailValue = useCallback((studentId: string, fieldId: string): string =>
+        rosterStudents.find(s => s.id === studentId)?.extraDetailFields?.[fieldId] ?? '',
+        [rosterStudents]);
+
+    const detailFieldSyncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+    const setStudentDetailField = (studentId: string, fieldId: string, value: string) => {
+        // Optimistic local update so typing feels instant.
+        setRosterStudents(prev => prev.map(s =>
+            s.id === studentId ? { ...s, extraDetailFields: { ...(s.extraDetailFields ?? {}), [fieldId]: value } } : s));
+
+        const key = `${studentId}:${fieldId}`;
+        if (detailFieldSyncTimers.current[key]) clearTimeout(detailFieldSyncTimers.current[key]);
+        detailFieldSyncTimers.current[key] = setTimeout(async () => {
+            try {
+                await api.patch(`/admin/campus/divisions/${divisionId}/students/${studentId}/detail-fields`, { fieldId, value });
+            } catch (err: unknown) {
+                const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+                toast.error(msg ?? 'Failed to update field');
             }
         }, 500);
     };
@@ -543,8 +725,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     useEffect(() => {
         api.get(`/admin/campus/divisions/${divisionId}/students`)
             .then(res => {
-                const data: { id: string; studentId: string; rollNo: string | null; user: { name: string | null } }[] = res.data.data ?? [];
-                setRosterStudents(data.map(s => ({ id: s.id, studentDisplayId: s.studentId, name: s.user.name ?? '—', rollNo: s.rollNo ?? '—' })));
+                const data: { id: string; studentId: string; rollNo: string | null; user: { name: string | null }; extraDetailFields: Record<string, string> | null; avatarUrl: string | null }[] = res.data.data ?? [];
+                setRosterStudents(data.map(s => ({ id: s.id, studentDisplayId: s.studentId, name: s.user.name ?? '—', rollNo: s.rollNo ?? '—', extraDetailFields: s.extraDetailFields ?? null, avatarUrl: s.avatarUrl ?? null })));
             })
             .catch(() => { });
         api.get(`/admin/campus/divisions/${divisionId}/fee-payments`)
@@ -556,6 +738,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
         const handler = (e: MouseEvent) => {
             if (monthDropdownRef.current && !monthDropdownRef.current.contains(e.target as Node))
                 setMonthDropdownOpen(false);
+            if (editMonthDropdownRef.current && !editMonthDropdownRef.current.contains(e.target as Node))
+                setEditMonthDropdownOpen(false);
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
@@ -666,6 +850,14 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const monthTotal = (m: FeeMonth) =>
         feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
 
+    // Shared month total (m.assignedStructureIds) plus this specific student's
+    // own extra structures (e.g. a Penalty added just for them this month).
+    const studentMonthTotal = (studentId: string, m: FeeMonth) => {
+        const extraIds = (getPayment(studentId, m.id).extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
+        const extra = feeStructures.filter(s => extraIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
+        return monthTotal(m) + extra;
+    };
+
     const generatePDF = (type: 'all' | 'pending') => {
         const list = type === 'all' ? students : students.filter(s => !s.paid);
         const blob = new Blob([`${divisionName} — Fee List\n\n${list.map(s => `${s.rollNo}. ${s.name} (${s.studentDisplayId}) — ${s.paid ? 'Paid' : 'Pending'}`).join('\n')}`], { type: 'text/plain' });
@@ -765,9 +957,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                     <Plus size={11} /> Add Field
                                                 </button>
                                             </div>
-                                            <div className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border }}>
-                                                <Reorder.Group axis="y" values={studentFields} onReorder={setStudentFields} as="div">
-                                                    {studentFields.map((f, i) => {
+                                            <div className="rounded-xl border p-2" style={{ borderColor: fc.border }}>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {studentFields.map((f) => {
                                                         const previewValue = f.kind === 'default'
                                                             ? f.defaultKey === 'name' ? 'Student Name'
                                                                 : f.defaultKey === 'rollNo' ? 'Roll Number'
@@ -776,38 +968,58 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                             : (divisionName.split('-')[1] ?? '')
                                                             : f.value;
                                                         return (
-                                                            <Reorder.Item key={f.id} value={f} as="div"
-                                                                className="flex items-center justify-between px-3 py-2 group"
-                                                                style={{ borderBottom: i === studentFields.length - 1 ? 'none' : `1px solid ${fc.border}`, cursor: 'grab' }}>
+                                                            <div key={f.id}
+                                                                draggable
+                                                                onDragStart={() => setDraggedFieldId(f.id)}
+                                                                onDragOver={e => e.preventDefault()}
+                                                                onDrop={e => {
+                                                                    e.preventDefault();
+                                                                    if (!draggedFieldId || draggedFieldId === f.id) return;
+                                                                    setStudentFields(prev => {
+                                                                        const from = prev.findIndex(x => x.id === draggedFieldId);
+                                                                        const to = prev.findIndex(x => x.id === f.id);
+                                                                        if (from === -1 || to === -1) return prev;
+                                                                        const copy = [...prev];
+                                                                        const [moved] = copy.splice(from, 1);
+                                                                        copy.splice(to, 0, moved);
+                                                                        return copy;
+                                                                    });
+                                                                    setDraggedFieldId(null);
+                                                                }}
+                                                                onDragEnd={() => setDraggedFieldId(null)}
+                                                                className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg group basis-[calc(50%-4px)] grow-0 shrink-0"
+                                                                style={{ border: `1px solid ${fc.border}`, cursor: 'grab', background: 'rgba(255,255,255,0.35)', opacity: draggedFieldId === f.id ? 0.4 : 1 }}>
                                                                 <div className="flex items-center gap-1.5 min-w-0">
                                                                     <GripVertical size={12} style={{ color: '#000000', opacity: 0.3 }} className="shrink-0" />
-                                                                    <span className="text-[11px] w-20 shrink-0 truncate" style={{ color: '#000000' }}>{f.label}</span>
+                                                                    <span className="text-[11px] shrink-0 truncate" style={{ color: '#000000' }}>{f.label}</span>
                                                                 </div>
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className={`text-[11px] font-medium italic ${f.kind === 'default' && f.defaultKey === 'studentId' ? 'font-mono' : ''}`} style={{ color: '#000000', opacity: 0.6 }}>{previewValue}</span>
-                                                                    <button onClick={() => setStudentFields(prev => prev.filter(x => x.id !== f.id))}
-                                                                        className="w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 shrink-0"
-                                                                        style={{ color: '#000000' }}>
-                                                                        <X size={10} />
-                                                                    </button>
+                                                                <div className="flex items-center gap-1.5 min-w-0">
+                                                                    <span className={`text-[11px] font-medium italic truncate ${f.kind === 'default' && f.defaultKey === 'studentId' ? 'font-mono' : ''}`} style={{ color: '#000000', opacity: 0.6 }}>{previewValue}</span>
+                                                                    {f.kind === 'custom' && (
+                                                                        <button onClick={() => setConfirmDelete({ kind: 'studentField', id: f.id, label: f.label })}
+                                                                            className="w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 shrink-0"
+                                                                            style={{ color: '#000000' }}>
+                                                                            <X size={10} />
+                                                                        </button>
+                                                                    )}
                                                                 </div>
-                                                            </Reorder.Item>
+                                                            </div>
                                                         );
                                                     })}
-                                                </Reorder.Group>
+                                                </div>
                                                 {addingStudentField && (
-                                                    <div className="flex items-center gap-2 px-3 py-2 border-t border-border/20">
+                                                    <div className="flex items-center gap-2 px-1 pt-2 mt-2 border-t" style={{ borderColor: fc.border }}>
                                                         <input value={newStudentFieldLabel} onChange={e => setNewStudentFieldLabel(e.target.value)} placeholder="Field name"
                                                             className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
                                                         <button onClick={() => {
                                                             if (!newStudentFieldLabel.trim()) return;
                                                             setStudentFields(prev => [...prev, { id: `esf-${Date.now()}`, kind: 'custom', label: newStudentFieldLabel.trim(), value: newStudentFieldLabel.trim() }]);
                                                             setNewStudentFieldLabel(''); setAddingStudentField(false);
-                                                        }} className="w-7 h-7 rounded-lg flex items-center justify-center text-white"
+                                                        }} className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0"
                                                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                                             <Check size={11} />
                                                         </button>
-                                                        <button onClick={() => setAddingStudentField(false)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-black/10 border" style={{ color: '#000000', opacity: 0.6, borderColor: fc.border }}>
+                                                        <button onClick={() => setAddingStudentField(false)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-black/10 border shrink-0" style={{ color: '#000000', opacity: 0.6, borderColor: fc.border }}>
                                                             <X size={11} />
                                                         </button>
                                                     </div>
@@ -836,7 +1048,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                 <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>
                                                                     <div className="flex items-center gap-1">
                                                                         {col.label}
-                                                                        <button onClick={() => setExtraColumns(prev => prev.filter((_, j) => j !== i))}
+                                                                        <button onClick={() => setConfirmDelete({ kind: 'extraColumn', id: String(i), index: i, label: col.label })}
                                                                             className="w-3.5 h-3.5 flex items-center justify-center hover:text-red-500" style={{ color: '#000000', opacity: 0.4 }}>
                                                                             <X size={9} />
                                                                         </button>
@@ -898,20 +1110,54 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                 </div>
                                             )}
 
-                                            <div className="h-[150px] overflow-y-auto space-y-1 pr-1"
+                                            <div className="h-[270px] overflow-y-auto space-y-1 pr-1"
                                                 style={{ scrollbarWidth: 'thin', scrollbarColor: `${fc.border} transparent` }}>
                                                 {feeMonths.map(m => {
                                                     const total = monthTotal(m);
                                                     const isExpanded = expandedMonthId === m.id;
                                                     const isAssigning = assigningMonthId === m.id;
+                                                    const isEditing = editingMonthId === m.id;
                                                     const assignedCount = m.assignedStructureIds.length;
                                                     return (
-                                                        <div key={m.id} className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border }}>
-                                                            <div className="flex items-center flex-wrap gap-3 px-3 py-2.5 hover:bg-black/5 transition-colors">
-                                                                <div className="w-20 shrink-0">
-                                                                    <p className="text-xs font-semibold" style={{ color: '#000000' }}>{m.month}</p>
-                                                                    <p className="text-[10px]" style={{ color: '#000000' }}>{m.dueDate || 'No due date'}</p>
-                                                                </div>
+                                                        <div key={m.id} className="rounded-xl border" style={{ borderColor: fc.border }}>
+                                                            <div className="flex items-center flex-wrap gap-3 px-3 py-2.5 rounded-t-xl hover:bg-black/5 transition-colors">
+                                                                {isEditing ? (
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <div ref={editMonthDropdownRef} className="relative">
+                                                                            <button type="button" onClick={() => setEditMonthDropdownOpen(v => !v)}
+                                                                                className="flex items-center gap-1 h-7 px-2 rounded-lg border text-[11px] font-medium hover:border-primary/40 transition-all"
+                                                                                style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }}>
+                                                                                {editMonthName || 'Month'} <ChevronDown size={10} className={`transition-transform ${editMonthDropdownOpen ? 'rotate-180' : ''}`} />
+                                                                            </button>
+                                                                            <AnimatePresence>
+                                                                                {editMonthDropdownOpen && (
+                                                                                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                                                                                        className="absolute top-8 left-0 z-50 rounded-xl shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto border"
+                                                                                        style={{ background: '#FFFFFF', borderColor: fc.border }}>
+                                                                                        {MONTHS.map(mo => (
+                                                                                            <button key={mo} type="button" onClick={() => { setEditMonthName(mo); setEditMonthDropdownOpen(false); }}
+                                                                                                className="w-full text-left px-3 py-2 text-xs hover:bg-black/5 transition-colors"
+                                                                                                style={{ color: editMonthName === mo ? '#DA7756' : '#000000', fontWeight: editMonthName === mo ? 600 : 400 }}>
+                                                                                                {mo}
+                                                                                            </button>
+                                                                                        ))}
+                                                                                    </motion.div>
+                                                                                )}
+                                                                            </AnimatePresence>
+                                                                        </div>
+                                                                        <input value={editDueDate} onChange={e => setEditDueDate(formatDateMaskLive(e.target.value))}
+                                                                            onFocus={e => setEditDueDate(displayDateToMask(e.target.value))}
+                                                                            onBlur={e => setEditDueDate(maskToDisplayDate(e.target.value))}
+                                                                            placeholder="DD-MM-YY"
+                                                                            className="w-20 h-7 px-2 rounded-lg border text-[11px] focus:outline-none"
+                                                                            style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
+                                                                    </div>
+                                                                ) : (
+                                                                    <div className="w-20 shrink-0">
+                                                                        <p className="text-xs font-semibold" style={{ color: '#000000' }}>{m.month}</p>
+                                                                        <p className="text-[10px]" style={{ color: '#000000' }}>{m.dueDate || 'No due date'}</p>
+                                                                    </div>
+                                                                )}
                                                                 <div className="flex-1 flex flex-wrap gap-1 min-w-0">
                                                                     {m.assignedStructureIds.length === 0 ? (
                                                                         <span className="text-[11px] italic" style={{ color: '#000000', opacity: 0.55 }}>No structures assigned</span>
@@ -926,19 +1172,42 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                 </div>
                                                                 {total > 0 && <p className="text-xs font-bold shrink-0" style={{ color: '#7C3AED' }}>₹{total.toLocaleString()}</p>}
                                                                 <div className="flex items-center gap-1 shrink-0">
-                                                                    <button onClick={() => setAssigningMonthId(isAssigning ? null : m.id)}
-                                                                        className={`h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all ${isAssigning ? 'bg-primary text-white border-primary' : 'hover:border-primary/40 hover:text-primary'}`}
-                                                                        style={!isAssigning ? { borderColor: fc.border, color: '#000000', opacity: 0.75 } : undefined}>
-                                                                        {assignedCount > 0 ? `${assignedCount} assigned` : 'Assign'}
-                                                                    </button>
-                                                                    <button onClick={() => setExpandedMonthId(isExpanded ? null : m.id)}
-                                                                        className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-black/10 transition-all" style={{ color: '#000000', opacity: 0.7 }}>
-                                                                        {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                                                    </button>
-                                                                    <button onClick={() => setFeeMonths(prev => prev.filter(x => x.id !== m.id))}
-                                                                        className="w-6 h-6 rounded-md flex items-center justify-center hover:text-red-500 transition-all" style={{ color: '#000000', opacity: 0.45 }}>
-                                                                        <X size={11} />
-                                                                    </button>
+                                                                    {isEditing ? (
+                                                                        <>
+                                                                            <button onClick={() => {
+                                                                                setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, month: editMonthName, dueDate: editDueDate } : x));
+                                                                                setEditingMonthId(null);
+                                                                            }} className="w-6 h-6 rounded-md flex items-center justify-center text-white"
+                                                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                                                <Check size={12} />
+                                                                            </button>
+                                                                            <button onClick={() => setEditingMonthId(null)}
+                                                                                className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-black/10 transition-all" style={{ color: '#000000', opacity: 0.6 }}>
+                                                                                <X size={12} />
+                                                                            </button>
+                                                                        </>
+                                                                    ) : (
+                                                                        <>
+                                                                            <button onClick={() => setAssigningMonthId(isAssigning ? null : m.id)}
+                                                                                className={`flex items-center gap-1 h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all ${isAssigning ? 'bg-primary text-white border-primary' : 'hover:border-primary/40 hover:text-primary'}`}
+                                                                                style={!isAssigning ? { borderColor: fc.border, color: '#000000', opacity: 0.75 } : undefined}>
+                                                                                {assignedCount > 0 ? `${assignedCount} assigned` : 'Assign'}
+                                                                                <ChevronDown size={10} className={`transition-transform ${isAssigning ? 'rotate-180' : ''}`} />
+                                                                            </button>
+                                                                            <button onClick={() => setExpandedMonthId(isExpanded ? null : m.id)}
+                                                                                className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-black/10 transition-all" style={{ color: '#000000', opacity: 0.7 }}>
+                                                                                {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                                                            </button>
+                                                                            <button onClick={() => { setEditingMonthId(m.id); setEditMonthName(m.month); setEditDueDate(m.dueDate); }}
+                                                                                className="w-6 h-6 rounded-md flex items-center justify-center hover:text-primary transition-all" style={{ color: '#000000', opacity: 0.45 }}>
+                                                                                <Pencil size={11} />
+                                                                            </button>
+                                                                            <button onClick={() => setConfirmDelete({ kind: 'feeMonth', id: m.id, label: m.month })}
+                                                                                className="w-6 h-6 rounded-md flex items-center justify-center hover:text-red-500 transition-all" style={{ color: '#000000', opacity: 0.45 }}>
+                                                                                <X size={11} />
+                                                                            </button>
+                                                                        </>
+                                                                    )}
                                                                 </div>
                                                             </div>
 
@@ -1008,7 +1277,10 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                             )}
                                                         </AnimatePresence>
                                                     </div>
-                                                    <input value={newDueDate} onChange={e => setNewDueDate(e.target.value)} placeholder="Due date (e.g. 10 Jun)"
+                                                    <input value={newDueDate} onChange={e => setNewDueDate(formatDateMaskLive(e.target.value))}
+                                                        onFocus={e => setNewDueDate(displayDateToMask(e.target.value))}
+                                                        onBlur={e => setNewDueDate(maskToDisplayDate(e.target.value))}
+                                                        placeholder="DD-MM-YY"
                                                         className="w-36 h-8 px-3 rounded-xl border text-xs focus:outline-none focus:border-primary/50 placeholder:text-black/50"
                                                         style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
                                                     <button onClick={addMonth} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
@@ -1060,7 +1332,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                         className="flex-1 px-3 py-2 rounded-xl border bg-white/30 text-xs focus:outline-none transition-all resize-none"
                                                         style={{ borderColor: fc.border, color: '#000000' }}
                                                     />
-                                                    <button onClick={() => setRulesAndRegs(prev => prev.filter(r => r.id !== rule.id))}
+                                                    <button onClick={() => setConfirmDelete({ kind: 'rule', id: rule.id, label: `Rule ${i + 1}` })}
                                                         className="w-6 h-6 mt-1.5 rounded flex items-center justify-center hover:text-red-500 shrink-0" style={{ color: '#000000', opacity: 0.4 }}>
                                                         <X size={11} />
                                                     </button>
@@ -1198,13 +1470,37 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                         </div>
                                     )}
                                     {feeStructures.map(fs => (
-                                        <FeeStructureCard key={fs.id} fs={fs}
-                                            onEdit={() => { setEditingStructure(fs); setShowStructureModal(true); }}
-                                            onDelete={() => {
-                                                setFeeStructures(prev => prev.filter(s => s.id !== fs.id));
-                                                setFeeMonths(prev => prev.map(m => ({ ...m, assignedStructureIds: m.assignedStructureIds.filter(id => id !== fs.id) })));
+                                        <div key={fs.id}
+                                            draggable
+                                            onDragStart={() => setDraggedStructureId(fs.id)}
+                                            onDragOver={e => e.preventDefault()}
+                                            onDrop={e => {
+                                                e.preventDefault();
+                                                if (!draggedStructureId || draggedStructureId === fs.id) return;
+                                                setFeeStructures(prev => {
+                                                    const from = prev.findIndex(x => x.id === draggedStructureId);
+                                                    const to = prev.findIndex(x => x.id === fs.id);
+                                                    if (from === -1 || to === -1) return prev;
+                                                    const copy = [...prev];
+                                                    const [moved] = copy.splice(from, 1);
+                                                    copy.splice(to, 0, moved);
+                                                    return copy;
+                                                });
+                                                setDraggedStructureId(null);
                                             }}
-                                        />
+                                            onDragEnd={() => setDraggedStructureId(null)}
+                                            className="flex items-start gap-1"
+                                            style={{ opacity: draggedStructureId === fs.id ? 0.4 : 1, cursor: 'grab' }}>
+                                            <div className="pt-3 shrink-0 text-muted-foreground/40">
+                                                <GripVertical size={14} />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <FeeStructureCard fs={fs}
+                                                    onEdit={() => { setEditingStructure(fs); setShowStructureModal(true); }}
+                                                    onDelete={() => setConfirmDelete({ kind: 'feeStructure', id: fs.id, label: fs.name })}
+                                                />
+                                            </div>
+                                        </div>
                                     ))}
 
 
@@ -1258,9 +1554,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                 {students.filter(s => studentFilter === 'all' ? true : studentFilter === 'paid' ? s.paid : !s.paid).map(student => (
                                     <button key={student.id} onClick={() => setSelectedStudent(prev => prev?.id === student.id ? null : student)}
                                         className={`w-full flex items-center gap-3 px-3.5 py-3 border-b border-border/20 text-left hover:bg-muted/30 transition-colors ${selectedStudent?.id === student.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                                        <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
-                                            style={{ background: getAvatarColor(student.name) }}>
-                                            {getInitials(student.name)}
+                                        <div className="w-7 h-7 rounded-full overflow-hidden relative flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                                            style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                            {student.avatarUrl
+                                                ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="56px" quality={90} className="object-cover" />
+                                                : getInitials(student.name)}
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-xs font-semibold truncate">{student.name}</p>
@@ -1291,9 +1589,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
 
                                         {/* Student header */}
                                         <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20">
-                                            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                                                style={{ background: getAvatarColor(selectedStudent.name) }}>
-                                                {getInitials(selectedStudent.name)}
+                                            <div className="w-10 h-10 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                                                style={{ background: selectedStudent.avatarUrl ? 'transparent' : getAvatarColor(selectedStudent.name) }}>
+                                                {selectedStudent.avatarUrl
+                                                    ? <NextImage src={selectedStudent.avatarUrl} alt={selectedStudent.name} fill sizes="80px" quality={90} className="object-cover" />
+                                                    : getInitials(selectedStudent.name)}
                                             </div>
                                             <div className="flex-1">
                                                 <p className="text-sm font-bold">{selectedStudent.name}</p>
@@ -1344,20 +1644,27 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                         {/* Student Details */}
                                                         <div>
                                                             <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Student Details</p>
-                                                            <div className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border, background: fc.bg }}>
-                                                                {studentFields.map((f, i) => {
+                                                            <div className="rounded-xl border p-2 flex flex-wrap gap-2" style={{ borderColor: fc.border, background: fc.bg }}>
+                                                                {studentFields.map((f) => {
                                                                     const value = f.kind === 'default'
                                                                         ? f.defaultKey === 'name' ? selectedStudent.name
                                                                             : f.defaultKey === 'rollNo' ? selectedStudent.rollNo
                                                                                 : f.defaultKey === 'studentId' ? selectedStudent.studentDisplayId
                                                                                     : f.defaultKey === 'class' ? (divisionName.split('-')[0] ?? divisionName)
                                                                                         : (divisionName.split('-')[1] ?? '')
-                                                                        : f.value;
+                                                                        : getStudentDetailValue(selectedStudent.id, f.id);
                                                                     const isStudentId = f.kind === 'default' && f.defaultKey === 'studentId';
                                                                     return (
-                                                                        <div key={f.id} className="flex items-center justify-between px-3 py-2 last:border-none" style={{ borderBottom: `1px solid ${fc.border}` }}>
-                                                                            <span className="text-[11px] w-24 shrink-0" style={{ color: '#000000' }}>{f.label}</span>
-                                                                            <span className={`text-[11px] font-semibold ${isStudentId ? 'font-mono' : ''}`} style={{ color: isStudentId ? '#DA7756' : '#000000' }}>{value}</span>
+                                                                        <div key={f.id} className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg basis-[calc(50%-4px)] grow-0 shrink-0" style={{ border: `1px solid ${fc.border}` }}>
+                                                                            <span className="text-[11px] shrink-0" style={{ color: '#000000' }}>{f.label}</span>
+                                                                            {f.kind === 'custom' ? (
+                                                                                <input value={value} onChange={e => setStudentDetailField(selectedStudent.id, f.id, e.target.value)}
+                                                                                    placeholder="Enter value"
+                                                                                    className="text-[11px] font-semibold text-right bg-transparent focus:outline-none min-w-0 flex-1"
+                                                                                    style={{ color: '#000000' }} />
+                                                                            ) : (
+                                                                                <span className={`text-[11px] font-semibold truncate ${isStudentId ? 'font-mono' : ''}`} style={{ color: isStudentId ? '#DA7756' : '#000000' }}>{value}</span>
+                                                                            )}
                                                                         </div>
                                                                     );
                                                                 })}
@@ -1381,37 +1688,64 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                         </thead>
                                                                         <tbody>
                                                                             {feeMonths.map((m, mi) => {
-                                                                                const total = monthTotal(m);
+                                                                                const total = studentMonthTotal(selectedStudent.id, m);
                                                                                 const assigned = feeStructures.filter(s => m.assignedStructureIds.includes(s.id));
+                                                                                const extraIds = (getPayment(selectedStudent.id, m.id).extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
+                                                                                const extraStructures = extraIds.map(id => feeStructures.find(s => s.id === id)).filter((s): s is FeeStructure => !!s);
                                                                                 return (
                                                                                     <tr key={m.id} className="transition-colors" style={{ background: selectedMonth === m.id ? `${fc.border}80` : mi % 2 === 1 ? fc.bg : 'transparent', borderTop: `1px solid ${fc.border}` }}>
                                                                                         <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
                                                                                             onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
                                                                                             {m.month}
                                                                                         </td>
-                                                                                        <td className="px-3 py-2 cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
-                                                                                            onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
-                                                                                            <div className="flex flex-wrap gap-0.5">
-                                                                                                {assigned.length === 0
-                                                                                                    ? <span className="text-[10px] italic" style={{ color: '#000000', opacity: 0.4 }}>—</span>
-                                                                                                    : assigned.map(s => (
-                                                                                                        <span key={s.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                                                                                                            style={{ background: s.color + '20', color: s.color }}>
-                                                                                                            {s.name}
-                                                                                                        </span>
-                                                                                                    ))
+                                                                                        <td className="px-3 py-2" style={{ borderRight: `1px solid ${fc.border}` }}>
+                                                                                            <div className="flex flex-wrap items-center gap-0.5">
+                                                                                                {assigned.length === 0 && extraStructures.length === 0
+                                                                                                    ? <span className="text-[10px] italic cursor-pointer" style={{ color: '#000000', opacity: 0.4 }} onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>—</span>
+                                                                                                    : null
                                                                                                 }
+                                                                                                {assigned.map(s => (
+                                                                                                    <span key={s.id} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full cursor-pointer"
+                                                                                                        onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}
+                                                                                                        style={{ background: s.color + '20', color: s.color }}>
+                                                                                                        {s.name}
+                                                                                                    </span>
+                                                                                                ))}
+                                                                                                {extraStructures.map(s => (
+                                                                                                    <span key={s.id} className="text-[9px] font-semibold pl-1.5 pr-1 py-0.5 rounded-full inline-flex items-center gap-0.5 cursor-pointer border border-dashed"
+                                                                                                        style={{ background: s.color + '15', color: s.color, borderColor: s.color + '60' }}
+                                                                                                        title="Added just for this student"
+                                                                                                        onClick={() => setConfirmDelete({ kind: 'extraStructure', id: s.id, feeMonthId: m.id, label: s.name })}>
+                                                                                                        {s.name}
+                                                                                                        <X size={8} />
+                                                                                                    </span>
+                                                                                                ))}
+                                                                                                <button type="button" onClick={() => setAddStructureModalMonthId(m.id)}
+                                                                                                    className="flex items-center justify-center w-4 h-4 rounded-full border hover:border-primary/50 hover:text-primary transition-all"
+                                                                                                    style={{ borderColor: fc.border, color: '#000000', opacity: 0.6 }}
+                                                                                                    title="Add a fee structure for this student only">
+                                                                                                    <Plus size={9} />
+                                                                                                </button>
                                                                                             </div>
                                                                                         </td>
                                                                                         <td className="px-3 py-2 font-bold" style={{ borderRight: `1px solid ${fc.border}` }}>{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
                                                                                         <td className="px-3 py-2" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{m.dueDate}</td>
                                                                                         <td className="px-3 py-2" style={{ borderRight: `1px solid ${fc.border}` }}>
-                                                                                            <input value={getPayment(selectedStudent.id, m.id).paidDate ?? ''} onChange={e => setPaymentField(m.id, { paidDate: e.target.value })}
-                                                                                                placeholder="—" className="w-20 h-6 px-2 rounded-lg border bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-black/40"
-                                                                                                style={{ borderColor: fc.border, color: '#000000' }} />
+                                                                                            <input value={getPayment(selectedStudent.id, m.id).paidDate ?? ''} onChange={e => setPaymentField(m.id, { paidDate: formatDateMaskLive(e.target.value) })}
+                                                                                                onFocus={e => { const back = displayDateToMask(e.target.value); if (back !== e.target.value) setPaymentField(m.id, { paidDate: back }); }}
+                                                                                                onBlur={e => { const disp = maskToDisplayDate(e.target.value); if (disp !== e.target.value) setPaymentField(m.id, { paidDate: disp }); }}
+                                                                                                placeholder="DD-MM-YY" className="w-24 h-6 px-2 rounded-lg border bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-black/40"
+                                                                                                style={{ borderColor: fc.border, color: isPaidLate(m.dueDate, getPayment(selectedStudent.id, m.id).paidDate) ? '#DC2626' : '#000000', fontWeight: isPaidLate(m.dueDate, getPayment(selectedStudent.id, m.id).paidDate) ? 600 : 400 }} />
                                                                                         </td>
                                                                                         <td className="px-3 py-2" style={{ borderRight: `1px solid ${fc.border}` }}>
-                                                                                            <button onClick={() => setPaymentField(m.id, { status: getPayment(selectedStudent.id, m.id).status === 'PAID' ? 'PENDING' : 'PAID' })}
+                                                                                            <button onClick={() => {
+                                                                                                const current = getPayment(selectedStudent.id, m.id);
+                                                                                                if (current.status !== 'PAID' && !current.paidDate?.trim()) {
+                                                                                                    toast.error('Enter the paid date before marking as Paid');
+                                                                                                    return;
+                                                                                                }
+                                                                                                setPaymentField(m.id, { status: current.status === 'PAID' ? 'PENDING' : 'PAID' });
+                                                                                            }}
                                                                                                 className={`flex items-center gap-1 h-6 px-2 rounded-full text-[10px] font-semibold transition-all ${STATUS_CFG[getPayment(selectedStudent.id, m.id).status].cls}`}>
                                                                                                 {getPayment(selectedStudent.id, m.id).status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[getPayment(selectedStudent.id, m.id).status].label}
                                                                                             </button>
@@ -1423,7 +1757,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                                         </td>
                                                                                         {extraColumns.map((col, ci) => (
                                                                                             <td key={ci} className="px-3 py-2" style={{ borderRight: ci === extraColumns.length - 1 ? 'none' : `1px solid ${fc.border}` }}>
-                                                                                                <input placeholder="—" className="w-16 h-6 px-2 rounded-lg border bg-transparent text-[11px] focus:outline-none" style={{ borderColor: fc.border }} />
+                                                                                                <input
+                                                                                                    value={getPayment(selectedStudent.id, m.id).extraFields?.[col.label] ?? ''}
+                                                                                                    onChange={e => setPaymentField(m.id, { extraFieldLabel: col.label, extraFieldValue: e.target.value })}
+                                                                                                    placeholder="—" className="w-16 h-6 px-2 rounded-lg border bg-transparent text-[11px] focus:outline-none focus:border-primary/50 placeholder:text-black/40"
+                                                                                                    style={{ borderColor: fc.border, color: '#000000' }} />
                                                                                             </td>
                                                                                         ))}
                                                                                     </tr>
@@ -1433,7 +1771,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                                 <td className="px-3 py-2 font-bold text-[11px]" style={{ color: '#000000' }}>Annual Total</td>
                                                                                 <td />
                                                                                 <td className="px-3 py-2 text-[11px] font-black" style={{ color: '#000000' }}>
-                                                                                    ₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}
+                                                                                    ₹{feeMonths.reduce((n, m) => n + studentMonthTotal(selectedStudent.id, m), 0).toLocaleString()}
                                                                                 </td>
                                                                                 <td colSpan={4 + extraColumns.length} />
                                                                             </tr>
@@ -1460,7 +1798,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                             ) : (() => {
                                                                 const month = feeMonths.find(m => m.id === selectedMonth);
                                                                 if (!month) return null;
-                                                                const assigned = feeStructures.filter(s => month.assignedStructureIds.includes(s.id));
+                                                                const sharedIds = new Set(month.assignedStructureIds);
+                                                                const extraIds = selectedStudent
+                                                                    ? (getPayment(selectedStudent.id, month.id).extraStructureIds ?? []).filter(id => !sharedIds.has(id))
+                                                                    : [];
+                                                                const assigned = feeStructures.filter(s => sharedIds.has(s.id) || extraIds.includes(s.id));
                                                                 if (assigned.length === 0) return (
                                                                     <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
                                                                         <p className="text-xs" style={{ color: '#000000' }}>No fee structures assigned to {month.month}</p>
@@ -1471,11 +1813,13 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                         {assigned.map(fs => {
                                                                             const total = structureTotal(fs);
                                                                             const cfg = FEE_TYPE_CFG[fs.type];
+                                                                            const isExtra = extraIds.includes(fs.id);
                                                                             return (
-                                                                                <div key={fs.id} className="rounded-xl border overflow-hidden" style={{ borderColor: fc.border }}>
+                                                                                <div key={fs.id} className="rounded-xl border overflow-hidden" style={isExtra ? { borderColor: fs.color + '60', borderStyle: 'dashed' } : { borderColor: fc.border }}>
                                                                                     <div className="flex items-center gap-2 px-3 py-2" style={{ background: fc.bg }}>
                                                                                         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: fs.color }} />
                                                                                         <span className="flex-1 text-xs font-semibold" style={{ color: '#000000' }}>{fs.name}</span>
+                                                                                        {isExtra && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>For this student</span>}
                                                                                         <span className={`text-[10px] font-bold ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
                                                                                         <span className="text-xs font-bold" style={{ color: '#000000' }}>₹{total.toLocaleString()}</span>
                                                                                     </div>
@@ -1568,11 +1912,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                 <p className="text-[11px] mt-1" style={{ color: '#000000', opacity: 0.7 }}>Add rules from Fee Setup → Fee Card Template → View Back</p>
                                                             </div>
                                                         ) : (
-                                                            <div className="space-y-2">
+                                                            <div className="space-y-2.5">
                                                                 {rulesAndRegs.map((rule, i) => (
-                                                                    <div key={rule.id} className="flex items-start gap-2">
-                                                                        <span className="text-[11px] font-bold mt-0.5 w-5 shrink-0" style={{ color: '#000000' }}>{i + 1}.</span>
-                                                                        <p className="text-xs leading-relaxed" style={{ color: '#000000' }}>{rule.text}</p>
+                                                                    <div key={rule.id} className="flex items-start gap-3 rounded-xl px-3 py-2.5" style={{ background: 'rgba(255,255,255,0.4)', border: `1px solid ${fc.border}` }}>
+                                                                        <span className="flex items-center justify-center w-6 h-6 rounded-full text-[11px] font-bold shrink-0" style={{ background: fc.border, color: '#000000' }}>{i + 1}</span>
+                                                                        <p className="text-sm leading-relaxed flex-1 pt-0.5" style={{ color: '#000000' }}>{rule.text}</p>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -1591,7 +1935,74 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                 )}
             </AnimatePresence>
 
-            {/* Add/Edit fee structure modal */}
+            {/* Add per-student fee structure (penalty/fine etc.) modal */}
+            <AnimatePresence>
+                {addStructureModalMonthId && selectedStudent && (() => {
+                    const m = feeMonths.find(fm => fm.id === addStructureModalMonthId);
+                    if (!m) return null;
+                    const extraIds = (getPayment(selectedStudent.id, m.id).extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setAddStructureModalMonthId(null)}>
+                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                                onClick={e => e.stopPropagation()}
+                                className="bg-card border border-border rounded-2xl w-full max-w-3xl mx-4 shadow-2xl flex flex-col max-h-[85vh]">
+                                <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
+                                    <div>
+                                        <h3 className="text-sm font-bold">Add Fee Structure</h3>
+                                        <p className="text-[11px] text-muted-foreground mt-0.5">{selectedStudent.name} · {m.month}</p>
+                                    </div>
+                                    <button onClick={() => setAddStructureModalMonthId(null)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-all">
+                                        <X size={14} />
+                                    </button>
+                                </div>
+
+                                <div className="flex-1 min-h-0 flex flex-col md:flex-row">
+                                    {/* LEFT — existing structures, pick one */}
+                                    <div className="w-full md:w-1/2 md:border-r border-border/50 flex flex-col min-h-0">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 pt-3 pb-2 shrink-0">Existing Structures</p>
+                                        <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-2"
+                                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                            {feeStructures.length === 0 ? (
+                                                <div className="text-center py-8">
+                                                    <Tag size={22} className="mx-auto text-muted-foreground/30 mb-2" />
+                                                    <p className="text-xs text-muted-foreground/60">No fee structures yet</p>
+                                                    <p className="text-[11px] text-muted-foreground/40 mt-1">Create one on the right to add it for this student</p>
+                                                </div>
+                                            ) : feeStructures.map(fs => (
+                                                <FeeStructureCard key={fs.id} fs={fs}
+                                                    isShared={m.assignedStructureIds.includes(fs.id)}
+                                                    isAdded={extraIds.includes(fs.id)}
+                                                    onSelect={() => setPaymentField(m.id, { toggleStructureId: fs.id })}
+                                                    onEdit={() => { setEditingStructure(fs); setShowStructureModal(true); }}
+                                                    onDelete={() => setConfirmDelete({ kind: 'feeStructure', id: fs.id, label: fs.name })}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* RIGHT — create a brand new structure inline (saved into the shared list) */}
+                                    <div className="w-full md:w-1/2 flex flex-col min-h-0 border-t md:border-t-0 border-border/50">
+                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 pt-3 pb-2 shrink-0">Create New Structure</p>
+                                        <div className="flex-1 overflow-y-auto px-5 pb-4 flex flex-col min-h-0"
+                                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                            <FeeStructureForm compact
+                                                onSave={s => {
+                                                    setFeeStructures(prev => [...prev, s]);
+                                                    setPaymentField(m.id, { toggleStructureId: s.id });
+                                                    toast.success(`${s.name} added for ${selectedStudent.name}`);
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        </div>
+                    );
+                })()}
+            </AnimatePresence>
+
+            {/* Add/Edit fee structure modal (rendered after the per-student panel so an
+                Edit opened from within it stacks visually on top, not behind) */}
             <AnimatePresence>
                 {showStructureModal && (
                     <FeeStructureModal
@@ -1606,6 +2017,38 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                         }}
                         onClose={() => setShowStructureModal(false)}
                     />
+                )}
+            </AnimatePresence>
+
+            {/* Confirm delete — Fee Card Template items */}
+            <AnimatePresence>
+                {confirmDelete && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            <h3 className="text-base font-bold mb-2">
+                                Delete {confirmDelete.kind === 'studentField' ? 'Field'
+                                    : confirmDelete.kind === 'extraColumn' ? 'Column'
+                                        : confirmDelete.kind === 'feeMonth' ? 'Month'
+                                            : confirmDelete.kind === 'feeStructure' ? 'Structure'
+                                                : confirmDelete.kind === 'extraStructure' ? 'Structure'
+                                                    : 'Rule'}?
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-5">
+                                &ldquo;{confirmDelete.label}&rdquo; will be permanently deleted. Are you sure?
+                            </p>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setConfirmDelete(null)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={runConfirmedDelete}
+                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white bg-red-500 hover:opacity-90 transition-all">
+                                    Yes, Delete
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
                 )}
             </AnimatePresence>
         </div>
