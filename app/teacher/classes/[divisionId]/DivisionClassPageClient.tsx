@@ -7,6 +7,7 @@ import { ArrowLeft, ChevronRight, Users, NotebookPen, Smartphone, BarChart2, Cal
 import api from '@/lib/api';
 import ViewTab from './ViewTab';
 import ManageTab from './ManageTab';
+import StudentsTab from './StudentsTab';
 import FeesTab from './FeesTab';
 import AttendanceTab, { AttendanceSubTab } from './AttendanceTab';
 import MarksTab, { MarksSubTab, MarksStats } from './MarksTab';
@@ -78,14 +79,15 @@ export default function DivisionClassPageClient() {
         ]
         : [
             { key: 'view' as const, label: 'View' },
+            { key: 'students' as const, label: 'Students' },
             { key: 'tasks' as const, label: 'Tasks' },
             { key: 'marks' as const, label: 'Marksheet' },
         ];
 
     const [division, setDivision] = useState<Division | null>(null);
     const [loading, setLoading] = useState(true);
-    type TabKey = 'view' | 'manage' | 'promotions' | 'attendance' | 'marks' | 'fees' | 'tasks';
-    const VALID_TABS: TabKey[] = ['view', 'manage', 'promotions', 'attendance', 'marks', 'fees', 'tasks'];
+    type TabKey = 'view' | 'manage' | 'students' | 'promotions' | 'attendance' | 'marks' | 'fees' | 'tasks';
+    const VALID_TABS: TabKey[] = ['view', 'manage', 'students', 'promotions', 'attendance', 'marks', 'fees', 'tasks'];
     const tabParam = searchParams.get('tab') as TabKey | null;
     const [activeTab, setActiveTab] = useState<TabKey>(tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'view');
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -396,6 +398,11 @@ export default function DivisionClassPageClient() {
                     {activeTab === 'manage' && (
                         <motion.div key="manage" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
                             <ManageTab division={division} isClassTeacher={isClassTeacher} />
+                        </motion.div>
+                    )}
+                    {activeTab === 'students' && (
+                        <motion.div key="students" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
+                            <StudentsTab division={division} />
                         </motion.div>
                     )}
                     {activeTab === 'promotions' && isClassTeacher && (

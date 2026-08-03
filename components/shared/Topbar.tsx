@@ -31,7 +31,6 @@ interface NavItem {
     activePath?: string | string[];
     locked?: boolean;
     badge?: boolean;
-    count?: number;
 }
 
 interface TopbarProps {
@@ -284,11 +283,6 @@ export function Topbar({ navItems, restrictNav }: TopbarProps) {
                                         {Icon && <Icon size={15} />}
                                         {item.badge && (
                                             <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-red-500 border border-background" />
-                                        )}
-                                        {!!item.count && (
-                                            <span className="absolute -top-2 -right-2.5 min-w-[14px] h-[14px] px-[3px] rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border border-background">
-                                                {item.count > 9 ? '9+' : item.count}
-                                            </span>
                                         )}
                                     </span>
                                     {item.label}

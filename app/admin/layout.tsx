@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { Topbar } from '@/components/shared/Topbar';
 import { useAuthStore } from '@/store/authStore';
@@ -14,7 +14,6 @@ import {
     LineChart,
     Headset,
     ScrollText,
-    Flag,
 } from 'lucide-react';
 import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
 
@@ -23,7 +22,6 @@ const ALL_NAV_ITEMS = [
     { label: 'Overview',   href: '/admin/overview',           icon: LayoutDashboard, childKeys: [] as string[] },
     { label: 'Staff',      href: '/admin/staff',              icon: Users,           childKeys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
     { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
-    { label: 'Reports',    href: '/admin/reports',            icon: Flag,            childKeys: ['CAMPUS_MANAGE'] },
     { label: 'Insights',   href: '/admin/insights',           icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION'] },
     { label: 'Support',    href: '/admin/support/tickets',    icon: Headset,         activePath: '/admin/support',  childKeys: ['SUPPORT'] },
     { label: 'Audit Logs', href: '/admin/audit-logs',         icon: ScrollText,      childKeys: ['AUDIT_LOGS'] },
@@ -37,7 +35,6 @@ const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/staff/subadmins',       keys: ['STAFF_SUBADMINS'] },
     { prefix: '/admin/campus/classes',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { prefix: '/admin/campus/courses',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
-    { prefix: '/admin/reports',               keys: ['CAMPUS_MANAGE'] },
     // Bare '/admin/campus' (the Feed page) is intentionally NOT gated here —
     // CampusLayout owns that redirect itself (Feed → Classes/Courses when the
     // sub-admin lacks CAMPUS_FEED). Gating it here too raced against that
@@ -101,20 +98,6 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const router = useRouter();
 
     const permissions = user?.permissions ?? [];
-    const [pendingReports, setPendingReports] = useState(0);
-
-    useEffect(() => {
-        if (isSubAdmin && !permissions.includes('CAMPUS_MANAGE')) return;
-        const loadCount = () => {
-            api.get('/admin/campus/reports/inbox')
-                .then(r => setPendingReports((r.data?.data ?? []).filter((x: { status: string }) => x.status === 'open' || x.status === 'under_review').length))
-                .catch(() => {});
-        };
-        loadCount();
-        const poll = setInterval(loadCount, 30_000);
-        return () => clearInterval(poll);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [isSubAdmin]);
 
     // Keep a ref to user so the async callback always reads the latest value without being a dep
     const userRef = useRef(user);
@@ -164,10 +147,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     }, [isSubAdmin, pathname, permissions, router]);
 
     const navItems = ALL_NAV_ITEMS.map(({ childKeys, ...item }) => {
-        const withLock = (!isSubAdmin || childKeys.length === 0)
-            ? { ...item, locked: false }
-            : { ...item, locked: !childKeys.some(k => permissions.includes(k)) };
-        return item.href === '/admin/reports' ? { ...withLock, count: pendingReports } : withLock;
+        if (!isSubAdmin || childKeys.length === 0) return { ...item, locked: false };
+        return { ...item, locked: !childKeys.some(k => permissions.includes(k)) };
     });
 
     // The `theme-college` class also needs to live on <html>, not just the
