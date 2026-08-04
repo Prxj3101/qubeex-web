@@ -15,7 +15,7 @@ interface OverviewData {
     pendingTasks: number;
     nextEvent: { type: string; label: string; date: string; daysAway: number } | null;
     latestPost: { title: string; type: string } | null;
-    leaderboard: { rank: number; name: string; rollNo: string; pct: number; isMe: boolean }[];
+    leaderboard: { rank: number; name: string; rollNo: string; pct: number; isMe: boolean; avatarUrl: string | null }[];
 }
 
 const THOUGHTS = [
@@ -295,13 +295,25 @@ export default function StudentOverview() {
                                         return (
                                             <div key={s.rank} className="flex flex-col items-center gap-1 min-w-0">
                                                 {/* Avatar */}
-                                                <div
-                                                    className={`rounded-full flex items-center justify-center font-bold border-2 ${rs.border} ${rs.bg} ${rs.text}`}
-                                                    style={{ width: isCenter ? 48 : 38, height: isCenter ? 48 : 38, fontSize: isCenter ? 16 : 13 }}
-                                                >
-                                                    {s.name[0].toUpperCase()}
+                                                {s.avatarUrl ? (
+                                                    <div
+                                                        className={`rounded-full overflow-hidden border-2 ${rs.border}`}
+                                                        style={{ width: isCenter ? 48 : 38, height: isCenter ? 48 : 38 }}
+                                                    >
+                                                        <img src={s.avatarUrl} alt={s.name} className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div
+                                                        className={`rounded-full flex items-center justify-center font-bold border-2 ${rs.border} ${rs.bg} ${rs.text}`}
+                                                        style={{ width: isCenter ? 48 : 38, height: isCenter ? 48 : 38, fontSize: isCenter ? 16 : 13 }}
+                                                    >
+                                                        {s.name[0].toUpperCase()}
+                                                    </div>
+                                                )}
+                                                <div className="max-w-[64px] text-center">
+                                                    <p className="text-[10px] font-semibold truncate leading-tight">{s.name.split(' ')[0]}</p>
+                                                    <p className="text-[9px] font-semibold truncate leading-tight">{s.name.split(' ').slice(1).join(' ')}</p>
                                                 </div>
-                                                <p className="text-[10px] font-semibold truncate max-w-[64px] text-center">{s.name.split(' ')[0]}</p>
                                                 {s.isMe && <p className="text-[9px] font-bold text-violet-500 -mt-0.5">YOU</p>}
                                                 <p className={`text-[11px] font-bold ${rs.text}`}>{s.pct}%</p>
                                                 {/* Podium block */}
@@ -328,9 +340,15 @@ export default function StudentOverview() {
                                                 className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border ${s.isMe ? 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/30' : `${rs.border} ${rs.bg}`}`}
                                             >
                                                 <span className="text-sm">{s.rank === 4 ? '4️⃣' : '5️⃣'}</span>
-                                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 ${rs.border} ${rs.bg} ${rs.text}`}>
-                                                    {s.name[0].toUpperCase()}
-                                                </div>
+                                                {s.avatarUrl ? (
+                                                    <div className={`w-7 h-7 rounded-full overflow-hidden border-2 ${rs.border}`}>
+                                                        <img src={s.avatarUrl} alt={s.name} className="w-full h-full object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold border-2 ${rs.border} ${rs.bg} ${rs.text}`}>
+                                                        {s.name[0].toUpperCase()}
+                                                    </div>
+                                                )}
                                                 <p className={`flex-1 text-xs font-semibold truncate ${s.isMe ? 'text-violet-700 dark:text-violet-300' : 'text-foreground'}`}>
                                                     {s.name}{s.isMe ? ' (You)' : ''}
                                                 </p>

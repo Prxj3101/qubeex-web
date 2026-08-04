@@ -14,11 +14,14 @@ import api from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME';
+type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME' | 'BUS' | 'LATE_FEE';
 
 interface FeeSubItem { id: string; label: string; amount: number; }
 interface FeeItem { id: string; label: string; amount: number; subItems: FeeSubItem[]; }
-interface FeeStructure { id: string; name: string; type: FeeStructureType; color: string; items: FeeItem[]; }
+// origin distinguishes where a structure was created: 'setup' via Fee Setup's
+// "Add Structure" button, 'student' via a student's fee card "+" button.
+// Absent on structures saved before this field existed — treated as 'setup'.
+interface FeeStructure { id: string; name: string; type: FeeStructureType; color: string; items: FeeItem[]; origin?: 'setup' | 'student'; }
 interface FeeMonth { id: string; month: string; dueDate: string; assignedStructureIds: string[]; status: 'PAID' | 'PENDING'; paidDate?: string; }
 interface BankDetails { accountName: string; accountNumber: string; ifsc: string; bankName: string; branch: string; upiId?: string; }
 
@@ -52,6 +55,26 @@ function isPaidLate(dueDate: string | null | undefined, paidDate: string | null 
     const due = parseFlexDate(dueDate);
     const paid = parseFlexDate(paidDate);
     if (!due || !paid) return false;
+    return paid.getTime() > due.getTime();
+}
+
+// The Late Fee Fine applies once today is strictly after the due date, AND
+// either no paid date has been entered yet, or the paid date entered is
+// itself after the due date (i.e. actually paid late). Once it has applied
+// it stays applied — status/paid-date edits don't clear it unless the paid
+// date entered is on or before the due date (meaning the student genuinely
+// paid on time and the admin was just late updating the record).
+function isLateFeeApplicable(dueDate: string | null | undefined, paidDate: string | null | undefined): boolean {
+    const due = parseFlexDate(dueDate);
+    if (!due) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    if (today.getTime() <= due.getTime()) return false;
+    if (!paidDate || !paidDate.trim()) return true;
+    const paid = parseFlexDate(paidDate);
+    if (!paid) return true;
+    paid.setHours(0, 0, 0, 0);
     return paid.getTime() > due.getTime();
 }
 
@@ -93,17 +116,21 @@ function displayDateToMask(val: string): string {
     return `${day}-${month}-${year}`;
 }
 
-const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg: string; text: string; emoji: string }> = {
+const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg: string; text: string; emoji: string; tag?: string; unique?: boolean }> = {
     REGULAR: { label: 'Regular Monthly', color: '#7C3AED', bg: 'bg-violet-100 dark:bg-violet-950/40', text: 'text-violet-700 dark:text-violet-400', emoji: '📅' },
     ADDON: { label: 'Add-on', color: '#DA7756', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', emoji: '➕' },
     PENALTY: { label: 'Penalty / Fine', color: '#DC2626', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', emoji: '⚠️' },
     ONE_TIME: { label: 'One-time', color: '#059669', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', emoji: '⭐' },
+    // Bus Fee and Late Fee Fine may each only exist ONCE across a division's fee
+    // structures (unique: true) — enforced in FeeStructureForm's type picker.
+    BUS: { label: 'Bus Fee', color: '#0891B2', bg: 'bg-cyan-100 dark:bg-cyan-950/40', text: 'text-cyan-700 dark:text-cyan-400', emoji: '🚌', tag: 'Variable', unique: true },
+    LATE_FEE: { label: 'Late Fee Fine', color: '#DC2626', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', emoji: '⚠️', tag: 'Auto', unique: true },
 };
 
 type StudentDetailField = {
     id: string;
     kind: 'default' | 'custom';
-    defaultKey?: 'name' | 'rollNo' | 'studentId' | 'class' | 'division';
+    defaultKey?: 'name' | 'rollNo' | 'studentId' | 'class' | 'division' | 'bus';
     label: string;
     value?: string;
 };
@@ -113,6 +140,7 @@ const DEFAULT_STUDENT_FIELDS: StudentDetailField[] = [
     { id: 'f-studentid', kind: 'default', defaultKey: 'studentId', label: 'Student ID' },
     { id: 'f-class', kind: 'default', defaultKey: 'class', label: 'Class' },
     { id: 'f-division', kind: 'default', defaultKey: 'division', label: 'Division' },
+    { id: 'f-bus', kind: 'default', defaultKey: 'bus', label: 'Bus' },
 ];
 
 const FEE_CARD_THEMES = {
@@ -143,6 +171,39 @@ function structureTotal(s: FeeStructure) {
     }, 0);
 }
 
+// Bus Fee and Late Fee Fine are no longer created via the "Add Structure" modal —
+// they're fixed system structures that exist by default for every division, ready
+// for the admin to edit (rename / set amount) rather than create from scratch.
+function ensureDefaultStructures(structures: FeeStructure[]): FeeStructure[] {
+    let result = structures;
+    if (!result.some(s => s.type === 'BUS')) {
+        result = [...result, { id: 'fs-bus-default', name: 'Bus Fee', type: 'BUS', color: FEE_TYPE_CFG.BUS.color, items: [] }];
+    }
+    if (!result.some(s => s.type === 'LATE_FEE')) {
+        result = [...result, {
+            id: 'fs-latefee-default', name: 'Late Fee Fine', type: 'LATE_FEE', color: FEE_TYPE_CFG.LATE_FEE.color,
+            items: [{ id: 'i-latefee-default', label: 'Late Fee', amount: 0, subItems: [] }],
+        }];
+    }
+    // These two are fixed system types with a fixed color scheme (Late Fee Fine
+    // is always red like Penalty, Bus Fee always cyan) — structures created
+    // before that color scheme changed still have the old hex baked into their
+    // saved `color` field, so keep it in sync with the current config on every
+    // load instead of leaving stale colors stuck on old fee cards.
+    result = result.map(s => (s.type === 'BUS' || s.type === 'LATE_FEE') && s.color !== FEE_TYPE_CFG[s.type].color
+        ? { ...s, color: FEE_TYPE_CFG[s.type].color }
+        : s);
+    return result;
+}
+
+// New structures are always inserted above the fixed Bus Fee / Late Fee Fine
+// entries, which stay pinned at the bottom of the list.
+function insertStructure(prev: FeeStructure[], s: FeeStructure): FeeStructure[] {
+    const idx = prev.findIndex(x => x.type === 'BUS' || x.type === 'LATE_FEE');
+    if (idx === -1) return [...prev, s];
+    return [...prev.slice(0, idx), s, ...prev.slice(idx)];
+}
+
 // ── Fee Structure Card ────────────────────────────────────────────────────────
 
 function FeeStructureCard({
@@ -158,34 +219,41 @@ function FeeStructureCard({
     const [expanded, setExpanded] = useState(false);
     const cfg = FEE_TYPE_CFG[fs.type];
     const total = structureTotal(fs);
+    // Bus Fee / Late Fee Fine are fixed system structures — not deletable.
+    const canDelete = fs.type !== 'BUS' && fs.type !== 'LATE_FEE';
 
     return (
         <div className="rounded-xl border border-border/40 overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/20">
-                <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: fs.color }} />
-                <button onClick={() => setExpanded(v => !v)} className="flex-1 flex items-center gap-2 text-left min-w-0">
-                    <span className="text-sm font-semibold truncate">{fs.name}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${cfg.bg} ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
+            <div className="px-3 py-2.5 bg-muted/20">
+                <button onClick={() => setExpanded(v => !v)} className="w-full flex items-center gap-2 text-left mb-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: fs.color }} />
+                    <span className="text-sm font-semibold flex-1 min-w-0 break-words">{fs.name}</span>
                     <ChevronRight size={13} className={`text-muted-foreground transition-transform shrink-0 ${expanded ? 'rotate-90' : ''}`} />
                 </button>
-                <span className="text-sm font-bold ml-auto shrink-0">₹{total.toLocaleString()}</span>
-                {onSelect && (
-                    isShared ? (
-                        <span className="text-[10px] font-semibold px-2 py-1 rounded-md text-muted-foreground/60">Assigned</span>
-                    ) : (
-                        <button onClick={onSelect}
-                            className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md transition-all ${isAdded ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30' : 'text-white'}`}
-                            style={!isAdded ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : undefined}>
-                            {isAdded ? <>Remove <X size={11} /></> : <>Add <Plus size={11} /></>}
+                <div className="flex items-center gap-1.5 pl-[18px]">
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full shrink-0 ${cfg.bg} ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
+                    {cfg.tag && <span className="text-[9px] font-bold px-1 py-0.5 rounded-full shrink-0 bg-muted-foreground/10 text-muted-foreground">{cfg.tag}</span>}
+                    <span className="text-sm font-bold ml-auto shrink-0">₹{total.toLocaleString()}</span>
+                    {onSelect && (
+                        isShared ? (
+                            <span className="text-[10px] font-semibold px-2 py-1 rounded-md text-muted-foreground/60 shrink-0">Assigned</span>
+                        ) : (
+                            <button onClick={onSelect}
+                                className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-md transition-all shrink-0 ${isAdded ? 'text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30' : 'text-white'}`}
+                                style={!isAdded ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' } : undefined}>
+                                {isAdded ? <>Remove <X size={11} /></> : <>Add <Plus size={11} /></>}
+                            </button>
+                        )
+                    )}
+                    <button onClick={onEdit} className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all shrink-0">
+                        <Pencil size={11} />
+                    </button>
+                    {canDelete && (
+                        <button onClick={onDelete} className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all shrink-0">
+                            <Trash2 size={11} />
                         </button>
-                    )
-                )}
-                <button onClick={onEdit} className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all">
-                    <Pencil size={11} />
-                </button>
-                <button onClick={onDelete} className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 transition-all">
-                    <Trash2 size={11} />
-                </button>
+                    )}
+                </div>
             </div>
             <AnimatePresence>
                 {expanded && (
@@ -269,11 +337,17 @@ function FeeStructureForm({
     onSave,
     onCancel,
     compact,
+    excludeTypes,
+    existingStructures,
+    defaultOrigin,
 }: {
     initial?: FeeStructure;
     onSave: (s: FeeStructure) => void;
     onCancel?: () => void;
     compact?: boolean;
+    excludeTypes?: FeeStructureType[];
+    existingStructures?: FeeStructure[];
+    defaultOrigin?: 'setup' | 'student';
 }) {
     const [name, setName] = useState(initial?.name ?? '');
     const [type, setType] = useState<FeeStructureType>(initial?.type ?? 'REGULAR');
@@ -285,6 +359,12 @@ function FeeStructureForm({
     const [newSubLabel, setNewSubLabel] = useState('');
     const [newSubAmount, setNewSubAmount] = useState('');
     const [addingSubFor, setAddingSubFor] = useState<string | null>(null);
+    const [editingItemId, setEditingItemId] = useState<string | null>(null);
+    const [editItemLabel, setEditItemLabel] = useState('');
+    const [editItemAmount, setEditItemAmount] = useState('');
+    const [editingSubId, setEditingSubId] = useState<string | null>(null);
+    const [editSubLabel, setEditSubLabel] = useState('');
+    const [editSubAmount, setEditSubAmount] = useState('');
 
     const total = items.reduce((n, item) => {
         const sub = item.subItems.reduce((m, si) => m + si.amount, 0);
@@ -301,6 +381,24 @@ function FeeStructureForm({
         setItems(prev => prev.map(it => it.id !== itemId ? it : { ...it, subItems: [...it.subItems, { id: `s-${Date.now()}`, label: newSubLabel.trim(), amount: Number(newSubAmount) || 0 }] }));
         setNewSubLabel(''); setNewSubAmount(''); setAddingSubFor(null);
     };
+    const startEditItem = (item: FeeItem) => {
+        setEditingItemId(item.id); setEditItemLabel(item.label); setEditItemAmount(String(item.amount || ''));
+        setAddingSubFor(null); setEditingSubId(null);
+    };
+    const saveEditItem = (itemId: string) => {
+        if (!editItemLabel.trim()) return;
+        setItems(prev => prev.map(it => it.id !== itemId ? it : { ...it, label: editItemLabel.trim(), amount: Number(editItemAmount) || 0 }));
+        setEditingItemId(null); setEditItemLabel(''); setEditItemAmount('');
+    };
+    const startEditSub = (si: { id: string; label: string; amount: number }) => {
+        setEditingSubId(si.id); setEditSubLabel(si.label); setEditSubAmount(String(si.amount || ''));
+        setAddingSubFor(null); setEditingItemId(null);
+    };
+    const saveEditSub = (itemId: string, subId: string) => {
+        if (!editSubLabel.trim()) return;
+        setItems(prev => prev.map(it => it.id !== itemId ? it : { ...it, subItems: it.subItems.map(s => s.id !== subId ? s : { ...s, label: editSubLabel.trim(), amount: Number(editSubAmount) || 0 }) }));
+        setEditingSubId(null); setEditSubLabel(''); setEditSubAmount('');
+    };
 
     return (
         <div className="flex flex-col min-h-0 flex-1">
@@ -316,20 +414,44 @@ function FeeStructureForm({
                 <div>
                     <p className="text-[11px] font-semibold text-muted-foreground mb-1.5">Type</p>
                     <div className="grid grid-cols-2 gap-1.5">
-                        {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
+                        {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[])
+                            // Bus Fee / Late Fee Fine are fixed system structures seeded by
+                            // default — not creatable here, only shown while editing themselves.
+                            // When editing one of them, lock the picker to just that type —
+                            // switching a Bus Fee/Late Fee structure into a different type
+                            // isn't allowed, so no other types should even be shown.
+                            .filter(t => {
+                                if (initial && (initial.type === 'BUS' || initial.type === 'LATE_FEE')) return t === initial.type;
+                                return !excludeTypes?.includes(t) && (!FEE_TYPE_CFG[t].unique || initial?.type === t);
+                            })
+                            .map(t => {
                             const cfg = FEE_TYPE_CFG[t];
                             const isActive = type === t;
+                            const isTaken = !!cfg.unique && (existingStructures ?? []).some(s => s.type === t && s.id !== initial?.id);
                             return (
-                                <button key={t} onClick={() => { setType(t); setColor(cfg.color); }}
-                                    className={`flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${isActive ? `border-current ${cfg.bg} ${cfg.text}` : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                                <button key={t} type="button"
+                                    disabled={isTaken}
+                                    onClick={() => { setType(t); setColor(cfg.color); }}
+                                    title={isTaken ? `Only one ${cfg.label} structure is allowed — delete the existing one first` : undefined}
+                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${isTaken ? 'opacity-40 cursor-not-allowed border-border/50 text-muted-foreground' : isActive ? `border-current ${cfg.bg} ${cfg.text}` : 'border-border/50 text-muted-foreground hover:border-border'}`}>
                                     <span>{cfg.emoji}</span> {cfg.label}
+                                    {cfg.tag && (
+                                        <span className={`text-[9px] font-bold px-1 py-0.5 rounded-full ${isActive && !isTaken ? 'bg-white/60' : 'bg-muted-foreground/10'}`}>{cfg.tag}</span>
+                                    )}
                                 </button>
                             );
                         })}
                     </div>
                 </div>
 
-                {/* Fee Items */}
+                {/* Fee Items — Bus Fee has no fixed price here; its amount is variable
+                    and set separately, so the items editor doesn't apply to it. */}
+                {type === 'BUS' ? (
+                    <div className="rounded-xl border border-dashed border-border/50 px-3 py-3 text-center">
+                        <p className="text-xs font-semibold text-muted-foreground">Variable pricing</p>
+                        <p className="text-[11px] text-muted-foreground/70 mt-0.5">Bus Fee has no fixed amount here — its price is set separately, not as fee items.</p>
+                    </div>
+                ) : (
                 <div>
                     <div className="flex items-center justify-between mb-2">
                         <p className="text-[11px] font-semibold text-muted-foreground">Fee Items <span className="text-red-500">*</span></p>
@@ -342,24 +464,68 @@ function FeeStructureForm({
                             const sub = item.subItems.reduce((n, s) => n + s.amount, 0);
                             return (
                                 <div key={item.id} className="rounded-xl border border-border/40 overflow-hidden">
-                                    <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
-                                        <span className="flex-1 text-xs font-medium">{item.label}</span>
-                                        <span className="text-xs font-semibold">₹{(sub > 0 ? sub : item.amount).toLocaleString()}</span>
-                                        <button onClick={() => setAddingSubFor(item.id)} className="text-[10px] text-muted-foreground hover:text-primary">+ sub</button>
-                                        <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
-                                            <X size={10} />
-                                        </button>
-                                    </div>
+                                    {editingItemId === item.id ? (
+                                        <div className="flex items-center gap-1.5 px-3 py-2 bg-primary/5">
+                                            <input value={editItemLabel} onChange={e => setEditItemLabel(e.target.value)}
+                                                onKeyDown={e => e.key === 'Enter' && saveEditItem(item.id)}
+                                                className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-transparent text-xs focus:outline-none" />
+                                            <input value={editItemAmount} onChange={e => setEditItemAmount(e.target.value)} type="number" placeholder="₹"
+                                                onKeyDown={e => e.key === 'Enter' && saveEditItem(item.id)}
+                                                className="w-16 h-7 px-2 rounded-lg border border-primary/50 bg-transparent text-xs focus:outline-none" />
+                                            <button onClick={() => saveEditItem(item.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0"
+                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                <Check size={10} />
+                                            </button>
+                                            <button onClick={() => { setEditingItemId(null); setEditItemLabel(''); setEditItemAmount(''); }}
+                                                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 shrink-0">
+                                                <X size={10} />
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
+                                            <span className="flex-1 text-xs font-medium">{item.label}</span>
+                                            <span className="text-xs font-semibold">₹{(sub > 0 ? sub : item.amount).toLocaleString()}</span>
+                                            <button onClick={() => startEditItem(item)} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-primary">
+                                                <Pencil size={9} />
+                                            </button>
+                                            <button onClick={() => setAddingSubFor(item.id)} className="text-[10px] text-muted-foreground hover:text-primary">+ sub</button>
+                                            <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
+                                                <X size={10} />
+                                            </button>
+                                        </div>
+                                    )}
                                     {item.subItems.map(si => (
+                                        editingSubId === si.id ? (
+                                            <div key={si.id} className="flex items-center gap-1.5 px-3 py-1.5 pl-6 border-t border-border/20 bg-primary/5">
+                                                <input value={editSubLabel} onChange={e => setEditSubLabel(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && saveEditSub(item.id, si.id)}
+                                                    className="flex-1 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
+                                                <input value={editSubAmount} onChange={e => setEditSubAmount(e.target.value)} type="number" placeholder="₹"
+                                                    onKeyDown={e => e.key === 'Enter' && saveEditSub(item.id, si.id)}
+                                                    className="w-16 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
+                                                <button onClick={() => saveEditSub(item.id, si.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0"
+                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                    <Check size={10} />
+                                                </button>
+                                                <button onClick={() => { setEditingSubId(null); setEditSubLabel(''); setEditSubAmount(''); }}
+                                                    className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 shrink-0">
+                                                    <X size={10} />
+                                                </button>
+                                            </div>
+                                        ) : (
                                         <div key={si.id} className="flex items-center justify-between px-3 py-1.5 pl-6 border-t border-border/20 bg-background">
                                             <span className="text-[11px] text-muted-foreground">{si.label}</span>
                                             <div className="flex items-center gap-2">
                                                 <span className="text-[11px]">₹{si.amount.toLocaleString()}</span>
+                                                <button onClick={() => startEditSub(si)} className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-primary">
+                                                    <Pencil size={8} />
+                                                </button>
                                                 <button onClick={() => setItems(prev => prev.map(it => it.id !== item.id ? it : { ...it, subItems: it.subItems.filter(s => s.id !== si.id) }))} className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
                                                     <X size={9} />
                                                 </button>
                                             </div>
                                         </div>
+                                        )
                                     ))}
                                     {addingSubFor === item.id && (
                                         <div className="flex items-center gap-1.5 px-3 py-1.5 pl-6 border-t border-border/20 bg-primary/5">
@@ -406,6 +572,7 @@ function FeeStructureForm({
                         </div>
                     )}
                 </div>
+                )}
             </div>
 
             {/* Footer */}
@@ -416,10 +583,15 @@ function FeeStructureForm({
                     </button>
                 )}
                 <button
-                    disabled={items.length === 0}
+                    disabled={type !== 'BUS' && items.length === 0}
                     onClick={() => {
                         if (!name.trim()) { toast.error('Enter a name'); return; }
-                        onSave({ id: initial?.id ?? `fs-${Date.now()}`, name: name.trim(), type, color, items });
+                        const cfg = FEE_TYPE_CFG[type];
+                        if (cfg.unique && (existingStructures ?? []).some(s => s.type === type && s.id !== initial?.id)) {
+                            toast.error(`Only one ${cfg.label} structure is allowed`);
+                            return;
+                        }
+                        onSave({ id: initial?.id ?? `fs-${Date.now()}`, name: name.trim(), type, color, items: type === 'BUS' ? [] : items, origin: initial?.origin ?? defaultOrigin });
                         if (!initial) {
                             // Reset for the next entry when reused as an always-open inline form.
                             setName(''); setType('REGULAR'); setColor(FEE_TYPE_CFG['REGULAR'].color); setItems([]);
@@ -440,10 +612,12 @@ function FeeStructureModal({
     initial,
     onSave,
     onClose,
+    existingStructures,
 }: {
     initial?: FeeStructure;
     onSave: (s: FeeStructure) => void;
     onClose: () => void;
+    existingStructures?: FeeStructure[];
 }) {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
@@ -459,7 +633,7 @@ function FeeStructureModal({
                     </button>
                 </div>
 
-                <FeeStructureForm initial={initial} onSave={onSave} onCancel={onClose} />
+                <FeeStructureForm initial={initial} onSave={onSave} onCancel={onClose} existingStructures={existingStructures} defaultOrigin="setup" />
             </motion.div>
         </div>
     );
@@ -484,6 +658,13 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const [showStructureModal, setShowStructureModal] = useState(false);
     const [editingStructure, setEditingStructure] = useState<FeeStructure | undefined>(undefined);
     const [draggedStructureId, setDraggedStructureId] = useState<string | null>(null);
+    // Bifurcates the Fee Structures list by where each structure came from:
+    // 'setup' = created via the "Add Structure" button here, 'student' = created
+    // via a student's fee card "+" button (per-student extras like a one-off
+    // penalty), 'default' = the two fixed system structures (Bus Fee / Late Fee
+    // Fine). Structures saved before `origin` existed have no value — treated
+    // as 'setup' so nothing old disappears.
+    const [structureViewFilter, setStructureViewFilter] = useState<'setup' | 'student' | 'default'>('setup');
 
     // Monthly schedule
     const [feeMonths, setFeeMonths] = useState<FeeMonth[]>([]);
@@ -495,6 +676,10 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const [editMonthDropdownOpen, setEditMonthDropdownOpen] = useState(false);
     const editMonthDropdownRef = useRef<HTMLDivElement>(null);
     const [addStructureModalMonthId, setAddStructureModalMonthId] = useState<string | null>(null);
+    // Same bifurcation as the main Fee Structures list, but only Setup vs
+    // Per-student here — Bus Fee / Late Fee Fine are already excluded from
+    // this modal entirely, so there's no "Default" bucket to show.
+    const [addModalStructureFilter, setAddModalStructureFilter] = useState<'setup' | 'student'>('setup');
     const [addingMonth, setAddingMonth] = useState(false);
     const [newMonth, setNewMonth] = useState('');
     const [newDueDate, setNewDueDate] = useState('');
@@ -521,6 +706,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const [newStudentFieldLabel, setNewStudentFieldLabel] = useState('');
     const [draggedFieldId, setDraggedFieldId] = useState<string | null>(null);
     const [confirmDelete, setConfirmDelete] = useState<{ kind: 'studentField' | 'extraColumn' | 'feeMonth' | 'rule' | 'feeStructure' | 'extraStructure'; id: string; index?: number; label: string; feeMonthId?: string } | null>(null);
+    const [confirmBusToggle, setConfirmBusToggle] = useState<{ studentId: string; fieldId: string; nextEnabled: boolean } | null>(null);
+    const [busMonthsModal, setBusMonthsModal] = useState<{ studentId: string; fieldId: string } | null>(null);
+    const [busMonthsSelection, setBusMonthsSelection] = useState<string[]>([]);
 
     const runConfirmedDelete = () => {
         if (!confirmDelete) return;
@@ -677,7 +865,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
         schoolName?: string | null;
         rulesAndRegs?: { id: string; text: string }[];
     }) => {
-        setFeeStructures(data.feeStructures ?? []);
+        setFeeStructures(ensureDefaultStructures(data.feeStructures ?? []));
         setFeeCardTheme((data.feeCardTheme && data.feeCardTheme in FEE_CARD_THEMES ? data.feeCardTheme : 'yellow') as FeeCardThemeKey);
         setSchoolLogoUrl(data.schoolLogoUrl ?? null);
         setSchoolName(data.schoolName ?? '');
@@ -691,7 +879,10 @@ export const FeesTab = forwardRef<FeesTabHandle, {
         setQrImageUrl(data.qrImageUrl ?? null);
         setExtraColumns(data.extraColumns ?? []);
         if (data.studentFields && data.studentFields.length > 0) {
-            setStudentFields(data.studentFields);
+            // Backward-compat: schools whose fee-card template was saved before the
+            // Bus field existed won't have it in their stored studentFields — append it.
+            const hasBus = data.studentFields.some(f => f.kind === 'default' && f.defaultKey === 'bus');
+            setStudentFields(hasBus ? data.studentFields : [...data.studentFields, { id: 'f-bus', kind: 'default' as const, defaultKey: 'bus' as const, label: 'Bus' }]);
         } else if (data.extraStudentFields && data.extraStudentFields.length > 0) {
             setStudentFields([
                 ...DEFAULT_STUDENT_FIELDS,
@@ -850,12 +1041,63 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const monthTotal = (m: FeeMonth) =>
         feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
 
+    // If this student's payment for month `m` is overdue (past due date, no
+    // paid date, still Pending), the Late Fee Fine structure auto-applies —
+    // this isn't stored anywhere, it's derived live from dates so it clears
+    // itself automatically the moment the payment is marked paid/paid-date set.
+    const getAutoLateFee = (studentId: string, m: FeeMonth): FeeStructure | null => {
+        const payment = getPayment(studentId, m.id);
+        if (!isLateFeeApplicable(m.dueDate, payment.paidDate)) return null;
+        const lateFee = feeStructures.find(s => s.type === 'LATE_FEE');
+        if (!lateFee) return null;
+        if (m.assignedStructureIds.includes(lateFee.id)) return null;
+        if ((payment.extraStructureIds ?? []).includes(lateFee.id)) return null;
+        return lateFee;
+    };
+
+    // Which months the admin has explicitly picked for this student's Bus Fee
+    // (stored as a JSON array of feeMonth ids in the same generic detail-field
+    // store used for the toggle/number/fee, under key `${fieldId}-months`).
+    const getBusMonthIds = (studentId: string, fieldId: string): string[] => {
+        const raw = getStudentDetailValue(studentId, `${fieldId}-months`);
+        if (!raw) return [];
+        try {
+            const parsed = JSON.parse(raw);
+            return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
+        } catch {
+            return [];
+        }
+    };
+
+    // Once the admin turns a student's Bus toggle ON, they explicitly pick
+    // which months get the Bus Fee structure via the month picker — it only
+    // applies to the months chosen, not automatically to every month going
+    // forward. Its amount isn't the shared structure's own items total
+    // (that's empty/variable), it's this specific student's own Bus Fee
+    // amount entered in their Student Details box, since bus fee varies per
+    // student by pickup location.
+    const getAutoBusFee = (studentId: string, m: FeeMonth): { structure: FeeStructure; amount: number } | null => {
+        const busField = studentFields.find(f => f.kind === 'default' && f.defaultKey === 'bus');
+        if (!busField) return null;
+        if (getStudentDetailValue(studentId, `${busField.id}-enabled`) !== 'true') return null;
+        if (!getBusMonthIds(studentId, busField.id).includes(m.id)) return null;
+        const busStructure = feeStructures.find(s => s.type === 'BUS');
+        if (!busStructure) return null;
+        if (m.assignedStructureIds.includes(busStructure.id)) return null;
+        const amount = Number(getStudentDetailValue(studentId, `${busField.id}-fee`)) || 0;
+        return { structure: busStructure, amount };
+    };
+
     // Shared month total (m.assignedStructureIds) plus this specific student's
-    // own extra structures (e.g. a Penalty added just for them this month).
+    // own extra structures (e.g. a Penalty added just for them this month),
+    // plus the auto-applied Late Fee Fine when this month is overdue & unpaid,
+    // plus the auto-applied Bus Fee once the student's Bus toggle is on.
     const studentMonthTotal = (studentId: string, m: FeeMonth) => {
         const extraIds = (getPayment(studentId, m.id).extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
         const extra = feeStructures.filter(s => extraIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
-        return monthTotal(m) + extra;
+        const autoLateFee = getAutoLateFee(studentId, m);
+        const autoBusFee = getAutoBusFee(studentId, m);
+        return monthTotal(m) + extra + (autoLateFee ? structureTotal(autoLateFee) : 0) + (autoBusFee ? autoBusFee.amount : 0);
     };
 
     const generatePDF = (type: 'all' | 'pending') => {
@@ -965,7 +1207,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                 : f.defaultKey === 'rollNo' ? 'Roll Number'
                                                                     : f.defaultKey === 'studentId' ? 'Student ID'
                                                                         : f.defaultKey === 'class' ? (divisionName.split('-')[0] ?? divisionName)
-                                                                            : (divisionName.split('-')[1] ?? '')
+                                                                            : f.defaultKey === 'bus' ? 'On/Off + Bus No.'
+                                                                                : (divisionName.split('-')[1] ?? '')
                                                             : f.value;
                                                         return (
                                                             <div key={f.id}
@@ -1216,11 +1459,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                     <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
                                                                         <div className="px-3 pb-2.5 pt-2 border-t" style={{ borderColor: fc.border }}>
                                                                             <p className="text-[10px] font-semibold mb-2" style={{ color: '#000000', opacity: 0.7 }}>Select fee structures for {m.month}</p>
-                                                                            {feeStructures.length === 0 ? (
+                                                                            {feeStructures.filter(s => s.type !== 'BUS' && s.type !== 'LATE_FEE').length === 0 ? (
                                                                                 <p className="text-[11px] italic" style={{ color: '#000000', opacity: 0.55 }}>Create fee structures first</p>
                                                                             ) : (
                                                                                 <div className="flex flex-wrap gap-1.5">
-                                                                                    {feeStructures.map(s => {
+                                                                                    {feeStructures.filter(s => s.type !== 'BUS' && s.type !== 'LATE_FEE').map(s => {
                                                                                         const active = m.assignedStructureIds.includes(s.id);
                                                                                         return (
                                                                                             <button key={s.id} onClick={() => toggleStructureForMonth(m.id, s.id)}
@@ -1454,25 +1697,54 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                             })}
                                         </div>
                                     </div>
-                                    <button onClick={() => { setEditingStructure(undefined); setShowStructureModal(true); }}
-                                        className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
-                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                        <Plus size={11} /> Add Structure
-                                    </button>
+                                    <div className="flex items-center gap-2">
+                                        {/* Bifurcation pill — Setup / Per-student / Default */}
+                                        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted/50 border border-border/50">
+                                            {([
+                                                { key: 'setup' as const, label: 'Setup' },
+                                                { key: 'student' as const, label: 'Per-student' },
+                                                { key: 'default' as const, label: 'Default' },
+                                            ]).map(opt => (
+                                                <button key={opt.key} onClick={() => setStructureViewFilter(opt.key)}
+                                                    className={`h-6 px-2.5 rounded-md text-[10px] font-semibold transition-all ${structureViewFilter === opt.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                    {opt.label}
+                                                </button>
+                                            ))}
+                                        </div>
+                                        <button onClick={() => { setEditingStructure(undefined); setShowStructureModal(true); }}
+                                            className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                            <Plus size={11} /> Add Structure
+                                        </button>
+                                    </div>
                                 </div>
                                 <div className="h-[260px] overflow-y-auto px-4 py-3 space-y-2"
                                     style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                                    {feeStructures.length === 0 && (
-                                        <div className="text-center py-8">
-                                            <Tag size={24} className="mx-auto text-muted-foreground/30 mb-2" />
-                                            <p className="text-xs text-muted-foreground/60">No fee structures yet</p>
-                                            <p className="text-[11px] text-muted-foreground/40 mt-1">Add Regular, Add-on, or Event fee structures</p>
-                                        </div>
-                                    )}
-                                    {feeStructures.map(fs => (
+                                    {(() => {
+                                        const visibleStructures = feeStructures.filter(fs => {
+                                            if (structureViewFilter === 'default') return fs.type === 'BUS' || fs.type === 'LATE_FEE';
+                                            if (fs.type === 'BUS' || fs.type === 'LATE_FEE') return false;
+                                            return (fs.origin ?? 'setup') === structureViewFilter;
+                                        });
+                                        if (visibleStructures.length === 0) {
+                                            return (
+                                                <div className="text-center py-8">
+                                                    <Tag size={24} className="mx-auto text-muted-foreground/30 mb-2" />
+                                                    <p className="text-xs text-muted-foreground/60">
+                                                        {structureViewFilter === 'default' ? 'No default structures'
+                                                            : structureViewFilter === 'student' ? 'No per-student structures yet'
+                                                                : 'No fee structures yet'}
+                                                    </p>
+                                                    <p className="text-[11px] text-muted-foreground/40 mt-1">
+                                                        {structureViewFilter === 'student'
+                                                            ? 'These appear here once added from a student’s fee card'
+                                                            : 'Add Regular, Add-on, or Event fee structures'}
+                                                    </p>
+                                                </div>
+                                            );
+                                        }
+                                        return visibleStructures.map(fs => (
                                         <div key={fs.id}
-                                            draggable
-                                            onDragStart={() => setDraggedStructureId(fs.id)}
                                             onDragOver={e => e.preventDefault()}
                                             onDrop={e => {
                                                 e.preventDefault();
@@ -1488,10 +1760,13 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                 });
                                                 setDraggedStructureId(null);
                                             }}
-                                            onDragEnd={() => setDraggedStructureId(null)}
                                             className="flex items-start gap-1"
-                                            style={{ opacity: draggedStructureId === fs.id ? 0.4 : 1, cursor: 'grab' }}>
-                                            <div className="pt-3 shrink-0 text-muted-foreground/40">
+                                            style={{ opacity: draggedStructureId === fs.id ? 0.4 : 1 }}>
+                                            <div draggable
+                                                onDragStart={() => setDraggedStructureId(fs.id)}
+                                                onDragEnd={() => setDraggedStructureId(null)}
+                                                className="pt-3 shrink-0 text-muted-foreground/40 hover:text-muted-foreground"
+                                                style={{ cursor: 'grab' }}>
                                                 <GripVertical size={14} />
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -1501,9 +1776,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                 />
                                             </div>
                                         </div>
-                                    ))}
-
-
+                                        ));
+                                    })()}
                                 </div>
                         </div>
 
@@ -1646,6 +1920,55 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                             <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Student Details</p>
                                                             <div className="rounded-xl border p-2 flex flex-wrap gap-2" style={{ borderColor: fc.border, background: fc.bg }}>
                                                                 {studentFields.map((f) => {
+                                                                    const isBus = f.kind === 'default' && f.defaultKey === 'bus';
+                                                                    if (isBus) {
+                                                                        const busEnabled = getStudentDetailValue(selectedStudent.id, `${f.id}-enabled`) === 'true';
+                                                                        const busNumber = getStudentDetailValue(selectedStudent.id, `${f.id}-number`);
+                                                                        const busFee = getStudentDetailValue(selectedStudent.id, `${f.id}-fee`);
+                                                                        return (
+                                                                            <div key={f.id} className="flex items-center justify-between gap-1 px-2.5 py-2 rounded-lg basis-[calc(50%-4px)] grow-0 shrink-0" style={{ border: `1px solid ${fc.border}` }}>
+                                                                                <div className="flex items-center gap-1 shrink-0">
+                                                                                    <span className="text-[11px]" style={{ color: '#000000' }}>{f.label}</span>
+                                                                                    <button type="button"
+                                                                                        onClick={() => setConfirmBusToggle({ studentId: selectedStudent.id, fieldId: f.id, nextEnabled: !busEnabled })}
+                                                                                        className="relative w-7 h-4 rounded-full shrink-0 transition-colors"
+                                                                                        style={{ background: busEnabled ? '#10B981' : 'rgba(0,0,0,0.18)' }}>
+                                                                                        <span className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all"
+                                                                                            style={{ left: busEnabled ? '14px' : '2px' }} />
+                                                                                    </button>
+                                                                                    {busEnabled && (
+                                                                                        <button type="button"
+                                                                                            onClick={() => {
+                                                                                                setBusMonthsSelection(getBusMonthIds(selectedStudent.id, f.id));
+                                                                                                setBusMonthsModal({ studentId: selectedStudent.id, fieldId: f.id });
+                                                                                            }}
+                                                                                            title="Edit which months this student's Bus Fee applies to"
+                                                                                            className="w-4 h-4 flex items-center justify-center shrink-0 text-muted-foreground hover:text-primary transition-all"
+                                                                                            style={{ color: '#000000', opacity: 0.5 }}>
+                                                                                            <Pencil size={10} />
+                                                                                        </button>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="flex items-center gap-1.5 shrink-0">
+                                                                                    <div className="flex items-center gap-0.5 shrink-0">
+                                                                                        <span className="text-[11px]" style={{ color: '#000000', opacity: busEnabled ? 0.6 : 0.3 }}>Bus No.</span>
+                                                                                        <input value={busNumber} onChange={e => setStudentDetailField(selectedStudent.id, `${f.id}-number`, e.target.value)}
+                                                                                            disabled={!busEnabled} placeholder="—"
+                                                                                            className="text-[11px] font-semibold text-right bg-transparent focus:outline-none shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                                            style={{ color: '#000000', width: `${Math.max(2, busNumber.length || 1) + 0.5}ch`, minWidth: 0, borderBottom: '1px solid rgba(0,0,0,0.35)' }} />
+                                                                                    </div>
+                                                                                    <div className="flex items-center gap-0.5 shrink-0">
+                                                                                        <span className="text-[11px]" style={{ color: '#000000', opacity: busEnabled ? 0.6 : 0.3 }}>Bus Fee ₹</span>
+                                                                                        <input value={busFee} onChange={e => setStudentDetailField(selectedStudent.id, `${f.id}-fee`, e.target.value.replace(/[^0-9]/g, ''))}
+                                                                                            disabled={!busEnabled} placeholder="0" inputMode="numeric"
+                                                                                            title="This student's individual bus fee amount — bus fee varies by pickup location"
+                                                                                            className="text-[11px] font-semibold text-right bg-transparent focus:outline-none shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                                            style={{ color: '#000000', width: `${Math.max(1, busFee.length || 1) + 0.5}ch`, minWidth: 0, borderBottom: '1px solid rgba(0,0,0,0.35)' }} />
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        );
+                                                                    }
                                                                     const value = f.kind === 'default'
                                                                         ? f.defaultKey === 'name' ? selectedStudent.name
                                                                             : f.defaultKey === 'rollNo' ? selectedStudent.rollNo
@@ -1660,8 +1983,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                             {f.kind === 'custom' ? (
                                                                                 <input value={value} onChange={e => setStudentDetailField(selectedStudent.id, f.id, e.target.value)}
                                                                                     placeholder="Enter value"
-                                                                                    className="text-[11px] font-semibold text-right bg-transparent focus:outline-none min-w-0 flex-1"
-                                                                                    style={{ color: '#000000' }} />
+                                                                                    className="text-[11px] font-semibold text-right bg-transparent focus:outline-none shrink-0"
+                                                                                    style={{ color: '#000000', width: `${Math.max(4, Math.min(value.length || 1, 14)) + 0.5}ch`, minWidth: 0, borderBottom: '1px solid rgba(0,0,0,0.35)' }} />
                                                                             ) : (
                                                                                 <span className={`text-[11px] font-semibold truncate ${isStudentId ? 'font-mono' : ''}`} style={{ color: isStudentId ? '#DA7756' : '#000000' }}>{value}</span>
                                                                             )}
@@ -1677,9 +2000,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                         {feeMonths.length > 0 && (
                                                             <div>
                                                                 <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Monthly Payment Schedule</p>
-                                                                <div className="rounded-xl border overflow-x-auto" style={{ borderColor: fc.border }}>
+                                                                <div className="rounded-xl border overflow-x-auto overflow-y-auto max-h-[340px]" style={{ borderColor: fc.border, scrollbarWidth: 'thin', scrollbarColor: `${fc.border} transparent` }}>
                                                                     <table className="text-xs w-full" style={{ color: '#000000' }}>
-                                                                        <thead>
+                                                                        <thead className="sticky top-0 z-10">
                                                                             <tr style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                                                                 {['Month', 'Fee Structures', 'Amount (₹)', 'Due Date', 'Paid Date', 'Status', 'Remark', ...extraColumns.map(c => c.label)].map((col, i) => (
                                                                                     <th key={i} className="px-3 py-2 text-left text-[11px] font-bold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{col}</th>
@@ -1692,6 +2015,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                                 const assigned = feeStructures.filter(s => m.assignedStructureIds.includes(s.id));
                                                                                 const extraIds = (getPayment(selectedStudent.id, m.id).extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
                                                                                 const extraStructures = extraIds.map(id => feeStructures.find(s => s.id === id)).filter((s): s is FeeStructure => !!s);
+                                                                                const autoLateFee = getAutoLateFee(selectedStudent.id, m);
+                                                                                const autoBusFee = getAutoBusFee(selectedStudent.id, m);
                                                                                 return (
                                                                                     <tr key={m.id} className="transition-colors" style={{ background: selectedMonth === m.id ? `${fc.border}80` : mi % 2 === 1 ? fc.bg : 'transparent', borderTop: `1px solid ${fc.border}` }}>
                                                                                         <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
@@ -1700,7 +2025,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                                         </td>
                                                                                         <td className="px-3 py-2" style={{ borderRight: `1px solid ${fc.border}` }}>
                                                                                             <div className="flex flex-wrap items-center gap-0.5">
-                                                                                                {assigned.length === 0 && extraStructures.length === 0
+                                                                                                {assigned.length === 0 && extraStructures.length === 0 && !autoLateFee && !autoBusFee
                                                                                                     ? <span className="text-[10px] italic cursor-pointer" style={{ color: '#000000', opacity: 0.4 }} onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>—</span>
                                                                                                     : null
                                                                                                 }
@@ -1720,6 +2045,20 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                                                         <X size={8} />
                                                                                                     </span>
                                                                                                 ))}
+                                                                                                {autoLateFee && (
+                                                                                                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5"
+                                                                                                        style={{ background: autoLateFee.color + '20', color: autoLateFee.color }}
+                                                                                                        title="Auto-applied: payment is overdue and unpaid">
+                                                                                                        {autoLateFee.name}
+                                                                                                    </span>
+                                                                                                )}
+                                                                                                {autoBusFee && (
+                                                                                                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full inline-flex items-center gap-0.5"
+                                                                                                        style={{ background: autoBusFee.structure.color + '20', color: autoBusFee.structure.color }}
+                                                                                                        title="Auto-applied: this student's Bus service is on">
+                                                                                                        {autoBusFee.structure.name}
+                                                                                                    </span>
+                                                                                                )}
                                                                                                 <button type="button" onClick={() => setAddStructureModalMonthId(m.id)}
                                                                                                     className="flex items-center justify-center w-4 h-4 rounded-full border hover:border-primary/50 hover:text-primary transition-all"
                                                                                                     style={{ borderColor: fc.border, color: '#000000', opacity: 0.6 }}
@@ -1802,7 +2141,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                 const extraIds = selectedStudent
                                                                     ? (getPayment(selectedStudent.id, month.id).extraStructureIds ?? []).filter(id => !sharedIds.has(id))
                                                                     : [];
-                                                                const assigned = feeStructures.filter(s => sharedIds.has(s.id) || extraIds.includes(s.id));
+                                                                const autoLateFee = selectedStudent ? getAutoLateFee(selectedStudent.id, month) : null;
+                                                                const autoBusFee = selectedStudent ? getAutoBusFee(selectedStudent.id, month) : null;
+                                                                const assigned = feeStructures.filter(s => sharedIds.has(s.id) || extraIds.includes(s.id) || s.id === autoLateFee?.id || s.id === autoBusFee?.structure.id);
                                                                 if (assigned.length === 0) return (
                                                                     <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
                                                                         <p className="text-xs" style={{ color: '#000000' }}>No fee structures assigned to {month.month}</p>
@@ -1811,15 +2152,19 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                 return (
                                                                     <div className="space-y-2">
                                                                         {assigned.map(fs => {
-                                                                            const total = structureTotal(fs);
+                                                                            const isAutoBusFee = fs.id === autoBusFee?.structure.id;
+                                                                            const total = isAutoBusFee && autoBusFee ? autoBusFee.amount : structureTotal(fs);
                                                                             const cfg = FEE_TYPE_CFG[fs.type];
                                                                             const isExtra = extraIds.includes(fs.id);
+                                                                            const isAutoLateFee = fs.id === autoLateFee?.id;
                                                                             return (
-                                                                                <div key={fs.id} className="rounded-xl border overflow-hidden" style={isExtra ? { borderColor: fs.color + '60', borderStyle: 'dashed' } : { borderColor: fc.border }}>
+                                                                                <div key={fs.id} className="rounded-xl border overflow-hidden" style={(isExtra || isAutoLateFee || isAutoBusFee) ? { borderColor: fs.color + '60', borderStyle: 'dashed' } : { borderColor: fc.border }}>
                                                                                     <div className="flex items-center gap-2 px-3 py-2" style={{ background: fc.bg }}>
                                                                                         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: fs.color }} />
                                                                                         <span className="flex-1 text-xs font-semibold" style={{ color: '#000000' }}>{fs.name}</span>
                                                                                         {isExtra && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>For this student</span>}
+                                                                                        {isAutoLateFee && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>Auto-applied</span>}
+                                                                                        {isAutoBusFee && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>Auto-applied</span>}
                                                                                         <span className={`text-[10px] font-bold ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
                                                                                         <span className="text-xs font-bold" style={{ color: '#000000' }}>₹{total.toLocaleString()}</span>
                                                                                     </div>
@@ -1941,6 +2286,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                     const m = feeMonths.find(fm => fm.id === addStructureModalMonthId);
                     if (!m) return null;
                     const extraIds = (getPayment(selectedStudent.id, m.id).extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
+                    // Bus Fee / Late Fee Fine structures are managed only from Fee Setup —
+                    // they don't show up here as selectable per-student extras.
+                    const selectableStructures = feeStructures.filter(fs => fs.type !== 'BUS' && fs.type !== 'LATE_FEE');
                     return (
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setAddStructureModalMonthId(null)}>
                             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -1959,24 +2307,45 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                 <div className="flex-1 min-h-0 flex flex-col md:flex-row">
                                     {/* LEFT — existing structures, pick one */}
                                     <div className="w-full md:w-1/2 md:border-r border-border/50 flex flex-col min-h-0">
-                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 pt-3 pb-2 shrink-0">Existing Structures</p>
+                                        <div className="flex items-center justify-between px-5 pt-3 pb-2 shrink-0 gap-2">
+                                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Existing Structures</p>
+                                            <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted/50 border border-border/50 shrink-0">
+                                                {([
+                                                    { key: 'setup' as const, label: 'Setup' },
+                                                    { key: 'student' as const, label: 'Per-student' },
+                                                ]).map(opt => (
+                                                    <button key={opt.key} onClick={() => setAddModalStructureFilter(opt.key)}
+                                                        className={`h-6 px-2.5 rounded-md text-[10px] font-semibold transition-all ${addModalStructureFilter === opt.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                        {opt.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
                                         <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-2"
                                             style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                                            {feeStructures.length === 0 ? (
-                                                <div className="text-center py-8">
-                                                    <Tag size={22} className="mx-auto text-muted-foreground/30 mb-2" />
-                                                    <p className="text-xs text-muted-foreground/60">No fee structures yet</p>
-                                                    <p className="text-[11px] text-muted-foreground/40 mt-1">Create one on the right to add it for this student</p>
-                                                </div>
-                                            ) : feeStructures.map(fs => (
-                                                <FeeStructureCard key={fs.id} fs={fs}
-                                                    isShared={m.assignedStructureIds.includes(fs.id)}
-                                                    isAdded={extraIds.includes(fs.id)}
-                                                    onSelect={() => setPaymentField(m.id, { toggleStructureId: fs.id })}
-                                                    onEdit={() => { setEditingStructure(fs); setShowStructureModal(true); }}
-                                                    onDelete={() => setConfirmDelete({ kind: 'feeStructure', id: fs.id, label: fs.name })}
-                                                />
-                                            ))}
+                                            {(() => {
+                                                const filteredSelectable = selectableStructures.filter(fs => (fs.origin ?? 'setup') === addModalStructureFilter);
+                                                if (filteredSelectable.length === 0) {
+                                                    return (
+                                                        <div className="text-center py-8">
+                                                            <Tag size={22} className="mx-auto text-muted-foreground/30 mb-2" />
+                                                            <p className="text-xs text-muted-foreground/60">
+                                                                {addModalStructureFilter === 'student' ? 'No per-student structures yet' : 'No fee structures yet'}
+                                                            </p>
+                                                            <p className="text-[11px] text-muted-foreground/40 mt-1">Create one on the right to add it for this student</p>
+                                                        </div>
+                                                    );
+                                                }
+                                                return filteredSelectable.map(fs => (
+                                                    <FeeStructureCard key={fs.id} fs={fs}
+                                                        isShared={m.assignedStructureIds.includes(fs.id)}
+                                                        isAdded={extraIds.includes(fs.id)}
+                                                        onSelect={() => setPaymentField(m.id, { toggleStructureId: fs.id })}
+                                                        onEdit={() => { setEditingStructure(fs); setShowStructureModal(true); }}
+                                                        onDelete={() => setConfirmDelete({ kind: 'feeStructure', id: fs.id, label: fs.name })}
+                                                    />
+                                                ));
+                                            })()}
                                         </div>
                                     </div>
 
@@ -1986,8 +2355,10 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                         <div className="flex-1 overflow-y-auto px-5 pb-4 flex flex-col min-h-0"
                                             style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
                                             <FeeStructureForm compact
+                                                excludeTypes={['BUS', 'LATE_FEE']}
+                                                defaultOrigin="student"
                                                 onSave={s => {
-                                                    setFeeStructures(prev => [...prev, s]);
+                                                    setFeeStructures(prev => insertStructure(prev, s));
                                                     setPaymentField(m.id, { toggleStructureId: s.id });
                                                     toast.success(`${s.name} added for ${selectedStudent.name}`);
                                                 }}
@@ -2007,11 +2378,12 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                 {showStructureModal && (
                     <FeeStructureModal
                         initial={editingStructure}
+                        existingStructures={feeStructures}
                         onSave={s => {
                             if (editingStructure) {
                                 setFeeStructures(prev => prev.map(fs => fs.id === s.id ? s : fs));
                             } else {
-                                setFeeStructures(prev => [...prev, s]);
+                                setFeeStructures(prev => insertStructure(prev, s));
                             }
                             setShowStructureModal(false);
                         }}
@@ -2034,9 +2406,14 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                 : confirmDelete.kind === 'extraStructure' ? 'Structure'
                                                     : 'Rule'}?
                             </h3>
-                            <p className="text-sm text-muted-foreground mb-5">
+                            <p className={`text-sm text-muted-foreground ${confirmDelete.kind === 'feeStructure' || confirmDelete.kind === 'extraStructure' ? 'mb-1.5' : 'mb-5'}`}>
                                 &ldquo;{confirmDelete.label}&rdquo; will be permanently deleted. Are you sure?
                             </p>
+                            {(confirmDelete.kind === 'feeStructure' || confirmDelete.kind === 'extraStructure') && (
+                                <p className="text-xs text-amber-600 dark:text-amber-500 mb-5">
+                                    If this structure is assigned anywhere, it will also disappear from those students&rsquo; fee cards.
+                                </p>
+                            )}
                             <div className="flex gap-2 justify-end">
                                 <button onClick={() => setConfirmDelete(null)}
                                     className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
@@ -2045,6 +2422,102 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                 <button onClick={runConfirmedDelete}
                                     className="h-9 px-4 rounded-xl text-xs font-semibold text-white bg-red-500 hover:opacity-90 transition-all">
                                     Yes, Delete
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Confirm bus service toggle */}
+            <AnimatePresence>
+                {confirmBusToggle && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            <h3 className="text-base font-bold mb-2">
+                                {confirmBusToggle.nextEnabled ? 'Enable Bus Service?' : 'Disable Bus Service?'}
+                            </h3>
+                            <p className="text-sm text-muted-foreground mb-5">
+                                {confirmBusToggle.nextEnabled
+                                    ? 'This student will be marked as taking the bus service. You can enter their bus number after confirming.'
+                                    : 'This student will be marked as not taking the bus service. The bus number field will be locked.'}
+                            </p>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setConfirmBusToggle(null)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => {
+                                    if (!confirmBusToggle) return;
+                                    const { studentId, fieldId, nextEnabled } = confirmBusToggle;
+                                    setStudentDetailField(studentId, `${fieldId}-enabled`, nextEnabled ? 'true' : 'false');
+                                    if (!nextEnabled) {
+                                        setStudentDetailField(studentId, `${fieldId}-number`, '');
+                                    }
+                                    setConfirmBusToggle(null);
+                                    if (nextEnabled) {
+                                        setBusMonthsSelection(getBusMonthIds(studentId, fieldId));
+                                        setBusMonthsModal({ studentId, fieldId });
+                                    }
+                                }}
+                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
+                                    style={{ background: confirmBusToggle.nextEnabled ? '#10B981' : '#DC2626' }}>
+                                    Yes, {confirmBusToggle.nextEnabled ? 'Enable' : 'Disable'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Bus Fee - pick which months it applies to for this student */}
+            <AnimatePresence>
+                {busMonthsModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setBusMonthsModal(null)}>
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                            <h3 className="text-sm font-bold mb-1">Bus Fee - Select Months</h3>
+                            <p className="text-xs text-muted-foreground mb-3">Pick the months this student&apos;s Bus Fee should be added to.</p>
+                            {feeMonths.length > 0 && (
+                                <button type="button"
+                                    onClick={() => setBusMonthsSelection(prev => prev.length === feeMonths.length ? [] : feeMonths.map(m => m.id))}
+                                    className="text-[11px] font-semibold text-primary hover:underline mb-2">
+                                    {busMonthsSelection.length === feeMonths.length ? 'Deselect All' : 'Select All'}
+                                </button>
+                            )}
+                            {feeMonths.length === 0 ? (
+                                <p className="text-xs italic text-muted-foreground mb-4">No fee months set up yet.</p>
+                            ) : (
+                                <div className="flex flex-wrap gap-1.5 mb-5 max-h-64 overflow-y-auto"
+                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                    {feeMonths.map(m => {
+                                        const active = busMonthsSelection.includes(m.id);
+                                        return (
+                                            <button key={m.id} type="button"
+                                                onClick={() => setBusMonthsSelection(prev => active ? prev.filter(id => id !== m.id) : [...prev, m.id])}
+                                                className="flex items-center gap-1.5 h-7 px-3 rounded-xl border-2 text-[11px] font-semibold transition-all"
+                                                style={active ? { borderColor: '#0891B2', background: '#0891B220', color: '#0891B2' } : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}>
+                                                {active && <Check size={10} />}
+                                                {m.month}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setBusMonthsModal(null)}
+                                    className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => {
+                                    if (!busMonthsModal) return;
+                                    setStudentDetailField(busMonthsModal.studentId, `${busMonthsModal.fieldId}-months`, JSON.stringify(busMonthsSelection));
+                                    setBusMonthsModal(null);
+                                }}
+                                    className="h-9 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                    Save
                                 </button>
                             </div>
                         </motion.div>

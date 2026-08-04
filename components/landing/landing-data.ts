@@ -125,7 +125,7 @@ export const PLANS: PlanCard[] = [
             'Marksheets & fee tracking',
             'Student mobile app',
             'Audit logs',
-            '10M AI tokens included',
+            'AI tokens included',
         ],
     },
     {
@@ -139,7 +139,7 @@ export const PLANS: PlanCard[] = [
             'Everything in Basic',
             'Automatic timetable generation',
             'Parent portal',
-            'Performance insights & analytics',
+            'AI performance insights & analytics',
             'Student leaderboard',
             'Whitelabelling',
             'Priority support',

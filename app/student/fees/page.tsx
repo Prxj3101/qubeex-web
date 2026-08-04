@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import NextImage from 'next/image';
 import { ArrowLeft, Landmark, Building2, QrCode, CreditCard, Wallet, ChevronDown, ImagePlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
@@ -45,9 +46,29 @@ function isPaidLate(dueDate: string | null | undefined, paidDate: string | null 
     return paid.getTime() > due.getTime();
 }
 
+// The Late Fee Fine applies once today is strictly after the due date, AND
+// either no paid date has been entered yet, or the paid date entered is
+// itself after the due date (i.e. actually paid late). Once it has applied
+// it stays applied — status/paid-date edits don't clear it unless the paid
+// date entered is on or before the due date (meaning the student genuinely
+// paid on time and the admin was just late updating the record).
+function isLateFeeApplicable(dueDate: string | null | undefined, paidDate: string | null | undefined): boolean {
+    const due = parseFlexDate(dueDate);
+    if (!due) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    if (today.getTime() <= due.getTime()) return false;
+    if (!paidDate || !paidDate.trim()) return true;
+    const paid = parseFlexDate(paidDate);
+    if (!paid) return true;
+    paid.setHours(0, 0, 0, 0);
+    return paid.getTime() > due.getTime();
+}
+
 // ─── Data ─────────────────────────────────────────────────────────────────────
 
-type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME';
+type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME' | 'BUS' | 'LATE_FEE';
 
 interface FeeSubItem { id: string; label: string; amount: number; }
 interface FeeItem { id: string; label: string; amount: number; subItems: FeeSubItem[]; }
@@ -59,7 +80,7 @@ interface BankDetails { accountName?: string; accountNumber?: string; ifsc?: str
 type StudentDetailField = {
     id: string;
     kind: 'default' | 'custom';
-    defaultKey?: 'name' | 'rollNo' | 'studentId' | 'class' | 'division';
+    defaultKey?: 'name' | 'rollNo' | 'studentId' | 'class' | 'division' | 'bus';
     label: string;
     value?: string;
 };
@@ -69,6 +90,7 @@ const DEFAULT_STUDENT_FIELDS: StudentDetailField[] = [
     { id: 'f-studentid', kind: 'default', defaultKey: 'studentId', label: 'Student ID' },
     { id: 'f-class', kind: 'default', defaultKey: 'class', label: 'Class' },
     { id: 'f-division', kind: 'default', defaultKey: 'division', label: 'Division' },
+    { id: 'f-bus', kind: 'default', defaultKey: 'bus', label: 'Bus' },
 ];
 
 const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg: string; text: string; emoji: string }> = {
@@ -76,6 +98,8 @@ const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg:
     ADDON:    { label: 'Add-on',           color: '#DA7756', bg: 'bg-orange-100 dark:bg-orange-950/40',  text: 'text-orange-700 dark:text-orange-400',  emoji: '➕' },
     PENALTY:  { label: 'Penalty / Fine',   color: '#DC2626', bg: 'bg-red-100 dark:bg-red-950/40',        text: 'text-red-700 dark:text-red-400',        emoji: '⚠️' },
     ONE_TIME: { label: 'One-time',         color: '#059669', bg: 'bg-emerald-100 dark:bg-emerald-950/40',text: 'text-emerald-700 dark:text-emerald-400', emoji: '⭐' },
+    BUS:      { label: 'Bus Fee',          color: '#0891B2', bg: 'bg-cyan-100 dark:bg-cyan-950/40',       text: 'text-cyan-700 dark:text-cyan-400',       emoji: '🚌' },
+    LATE_FEE: { label: 'Late Fee Fine',    color: '#DC2626', bg: 'bg-red-100 dark:bg-red-950/40',     text: 'text-red-700 dark:text-red-400',     emoji: '⚠️' },
 };
 
 const STATUS_CFG = {
@@ -89,6 +113,20 @@ function structureTotal(s: FeeStructure) {
         return n + (sub > 0 ? sub : item.amount);
     }, 0);
 }
+
+// Bus Fee / Late Fee Fine are fixed system types with a fixed color scheme —
+// structures saved before that color scheme changed still have the old hex
+// baked into their saved `color` field, so normalize it against the current
+// config whenever structures are loaded, instead of showing stale colors.
+function normalizeStructureColors(structures: FeeStructure[]): FeeStructure[] {
+    return structures.map(s => (s.type === 'BUS' || s.type === 'LATE_FEE') && s.color !== FEE_TYPE_CFG[s.type].color
+        ? { ...s, color: FEE_TYPE_CFG[s.type].color }
+        : s);
+}
+
+const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
+function getAvatarColor(n: string) { return AVATAR_COLORS[n.charCodeAt(0) % AVATAR_COLORS.length]; }
+function getInitials(n: string) { return n.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase(); }
 
 const BANK_LABELS: { key: keyof BankDetails; label: string }[] = [
     { key: 'accountName', label: 'Account Name' },
@@ -112,7 +150,7 @@ export default function FeesPage() {
     const [schoolLogoUrl, setSchoolLogoUrl] = useState<string | null>(null);
     const [schoolName, setSchoolName] = useState('');
 
-    const [student, setStudent] = useState<{ name: string; rollNo: string; studentId: string; standardName: string; divisionName: string } | null>(null);
+    const [student, setStudent] = useState<{ name: string; rollNo: string; studentId: string; standardName: string; divisionName: string; avatarUrl: string | null } | null>(null);
     const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
     const [feeMonths, setFeeMonths] = useState<FeeMonth[]>([]);
     const [feePayments, setFeePayments] = useState<FeePayment[]>([]);
@@ -120,6 +158,8 @@ export default function FeesPage() {
     const [extraColumns, setExtraColumns] = useState<{ label: string }[]>([]);
     const [bankDetails, setBankDetails] = useState<BankDetails | null>(null);
     const [qrImageUrl, setQrImageUrl] = useState<string | null>(null);
+    const [qrPreviewOpen, setQrPreviewOpen] = useState(false);
+    const [qrDownloading, setQrDownloading] = useState(false);
     const [studentFields, setStudentFields] = useState<StudentDetailField[]>(DEFAULT_STUDENT_FIELDS);
     const [extraDetailFields, setExtraDetailFields] = useState<Record<string, string> | null>(null);
 
@@ -136,11 +176,12 @@ export default function FeesPage() {
                     studentId: me.studentId ?? '—',
                     standardName: me.standard?.name ?? '',
                     divisionName: me.division?.name ?? '',
+                    avatarUrl: me.avatarUrl ?? null,
                 });
             }
 
             const structure = feesRes.data?.data?.structure;
-            setFeeStructures(structure?.feeStructures ?? []);
+            setFeeStructures(normalizeStructureColors(structure?.feeStructures ?? []));
             setFeeMonths(structure?.feeMonths ?? []);
             setRulesAndRegs(structure?.rulesAndRegs ?? []);
             setExtraColumns(structure?.extraColumns ?? []);
@@ -150,12 +191,38 @@ export default function FeesPage() {
             setFeeCardTheme(theme && theme in FEE_CARD_THEMES ? theme as FeeCardThemeKey : 'yellow');
             setSchoolLogoUrl(structure?.schoolLogoUrl ?? null);
             setSchoolName(structure?.schoolName ?? '');
-            setStudentFields(structure?.studentFields && structure.studentFields.length > 0 ? structure.studentFields : DEFAULT_STUDENT_FIELDS);
+            if (structure?.studentFields && structure.studentFields.length > 0) {
+                const hasBus = structure.studentFields.some((f: StudentDetailField) => f.kind === 'default' && f.defaultKey === 'bus');
+                setStudentFields(hasBus ? structure.studentFields : [...structure.studentFields, { id: 'f-bus', kind: 'default' as const, defaultKey: 'bus' as const, label: 'Bus' }]);
+            } else {
+                setStudentFields(DEFAULT_STUDENT_FIELDS);
+            }
             setExtraDetailFields(feesRes.data?.data?.extraDetailFields ?? null);
 
             setFeePayments(feesRes.data?.data?.payments ?? []);
         }).finally(() => setLoading(false));
     }, []);
+
+    const downloadQrCode = async () => {
+        if (!qrImageUrl) return;
+        setQrDownloading(true);
+        try {
+            const res = await fetch(qrImageUrl);
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'payment-qr-code.png';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+        } catch {
+            window.open(qrImageUrl, '_blank');
+        } finally {
+            setQrDownloading(false);
+        }
+    };
 
     const getPayment = (feeMonthId: string): FeePayment =>
         feePayments.find(p => p.feeMonthId === feeMonthId) ?? { feeMonthId, status: 'PENDING', paidDate: null, remark: null, extraFields: null, extraStructureIds: null };
@@ -180,12 +247,57 @@ export default function FeesPage() {
     const monthTotal = (m: FeeMonth) =>
         feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
 
+    // If the payment for month `m` is overdue (past due date, no paid date,
+    // still Pending), the Late Fee Fine structure auto-applies — this isn't
+    // stored anywhere, it's derived live from dates so it clears itself
+    // automatically the moment the payment is marked paid/paid-date set.
+    const getAutoLateFee = (m: FeeMonth): FeeStructure | null => {
+        const payment = getPayment(m.id);
+        if (!isLateFeeApplicable(m.dueDate, payment.paidDate)) return null;
+        const lateFee = feeStructures.find(s => s.type === 'LATE_FEE');
+        if (!lateFee) return null;
+        if (m.assignedStructureIds.includes(lateFee.id)) return null;
+        if ((payment.extraStructureIds ?? []).includes(lateFee.id)) return null;
+        return lateFee;
+    };
+
+    // Once the Bus toggle is ON, the admin explicitly picks which months get
+    // the Bus Fee structure via the month picker — it only applies to the
+    // months chosen, not automatically to every month going forward. Its
+    // amount isn't the shared structure's own items total (that's
+    // empty/variable), it's this student's own Bus Fee amount entered by the
+    // admin in the Student Details box, since bus fee varies per student by
+    // pickup location.
+    const getAutoBusFee = (m: FeeMonth): { structure: FeeStructure; amount: number } | null => {
+        const busField = studentFields.find(f => f.kind === 'default' && f.defaultKey === 'bus');
+        if (!busField) return null;
+        if (extraDetailFields?.[`${busField.id}-enabled`] !== 'true') return null;
+        const rawMonths = extraDetailFields?.[`${busField.id}-months`];
+        let monthIds: string[] = [];
+        if (rawMonths) {
+            try {
+                const parsed = JSON.parse(rawMonths);
+                if (Array.isArray(parsed)) monthIds = parsed.filter((x): x is string => typeof x === 'string');
+            } catch { /* ignore malformed value */ }
+        }
+        if (!monthIds.includes(m.id)) return null;
+        const busStructure = feeStructures.find(s => s.type === 'BUS');
+        if (!busStructure) return null;
+        if (m.assignedStructureIds.includes(busStructure.id)) return null;
+        const amount = Number(extraDetailFields?.[`${busField.id}-fee`]) || 0;
+        return { structure: busStructure, amount };
+    };
+
     // Shared month total plus this student's own extra structures (e.g. a Penalty
-    // added just for them this month, on top of the division's shared set).
+    // added just for them this month, on top of the division's shared set), plus
+    // the auto-applied Late Fee Fine when this month is overdue & unpaid, plus the
+    // auto-applied Bus Fee once the Bus toggle is on.
     const studentMonthTotal = (m: FeeMonth) => {
         const extraIds = (getPayment(m.id).extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
         const extra = feeStructures.filter(s => extraIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
-        return monthTotal(m) + extra;
+        const autoLateFee = getAutoLateFee(m);
+        const autoBusFee = getAutoBusFee(m);
+        return monthTotal(m) + extra + (autoLateFee ? structureTotal(autoLateFee) : 0) + (autoBusFee ? autoBusFee.amount : 0);
     };
 
     if (loading) {
@@ -209,7 +321,7 @@ export default function FeesPage() {
                         <ArrowLeft size={15} className="text-foreground" />
                     </button>
                     <div>
-                        <h1 className="text-xl font-bold leading-tight">Fees Detail</h1>
+                        <h1 className="text-xl font-bold leading-tight">Fee Details</h1>
                         <p className="text-[13px] text-muted-foreground">Your fee records & payment history</p>
                     </div>
                 </div>
@@ -220,7 +332,7 @@ export default function FeesPage() {
             <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-4 pb-3">
 
                 {/* ── LEFT: Fee Details (same as teacher fees tab) ── */}
-                <div className="w-full lg:w-[55%] lg:shrink-0 h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="order-2 w-full lg:w-[60%] lg:shrink-0 h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                     <div className="px-4 py-3 border-b border-border/40 shrink-0 flex items-center gap-2">
                         <Wallet size={14} className="text-muted-foreground" />
                         <p className="text-sm font-bold">Fee Details</p>
@@ -230,13 +342,15 @@ export default function FeesPage() {
 
                             {/* Student header */}
                             <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20">
-                                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-bold text-white shrink-0"
-                                    style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}>
-                                    {(student?.name ?? '').split(' ').slice(0, 2).map(w => w[0]).join('')}
+                                <div className="w-10 h-10 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                                    style={{ background: student?.avatarUrl ? 'transparent' : getAvatarColor(student?.name ?? '') }}>
+                                    {student?.avatarUrl
+                                        ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="80px" quality={90} className="object-cover" />
+                                        : getInitials(student?.name ?? '')}
                                 </div>
                                 <div className="flex-1">
                                     <p className="text-sm font-bold">{student?.name ?? '—'}</p>
-                                    <p className="text-[11px] text-muted-foreground">Roll No. {student?.rollNo ?? '—'} · {student?.standardName}-{student?.divisionName}</p>
+                                    <p className="text-[11px] text-muted-foreground">Roll No. {student?.rollNo ?? '—'} · {student?.divisionName ?? '—'}</p>
                                 </div>
                                 <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${isPaid ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>
                                     {isPaid ? '✓ Paid' : '⏳ Pending'}
@@ -283,12 +397,38 @@ export default function FeesPage() {
                                                 <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Student Details</p>
                                                 <div className="rounded-xl border p-2 flex flex-wrap gap-2" style={{ borderColor: fc.border }}>
                                                     {studentFields.map((f) => {
+                                                        const isBus = f.kind === 'default' && f.defaultKey === 'bus';
+                                                        if (isBus) {
+                                                            const busEnabled = extraDetailFields?.[`${f.id}-enabled`] === 'true';
+                                                            const busNumber = extraDetailFields?.[`${f.id}-number`] || '—';
+                                                            const busFee = extraDetailFields?.[`${f.id}-fee`] || '0';
+                                                            return (
+                                                                <div key={f.id} className="flex items-center justify-between gap-1 px-2.5 py-2 rounded-lg basis-[calc(50%-4px)] grow-0 shrink-0" style={{ border: `1px solid ${fc.border}` }}>
+                                                                    <div className="flex items-center gap-1 shrink-0">
+                                                                        <span className="text-[11px]" style={{ color: '#000000' }}>{f.label}</span>
+                                                                        <span className={`text-[9px] font-semibold px-1 py-0.5 rounded-full ${busEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>
+                                                                            {busEnabled ? 'On' : 'Off'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <div className="flex items-center gap-0.5 shrink-0">
+                                                                            <span className="text-[11px]" style={{ color: '#000000', opacity: busEnabled ? 0.6 : 0.3 }}>Bus No.</span>
+                                                                            <span className="text-[11px] font-semibold" style={{ color: '#000000' }}>{busEnabled ? (busNumber || '—') : '—'}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-0.5 shrink-0">
+                                                                            <span className="text-[11px]" style={{ color: '#000000', opacity: busEnabled ? 0.6 : 0.3 }}>Bus Fee ₹</span>
+                                                                            <span className="text-[11px] font-semibold" style={{ color: '#000000' }}>{busEnabled ? busFee : '—'}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
                                                         const value = f.kind === 'default'
                                                             ? f.defaultKey === 'name' ? (student?.name ?? '—')
                                                                 : f.defaultKey === 'rollNo' ? (student?.rollNo ?? '—')
                                                                     : f.defaultKey === 'studentId' ? (student?.studentId ?? '—')
-                                                                        : f.defaultKey === 'class' ? (student?.standardName ?? '—')
-                                                                            : (student?.divisionName ?? '—')
+                                                                        : f.defaultKey === 'class' ? (student?.divisionName?.split('-')[0] ?? student?.divisionName ?? '—')
+                                                                            : (student?.divisionName?.split('-')[1] ?? '—')
                                                             : (extraDetailFields?.[f.id] || '—');
                                                         const isStudentId = f.kind === 'default' && f.defaultKey === 'studentId';
                                                         return (
@@ -306,9 +446,9 @@ export default function FeesPage() {
                                             {/* Monthly Payment Schedule */}
                                             <div>
                                                 <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Monthly Payment Schedule</p>
-                                                <div className="rounded-xl border overflow-hidden overflow-x-auto" style={{ borderColor: fc.border }}>
+                                                <div className="rounded-xl border overflow-x-auto overflow-y-auto max-h-[340px]" style={{ borderColor: fc.border, scrollbarWidth: 'thin', scrollbarColor: `${fc.border} transparent` }}>
                                                     <table className="text-xs w-full min-w-[640px] lg:min-w-0" style={{ color: '#000000' }}>
-                                                        <thead>
+                                                        <thead className="sticky top-0 z-10">
                                                             <tr style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                                                 {['Month', 'Fee Structures', 'Amount (₹)', 'Due Date', 'Paid Date', 'Status', 'Remark', ...extraColumns.map(c => c.label)].map((col, i) => (
                                                                     <th key={i} className="px-3 py-2 text-left text-[11px] font-bold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{col}</th>
@@ -322,6 +462,8 @@ export default function FeesPage() {
                                                                 const payment = getPayment(m.id);
                                                                 const extraIds = (payment.extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
                                                                 const extraStructures = extraIds.map(id => feeStructures.find(s => s.id === id)).filter((s): s is FeeStructure => !!s);
+                                                                const autoLateFee = getAutoLateFee(m);
+                                                                const autoBusFee = getAutoBusFee(m);
                                                                 return (
                                                                     <tr key={m.id} className="transition-colors" style={{ background: selectedMonth === m.id ? `${fc.border}80` : mi % 2 === 1 ? fc.bg : 'transparent', borderTop: `1px solid ${fc.border}` }}>
                                                                         <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
@@ -331,7 +473,7 @@ export default function FeesPage() {
                                                                         <td className="px-3 py-2 cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
                                                                             onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
                                                                             <div className="flex flex-wrap gap-0.5">
-                                                                                {assigned.length === 0 && extraStructures.length === 0
+                                                                                {assigned.length === 0 && extraStructures.length === 0 && !autoLateFee && !autoBusFee
                                                                                     ? <span className="text-[10px] italic" style={{ color: '#000000', opacity: 0.4 }}>—</span>
                                                                                     : null
                                                                                 }
@@ -348,6 +490,20 @@ export default function FeesPage() {
                                                                                         {s.name}
                                                                                     </span>
                                                                                 ))}
+                                                                                {autoLateFee && (
+                                                                                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                                                                                        style={{ background: autoLateFee.color + '20', color: autoLateFee.color }}
+                                                                                        title="Auto-applied: payment is overdue and unpaid">
+                                                                                        {autoLateFee.name}
+                                                                                    </span>
+                                                                                )}
+                                                                                {autoBusFee && (
+                                                                                    <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                                                                                        style={{ background: autoBusFee.structure.color + '20', color: autoBusFee.structure.color }}
+                                                                                        title="Auto-applied: your Bus service is on">
+                                                                                        {autoBusFee.structure.name}
+                                                                                    </span>
+                                                                                )}
                                                                             </div>
                                                                         </td>
                                                                         <td className="px-3 py-2 font-bold" style={{ borderRight: `1px solid ${fc.border}` }}>{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
@@ -397,7 +553,9 @@ export default function FeesPage() {
                                                     if (!month) return null;
                                                     const sharedIds = new Set(month.assignedStructureIds);
                                                     const extraIds = (getPayment(month.id).extraStructureIds ?? []).filter(id => !sharedIds.has(id));
-                                                    const assigned = feeStructures.filter(s => sharedIds.has(s.id) || extraIds.includes(s.id));
+                                                    const autoLateFee = getAutoLateFee(month);
+                                                    const autoBusFee = getAutoBusFee(month);
+                                                    const assigned = feeStructures.filter(s => sharedIds.has(s.id) || extraIds.includes(s.id) || s.id === autoLateFee?.id || s.id === autoBusFee?.structure.id);
                                                     if (assigned.length === 0) return (
                                                         <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
                                                             <p className="text-xs" style={{ color: '#000000' }}>No fee structures assigned to {month.month}</p>
@@ -406,15 +564,19 @@ export default function FeesPage() {
                                                     return (
                                                         <div className="space-y-2">
                                                             {assigned.map(fs => {
-                                                                const total = structureTotal(fs);
+                                                                const isAutoBusFee = fs.id === autoBusFee?.structure.id;
+                                                                const total = isAutoBusFee && autoBusFee ? autoBusFee.amount : structureTotal(fs);
                                                                 const cfg = FEE_TYPE_CFG[fs.type];
                                                                 const isExtra = extraIds.includes(fs.id);
+                                                                const isAutoLateFee = fs.id === autoLateFee?.id;
                                                                 return (
-                                                                    <div key={fs.id} className="rounded-xl border overflow-hidden" style={isExtra ? { borderColor: fs.color + '60', borderStyle: 'dashed' } : { borderColor: fc.border }}>
+                                                                    <div key={fs.id} className="rounded-xl border overflow-hidden" style={(isExtra || isAutoLateFee || isAutoBusFee) ? { borderColor: fs.color + '60', borderStyle: 'dashed' } : { borderColor: fc.border }}>
                                                                         <div className="flex items-center gap-2 px-3 py-2" style={{ background: fc.bg }}>
                                                                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: fs.color }} />
                                                                             <span className="flex-1 text-xs font-semibold" style={{ color: '#000000' }}>{fs.name}</span>
                                                                             {isExtra && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>For you</span>}
+                                                                            {isAutoLateFee && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>Auto-applied</span>}
+                                                                            {isAutoBusFee && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>Auto-applied</span>}
                                                                             <span className={`text-[10px] font-bold ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
                                                                             <span className="text-xs font-bold" style={{ color: '#000000' }}>₹{total.toLocaleString()}</span>
                                                                         </div>
@@ -517,7 +679,7 @@ export default function FeesPage() {
                 </div>
 
                 {/* ── RIGHT: Pay Fees (read-only, mirrors admin Payment Methods) ── */}
-                <div className="w-full lg:flex-1 lg:min-w-0 h-[500px] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="order-1 w-full lg:flex-1 lg:min-w-0 h-[500px] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                     <div className="px-4 py-3 border-b border-border/40 shrink-0 flex items-center gap-2">
                         <Landmark size={14} className="text-muted-foreground" />
                         <p className="text-sm font-bold">Pay Fees</p>
@@ -543,7 +705,13 @@ export default function FeesPage() {
                             <p className="text-xs font-semibold flex items-center gap-1.5 mb-2"><QrCode size={14} /> QR Code</p>
                             <div className="flex justify-center">
                                 {qrImageUrl ? (
-                                    <img src={qrImageUrl} alt="QR" className="w-36 h-36 rounded-xl object-cover border border-border/50" />
+                                    <button type="button" onClick={() => setQrPreviewOpen(true)}
+                                        className="group relative w-36 h-36 rounded-xl overflow-hidden border border-border/50">
+                                        <img src={qrImageUrl} alt="QR" className="w-full h-full object-cover" />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all flex items-center justify-center">
+                                            <span className="opacity-0 group-hover:opacity-100 text-[11px] font-semibold text-white transition-all">Tap to enlarge</span>
+                                        </div>
+                                    </button>
                                 ) : (
                                     <div className="w-36 h-36 rounded-xl border-2 border-dashed border-border/50 flex flex-col items-center justify-center gap-2">
                                         <QrCode size={28} className="text-muted-foreground/40" />
@@ -565,6 +733,30 @@ export default function FeesPage() {
                 </div>
 
             </div>
+
+            {/* QR Code enlarge + download */}
+            <AnimatePresence>
+                {qrPreviewOpen && qrImageUrl && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setQrPreviewOpen(false)}>
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+                            <div className="flex items-center justify-between mb-3">
+                                <p className="text-sm font-bold flex items-center gap-1.5"><QrCode size={14} /> Payment QR Code</p>
+                                <button onClick={() => setQrPreviewOpen(false)}
+                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted transition-all">
+                                    ✕
+                                </button>
+                            </div>
+                            <img src={qrImageUrl} alt="QR" className="w-full aspect-square rounded-xl object-contain border border-border/50 bg-white" />
+                            <button onClick={downloadQrCode} disabled={qrDownloading}
+                                className="mt-4 w-full h-10 rounded-xl text-sm font-semibold text-white hover:opacity-90 transition-all disabled:opacity-60"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                {qrDownloading ? 'Downloading…' : 'Download QR Code'}
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

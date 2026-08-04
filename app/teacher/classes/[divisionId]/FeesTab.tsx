@@ -48,7 +48,27 @@ function isPaidLate(dueDate: string | null | undefined, paidDate: string | null 
     return paid.getTime() > due.getTime();
 }
 
-type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME';
+// The Late Fee Fine applies once today is strictly after the due date, AND
+// either no paid date has been entered yet, or the paid date entered is
+// itself after the due date (i.e. actually paid late). Once it has applied
+// it stays applied — status/paid-date edits don't clear it unless the paid
+// date entered is on or before the due date (meaning the student genuinely
+// paid on time and the admin was just late updating the record).
+function isLateFeeApplicable(dueDate: string | null | undefined, paidDate: string | null | undefined): boolean {
+    const due = parseFlexDate(dueDate);
+    if (!due) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    if (today.getTime() <= due.getTime()) return false;
+    if (!paidDate || !paidDate.trim()) return true;
+    const paid = parseFlexDate(paidDate);
+    if (!paid) return true;
+    paid.setHours(0, 0, 0, 0);
+    return paid.getTime() > due.getTime();
+}
+
+type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME' | 'BUS' | 'LATE_FEE';
 
 interface FeeSubItem { id: string; label: string; amount: number; }
 interface FeeItem { id: string; label: string; amount: number; subItems: FeeSubItem[]; }
@@ -60,7 +80,7 @@ interface RosterStudent { id: string; studentId: string; name: string; rollNo: s
 type StudentDetailField = {
     id: string;
     kind: 'default' | 'custom';
-    defaultKey?: 'name' | 'rollNo' | 'studentId' | 'class' | 'division';
+    defaultKey?: 'name' | 'rollNo' | 'studentId' | 'class' | 'division' | 'bus';
     label: string;
     value?: string;
 };
@@ -70,6 +90,7 @@ const DEFAULT_STUDENT_FIELDS: StudentDetailField[] = [
     { id: 'f-studentid', kind: 'default', defaultKey: 'studentId', label: 'Student ID' },
     { id: 'f-class', kind: 'default', defaultKey: 'class', label: 'Class' },
     { id: 'f-division', kind: 'default', defaultKey: 'division', label: 'Division' },
+    { id: 'f-bus', kind: 'default', defaultKey: 'bus', label: 'Bus' },
 ];
 
 const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg: string; text: string; emoji: string }> = {
@@ -77,6 +98,8 @@ const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg:
     ADDON: { label: 'Add-on', color: '#DA7756', bg: 'bg-orange-100 dark:bg-orange-950/40', text: 'text-orange-700 dark:text-orange-400', emoji: '➕' },
     PENALTY: { label: 'Penalty / Fine', color: '#DC2626', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', emoji: '⚠️' },
     ONE_TIME: { label: 'One-time', color: '#059669', bg: 'bg-emerald-100 dark:bg-emerald-950/40', text: 'text-emerald-700 dark:text-emerald-400', emoji: '⭐' },
+    BUS: { label: 'Bus Fee', color: '#0891B2', bg: 'bg-cyan-100 dark:bg-cyan-950/40', text: 'text-cyan-700 dark:text-cyan-400', emoji: '🚌' },
+    LATE_FEE: { label: 'Late Fee Fine', color: '#DC2626', bg: 'bg-red-100 dark:bg-red-950/40', text: 'text-red-700 dark:text-red-400', emoji: '⚠️' },
 };
 
 const STATUS_CFG = {
@@ -93,6 +116,16 @@ function structureTotal(s: FeeStructure) {
         const sub = item.subItems.reduce((m, si) => m + si.amount, 0);
         return n + (sub > 0 ? sub : item.amount);
     }, 0);
+}
+
+// Bus Fee / Late Fee Fine are fixed system types with a fixed color scheme —
+// structures saved before that color scheme changed still have the old hex
+// baked into their saved `color` field, so normalize it against the current
+// config whenever structures are loaded, instead of showing stale colors.
+function normalizeStructureColors(structures: FeeStructure[]): FeeStructure[] {
+    return structures.map(s => (s.type === 'BUS' || s.type === 'LATE_FEE') && s.color !== FEE_TYPE_CFG[s.type].color
+        ? { ...s, color: FEE_TYPE_CFG[s.type].color }
+        : s);
 }
 
 export default function TeacherFeesTab({ divisionId, divisionName }: {
@@ -136,11 +169,16 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
             })));
 
             const structure = structureRes.data?.data;
-            setFeeStructures(structure?.feeStructures ?? []);
+            setFeeStructures(normalizeStructureColors(structure?.feeStructures ?? []));
             setFeeMonths(structure?.feeMonths ?? []);
             setRulesAndRegs(structure?.rulesAndRegs ?? []);
             setExtraColumns(structure?.extraColumns ?? []);
-            setStudentFields(structure?.studentFields && structure.studentFields.length > 0 ? structure.studentFields : DEFAULT_STUDENT_FIELDS);
+            if (structure?.studentFields && structure.studentFields.length > 0) {
+                const hasBus = structure.studentFields.some((f: StudentDetailField) => f.kind === 'default' && f.defaultKey === 'bus');
+                setStudentFields(hasBus ? structure.studentFields : [...structure.studentFields, { id: 'f-bus', kind: 'default' as const, defaultKey: 'bus' as const, label: 'Bus' }]);
+            } else {
+                setStudentFields(DEFAULT_STUDENT_FIELDS);
+            }
             const theme = structure?.feeCardTheme;
             setFeeCardTheme(theme && theme in FEE_CARD_THEMES ? theme as FeeCardThemeKey : 'yellow');
             setSchoolLogoUrl(structure?.schoolLogoUrl ?? null);
@@ -179,12 +217,58 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
     const monthTotal = (m: FeeMonth) =>
         feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
 
+    // If this student's payment for month `m` is overdue (past due date, no
+    // paid date, still Pending), the Late Fee Fine structure auto-applies —
+    // this isn't stored anywhere, it's derived live from dates so it clears
+    // itself automatically the moment the payment is marked paid/paid-date set.
+    const getAutoLateFee = (studentId: string, m: FeeMonth): FeeStructure | null => {
+        const payment = getPayment(studentId, m.id);
+        if (!isLateFeeApplicable(m.dueDate, payment.paidDate)) return null;
+        const lateFee = feeStructures.find(s => s.type === 'LATE_FEE');
+        if (!lateFee) return null;
+        if (m.assignedStructureIds.includes(lateFee.id)) return null;
+        if ((payment.extraStructureIds ?? []).includes(lateFee.id)) return null;
+        return lateFee;
+    };
+
+    // Once a student's Bus toggle is ON, the admin explicitly picks which
+    // months get the Bus Fee structure via the month picker — it only
+    // applies to the months chosen, not automatically to every month going
+    // forward. Its amount isn't the shared structure's own items total
+    // (that's empty/variable), it's this specific student's own Bus Fee
+    // amount entered in their Student Details box, since bus fee varies per
+    // student by pickup location.
+    const getAutoBusFee = (studentId: string, m: FeeMonth): { structure: FeeStructure; amount: number } | null => {
+        const busField = studentFields.find(f => f.kind === 'default' && f.defaultKey === 'bus');
+        if (!busField) return null;
+        const detailFields = rosterStudents.find(s => s.id === studentId)?.extraDetailFields;
+        if (detailFields?.[`${busField.id}-enabled`] !== 'true') return null;
+        const rawMonths = detailFields?.[`${busField.id}-months`];
+        let monthIds: string[] = [];
+        if (rawMonths) {
+            try {
+                const parsed = JSON.parse(rawMonths);
+                if (Array.isArray(parsed)) monthIds = parsed.filter((x): x is string => typeof x === 'string');
+            } catch { /* ignore malformed value */ }
+        }
+        if (!monthIds.includes(m.id)) return null;
+        const busStructure = feeStructures.find(s => s.type === 'BUS');
+        if (!busStructure) return null;
+        if (m.assignedStructureIds.includes(busStructure.id)) return null;
+        const amount = Number(detailFields?.[`${busField.id}-fee`]) || 0;
+        return { structure: busStructure, amount };
+    };
+
     // Shared month total plus this specific student's own extra structures (e.g. a
-    // Penalty added just for them this month, on top of the division's shared set).
+    // Penalty added just for them this month, on top of the division's shared set),
+    // plus the auto-applied Late Fee Fine when this month is overdue & unpaid, plus
+    // the auto-applied Bus Fee once the student's Bus toggle is on.
     const studentMonthTotal = (studentId: string, m: FeeMonth) => {
         const extraIds = (getPayment(studentId, m.id).extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
         const extra = feeStructures.filter(s => extraIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
-        return monthTotal(m) + extra;
+        const autoLateFee = getAutoLateFee(studentId, m);
+        const autoBusFee = getAutoBusFee(studentId, m);
+        return monthTotal(m) + extra + (autoLateFee ? structureTotal(autoLateFee) : 0) + (autoBusFee ? autoBusFee.amount : 0);
     };
 
     const toggleExpand = (id: string) =>
@@ -355,6 +439,32 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                                 <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Student Details</p>
                                                 <div className="rounded-xl border p-2 flex flex-wrap gap-2" style={{ borderColor: fc.border }}>
                                                     {studentFields.map((f) => {
+                                                        const isBus = f.kind === 'default' && f.defaultKey === 'bus';
+                                                        if (isBus) {
+                                                            const busEnabled = selectedStudent.extraDetailFields?.[`${f.id}-enabled`] === 'true';
+                                                            const busNumber = selectedStudent.extraDetailFields?.[`${f.id}-number`] || '—';
+                                                            const busFee = selectedStudent.extraDetailFields?.[`${f.id}-fee`] || '0';
+                                                            return (
+                                                                <div key={f.id} className="flex items-center justify-between gap-1 px-2.5 py-2 rounded-lg basis-[calc(50%-4px)] grow-0 shrink-0" style={{ border: `1px solid ${fc.border}` }}>
+                                                                    <div className="flex items-center gap-1 shrink-0">
+                                                                        <span className="text-[11px]" style={{ color: '#000000' }}>{f.label}</span>
+                                                                        <span className={`text-[9px] font-semibold px-1 py-0.5 rounded-full ${busEnabled ? 'bg-emerald-100 text-emerald-700' : 'bg-muted text-muted-foreground'}`}>
+                                                                            {busEnabled ? 'On' : 'Off'}
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 shrink-0">
+                                                                        <div className="flex items-center gap-0.5 shrink-0">
+                                                                            <span className="text-[11px]" style={{ color: '#000000', opacity: busEnabled ? 0.6 : 0.3 }}>Bus No.</span>
+                                                                            <span className="text-[11px] font-semibold" style={{ color: '#000000' }}>{busEnabled ? (busNumber || '—') : '—'}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-0.5 shrink-0">
+                                                                            <span className="text-[11px]" style={{ color: '#000000', opacity: busEnabled ? 0.6 : 0.3 }}>Bus Fee ₹</span>
+                                                                            <span className="text-[11px] font-semibold" style={{ color: '#000000' }}>{busEnabled ? busFee : '—'}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
                                                         const value = f.kind === 'default'
                                                             ? f.defaultKey === 'name' ? selectedStudent.name
                                                                 : f.defaultKey === 'rollNo' ? selectedStudent.rollNo
@@ -379,9 +489,9 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                             {feeMonths.length > 0 && (
                                                 <div>
                                                     <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: '#000000' }}>Monthly Payment Schedule</p>
-                                                    <div className="rounded-xl border overflow-hidden overflow-x-auto" style={{ borderColor: fc.border }}>
+                                                    <div className="rounded-xl border overflow-x-auto overflow-y-auto max-h-[340px]" style={{ borderColor: fc.border, scrollbarWidth: 'thin', scrollbarColor: `${fc.border} transparent` }}>
                                                         <table className="text-xs w-full min-w-[720px]" style={{ color: '#000000' }}>
-                                                            <thead>
+                                                            <thead className="sticky top-0 z-10">
                                                                 <tr style={{ background: fc.bg, borderBottom: `1px solid ${fc.border}` }}>
                                                                     {['Month', 'Fee Structures', 'Amount (₹)', 'Due Date', 'Paid Date', 'Status', 'Remark', ...extraColumns.map(c => c.label)].map((col, i) => (
                                                                         <th key={i} className="px-3 py-2 text-left text-[11px] font-bold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{col}</th>
@@ -395,6 +505,8 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                                                     const payment = getPayment(selectedStudent.id, m.id);
                                                                     const extraIds = (payment.extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
                                                                     const extraStructures = extraIds.map(id => feeStructures.find(s => s.id === id)).filter((s): s is FeeStructure => !!s);
+                                                                    const autoLateFee = getAutoLateFee(selectedStudent.id, m);
+                                                                    const autoBusFee = getAutoBusFee(selectedStudent.id, m);
                                                                     return (
                                                                         <tr key={m.id} className="transition-colors" style={{ background: selectedMonth === m.id ? `${fc.border}80` : mi % 2 === 1 ? fc.bg : 'transparent', borderTop: `1px solid ${fc.border}` }}>
                                                                             <td className="px-3 py-2 font-semibold whitespace-nowrap cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
@@ -404,7 +516,7 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                                                             <td className="px-3 py-2 cursor-pointer" style={{ borderRight: `1px solid ${fc.border}` }}
                                                                                 onClick={() => setSelectedMonth(prev => prev === m.id ? null : m.id)}>
                                                                                 <div className="flex flex-wrap gap-0.5">
-                                                                                    {assigned.length === 0 && extraStructures.length === 0
+                                                                                    {assigned.length === 0 && extraStructures.length === 0 && !autoLateFee && !autoBusFee
                                                                                         ? <span className="text-[10px] italic" style={{ color: '#000000', opacity: 0.4 }}>—</span>
                                                                                         : null
                                                                                     }
@@ -421,6 +533,20 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                                                                             {s.name}
                                                                                         </span>
                                                                                     ))}
+                                                                                    {autoLateFee && (
+                                                                                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                                                                                            style={{ background: autoLateFee.color + '20', color: autoLateFee.color }}
+                                                                                            title="Auto-applied: payment is overdue and unpaid">
+                                                                                            {autoLateFee.name}
+                                                                                        </span>
+                                                                                    )}
+                                                                                    {autoBusFee && (
+                                                                                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                                                                                            style={{ background: autoBusFee.structure.color + '20', color: autoBusFee.structure.color }}
+                                                                                            title="Auto-applied: this student's Bus service is on">
+                                                                                            {autoBusFee.structure.name}
+                                                                                        </span>
+                                                                                    )}
                                                                                 </div>
                                                                             </td>
                                                                             <td className="px-3 py-2 font-bold text-[11px]" style={{ borderRight: `1px solid ${fc.border}` }}>{total > 0 ? `₹${total.toLocaleString()}` : '—'}</td>
@@ -473,7 +599,9 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                                     const extraIds = selectedStudent
                                                         ? (getPayment(selectedStudent.id, month.id).extraStructureIds ?? []).filter(id => !sharedIds.has(id))
                                                         : [];
-                                                    const assigned = feeStructures.filter(s => sharedIds.has(s.id) || extraIds.includes(s.id));
+                                                    const autoLateFee = selectedStudent ? getAutoLateFee(selectedStudent.id, month) : null;
+                                                    const autoBusFee = selectedStudent ? getAutoBusFee(selectedStudent.id, month) : null;
+                                                    const assigned = feeStructures.filter(s => sharedIds.has(s.id) || extraIds.includes(s.id) || s.id === autoLateFee?.id || s.id === autoBusFee?.structure.id);
                                                     if (assigned.length === 0) return (
                                                         <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
                                                             <p className="text-xs" style={{ color: '#000000' }}>No fee structures assigned to {month.month}</p>
@@ -482,15 +610,19 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                                     return (
                                                         <div className="space-y-2">
                                                             {assigned.map(fs => {
-                                                                const total = structureTotal(fs);
+                                                                const isAutoBusFee = fs.id === autoBusFee?.structure.id;
+                                                                const total = isAutoBusFee && autoBusFee ? autoBusFee.amount : structureTotal(fs);
                                                                 const cfg = FEE_TYPE_CFG[fs.type];
                                                                 const isExtra = extraIds.includes(fs.id);
+                                                                const isAutoLateFee = fs.id === autoLateFee?.id;
                                                                 return (
-                                                                    <div key={fs.id} className="rounded-xl border overflow-hidden" style={isExtra ? { borderColor: fs.color + '60', borderStyle: 'dashed' } : { borderColor: fc.border }}>
+                                                                    <div key={fs.id} className="rounded-xl border overflow-hidden" style={(isExtra || isAutoLateFee || isAutoBusFee) ? { borderColor: fs.color + '60', borderStyle: 'dashed' } : { borderColor: fc.border }}>
                                                                         <div className="flex items-center gap-2 px-3 py-2" style={{ background: fc.bg }}>
                                                                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: fs.color }} />
                                                                             <span className="flex-1 text-xs font-semibold" style={{ color: '#000000' }}>{fs.name}</span>
                                                                             {isExtra && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>For this student</span>}
+                                                                            {isAutoLateFee && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>Auto-applied</span>}
+                                                                            {isAutoBusFee && <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full" style={{ background: fs.color + '20', color: fs.color }}>Auto-applied</span>}
                                                                             <span className={`text-[10px] font-bold ${cfg.text}`}>{cfg.emoji} {cfg.label}</span>
                                                                             <span className="text-xs font-bold" style={{ color: '#000000' }}>₹{total.toLocaleString()}</span>
                                                                         </div>
