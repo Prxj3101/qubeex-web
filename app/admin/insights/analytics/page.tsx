@@ -21,11 +21,11 @@ const EMERALD = '#059669';
 const SKY = '#0284C7';
 
 // ── Data shapes ───────────────────────────────────────────────────────────────
-interface FeeDivision { id: string; name: string; paid: number; pending: number; total: number; }
+interface FeeDivision { id: string; name: string; monthPaid: number; monthPending: number; overallPaid: number | null; overallPending: number | null; total: number; }
 interface FeeStandard { id: string; name: string; divisions: FeeDivision[]; }
 interface AttendanceDivision { id: string; name: string; overallPct: number | null; monthPct: number | null; total: number; }
 interface AttendanceStandard { id: string; name: string; divisions: AttendanceDivision[]; }
-type AttendanceMode = 'overall' | 'monthly';
+type AnalyticsMode = 'overall' | 'monthly';
 interface AiTeacherUsage { name: string; used: number; } // used = tokens, in millions
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -75,7 +75,7 @@ function getAttendanceColor(pct: number) {
 function AttendanceAccordion({ data }: { data: AttendanceStandard[] }) {
     const router = useRouter();
     const [expandedId, setExpandedId] = useState<string | null>(data[0]?.id ?? null);
-    const [mode, setMode] = useState<AttendanceMode>('overall');
+    const [mode, setMode] = useState<AnalyticsMode>('overall');
 
     if (data.length === 0) {
         return (
@@ -109,7 +109,7 @@ function AttendanceAccordion({ data }: { data: AttendanceStandard[] }) {
                 <p className="text-sm font-semibold">Attendance Analysis</p>
                 <div className="ml-auto flex items-center gap-3">
                     <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40">
-                        {(['overall', 'monthly'] as AttendanceMode[]).map(m => (
+                        {(['overall', 'monthly'] as AnalyticsMode[]).map(m => (
                             <button key={m} onClick={() => setMode(m)}
                                 className={`px-2.5 py-1 rounded-md text-[11px] font-semibold capitalize transition-all ${mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                                 {m === 'overall' ? 'Overall' : 'This Month'}
@@ -264,6 +264,7 @@ function AttendanceAccordion({ data }: { data: AttendanceStandard[] }) {
 function FeeAccordion({ data }: { data: FeeStandard[] }) {
     const router = useRouter();
     const [expandedId, setExpandedId] = useState<string | null>(data[0]?.id ?? null);
+    const [mode, setMode] = useState<AnalyticsMode>('overall');
 
     if (data.length === 0) {
         return (
@@ -274,8 +275,13 @@ function FeeAccordion({ data }: { data: FeeStandard[] }) {
         );
     }
 
-    const totalPaid = data.reduce((s, c) => s + c.divisions.reduce((a, d) => a + d.paid, 0), 0);
-    const totalPending = data.reduce((s, c) => s + c.divisions.reduce((a, d) => a + d.pending, 0), 0);
+    const paidOf = (d: FeeDivision) => (mode === 'overall' ? d.overallPaid : d.monthPaid) ?? 0;
+    const pendingOf = (d: FeeDivision) => (mode === 'overall' ? d.overallPending : d.monthPending) ?? 0;
+    const hasData = (d: FeeDivision) => (mode === 'overall' ? d.overallPaid !== null : true);
+
+    const divisionsWithData = data.flatMap(s => s.divisions).filter(hasData);
+    const totalPaid = divisionsWithData.reduce((s, d) => s + paidOf(d), 0);
+    const totalPending = divisionsWithData.reduce((s, d) => s + pendingOf(d), 0);
     const totalFees = totalPaid + totalPending;
     const collectedPct = totalFees > 0 ? Math.round((totalPaid / totalFees) * 100) : 0;
 
@@ -286,16 +292,26 @@ function FeeAccordion({ data }: { data: FeeStandard[] }) {
 
     return (
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
-            <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2 flex-wrap">
                 <Wallet size={15} className="text-muted-foreground" />
                 <p className="text-sm font-semibold">Fee Analysis</p>
-                <div className="ml-auto flex items-center gap-2">
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
-                        {collectedPct}% paid
-                    </span>
-                    <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                        {100 - collectedPct}% pending
-                    </span>
+                <div className="ml-auto flex items-center gap-3">
+                    <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40">
+                        {(['overall', 'monthly'] as AnalyticsMode[]).map(m => (
+                            <button key={m} onClick={() => setMode(m)}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold capitalize transition-all ${mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                {m === 'overall' ? 'Overall' : 'This Month'}
+                            </button>
+                        ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                            {collectedPct}% paid
+                        </span>
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                            {100 - collectedPct}% pending
+                        </span>
+                    </div>
                 </div>
             </div>
 
@@ -335,8 +351,9 @@ function FeeAccordion({ data }: { data: FeeStandard[] }) {
                 <div className="lg:col-span-3 divide-y divide-border/30 max-h-[280px] overflow-y-auto">
                     {data.map((std) => {
                         const isOpen = expandedId === std.id;
-                        const stdPaid = std.divisions.reduce((s, d) => s + d.paid, 0);
-                        const stdPending = std.divisions.reduce((s, d) => s + d.pending, 0);
+                        const stdDivisionsWithData = std.divisions.filter(hasData);
+                        const stdPaid = stdDivisionsWithData.reduce((s, d) => s + paidOf(d), 0);
+                        const stdPending = stdDivisionsWithData.reduce((s, d) => s + pendingOf(d), 0);
                         const stdPct = (stdPaid + stdPending) > 0 ? Math.round((stdPaid / (stdPaid + stdPending)) * 100) : 0;
 
                         return (
@@ -362,7 +379,10 @@ function FeeAccordion({ data }: { data: FeeStandard[] }) {
                                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
                                             {std.divisions.map((div) => {
-                                                const divPct = div.total > 0 ? Math.round((div.paid / div.total) * 100) : 0;
+                                                const noData = !hasData(div);
+                                                const paid = paidOf(div);
+                                                const pending = pendingOf(div);
+                                                const divPct = (paid + pending) > 0 ? Math.round((paid / (paid + pending)) * 100) : 0;
                                                 return (
                                                     <div key={div.id} className="flex items-center gap-3 px-8 py-2.5 bg-muted/20 border-t border-border/20 hover:bg-muted/40 transition-colors">
                                                         <span className="text-xs text-muted-foreground font-medium w-10 shrink-0">{div.name}</span>
@@ -377,14 +397,18 @@ function FeeAccordion({ data }: { data: FeeStandard[] }) {
                                                                     }} />
                                                             </div>
                                                         </div>
-                                                        <div className="flex items-center gap-2 shrink-0">
-                                                            <span className="text-[11px] text-emerald-500 font-medium">{div.paid} paid</span>
-                                                            <span className="text-muted-foreground/40 text-[10px]">·</span>
-                                                            <span className="text-[11px] text-amber-500 font-medium">{div.pending} pending</span>
-                                                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${divPct >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
-                                                                {divPct}%
-                                                            </span>
-                                                        </div>
+                                                        {noData ? (
+                                                            <span className="text-[11px] text-muted-foreground/60 italic shrink-0">No months due yet</span>
+                                                        ) : (
+                                                            <div className="flex items-center gap-2 shrink-0">
+                                                                <span className="text-[11px] text-emerald-500 font-medium">{paid} paid</span>
+                                                                <span className="text-muted-foreground/40 text-[10px]">·</span>
+                                                                <span className="text-[11px] text-amber-500 font-medium">{pending} pending</span>
+                                                                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${divPct >= 80 ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                                                                    {divPct}%
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                         <button onClick={() => router.push(`/admin/campus/classes/${std.id}/${div.id}?tab=fees`)}
                                                             className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 hover:opacity-80 transition-all"
                                                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>

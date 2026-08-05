@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import QRCode from 'qrcode';
 import type { AdminOverview } from '@/types';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
@@ -121,6 +122,9 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
     netbanking: 'Netbanking',
     wallet: 'Wallet',
     emi: 'EMI',
+    cash: 'Cash',
+    bank_transfer: 'Bank Transfer',
+    manual: 'Manual',
 };
 
 const formatBillAmount = (amount: number) =>
@@ -241,6 +245,14 @@ export default function SubscriptionPage() {
     const currentRate = isTrial ? 0 : (tiers.find((t) => billedUsers >= t.min && billedUsers <= t.max)?.rate ?? tiers[0].rate);
     const monthlyBill = isTrial ? 0 : billedUsers * currentRate;
 
+    // Current billing cycle window (calendar month, IST) — bills generate on the last day.
+    const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+    const cycleStart = new Date(nowIST.getFullYear(), nowIST.getMonth(), 1);
+    const cycleEnd = new Date(nowIST.getFullYear(), nowIST.getMonth() + 1, 0);
+    const currentMonthLabel = nowIST.toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'Asia/Kolkata' });
+    const cycleDateFmt = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', timeZone: 'Asia/Kolkata' });
+    const cycleGeneratesFmt = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'long', timeZone: 'Asia/Kolkata' });
+
     const userBreakdown = [
         { label: 'Admin', value: overview?.stats.totalAdmins ?? 0, color: 'text-violet-600 dark:text-violet-400', dot: 'bg-violet-500', fill: '#7C3AED' },
         { label: 'Teachers', value: overview?.stats.totalTeachers ?? 0, color: 'text-amber-600 dark:text-amber-400', dot: 'bg-amber-500', fill: '#F59E0B' },
@@ -251,13 +263,37 @@ export default function SubscriptionPage() {
     const [bills, setBills] = useState<Bill[]>([]);
     const [billsLoading, setBillsLoading] = useState(true);
     const [payNowLoading, setPayNowLoading] = useState(false);
+    const [nextAnticipatedDueDate, setNextAnticipatedDueDate] = useState<string | null>(null);
     const billsFetchedRef = useRef(false);
+
+    // ── Platform payment settings (bank transfer / UPI, set by SuperAdmin) ──
+    const [paymentSettings, setPaymentSettings] = useState<{
+        bankAccountName: string | null; bankAccountNumber: string | null;
+        bankIfsc: string | null; bankName: string | null; upiId: string | null;
+    } | null>(null);
+    useEffect(() => {
+        api.get('/admin/payment-settings').then(res => setPaymentSettings(res.data.data)).catch(() => {});
+    }, []);
+    const hasBankDetails = !!(paymentSettings?.bankAccountName || paymentSettings?.bankAccountNumber || paymentSettings?.bankIfsc || paymentSettings?.bankName);
+
+    const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+    useEffect(() => {
+        if (!paymentSettings?.upiId) { setQrDataUrl(null); return; }
+        const payee = encodeURIComponent(paymentSettings.bankAccountName || 'Qubeex');
+        const upiLink = `upi://pay?pa=${encodeURIComponent(paymentSettings.upiId)}&pn=${payee}&cu=INR`;
+        QRCode.toDataURL(upiLink, { width: 200, margin: 1 })
+            .then(setQrDataUrl)
+            .catch(() => setQrDataUrl(null));
+    }, [paymentSettings]);
 
     useEffect(() => {
         if (billsFetchedRef.current) return;
         billsFetchedRef.current = true;
         api.get('/admin/bills', { params: { limit: 10 } })
-            .then(res => setBills(res.data.data?.bills ?? []))
+            .then(res => {
+                setBills(res.data.data?.bills ?? []);
+                setNextAnticipatedDueDate(res.data.data?.nextAnticipatedDueDate ?? null);
+            })
             .catch(() => {})
             .finally(() => setBillsLoading(false));
     }, []);
@@ -266,7 +302,10 @@ export default function SubscriptionPage() {
     useEffect(() => {
         const poll = setInterval(() => {
             api.get('/admin/bills', { params: { limit: 10 } })
-                .then(res => setBills(res.data.data?.bills ?? []))
+                .then(res => {
+                    setBills(res.data.data?.bills ?? []);
+                    setNextAnticipatedDueDate(res.data.data?.nextAnticipatedDueDate ?? null);
+                })
                 .catch(() => {});
         }, 30_000);
         return () => clearInterval(poll);
@@ -352,7 +391,7 @@ export default function SubscriptionPage() {
                 <motion.div {...fadeUp} className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                     {[
                         { label: 'Est. Bill (this month)', value: isTrial ? '—' : `₹${monthlyBill.toLocaleString('en-IN')}`, sub: isTrial ? 'Trial — no billing yet' : 'Updates live', icon: Wallet, iconBg: 'bg-emerald-100 dark:bg-emerald-950', iconColor: 'text-emerald-600 dark:text-emerald-400' },
-                        { label: 'Next Billing Due Date', value: latestPending?.dueDate ? formatBillDate(latestPending.dueDate) : '—', sub: latestPending ? 'Payment pending' : 'No pending bill', icon: Receipt, iconBg: 'bg-[#DA7756]/10', iconColor: 'text-[#DA7756]' },
+                        { label: 'Next Billing Due Date', value: latestPending?.dueDate ? formatBillDate(latestPending.dueDate) : nextAnticipatedDueDate ? formatBillDate(nextAnticipatedDueDate) : '—', sub: latestPending ? 'Payment pending' : nextAnticipatedDueDate ? 'Anticipated — next bill not yet generated' : 'No pending bill', icon: Receipt, iconBg: 'bg-[#DA7756]/10', iconColor: 'text-[#DA7756]' },
                         { label: 'Member Since', value: overview?.institution.createdAt ? formatBillDate(overview.institution.createdAt) : '—', sub: '', icon: Zap, iconBg: 'bg-emerald-100 dark:bg-emerald-950', iconColor: 'text-emerald-600 dark:text-emerald-400' },
                         { label: 'Last Payment Method', value: latestPaid?.paymentMethod ? (PAYMENT_METHOD_LABELS[latestPaid.paymentMethod] ?? latestPaid.paymentMethod) : '—', sub: latestPaid ? formatBillDate(latestPaid.paidAt) : 'No payments yet', icon: CreditCard, iconBg: 'bg-sky-100 dark:bg-sky-950', iconColor: 'text-sky-600 dark:text-sky-400' },
                     ].map((item) => (
@@ -469,7 +508,7 @@ export default function SubscriptionPage() {
                             <p className="text-sm font-medium text-foreground">Usage limits</p>
                             <div className="space-y-4">
 
-                                {/* Users — infinite */}
+                                {/* Users */}
                                 <div className="space-y-1.5">
                                     <div className="flex items-center justify-between text-xs">
                                         <div className="flex items-center gap-2">
@@ -483,7 +522,7 @@ export default function SubscriptionPage() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="font-semibold text-foreground">
-                                                {usedUsers} <span className="font-normal text-muted-foreground">/ ∞</span>
+                                                {usedUsers} <span className="font-normal text-muted-foreground">/ {userLimit}</span>
                                             </span>
                                             <button
                                                 onClick={() => router.push('/admin/insights/users?from=subscription')}
@@ -541,7 +580,11 @@ export default function SubscriptionPage() {
                                         <div className="flex items-center gap-2">
                                             <Sparkles className="w-3.5 h-3.5 text-muted-foreground" />
                                             <span className="text-muted-foreground">AI tokens</span>
-                                            <span className="text-[11px] font-medium text-violet-500 dark:text-violet-400">↻ Resets Jun 1</span>
+                                            {overview?.plan.usage.aiTokens.resetsAt && (
+                                                <span className="text-[11px] font-medium text-violet-500 dark:text-violet-400">
+                                                    ↻ Resets {new Date(overview.plan.usage.aiTokens.resetsAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                                </span>
+                                            )}
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className={`font-semibold ${aiTokenPct >= 90 ? 'text-red-400' : aiTokenPct >= 70 ? 'text-[#DA7756]' : 'text-foreground'}`}>
@@ -621,7 +664,9 @@ export default function SubscriptionPage() {
                                 </div>
                             )}
 
-                            <button className="mt-5 w-full text-xs font-semibold text-violet-400 border border-violet-500/30 rounded-xl py-2.5 hover:bg-violet-500/10 transition-colors flex items-center justify-center gap-2">
+                            <button
+                                onClick={handleAddon}
+                                className="mt-5 w-full text-xs font-semibold text-violet-400 border border-violet-500/30 rounded-xl py-2.5 hover:bg-violet-500/10 transition-colors flex items-center justify-center gap-2">
                                 <ArrowUpRight className="w-3.5 h-3.5" /> Unlock features
                             </button>
                         </div>
@@ -725,13 +770,13 @@ export default function SubscriptionPage() {
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
                                         Current Month
                                         <span className="text-[10px] font-normal normal-case ml-2 text-violet-600 dark:text-violet-400">
-                                            May 2025 · Generates 31 May
+                                            {currentMonthLabel} · Generates {cycleGeneratesFmt(cycleEnd)}
                                         </span>
                                     </p>
                                     <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between text-[11px] text-muted-foreground mb-2">
-                                        <span>📅 01 May – 31 May 2025</span>
+                                        <span>📅 {cycleDateFmt(cycleStart)} – {cycleDateFmt(cycleEnd)}, {cycleEnd.getFullYear()}</span>
                                         <span className="font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 w-fit">
-                                            Generates on 31 May
+                                            Generates on {cycleGeneratesFmt(cycleEnd)}
                                         </span>
                                     </div>
                                     <div className="rounded-xl border border-border/50 overflow-hidden">
@@ -926,45 +971,62 @@ export default function SubscriptionPage() {
                                 {billingTab === 'history' && (
                                     <div className="h-[340px] overflow-y-auto p-5 space-y-4">
                                         {/* Bank Transfer */}
-                                        <div className="bg-muted/30 rounded-xl p-4 border border-border/50 space-y-2.5">
-                                            <div className="flex items-center gap-2 mb-1">
-                                                <div className="w-6 h-6 rounded-lg bg-violet-100 dark:bg-violet-950/50 flex items-center justify-center">
-                                                    <Landmark className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                                        {hasBankDetails && (
+                                            <div className="bg-muted/30 rounded-xl p-4 border border-border/50 space-y-2.5">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <div className="w-6 h-6 rounded-lg bg-violet-100 dark:bg-violet-950/50 flex items-center justify-center">
+                                                        <Landmark className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+                                                    </div>
+                                                    <p className="text-xs font-semibold">Bank Transfer</p>
                                                 </div>
-                                                <p className="text-xs font-semibold">Bank Transfer</p>
+                                                {[
+                                                    { label: 'Account Name', value: paymentSettings?.bankAccountName },
+                                                    { label: 'Account No.', value: paymentSettings?.bankAccountNumber },
+                                                    { label: 'IFSC Code', value: paymentSettings?.bankIfsc },
+                                                    { label: 'Bank', value: paymentSettings?.bankName },
+                                                ].filter(row => row.value).map((row) => (
+                                                    <div key={row.label} className="flex items-center justify-between text-xs">
+                                                        <span className="text-muted-foreground">{row.label}</span>
+                                                        <span className="font-semibold text-foreground font-mono">{row.value}</span>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            {[
-                                                { label: 'Account Name', value: 'Qubeex Technologies Pvt Ltd' },
-                                                { label: 'Account No.', value: '1234 5678 9012' },
-                                                { label: 'IFSC Code', value: 'HDFC0001234' },
-                                                { label: 'Bank', value: 'HDFC Bank' },
-                                            ].map((row) => (
-                                                <div key={row.label} className="flex items-center justify-between text-xs">
-                                                    <span className="text-muted-foreground">{row.label}</span>
-                                                    <span className="font-semibold text-foreground font-mono">{row.value}</span>
-                                                </div>
-                                            ))}
-                                        </div>
+                                        )}
 
                                         {/* QR Code */}
-                                        <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
-                                            <div className="flex items-center gap-2 mb-3">
-                                                <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
-                                                    <QrCode className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                        {paymentSettings?.upiId && (
+                                            <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
+                                                        <QrCode className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                                    </div>
+                                                    <p className="text-xs font-semibold">UPI / QR Code</p>
                                                 </div>
-                                                <p className="text-xs font-semibold">UPI / QR Code</p>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-24 h-24 bg-white rounded-xl flex items-center justify-center border border-border/50 shrink-0 overflow-hidden">
+                                                        {qrDataUrl ? (
+                                                            // eslint-disable-next-line @next/next/no-img-element
+                                                            <img src={qrDataUrl} alt="UPI payment QR code" className="w-full h-full object-contain" />
+                                                        ) : (
+                                                            <QrCode size={48} className="text-muted-foreground/30" />
+                                                        )}
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        <p className="text-xs text-muted-foreground">Scan to pay via UPI</p>
+                                                        <p className="text-xs font-semibold font-mono text-foreground">{paymentSettings.upiId}</p>
+                                                        <p className="text-[11px] text-muted-foreground">After payment, share screenshot with support</p>
+                                                    </div>
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-24 h-24 bg-muted rounded-xl flex items-center justify-center border border-border/50 shrink-0">
-                                                    <QrCode size={48} className="text-muted-foreground/30" />
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    <p className="text-xs text-muted-foreground">Scan to pay via UPI</p>
-                                                    <p className="text-xs font-semibold font-mono text-foreground">qubeex@hdfcbank</p>
-                                                    <p className="text-[11px] text-muted-foreground">After payment, share screenshot with support</p>
-                                                </div>
+                                        )}
+
+                                        {!hasBankDetails && !paymentSettings?.upiId && (
+                                            <div className="flex flex-col items-center justify-center py-8 text-center gap-2 bg-muted/20 rounded-xl border border-border/40">
+                                                <Landmark className="w-8 h-8 text-muted-foreground/30" />
+                                                <p className="text-xs font-medium text-muted-foreground">Manual payment details not set up yet</p>
+                                                <p className="text-[11px] text-muted-foreground/60">Use online payment below, or contact support</p>
                                             </div>
-                                        </div>
+                                        )}
 
                                         {/* Payment Gateway */}
                                         <div className="bg-muted/30 rounded-xl p-4 border border-border/50">

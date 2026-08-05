@@ -1114,6 +1114,9 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
   const [billModal, setBillModal] = useState<Bill | null>(null);
   const [bills, setBills] = useState<Bill[]>([]);
   const [resendingBill, setResendingBill] = useState(false);
+  const [markPaidModal, setMarkPaidModal] = useState<{ id: string } | null>(null);
+  const [markPaidMethod, setMarkPaidMethod] = useState<"cash" | "bank_transfer" | "manual">("cash");
+  const [markPaidLoading, setMarkPaidLoading] = useState(false);
   const [activationDate, setActivationDate] = useState(
     inst.subscription?.activationDate
       ? new Date(inst.subscription.activationDate)
@@ -2161,23 +2164,22 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                       <button
                         disabled={bill.status === "FAILED"}
                         onClick={async () => {
-                          const nextStatus = bill.status === "PAID" ? "PENDING" : "PAID";
+                          if (bill.status !== "PAID") {
+                            setMarkPaidMethod("cash");
+                            setMarkPaidModal({ id: bill.id });
+                            return;
+                          }
                           try {
                             const res = await api.patch(
                               `/superadmin/institutions/${inst.id}/bills/${bill.id}/status`,
-                              { status: nextStatus },
+                              { status: "PENDING" },
                             );
                             setBills((prev) =>
                               prev.map((b) =>
-                                b.id === bill.id ? { ...b, status: nextStatus } : b,
+                                b.id === bill.id ? { ...b, status: "PENDING" } : b,
                               ),
                             );
-                            if (res.data?.data?.reactivated) {
-                              setPlanActive(true);
-                              toast.success("Payment recorded and institution reactivated");
-                            } else {
-                              toast.success(`Bill marked as ${nextStatus === "PAID" ? "Paid" : "Pending"}`);
-                            }
+                            toast.success("Bill marked as Pending");
                             await fetchPlanDashboard();
                           } catch (err: unknown) {
                             toast.error(getErrorMessage(err, "Failed to update bill"));
@@ -2223,6 +2225,83 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
             </div>
           </div>
         </SectionCard>
+
+        {/* Mark Bill Paid — payment method */}
+        {markPaidModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="bg-card border border-border rounded-2xl overflow-hidden max-w-sm w-full mx-4 shadow-2xl"
+            >
+              <div className="p-5 space-y-4">
+                <div>
+                  <h3 className="text-base font-bold">Mark Bill as Paid</h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Record how this payment was received.
+                  </p>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-muted-foreground">
+                    Payment Method
+                  </label>
+                  <select
+                    value={markPaidMethod}
+                    onChange={(e) =>
+                      setMarkPaidMethod(e.target.value as "cash" | "bank_transfer" | "manual")
+                    }
+                    className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm"
+                  >
+                    <option value="cash">Cash</option>
+                    <option value="bank_transfer">Bank Transfer</option>
+                    <option value="manual">Manual / Other</option>
+                  </select>
+                </div>
+                <div className="flex justify-end gap-2 pt-1">
+                  <button
+                    onClick={() => setMarkPaidModal(null)}
+                    className="h-9 px-4 rounded-lg text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={markPaidLoading}
+                    onClick={async () => {
+                      if (!markPaidModal) return;
+                      setMarkPaidLoading(true);
+                      try {
+                        const res = await api.patch(
+                          `/superadmin/institutions/${inst.id}/bills/${markPaidModal.id}/status`,
+                          { status: "PAID", paymentMethod: markPaidMethod },
+                        );
+                        setBills((prev) =>
+                          prev.map((b) =>
+                            b.id === markPaidModal.id ? { ...b, status: "PAID" } : b,
+                          ),
+                        );
+                        if (res.data?.data?.reactivated) {
+                          setPlanActive(true);
+                          toast.success("Payment recorded and institution reactivated");
+                        } else {
+                          toast.success("Bill marked as Paid");
+                        }
+                        await fetchPlanDashboard();
+                        setMarkPaidModal(null);
+                      } catch (err: unknown) {
+                        toast.error(getErrorMessage(err, "Failed to update bill"));
+                      } finally {
+                        setMarkPaidLoading(false);
+                      }
+                    }}
+                    className="h-9 px-4 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 transition-all disabled:opacity-60"
+                  >
+                    {markPaidLoading ? "Saving…" : "Mark Paid"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
 
         {/* Bill Modal */}
         {billModal && (

@@ -6,7 +6,7 @@ import {
     User, Mail, Shield, KeyRound, Eye, EyeOff, Check, X,
     Calendar, Clock, Monitor, MapPin, LogOut, AlertTriangle,
     Bell, Globe, Edit3, Save, RefreshCw, ShieldCheck, Smartphone,
-    Hash, BadgeCheck, Activity, Lock
+    Hash, BadgeCheck, Activity, Lock, Landmark, QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -198,6 +198,71 @@ export default function SuperAdminProfilePage() {
         passwordsMatch &&
         !samePwd &&
         (strength.level === 'medium' || strength.level === 'strong' || strength.level === 'very-strong');
+
+    // ── Platform payment settings (shown to institution admins for manual payments) ──
+    const [paymentSettingsLoading, setPaymentSettingsLoading] = useState(true);
+    const [editingPayment, setEditingPayment] = useState(false);
+    const [savingPayment, setSavingPayment] = useState(false);
+    const [bankAccountName, setBankAccountName] = useState('');
+    const [bankAccountNumber, setBankAccountNumber] = useState('');
+    const [bankIfsc, setBankIfsc] = useState('');
+    const [bankName, setBankName] = useState('');
+    const [upiId, setUpiId] = useState('');
+    const [paymentSnapshot, setPaymentSnapshot] = useState({ bankAccountName: '', bankAccountNumber: '', bankIfsc: '', bankName: '', upiId: '' });
+
+    useEffect(() => {
+        const load = async () => {
+            try {
+                setPaymentSettingsLoading(true);
+                const res = await api.get('/superadmin/payment-settings');
+                const s = res.data.data;
+                const next = {
+                    bankAccountName: s?.bankAccountName ?? '',
+                    bankAccountNumber: s?.bankAccountNumber ?? '',
+                    bankIfsc: s?.bankIfsc ?? '',
+                    bankName: s?.bankName ?? '',
+                    upiId: s?.upiId ?? '',
+                };
+                setBankAccountName(next.bankAccountName);
+                setBankAccountNumber(next.bankAccountNumber);
+                setBankIfsc(next.bankIfsc);
+                setBankName(next.bankName);
+                setUpiId(next.upiId);
+                setPaymentSnapshot(next);
+            } catch {
+                // no settings configured yet — fields stay blank
+            } finally {
+                setPaymentSettingsLoading(false);
+            }
+        };
+        load();
+    }, []);
+
+    const handleStartEditPayment = () => setEditingPayment(true);
+    const handleCancelEditPayment = () => {
+        setBankAccountName(paymentSnapshot.bankAccountName);
+        setBankAccountNumber(paymentSnapshot.bankAccountNumber);
+        setBankIfsc(paymentSnapshot.bankIfsc);
+        setBankName(paymentSnapshot.bankName);
+        setUpiId(paymentSnapshot.upiId);
+        setEditingPayment(false);
+    };
+    const handleSavePayment = async () => {
+        try {
+            setSavingPayment(true);
+            await api.patch('/superadmin/payment-settings', {
+                bankAccountName, bankAccountNumber, bankIfsc, bankName, upiId,
+            });
+            const next = { bankAccountName, bankAccountNumber, bankIfsc, bankName, upiId };
+            setPaymentSnapshot(next);
+            setEditingPayment(false);
+            toast.success('Payment details updated');
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Failed to update payment details'));
+        } finally {
+            setSavingPayment(false);
+        }
+    };
 
     // ── Notification preferences ──
     const [notifPrefs, setNotifPrefs] = useState({
@@ -474,6 +539,66 @@ export default function SuperAdminProfilePage() {
                                             <span className="text-[13px] text-muted-foreground w-28 shrink-0">Last IP</span>
                                             <span className="text-[13px] font-mono">{loginActivity[0]?.ip ?? '—'}</span>
                                         </div>
+                                    </div>
+                                )}
+                            </SectionCard>
+                        </motion.div>
+
+                        {/* Platform Payment Details */}
+                        <motion.div
+                            initial={{ opacity: 0, y: 16 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.12, duration: 0.3 }}
+                        >
+                            <SectionCard
+                                title="Payment Details"
+                                icon={Landmark}
+                                description="Shown to institution admins for manual bank transfer / UPI payments"
+                                action={
+                                    editingPayment ? (
+                                        <div className="flex gap-1.5 shrink-0">
+                                            <Button
+                                                variant="outline" size="sm"
+                                                onClick={handleCancelEditPayment}
+                                                disabled={savingPayment}
+                                                className="h-8 text-xs"
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <button
+                                                onClick={handleSavePayment}
+                                                disabled={savingPayment}
+                                                className="flex items-center h-8 px-3 rounded-md text-xs font-semibold text-white transition-all duration-150 hover:opacity-90 active:scale-95 disabled:opacity-50"
+                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                            >
+                                                {savingPayment
+                                                    ? <RefreshCw size={13} className="mr-1.5 animate-spin" />
+                                                    : <Save size={13} className="mr-1.5" />
+                                                }
+                                                Save
+                                            </button>
+                                        </div>
+                                    ) : (
+                                        <button
+                                            onClick={handleStartEditPayment}
+                                            className="flex items-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium text-muted-foreground hover:text-foreground border border-border/60 hover:border-border transition-all"
+                                        >
+                                            <Edit3 size={12} /> Edit
+                                        </button>
+                                    )
+                                }
+                            >
+                                {paymentSettingsLoading ? (
+                                    <div className="space-y-3 py-1">
+                                        {[1, 2, 3, 4, 5].map(i => <div key={i} className="h-9 rounded-lg bg-muted animate-pulse" />)}
+                                    </div>
+                                ) : (
+                                    <div className="space-y-0">
+                                        <FieldRow icon={Landmark} label="Account Name" value={bankAccountName} editing={editingPayment} onChange={setBankAccountName} placeholder="Qubeex Technologies Pvt Ltd" />
+                                        <FieldRow icon={Hash} label="Account No." value={bankAccountNumber} editing={editingPayment} onChange={setBankAccountNumber} placeholder="1234 5678 9012" />
+                                        <FieldRow icon={BadgeCheck} label="IFSC Code" value={bankIfsc} editing={editingPayment} onChange={setBankIfsc} placeholder="HDFC0001234" />
+                                        <FieldRow icon={Landmark} label="Bank" value={bankName} editing={editingPayment} onChange={setBankName} placeholder="HDFC Bank" />
+                                        <FieldRow icon={QrCode} label="UPI ID" value={upiId} editing={editingPayment} onChange={setUpiId} placeholder="qubeex@hdfcbank" />
                                     </div>
                                 )}
                             </SectionCard>
