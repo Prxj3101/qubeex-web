@@ -176,7 +176,7 @@ function AttendanceAccordion({ data }: { data: AttendanceStandard[] }) {
                                                             {rawPct !== null ? `${divPct}%` : '—'}
                                                         </span>
                                                         <button
-                                                            onClick={() => router.push(`/admin/campus/classes/${std.id}/${div.id}`)}
+                                                            onClick={() => router.push(`/admin/campus/classes/${std.id}/${div.id}?tab=attendance`)}
                                                             className="w-6 h-6 rounded-lg flex items-center justify-center shrink-0 hover:opacity-80 transition-all"
                                                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                                             <ArrowUpRight size={12} className="text-white" />

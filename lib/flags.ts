@@ -27,4 +27,5 @@ export interface FlagItem {
     reviewedBy?: string;
     reviewedAt?: string;
     canReview: boolean;
+    canEdit: boolean;
 }

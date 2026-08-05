@@ -522,7 +522,7 @@ export default function SubscriptionPage() {
                                         </div>
                                         <div className="flex items-center gap-2">
                                             <span className="font-semibold text-foreground">
-                                                {usedUsers} <span className="font-normal text-muted-foreground">/ {userLimit}</span>
+                                                {usedUsers} <span className="font-normal text-muted-foreground">/ ∞</span>
                                             </span>
                                             <button
                                                 onClick={() => router.push('/admin/insights/users?from=subscription')}

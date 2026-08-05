@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Loader2, Paperclip, X, FileText, FileSpreadsheet, FileType, ChevronDown } from 'lucide-react';
 import api from '@/lib/api';
 import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
+import { FlagItem } from '@/lib/flags';
 
 export type Severity = 'LOW' | 'MEDIUM' | 'HIGH';
 export type CardType = 'YELLOW' | 'RED';
@@ -51,6 +52,8 @@ interface ReportStudentModalProps {
     onSubmit: (data: ReportFormData) => Promise<void>;
     /** e.g. '/teacher/campus/feed/upload' or '/admin/campus/feed/upload' — reused R2 attachment upload endpoint. */
     uploadUrl: string;
+    /** When set, the modal opens pre-filled with this card's data and submits as an edit instead of a new report. */
+    editingFlag?: FlagItem | null;
 }
 
 interface FormState {
@@ -112,17 +115,41 @@ function attachmentIcon(name: string, mimeType: string) {
     return <Paperclip size={13} className="text-muted-foreground" />;
 }
 
-export default function ReportStudentModal({ open, onOpenChange, studentName, loading, onSubmit, uploadUrl }: ReportStudentModalProps) {
+export default function ReportStudentModal({ open, onOpenChange, studentName, loading, onSubmit, uploadUrl, editingFlag }: ReportStudentModalProps) {
     const [form, setForm] = useState<FormState>(EMPTY_FORM);
     // Multiple attachments — images, files, or videos — instead of just one.
     const [attachments, setAttachments] = useState<{ url: string; name: string; type: string; mimeType: string }[]>([]);
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const isEdit = !!editingFlag;
 
     const reset = () => {
         setForm(EMPTY_FORM);
         setAttachments([]);
     };
+
+    // Pre-fill the form from the card being edited whenever the modal opens
+    // in edit mode; reset back to blank when opening fresh for a new report.
+    useEffect(() => {
+        if (!open) return;
+        if (editingFlag) {
+            const knownCategory = CATEGORY_OPTIONS.includes(editingFlag.category);
+            setForm({
+                type: editingFlag.type.toUpperCase() as CardType,
+                severity: editingFlag.severity.toUpperCase() as Severity,
+                category: knownCategory ? editingFlag.category : 'Other',
+                customCategory: knownCategory ? '' : editingFlag.category,
+                title: editingFlag.title,
+                detail: editingFlag.detail,
+                subject: editingFlag.subject ?? '',
+                actionTaken: editingFlag.actionTaken ?? '',
+            });
+            setAttachments(editingFlag.attachments.map(a => ({ url: a.url, name: a.name, type: a.type, mimeType: a.type })));
+        } else {
+            reset();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [open, editingFlag]);
 
     const handleClose = (next: boolean) => {
         if (!next) reset();
@@ -192,9 +219,11 @@ export default function ReportStudentModal({ open, onOpenChange, studentName, lo
             >
                 {/* Header */}
                 <div className="px-6 pt-5 pb-3.5 border-b border-border/50 shrink-0">
-                    <DialogTitle className="text-base font-semibold">Report {studentName}</DialogTitle>
+                    <DialogTitle className="text-base font-semibold">{isEdit ? `Edit Report — ${studentName}` : `Report ${studentName}`}</DialogTitle>
                     <p className="text-[11px] text-muted-foreground mt-0.5">
-                        This report will be sent to {studentName.split(' ')[0]}&apos;s class teacher for review.
+                        {isEdit
+                            ? 'Update the details of this report card.'
+                            : `This report will be sent to ${studentName.split(' ')[0]}'s class teacher for review.`}
                     </p>
                 </div>
 
@@ -297,7 +326,7 @@ export default function ReportStudentModal({ open, onOpenChange, studentName, lo
                         className="min-w-[130px] h-8 px-5 rounded-md text-xs font-semibold text-white transition-all duration-150 hover:opacity-90 active:scale-95 disabled:opacity-60"
                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
                     >
-                        {loading ? 'Submitting...' : 'Submit Report'}
+                        {loading ? (isEdit ? 'Saving...' : 'Submitting...') : (isEdit ? 'Save Changes' : 'Submit Report')}
                     </button>
                 </div>
             </DialogContent>

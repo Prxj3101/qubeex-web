@@ -22,6 +22,7 @@ export default function AdminStudentReportsPage() {
     const [flags, setFlags] = useState<FlagItem[]>([]);
     const [showAddModal, setShowAddModal] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [editingFlag, setEditingFlag] = useState<FlagItem | null>(null);
 
     const load = useCallback(() => {
         api.get(`/admin/campus/divisions/${divisionId}/students/${studentId}/remarks`)
@@ -44,16 +45,27 @@ export default function AdminStudentReportsPage() {
     const handleSubmit = async (data: ReportFormData) => {
         setSubmitting(true);
         try {
-            await api.post(`/admin/campus/divisions/${divisionId}/students/${studentId}/remarks`, data);
-            toast.success('Report submitted');
+            if (editingFlag) {
+                await api.patch(`/admin/campus/reports/${editingFlag.id}/edit`, data);
+                toast.success('Report updated');
+            } else {
+                await api.post(`/admin/campus/divisions/${divisionId}/students/${studentId}/remarks`, data);
+                toast.success('Report submitted');
+            }
             setShowAddModal(false);
+            setEditingFlag(null);
             load();
         } catch (err: unknown) {
             const e = err as { response?: { data?: { error?: string } } };
-            toast.error(e?.response?.data?.error ?? 'Failed to submit report');
+            toast.error(e?.response?.data?.error ?? (editingFlag ? 'Failed to update report' : 'Failed to submit report'));
         } finally {
             setSubmitting(false);
         }
+    };
+
+    const handleEdit = (flag: FlagItem) => {
+        setEditingFlag(flag);
+        setShowAddModal(true);
     };
 
     // Admin-only: deletes the card everywhere — the teacher's assigned
@@ -80,7 +92,7 @@ export default function AdminStudentReportsPage() {
                 onBack={() => router.back()}
                 headerAction={
                     <button
-                        onClick={() => setShowAddModal(true)}
+                        onClick={() => { setEditingFlag(null); setShowAddModal(true); }}
                         className="flex items-center gap-1.5 h-8 px-3.5 rounded-lg text-xs font-semibold text-white shrink-0"
                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
                     >
@@ -89,14 +101,16 @@ export default function AdminStudentReportsPage() {
                 }
                 appealNote="Discuss with the student's class teacher, or record the outcome directly."
                 onDelete={handleDelete}
+                onEdit={handleEdit}
             />
             <ReportStudentModal
                 open={showAddModal}
-                onOpenChange={setShowAddModal}
+                onOpenChange={(v) => { setShowAddModal(v); if (!v) setEditingFlag(null); }}
                 studentName={studentName}
                 loading={submitting}
                 onSubmit={handleSubmit}
                 uploadUrl="/admin/campus/feed/upload"
+                editingFlag={editingFlag}
             />
         </>
     );

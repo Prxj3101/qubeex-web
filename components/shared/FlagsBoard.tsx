@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, BookOpen, Calendar, User, ShieldAlert, ChevronDown, ChevronUp, GraduationCap, Trash2 } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, User, ShieldAlert, ChevronDown, ChevronUp, GraduationCap, Trash2, Pencil } from 'lucide-react';
 import { FlagItem, CardType } from '@/lib/flags';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 
@@ -17,10 +17,14 @@ const CATEGORY_ICONS: Record<string, string> = {
     'Screenshot Attempt': '📸',
 };
 
-export function FlagCard({ flag, classLabel, onDelete }: { flag: FlagItem; classLabel?: string; onDelete?: (flag: FlagItem) => void }) {
+export function FlagCard({ flag, classLabel, onDelete, onEdit }: { flag: FlagItem; classLabel?: string; onDelete?: (flag: FlagItem) => void; onEdit?: (flag: FlagItem) => void }) {
     const [expanded, setExpanded] = useState(false);
     const [confirmDelete, setConfirmDelete] = useState(false);
     const isYellow = flag.type === 'yellow';
+    // Only the person who originally filed this report can edit it — not
+    // every admin/teacher, unlike delete which is admin-wide.
+    const showEdit = !!onEdit && flag.canEdit;
+    const hasActionButton = !!onDelete || showEdit;
 
     return (
         <div className={`relative rounded-2xl border-[1.5px] overflow-hidden ${
@@ -28,21 +32,40 @@ export function FlagCard({ flag, classLabel, onDelete }: { flag: FlagItem; class
                 ? 'bg-amber-50 dark:bg-[#1C1A00] border-amber-200 dark:border-[#44330A]'
                 : 'bg-red-50 dark:bg-[#1A0A0A] border-red-200 dark:border-[#3D0F0F]'
         }`}>
-            {/* Admin-only delete — card disappears everywhere (admin, teacher,
-                student) since they all read the same underlying report row. */}
-            {onDelete && (
-                <button
-                    type="button"
-                    onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
-                    title="Delete card"
-                    className={`absolute bottom-3 right-3 z-10 w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
-                        isYellow
-                            ? 'text-amber-600/60 hover:text-amber-800 hover:bg-amber-200/50 dark:text-amber-400/60 dark:hover:text-amber-300 dark:hover:bg-amber-900/40'
-                            : 'text-red-600/60 hover:text-red-800 hover:bg-red-200/50 dark:text-red-400/60 dark:hover:text-red-300 dark:hover:bg-red-900/40'
-                    }`}
-                >
-                    <Trash2 size={13} />
-                </button>
+            {/* Bottom-right action buttons — Edit only shows for the person who
+                filed this specific report; Delete is admin-wide (removes the
+                card everywhere, since admin/teacher/student all read the same row). */}
+            {hasActionButton && (
+                <div className="absolute bottom-3 right-3 z-10 flex items-center gap-1.5">
+                    {showEdit && (
+                        <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); onEdit?.(flag); }}
+                            title="Edit card"
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
+                                isYellow
+                                    ? 'text-amber-600/60 hover:text-amber-800 hover:bg-amber-200/50 dark:text-amber-400/60 dark:hover:text-amber-300 dark:hover:bg-amber-900/40'
+                                    : 'text-red-600/60 hover:text-red-800 hover:bg-red-200/50 dark:text-red-400/60 dark:hover:text-red-300 dark:hover:bg-red-900/40'
+                            }`}
+                        >
+                            <Pencil size={13} />
+                        </button>
+                    )}
+                    {onDelete && (
+                        <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
+                            title="Delete card"
+                            className={`w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
+                                isYellow
+                                    ? 'text-amber-600/60 hover:text-amber-800 hover:bg-amber-200/50 dark:text-amber-400/60 dark:hover:text-amber-300 dark:hover:bg-amber-900/40'
+                                    : 'text-red-600/60 hover:text-red-800 hover:bg-red-200/50 dark:text-red-400/60 dark:hover:text-red-300 dark:hover:bg-red-900/40'
+                            }`}
+                        >
+                            <Trash2 size={13} />
+                        </button>
+                    )}
+                </div>
             )}
 
             {/* Header row — always visible */}
@@ -110,7 +133,7 @@ export function FlagCard({ flag, classLabel, onDelete }: { flag: FlagItem; class
             )}
 
             {/* Meta row */}
-            <div className={`flex flex-wrap gap-3 px-4 pl-[52px] ${onDelete ? 'pb-8 pr-8' : 'pb-3'}`}>
+            <div className={`flex flex-wrap gap-3 px-4 pl-[52px] ${hasActionButton ? 'pb-8 pr-8' : 'pb-3'}`}>
                 <div className="flex items-center gap-1">
                     <Calendar size={11} className={isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} />
                     <span className={`text-[10px] ${isYellow ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'}`}>{flag.date}</span>
@@ -135,7 +158,7 @@ export function FlagCard({ flag, classLabel, onDelete }: { flag: FlagItem; class
 
             {/* Expanded detail */}
             {expanded && (
-                <div className={`px-4 space-y-3 ${onDelete ? 'pb-9 pr-8' : 'pb-4'}`}>
+                <div className={`px-4 space-y-3 ${hasActionButton ? 'pb-9 pr-8' : 'pb-4'}`}>
                     {/* Incident detail */}
                     <div className={`p-3 rounded-xl border ${
                         isYellow
@@ -201,9 +224,13 @@ interface FlagsBoardProps {
     /** Pass only from the admin side — when present, every card shows a delete
      * button. Teacher and student views omit this so they stay read-only. */
     onDelete?: (flag: FlagItem) => void;
+    /** Pass from both admin and teacher sides — a card only shows the Edit
+     * button when flag.canEdit is true, i.e. the current viewer is the one
+     * who originally filed that specific report. */
+    onEdit?: (flag: FlagItem) => void;
 }
 
-export default function FlagsBoard({ flags, title, subtitle, onBack, headerAction, appealNote = 'Contact your class teacher or Principal.', classLabel, onDelete }: FlagsBoardProps) {
+export default function FlagsBoard({ flags, title, subtitle, onBack, headerAction, appealNote = 'Contact your class teacher or Principal.', classLabel, onDelete, onEdit }: FlagsBoardProps) {
     const [activeTab, setActiveTab] = useState<CardType>('yellow');
 
     const sortByDateDesc = (arr: FlagItem[]) =>
@@ -324,7 +351,7 @@ export default function FlagsBoard({ flags, title, subtitle, onBack, headerActio
                             </p>
                         </div>
                     ) : (
-                        activeFlags.map(flag => <FlagCard key={flag.id} flag={flag} classLabel={classLabel} onDelete={onDelete} />)
+                        activeFlags.map(flag => <FlagCard key={flag.id} flag={flag} classLabel={classLabel} onDelete={onDelete} onEdit={onEdit} />)
                     )}
                 </div>
             </div>
