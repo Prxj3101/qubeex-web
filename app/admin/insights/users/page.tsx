@@ -1,37 +1,24 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Users, Search, Shield, BookOpen, GraduationCap, Crown, ChevronLeft, ChevronRight, History } from 'lucide-react';
+import api from '@/lib/api';
 
 const MONTHS_S = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-// ── Mock data ─────────────────────────────────────────────────────────────────
-const MOCK_USERS = [
-    // Admin
-    { id: 'a1',  name: 'Rajesh Kumar',  role: 'ADMIN',     email: 'rajesh@dps.edu.in',             phone: '+91 98100 00001', status: 'ACTIVE',   joinedAt: '2024-06-01', userId: 'ADM-001',  class: null,   addedBy: 'SuperAdmin' },
-    // Sub-Admins
-    { id: 'sa1', name: 'Sunita Mehta',  role: 'SUB_ADMIN', email: 'sunita@dps.edu.in',             phone: '+91 98100 00002', status: 'ACTIVE',   joinedAt: '2024-07-10', userId: 'SUB-001',  class: null,   addedBy: 'Rajesh Kumar' },
-    { id: 'sa2', name: 'Deepak Joshi',  role: 'SUB_ADMIN', email: 'deepak@dps.edu.in',             phone: '+91 98100 00003', status: 'INACTIVE', joinedAt: '2024-08-05', userId: 'SUB-002',  class: null,   addedBy: 'Rajesh Kumar' },
-    // Teachers
-    { id: 't1',  name: 'Ritu Sharma',   role: 'TEACHER',   email: 'ritu.sharma@dps.edu.in',        phone: '+91 98765 43210', status: 'ACTIVE',   joinedAt: '2025-08-15', userId: 'TCH-001',  class: null,   addedBy: 'Rajesh Kumar' },
-    { id: 't2',  name: 'Ankit Verma',   role: 'TEACHER',   email: 'ankit.verma@dps.edu.in',        phone: '+91 98765 43211', status: 'ACTIVE',   joinedAt: '2025-08-15', userId: 'TCH-002',  class: null,   addedBy: 'Rajesh Kumar' },
-    { id: 't3',  name: 'Priya Nair',    role: 'TEACHER',   email: 'priya.nair@dps.edu.in',         phone: '+91 98765 43212', status: 'ACTIVE',   joinedAt: '2025-09-01', userId: 'TCH-003',  class: null,   addedBy: 'Rajesh Kumar' },
-    { id: 't4',  name: 'Meena Patel',   role: 'TEACHER',   email: 'meena.patel@dps.edu.in',        phone: '+91 98765 43213', status: 'INACTIVE', joinedAt: '2025-09-10', userId: 'TCH-004',  class: null,   addedBy: 'Rajesh Kumar' },
-    { id: 't5',  name: 'Suresh Iyer',   role: 'TEACHER',   email: 'suresh.iyer@dps.edu.in',        phone: '+91 98765 43214', status: 'ACTIVE',   joinedAt: '2025-09-15', userId: 'TCH-005',  class: null,   addedBy: 'Rajesh Kumar' },
-    { id: 't6',  name: 'Kavita Singh',  role: 'TEACHER',   email: 'kavita.singh@dps.edu.in',       phone: '+91 98765 43215', status: 'ACTIVE',   joinedAt: '2025-10-01', userId: 'TCH-006',  class: null,   addedBy: 'Rajesh Kumar' },
-    // Students
-    { id: 's1',  name: 'Aarav Gupta',   role: 'STUDENT',   email: 'aarav@student.dps.edu.in',      phone: '+91 99001 00001', status: 'ACTIVE',   joinedAt: '2025-06-01', userId: 'STU-0001', class: '10-A', addedBy: 'Ritu Sharma' },
-    { id: 's2',  name: 'Sneha Reddy',   role: 'STUDENT',   email: 'sneha@student.dps.edu.in',      phone: '+91 99001 00002', status: 'ACTIVE',   joinedAt: '2025-06-01', userId: 'STU-0002', class: '10-A', addedBy: 'Ritu Sharma' },
-    { id: 's3',  name: 'Rohan Kapoor',  role: 'STUDENT',   email: 'rohan@student.dps.edu.in',      phone: '+91 99001 00003', status: 'ACTIVE',   joinedAt: '2025-06-01', userId: 'STU-0003', class: '10-B', addedBy: 'Ankit Verma' },
-    { id: 's4',  name: 'Pooja Das',     role: 'STUDENT',   email: 'pooja@student.dps.edu.in',      phone: '+91 99001 00004', status: 'INACTIVE', joinedAt: '2025-06-01', userId: 'STU-0004', class: '9-A',  addedBy: 'Priya Nair' },
-    { id: 's5',  name: 'Arjun Nair',    role: 'STUDENT',   email: 'arjun@student.dps.edu.in',      phone: '+91 99001 00005', status: 'ACTIVE',   joinedAt: '2025-06-02', userId: 'STU-0005', class: '9-B',  addedBy: 'Meena Patel' },
-    { id: 's6',  name: 'Ishita Sharma', role: 'STUDENT',   email: 'ishita@student.dps.edu.in',     phone: '+91 99001 00006', status: 'ACTIVE',   joinedAt: '2025-06-02', userId: 'STU-0006', class: '8-A',  addedBy: 'Suresh Iyer' },
-    { id: 's7',  name: 'Karan Mehta',   role: 'STUDENT',   email: 'karan@student.dps.edu.in',      phone: '+91 99001 00007', status: 'ACTIVE',   joinedAt: '2025-06-03', userId: 'STU-0007', class: '8-B',  addedBy: 'Kavita Singh' },
-    { id: 's8',  name: 'Divya Pillai',  role: 'STUDENT',   email: 'divya@student.dps.edu.in',      phone: '+91 99001 00008', status: 'ACTIVE',   joinedAt: '2025-06-03', userId: 'STU-0008', class: '7-A',  addedBy: 'Ritu Sharma' },
-    { id: 's9',  name: 'Nikhil Verma',  role: 'STUDENT',   email: 'nikhil@student.dps.edu.in',     phone: '+91 99001 00009', status: 'INACTIVE', joinedAt: '2025-06-04', userId: 'STU-0009', class: '7-B',  addedBy: 'Ankit Verma' },
-    { id: 's10', name: 'Tanya Bose',    role: 'STUDENT',   email: 'tanya@student.dps.edu.in',      phone: '+91 99001 00010', status: 'ACTIVE',   joinedAt: '2025-06-04', userId: 'STU-0010', class: '6-A',  addedBy: 'Priya Nair' },
-];
+interface DirectoryUser {
+    id: string;
+    name: string;
+    role: 'ADMIN' | 'SUB_ADMIN' | 'TEACHER' | 'STUDENT';
+    email: string;
+    phone: string | null;
+    userId: string;
+    class: string | null;
+    addedBy: string | null;
+    joinedAt: string;
+    status: 'ACTIVE' | 'INACTIVE';
+}
 
 // ── Role config ───────────────────────────────────────────────────────────────
 const ROLE_CONFIG: Record<string, { label: string; icon: React.ElementType; color: string; bg: string; initBg: string }> = {
@@ -76,11 +63,17 @@ export default function UsersInsightPage() {
     const billSel = BILL_MONTHS[activeBillMonth];
     const billLabel = `${billSel.short} ${String(billSel.year).slice(-2)}`;
     const isCurrentMonth = activeBillMonth === currentBillKey;
-    const billEndOfMonth = new Date(billSel.year, billSel.monthIdx + 1, 0, 23, 59, 59);
 
-    const usersAsOfMonth = useMemo(() => {
-        return MOCK_USERS.filter(u => new Date(u.joinedAt) <= billEndOfMonth);
-    }, [billEndOfMonth]);
+    const [usersAsOfMonth, setUsersAsOfMonth] = useState<DirectoryUser[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        setLoading(true);
+        api.get('/admin/insights/users', { params: { year: billSel.year, month: billSel.monthIdx + 1 } })
+            .then(res => setUsersAsOfMonth(res.data.data ?? []))
+            .catch(() => setUsersAsOfMonth([]))
+            .finally(() => setLoading(false));
+    }, [billSel.year, billSel.monthIdx]);
 
     const filtered = useMemo(() => {
         return usersAsOfMonth.filter(u => {
@@ -237,7 +230,12 @@ export default function UsersInsightPage() {
 
                 {/* User table */}
                 <div className="flex-1 overflow-hidden bg-card border border-border/50 rounded-2xl flex flex-col">
-                    {filtered.length === 0 ? (
+                    {loading ? (
+                        <div className="py-12 text-center">
+                            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                            <p className="text-sm text-muted-foreground">Loading users…</p>
+                        </div>
+                    ) : filtered.length === 0 ? (
                         <div className="py-12 text-center">
                             <Users size={24} className="text-muted-foreground/30 mx-auto mb-2" />
                             <p className="text-sm text-muted-foreground">No users found</p>
@@ -311,9 +309,9 @@ export default function UsersInsightPage() {
                                                     </span>
                                                 </td>
                                                 <td className="px-3 py-3 text-[13px] text-muted-foreground whitespace-nowrap">{u.email}</td>
-                                                <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{u.phone}</td>
+                                                <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{u.phone ?? '—'}</td>
                                                 <td className="px-3 py-3 whitespace-nowrap">
-                                                    <span className="text-[12px] text-muted-foreground">{u.addedBy}</span>
+                                                    <span className="text-[12px] text-muted-foreground">{u.addedBy ?? '—'}</span>
                                                 </td>
                                                 <td className="px-3 py-3 whitespace-nowrap">
                                                     {u.class
