@@ -20,162 +20,13 @@ const AMBER = '#D97706';
 const EMERALD = '#059669';
 const SKY = '#0284C7';
 
-// ── Mock fee data ─────────────────────────────────────────────────────────────
-const MOCK_FEE_DATA = [
-    {
-        id: 's1', name: 'Class 10', divisions: [
-            { id: 'd1', name: '10-A', paid: 28, pending: 4, total: 32 },
-            { id: 'd2', name: '10-B', paid: 22, pending: 6, total: 28 },
-            { id: 'd3', name: '10-C', paid: 20, pending: 5, total: 25 },
-        ],
-    },
-    {
-        id: 's2', name: 'Class 9', divisions: [
-            { id: 'd4', name: '9-A', paid: 26, pending: 4, total: 30 },
-            { id: 'd5', name: '9-B', paid: 20, pending: 7, total: 27 },
-            { id: 'd6', name: '9-C', paid: 24, pending: 6, total: 30 },
-        ],
-    },
-    {
-        id: 's3', name: 'Class 8', divisions: [
-            { id: 'd7', name: '8-A', paid: 27, pending: 3, total: 30 },
-            { id: 'd8', name: '8-B', paid: 22, pending: 8, total: 30 },
-            { id: 'd9', name: '8-C', paid: 25, pending: 5, total: 30 },
-        ],
-    },
-    {
-        id: 's4', name: 'Class 7', divisions: [
-            { id: 'd10', name: '7-A', paid: 24, pending: 6, total: 30 },
-            { id: 'd11', name: '7-B', paid: 20, pending: 8, total: 28 },
-            { id: 'd12', name: '7-C', paid: 26, pending: 4, total: 30 },
-        ],
-    },
-    {
-        id: 's5', name: 'Class 6', divisions: [
-            { id: 'd13', name: '6-A', paid: 23, pending: 5, total: 28 },
-            { id: 'd14', name: '6-B', paid: 19, pending: 7, total: 26 },
-            { id: 'd15', name: '6-C', paid: 25, pending: 3, total: 28 },
-        ],
-    },
-    {
-        id: 's6', name: 'Class 5', divisions: [
-            { id: 'd16', name: '5-A', paid: 22, pending: 6, total: 28 },
-            { id: 'd17', name: '5-B', paid: 18, pending: 8, total: 26 },
-            { id: 'd18', name: '5-C', paid: 24, pending: 4, total: 28 },
-        ],
-    },
-    {
-        id: 's7', name: 'Class 4', divisions: [
-            { id: 'd19', name: '4-A', paid: 25, pending: 3, total: 28 },
-            { id: 'd20', name: '4-B', paid: 20, pending: 6, total: 26 },
-            { id: 'd21', name: '4-C', paid: 26, pending: 2, total: 28 },
-        ],
-    },
-    {
-        id: 's8', name: 'Class 3', divisions: [
-            { id: 'd22', name: '3-A', paid: 21, pending: 7, total: 28 },
-            { id: 'd23', name: '3-B', paid: 24, pending: 4, total: 28 },
-            { id: 'd24', name: '3-C', paid: 18, pending: 8, total: 26 },
-        ],
-    },
-    {
-        id: 's9', name: 'Class 2', divisions: [
-            { id: 'd25', name: '2-A', paid: 23, pending: 5, total: 28 },
-            { id: 'd26', name: '2-B', paid: 20, pending: 6, total: 26 },
-            { id: 'd27', name: '2-C', paid: 25, pending: 3, total: 28 },
-        ],
-    },
-    {
-        id: 's10', name: 'Class 1', divisions: [
-            { id: 'd28', name: '1-A', paid: 22, pending: 6, total: 28 },
-            { id: 'd29', name: '1-B', paid: 19, pending: 7, total: 26 },
-            { id: 'd30', name: '1-C', paid: 24, pending: 4, total: 28 },
-        ],
-    },
-];
-
-// ── Mock attendance data ──────────────────────────────────────────────────────
-const MOCK_ATTENDANCE_DATA = [
-    {
-        id: 's1', name: 'Class 10', divisions: [
-            { id: 'd1', name: '10-A', present: 29, absent: 3, total: 32 },
-            { id: 'd2', name: '10-B', present: 24, absent: 4, total: 28 },
-            { id: 'd3', name: '10-C', present: 22, absent: 3, total: 25 },
-        ],
-    },
-    {
-        id: 's2', name: 'Class 9', divisions: [
-            { id: 'd4', name: '9-A', present: 27, absent: 3, total: 30 },
-            { id: 'd5', name: '9-B', present: 22, absent: 5, total: 27 },
-            { id: 'd6', name: '9-C', present: 26, absent: 4, total: 30 },
-        ],
-    },
-    {
-        id: 's3', name: 'Class 8', divisions: [
-            { id: 'd7', name: '8-A', present: 28, absent: 2, total: 30 },
-            { id: 'd8', name: '8-B', present: 23, absent: 7, total: 30 },
-            { id: 'd9', name: '8-C', present: 26, absent: 4, total: 30 },
-        ],
-    },
-    {
-        id: 's4', name: 'Class 7', divisions: [
-            { id: 'd10', name: '7-A', present: 25, absent: 5, total: 30 },
-            { id: 'd11', name: '7-B', present: 21, absent: 7, total: 28 },
-            { id: 'd12', name: '7-C', present: 27, absent: 3, total: 30 },
-        ],
-    },
-    {
-        id: 's5', name: 'Class 6', divisions: [
-            { id: 'd13', name: '6-A', present: 24, absent: 4, total: 28 },
-            { id: 'd14', name: '6-B', present: 20, absent: 6, total: 26 },
-            { id: 'd15', name: '6-C', present: 26, absent: 2, total: 28 },
-        ],
-    },
-    {
-        id: 's6', name: 'Class 5', divisions: [
-            { id: 'd16', name: '5-A', present: 23, absent: 5, total: 28 },
-            { id: 'd17', name: '5-B', present: 19, absent: 7, total: 26 },
-            { id: 'd18', name: '5-C', present: 25, absent: 3, total: 28 },
-        ],
-    },
-    {
-        id: 's7', name: 'Class 4', divisions: [
-            { id: 'd19', name: '4-A', present: 26, absent: 2, total: 28 },
-            { id: 'd20', name: '4-B', present: 21, absent: 5, total: 26 },
-            { id: 'd21', name: '4-C', present: 27, absent: 1, total: 28 },
-        ],
-    },
-    {
-        id: 's8', name: 'Class 3', divisions: [
-            { id: 'd22', name: '3-A', present: 22, absent: 6, total: 28 },
-            { id: 'd23', name: '3-B', present: 25, absent: 3, total: 28 },
-            { id: 'd24', name: '3-C', present: 19, absent: 7, total: 26 },
-        ],
-    },
-    {
-        id: 's9', name: 'Class 2', divisions: [
-            { id: 'd25', name: '2-A', present: 24, absent: 4, total: 28 },
-            { id: 'd26', name: '2-B', present: 21, absent: 5, total: 26 },
-            { id: 'd27', name: '2-C', present: 26, absent: 2, total: 28 },
-        ],
-    },
-    {
-        id: 's10', name: 'Class 1', divisions: [
-            { id: 'd28', name: '1-A', present: 23, absent: 5, total: 28 },
-            { id: 'd29', name: '1-B', present: 20, absent: 6, total: 26 },
-            { id: 'd30', name: '1-C', present: 25, absent: 3, total: 28 },
-        ],
-    },
-];
-
-// ── Mock AI data ──────────────────────────────────────────────────────────────
-const MOCK_AI_TEACHERS = [
-    { name: 'Ritu Sharma', used: 2.1 },
-    { name: 'Ankit Verma', used: 3.8 },
-    { name: 'Priya Nair', used: 1.2 },
-    { name: 'Meena Patel', used: 4.6 },
-    { name: 'Suresh Iyer', used: 0.8 },
-];
+// ── Data shapes ───────────────────────────────────────────────────────────────
+interface FeeDivision { id: string; name: string; paid: number; pending: number; total: number; }
+interface FeeStandard { id: string; name: string; divisions: FeeDivision[]; }
+interface AttendanceDivision { id: string; name: string; overallPct: number | null; monthPct: number | null; total: number; }
+interface AttendanceStandard { id: string; name: string; divisions: AttendanceDivision[]; }
+type AttendanceMode = 'overall' | 'monthly';
+interface AiTeacherUsage { name: string; used: number; } // used = tokens, in millions
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, iconBg, iconColor }: {
@@ -221,31 +72,52 @@ function getAttendanceColor(pct: number) {
     };
 }
 
-function AttendanceAccordion() {
+function AttendanceAccordion({ data }: { data: AttendanceStandard[] }) {
     const router = useRouter();
-    const [expandedId, setExpandedId] = useState<string | null>('s1');
+    const [expandedId, setExpandedId] = useState<string | null>(data[0]?.id ?? null);
+    const [mode, setMode] = useState<AttendanceMode>('overall');
 
-    const activeClass = MOCK_ATTENDANCE_DATA.find(s => s.id === expandedId) ?? MOCK_ATTENDANCE_DATA[0];
+    if (data.length === 0) {
+        return (
+            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden p-8 flex flex-col items-center justify-center text-center gap-2">
+                <Users size={22} className="text-muted-foreground/40" />
+                <p className="text-sm font-medium text-muted-foreground">No classes set up yet</p>
+            </div>
+        );
+    }
+
+    const pctOf = (d: AttendanceDivision) => (mode === 'overall' ? d.overallPct : d.monthPct) ?? 0;
+
+    const activeClass = data.find(s => s.id === expandedId) ?? data[0];
 
     const chartData = activeClass.divisions.map(d => ({
         name: d.name,
-        attendance: d.total > 0 ? Math.round((d.present / d.total) * 100) : 0,
+        attendance: pctOf(d),
     }));
 
-    const totalPresent = MOCK_ATTENDANCE_DATA.reduce((s, c) => s + c.divisions.reduce((a, d) => a + d.present, 0), 0);
-    const totalStudents = MOCK_ATTENDANCE_DATA.reduce((s, c) => s + c.divisions.reduce((a, d) => a + d.total, 0), 0);
-    const overallPct = totalStudents > 0 ? Math.round((totalPresent / totalStudents) * 100) : 0;
+    const divisionsWithData = data.flatMap(s => s.divisions).filter(d => (mode === 'overall' ? d.overallPct : d.monthPct) !== null);
+    const overallPct = divisionsWithData.length > 0
+        ? Math.round(divisionsWithData.reduce((a, d) => a + pctOf(d), 0) / divisionsWithData.length)
+        : 0;
     const overallColor = getAttendanceColor(overallPct);
 
     return (
         <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
             {/* Header */}
-            <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2">
+            <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2 flex-wrap">
                 <Users size={15} className="text-muted-foreground" />
                 <p className="text-sm font-semibold">Attendance Analysis</p>
                 <div className="ml-auto flex items-center gap-3">
+                    <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40">
+                        {(['overall', 'monthly'] as AttendanceMode[]).map(m => (
+                            <button key={m} onClick={() => setMode(m)}
+                                className={`px-2.5 py-1 rounded-md text-[11px] font-semibold capitalize transition-all ${mode === m ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                {m === 'overall' ? 'Overall' : 'This Month'}
+                            </button>
+                        ))}
+                    </div>
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${overallColor.badge}`}>
-                        {overallPct}% overall
+                        {overallPct}% {mode === 'overall' ? 'overall' : 'this month'}
                     </span>
                 </div>
             </div>
@@ -254,11 +126,12 @@ function AttendanceAccordion() {
 
                 {/* Left — Accordion */}
                 <div className="lg:col-span-2 divide-y divide-border/30 overflow-y-auto max-h-[400px] border-b lg:border-b-0 lg:border-r border-border/40">
-                    {MOCK_ATTENDANCE_DATA.map((std) => {
+                    {data.map((std) => {
                         const isOpen = expandedId === std.id;
-                        const stdPresent = std.divisions.reduce((s, d) => s + d.present, 0);
-                        const stdTotal = std.divisions.reduce((s, d) => s + d.total, 0);
-                        const stdPct = stdTotal > 0 ? Math.round((stdPresent / stdTotal) * 100) : 0;
+                        const stdDivisionsWithData = std.divisions.filter(d => (mode === 'overall' ? d.overallPct : d.monthPct) !== null);
+                        const stdPct = stdDivisionsWithData.length > 0
+                            ? Math.round(stdDivisionsWithData.reduce((a, d) => a + pctOf(d), 0) / stdDivisionsWithData.length)
+                            : 0;
                         const stdColor = getAttendanceColor(stdPct);
 
                         return (
@@ -286,7 +159,8 @@ function AttendanceAccordion() {
                                         <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
                                             exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
                                             {std.divisions.map((div) => {
-                                                const divPct = div.total > 0 ? Math.round((div.present / div.total) * 100) : 0;
+                                                const rawPct = mode === 'overall' ? div.overallPct : div.monthPct;
+                                                const divPct = rawPct ?? 0;
                                                 const divColor = getAttendanceColor(divPct);
                                                 return (
                                                     <div key={div.id}
@@ -298,8 +172,8 @@ function AttendanceAccordion() {
                                                                     style={{ width: `${divPct}%`, background: divColor.bar }} />
                                                             </div>
                                                         </div>
-                                                        <span className={`text-[11px] font-bold shrink-0 w-8 text-right ${divColor.text}`}>
-                                                            {divPct}%
+                                                        <span className={`text-[11px] font-bold shrink-0 w-10 text-right ${divColor.text}`}>
+                                                            {rawPct !== null ? `${divPct}%` : '—'}
                                                         </span>
                                                         <button
                                                             onClick={() => router.push(`/admin/campus/classes/${std.id}/${div.id}`)}
@@ -323,7 +197,7 @@ function AttendanceAccordion() {
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm font-semibold text-foreground">{activeClass.name}</p>
-                            <p className="text-[11px] text-muted-foreground">Division-wise attendance</p>
+                            <p className="text-[11px] text-muted-foreground">Division-wise attendance · {mode === 'overall' ? 'Overall (session to date)' : 'This month'}</p>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="flex items-center gap-1.5">
@@ -387,12 +261,21 @@ function AttendanceAccordion() {
 }
 
 // ── Fee Accordion ─────────────────────────────────────────────────────────────
-function FeeAccordion() {
+function FeeAccordion({ data }: { data: FeeStandard[] }) {
     const router = useRouter();
-    const [expandedId, setExpandedId] = useState<string | null>('s1');
+    const [expandedId, setExpandedId] = useState<string | null>(data[0]?.id ?? null);
 
-    const totalPaid = MOCK_FEE_DATA.reduce((s, c) => s + c.divisions.reduce((a, d) => a + d.paid, 0), 0);
-    const totalPending = MOCK_FEE_DATA.reduce((s, c) => s + c.divisions.reduce((a, d) => a + d.pending, 0), 0);
+    if (data.length === 0) {
+        return (
+            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden p-8 flex flex-col items-center justify-center text-center gap-2">
+                <Wallet size={22} className="text-muted-foreground/40" />
+                <p className="text-sm font-medium text-muted-foreground">No fee structures set up yet</p>
+            </div>
+        );
+    }
+
+    const totalPaid = data.reduce((s, c) => s + c.divisions.reduce((a, d) => a + d.paid, 0), 0);
+    const totalPending = data.reduce((s, c) => s + c.divisions.reduce((a, d) => a + d.pending, 0), 0);
     const totalFees = totalPaid + totalPending;
     const collectedPct = totalFees > 0 ? Math.round((totalPaid / totalFees) * 100) : 0;
 
@@ -450,7 +333,7 @@ function FeeAccordion() {
 
                 {/* Accordion */}
                 <div className="lg:col-span-3 divide-y divide-border/30 max-h-[280px] overflow-y-auto">
-                    {MOCK_FEE_DATA.map((std) => {
+                    {data.map((std) => {
                         const isOpen = expandedId === std.id;
                         const stdPaid = std.divisions.reduce((s, d) => s + d.paid, 0);
                         const stdPending = std.divisions.reduce((s, d) => s + d.pending, 0);
@@ -526,6 +409,9 @@ function FeeAccordion() {
 export default function AdminAnalyticsPage() {
     const [overview, setOverview] = useState<AdminOverview | null>(null);
     const [teachers, setTeachers] = useState<{ status: string }[]>([]);
+    const [attendanceData, setAttendanceData] = useState<AttendanceStandard[]>([]);
+    const [feeData, setFeeData] = useState<FeeStandard[]>([]);
+    const [aiTeachers, setAiTeachers] = useState<AiTeacherUsage[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
     const { instType } = useMockInstType();
@@ -536,13 +422,22 @@ export default function AdminAnalyticsPage() {
         setLoading(true);
         setError(false);
         try {
-            const [ovRes, teachRes] = await Promise.allSettled([
+            const [ovRes, teachRes, attRes, feeRes, aiRes] = await Promise.allSettled([
                 api.get('/admin/overview'),
                 api.get('/admin/teachers'),
+                api.get('/admin/insights/attendance'),
+                api.get('/admin/insights/fees'),
+                api.get('/admin/insights/ai-usage'),
             ]);
             if (ovRes.status === 'fulfilled') setOverview(ovRes.value.data.data);
             else setError(true);
             if (teachRes.status === 'fulfilled') setTeachers(teachRes.value.data.data ?? []);
+            if (attRes.status === 'fulfilled') setAttendanceData(attRes.value.data.data ?? []);
+            if (feeRes.status === 'fulfilled') setFeeData(feeRes.value.data.data ?? []);
+            if (aiRes.status === 'fulfilled') {
+                const raw: { name: string; used: number }[] = aiRes.value.data.data ?? [];
+                setAiTeachers(raw.map(t => ({ name: t.name, used: t.used / 1_000_000 })));
+            }
         } catch {
             setError(true);
         } finally {
@@ -727,7 +622,10 @@ export default function AdminAnalyticsPage() {
                     {/* Per teacher */}
                     <div className="space-y-2.5">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Per teacher</p>
-                        {MOCK_AI_TEACHERS.map((t) => {
+                        {aiTeachers.length === 0 && (
+                            <p className="text-[11px] text-muted-foreground/60 italic">No AI usage yet this month</p>
+                        )}
+                        {aiTeachers.map((t) => {
                             const pct = (t.used / 10) * 100; // share of 10M pool
                             const isCritical = pct >= 30;
                             return (
@@ -741,13 +639,13 @@ export default function AdminAnalyticsPage() {
                                         <div className="flex items-center justify-between mb-0.5">
                                             <span className="text-[11px] font-medium text-foreground truncate">{t.name}</span>
                                             <span className={`text-[10px] font-semibold shrink-0 ml-2 ${isCritical ? 'text-[#DA7756]' : 'text-muted-foreground'}`}>
-                                                {t.used}M
+                                                {t.used.toFixed(2)}M
                                             </span>
                                         </div>
                                         <div className="h-1.5 bg-muted rounded-full overflow-hidden">
                                             <div className="h-full rounded-full transition-all duration-500"
                                                 style={{
-                                                    width: `${pct}%`,
+                                                    width: `${Math.min(100, pct)}%`,
                                                     background: 'linear-gradient(90deg, #7C3AED, #9D5CF6)',
                                                 }} />
                                         </div>
@@ -760,10 +658,10 @@ export default function AdminAnalyticsPage() {
             </div>
 
             {/* ── Fee Analysis ── */}
-            <FeeAccordion />
+            <FeeAccordion data={feeData} />
 
             {/* ── Attendance Analysis ── */}
-            <AttendanceAccordion />
+            <AttendanceAccordion data={attendanceData} />
 
             {/* ── Open tickets ── */}
             {overview.tickets.length > 0 && (
