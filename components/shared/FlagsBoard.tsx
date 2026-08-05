@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ArrowLeft, BookOpen, Calendar, User, ShieldAlert, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
+import { ArrowLeft, BookOpen, Calendar, User, ShieldAlert, ChevronDown, ChevronUp, GraduationCap, Trash2 } from 'lucide-react';
 import { FlagItem, CardType } from '@/lib/flags';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 
@@ -17,31 +17,34 @@ const CATEGORY_ICONS: Record<string, string> = {
     'Screenshot Attempt': '📸',
 };
 
-const STATUS_CFG = {
-    open:         { label: 'Open',         emoji: '🔴', color: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
-    under_review: { label: 'Under Review', emoji: '🕓', color: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400' },
-    resolved:     { label: 'Resolved',     emoji: '✅', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' },
-    rejected:     { label: 'Rejected',     emoji: '🚫', color: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400' },
-    appealed:     { label: 'Appealed',     emoji: '⚖️', color: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400' },
-};
-
-const SEVERITY_CFG = {
-    low:    { label: 'Low',    color: 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
-    medium: { label: 'Medium', color: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400' },
-    high:   { label: 'High',   color: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400' },
-};
-
-export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: string }) {
+export function FlagCard({ flag, classLabel, onDelete }: { flag: FlagItem; classLabel?: string; onDelete?: (flag: FlagItem) => void }) {
     const [expanded, setExpanded] = useState(false);
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const isYellow = flag.type === 'yellow';
-    const status = STATUS_CFG[flag.status];
 
     return (
-        <div className={`rounded-2xl border-[1.5px] overflow-hidden ${
+        <div className={`relative rounded-2xl border-[1.5px] overflow-hidden ${
             isYellow
                 ? 'bg-amber-50 dark:bg-[#1C1A00] border-amber-200 dark:border-[#44330A]'
                 : 'bg-red-50 dark:bg-[#1A0A0A] border-red-200 dark:border-[#3D0F0F]'
         }`}>
+            {/* Admin-only delete — card disappears everywhere (admin, teacher,
+                student) since they all read the same underlying report row. */}
+            {onDelete && (
+                <button
+                    type="button"
+                    onClick={e => { e.stopPropagation(); setConfirmDelete(true); }}
+                    title="Delete card"
+                    className={`absolute bottom-3 right-3 z-10 w-6 h-6 rounded-lg flex items-center justify-center transition-all ${
+                        isYellow
+                            ? 'text-amber-600/60 hover:text-amber-800 hover:bg-amber-200/50 dark:text-amber-400/60 dark:hover:text-amber-300 dark:hover:bg-amber-900/40'
+                            : 'text-red-600/60 hover:text-red-800 hover:bg-red-200/50 dark:text-red-400/60 dark:hover:text-red-300 dark:hover:bg-red-900/40'
+                    }`}
+                >
+                    <Trash2 size={13} />
+                </button>
+            )}
+
             {/* Header row — always visible */}
             <button
                 onClick={() => setExpanded(e => !e)}
@@ -69,14 +72,6 @@ export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: st
                         }`}>
                             {flag.category}
                         </span>
-                        {flag.severity && (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${SEVERITY_CFG[flag.severity].color}`}>
-                                {SEVERITY_CFG[flag.severity].label}
-                            </span>
-                        )}
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${status.color}`}>
-                            <span>{status.emoji}</span>{status.label}
-                        </span>
                     </div>
                     {/* Title */}
                     <p className={`text-sm font-semibold ${
@@ -92,8 +87,30 @@ export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: st
                 </div>
             </button>
 
+            {/* Confirm delete popup */}
+            {confirmDelete && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setConfirmDelete(false)}>
+                    <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <h3 className="text-base font-bold mb-2">Delete this card?</h3>
+                        <p className="text-sm text-muted-foreground mb-5">
+                            &ldquo;{flag.title}&rdquo; will be permanently deleted. It will disappear from the teacher&rsquo;s reports and the student&rsquo;s Flags &amp; Warnings board as well. This can&rsquo;t be undone.
+                        </p>
+                        <div className="flex gap-2 justify-end">
+                            <button onClick={() => setConfirmDelete(false)}
+                                className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                Cancel
+                            </button>
+                            <button onClick={() => { setConfirmDelete(false); onDelete?.(flag); }}
+                                className="h-9 px-4 rounded-xl text-xs font-semibold text-white bg-red-500 hover:opacity-90 transition-all">
+                                Yes, Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Meta row */}
-            <div className="flex flex-wrap gap-3 px-4 pb-3 pl-[52px]">
+            <div className={`flex flex-wrap gap-3 px-4 pl-[52px] ${onDelete ? 'pb-8 pr-8' : 'pb-3'}`}>
                 <div className="flex items-center gap-1">
                     <Calendar size={11} className={isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} />
                     <span className={`text-[10px] ${isYellow ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'}`}>{flag.date}</span>
@@ -114,17 +131,11 @@ export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: st
                     <User size={11} className={isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} />
                     <span className={`text-[10px] ${isYellow ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'}`}>{flag.reportedBy}</span>
                 </div>
-                {flag.assignedToName && (
-                    <div className="flex items-center gap-1">
-                        <ShieldAlert size={11} className={isYellow ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'} />
-                        <span className={`text-[10px] ${isYellow ? 'text-amber-800 dark:text-amber-300' : 'text-red-800 dark:text-red-300'}`}>Assigned to {flag.assignedToName}</span>
-                    </div>
-                )}
             </div>
 
             {/* Expanded detail */}
             {expanded && (
-                <div className="px-4 pb-4 space-y-3">
+                <div className={`px-4 space-y-3 ${onDelete ? 'pb-9 pr-8' : 'pb-4'}`}>
                     {/* Incident detail */}
                     <div className={`p-3 rounded-xl border ${
                         isYellow
@@ -143,12 +154,13 @@ export function FlagCard({ flag, classLabel }: { flag: FlagItem; classLabel?: st
                         </p>
                     </div>
 
-                    {/* Attachment */}
-                    {flag.attachmentUrl && flag.attachmentName && flag.attachmentType && (
-                        <AttachmentPreview
-                            attachment={{ url: flag.attachmentUrl, name: flag.attachmentName, type: flag.attachmentType }}
-                            compact
-                        />
+                    {/* Attachments — multiple images/files/videos can be attached to one report */}
+                    {flag.attachments.length > 0 && (
+                        <div className="space-y-2">
+                            {flag.attachments.map((att, i) => (
+                                <AttachmentPreview key={i} attachment={att} compact />
+                            ))}
+                        </div>
                     )}
 
                     {/* Action taken */}
@@ -186,9 +198,12 @@ interface FlagsBoardProps {
     headerAction?: React.ReactNode;
     appealNote?: string;
     classLabel?: string;
+    /** Pass only from the admin side — when present, every card shows a delete
+     * button. Teacher and student views omit this so they stay read-only. */
+    onDelete?: (flag: FlagItem) => void;
 }
 
-export default function FlagsBoard({ flags, title, subtitle, onBack, headerAction, appealNote = 'Contact your class teacher or Principal.', classLabel }: FlagsBoardProps) {
+export default function FlagsBoard({ flags, title, subtitle, onBack, headerAction, appealNote = 'Contact your class teacher or Principal.', classLabel, onDelete }: FlagsBoardProps) {
     const [activeTab, setActiveTab] = useState<CardType>('yellow');
 
     const sortByDateDesc = (arr: FlagItem[]) =>
@@ -309,7 +324,7 @@ export default function FlagsBoard({ flags, title, subtitle, onBack, headerActio
                             </p>
                         </div>
                     ) : (
-                        activeFlags.map(flag => <FlagCard key={flag.id} flag={flag} classLabel={classLabel} />)
+                        activeFlags.map(flag => <FlagCard key={flag.id} flag={flag} classLabel={classLabel} onDelete={onDelete} />)
                     )}
                 </div>
             </div>

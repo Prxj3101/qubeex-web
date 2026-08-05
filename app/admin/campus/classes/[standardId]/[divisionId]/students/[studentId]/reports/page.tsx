@@ -56,6 +56,20 @@ export default function AdminStudentReportsPage() {
         }
     };
 
+    // Admin-only: deletes the card everywhere — the teacher's assigned
+    // reports and the student's own Flags & Warnings board read the same
+    // underlying row, so it disappears from both automatically.
+    const handleDelete = async (flag: FlagItem) => {
+        try {
+            await api.delete(`/admin/campus/reports/${flag.id}`);
+            toast.success('Card deleted');
+            setFlags(prev => prev.filter(f => f.id !== flag.id));
+        } catch (err: unknown) {
+            const e = err as { response?: { data?: { error?: string } } };
+            toast.error(e?.response?.data?.error ?? 'Failed to delete card');
+        }
+    };
+
     return (
         <>
             <FlagsBoard
@@ -74,6 +88,7 @@ export default function AdminStudentReportsPage() {
                     </button>
                 }
                 appealNote="Discuss with the student's class teacher, or record the outcome directly."
+                onDelete={handleDelete}
             />
             <ReportStudentModal
                 open={showAddModal}

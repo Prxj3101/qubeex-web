@@ -1,6 +1,7 @@
 export type CardType = 'yellow' | 'red';
 export type Severity = 'low' | 'medium' | 'high';
 export type Status = 'open' | 'under_review' | 'resolved' | 'rejected' | 'appealed';
+export interface FlagAttachment { url: string; name: string; type: string; }
 
 export interface FlagItem {
     id: string;
@@ -20,9 +21,7 @@ export interface FlagItem {
     role: string;
     status: Status;
     actionTaken?: string;
-    attachmentUrl?: string;
-    attachmentType?: string;
-    attachmentName?: string;
+    attachments: FlagAttachment[];
     assignedToName?: string;
     reviewRemark?: string;
     reviewedBy?: string;

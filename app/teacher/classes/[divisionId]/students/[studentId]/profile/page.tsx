@@ -2,33 +2,70 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { IndianRupee, Award, User } from 'lucide-react';
+import { IndianRupee, Award, User, ChevronRight } from 'lucide-react';
 import api from '@/lib/api';
 import StudentProfileView, { ProfileViewMarksheet, ProfileViewAttendance } from '@/components/shared/StudentProfileView';
 import { FlagItem } from '@/lib/flags';
 
-const FEE_MONTHS_PROFILE = [
-    { month: 'June', dueDate: '10 Jun 2025', amount: 6700, status: 'PAID' as const, paidDate: '8 Jun 2025' },
-    { month: 'July', dueDate: '10 Jul 2025', amount: 6700, status: 'PAID' as const, paidDate: '9 Jul 2025' },
-    { month: 'August', dueDate: '10 Aug 2025', amount: 6700, status: 'PAID' as const, paidDate: '7 Aug 2025' },
-    { month: 'September', dueDate: '10 Sep 2025', amount: 6700, status: 'PAID' as const, paidDate: '9 Sep 2025' },
-    { month: 'October', dueDate: '10 Oct 2025', amount: 6700, status: 'PAID' as const, paidDate: '8 Oct 2025' },
-    { month: 'November', dueDate: '10 Nov 2025', amount: 6700, status: 'PAID' as const, paidDate: '10 Nov 2025' },
-    { month: 'December', dueDate: '10 Dec 2025', amount: 6700, status: 'PAID' as const, paidDate: '9 Dec 2025' },
-    { month: 'January', dueDate: '10 Jan 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
-    { month: 'February', dueDate: '10 Feb 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
-    { month: 'March', dueDate: '10 Mar 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
-    { month: 'April', dueDate: '10 Apr 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
-    { month: 'May', dueDate: '10 May 2026', amount: 6700, status: 'PENDING' as const, paidDate: undefined },
-];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const TERM1_MONTHS = ['June', 'July', 'August', 'September', 'October'];
 const TERM2_MONTHS = ['November', 'December', 'January', 'February', 'March', 'April', 'May'];
-const term1 = FEE_MONTHS_PROFILE.filter(m => TERM1_MONTHS.includes(m.month));
-const term2 = FEE_MONTHS_PROFILE.filter(m => TERM2_MONTHS.includes(m.month));
-const termData = [
-    { label: 'Term 1', range: 'June – October', months: term1 },
-    { label: 'Term 2', range: 'November – May', months: term2 },
-];
+
+// Parses flexible free-text dates like "10 Aug 26", "Aug 10 2026", "10 August"
+// (year defaults to current year if omitted) into a comparable Date.
+function parseFlexDate(input: string | null | undefined): Date | null {
+    if (!input) return null;
+    const str = input.trim();
+    if (!str) return null;
+    const monthIdx = MONTHS.findIndex(m => new RegExp(`\\b${m.slice(0, 3)}`, 'i').test(str));
+    if (monthIdx === -1) return null;
+    const nums = str.match(/\d+/g);
+    if (!nums || nums.length === 0) return null;
+    const day = parseInt(nums[0], 10);
+    if (Number.isNaN(day) || day < 1 || day > 31) return null;
+    let year = new Date().getFullYear();
+    if (nums.length > 1) {
+        const y = parseInt(nums[1], 10);
+        if (!Number.isNaN(y)) year = y < 100 ? 2000 + y : y;
+    }
+    const d = new Date(year, monthIdx, day);
+    return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isLateFeeApplicable(dueDate: string | null | undefined, paidDate: string | null | undefined): boolean {
+    const due = parseFlexDate(dueDate);
+    if (!due) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    if (today.getTime() <= due.getTime()) return false;
+    if (!paidDate || !paidDate.trim()) return true;
+    const paid = parseFlexDate(paidDate);
+    if (!paid) return true;
+    paid.setHours(0, 0, 0, 0);
+    return paid.getTime() > due.getTime();
+}
+
+type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME' | 'BUS' | 'LATE_FEE';
+interface FeeSubItem { id: string; label: string; amount: number; }
+interface FeeItem { id: string; label: string; amount: number; subItems: FeeSubItem[]; }
+interface FeeStructure { id: string; name: string; type: FeeStructureType; color: string; items: FeeItem[]; }
+interface FeeMonth { id: string; month: string; dueDate: string; assignedStructureIds: string[]; remark: string; }
+interface FeePayment { studentId: string; feeMonthId: string; status: 'PAID' | 'PENDING'; paidDate: string | null; remark: string | null; extraFields: Record<string, string> | null; extraStructureIds: string[] | null; }
+type StudentDetailField = {
+    id: string;
+    kind: 'default' | 'custom';
+    defaultKey?: 'name' | 'rollNo' | 'studentId' | 'class' | 'division' | 'bus';
+    label: string;
+    value?: string;
+};
+
+function structureTotal(s: FeeStructure) {
+    return s.items.reduce((n, item) => {
+        const sub = item.subItems.reduce((m, si) => m + si.amount, 0);
+        return n + (sub > 0 ? sub : item.amount);
+    }, 0);
+}
 
 const ACHIEVEMENTS = [
     { icon: '🏆', title: 'Top 5 Overall', desc: 'Ranked 4th in batch', date: 'Mar 2025' },
@@ -63,6 +100,7 @@ interface RawStudent {
     dob: string | null;
     admissionYear: string | null;
     status: 'ACTIVE' | 'INACTIVE';
+    extraDetailFields: Record<string, string> | null;
 }
 
 export default function TeacherStudentProfilePage() {
@@ -80,6 +118,10 @@ export default function TeacherStudentProfilePage() {
     const [marksheetData, setMarksheetData] = useState<ProfileViewMarksheet | null>(null);
     const [attendanceApiData, setAttendanceApiData] = useState<ProfileViewAttendance | null>(null);
     const [flags, setFlags] = useState<FlagItem[]>([]);
+    const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
+    const [feeMonths, setFeeMonths] = useState<FeeMonth[]>([]);
+    const [feePayments, setFeePayments] = useState<FeePayment[]>([]);
+    const [studentFields, setStudentFields] = useState<StudentDetailField[]>([]);
 
     useEffect(() => {
         Promise.all([
@@ -112,7 +154,79 @@ export default function TeacherStudentProfilePage() {
         api.get(`/teacher/classes/${divisionId}/students/${studentId}/remarks`)
             .then(res => setFlags(res.data.data))
             .catch(() => setFlags([]));
+        api.get(`/teacher/campus/divisions/${divisionId}/fee-structure`)
+            .then(res => {
+                const structure = res.data?.data;
+                setFeeStructures(structure?.feeStructures ?? []);
+                setFeeMonths(structure?.feeMonths ?? []);
+                setStudentFields(structure?.studentFields ?? []);
+            })
+            .catch(() => { setFeeStructures([]); setFeeMonths([]); setStudentFields([]); });
+        api.get(`/teacher/campus/divisions/${divisionId}/fee-payments`)
+            .then(res => setFeePayments(res.data?.data ?? []))
+            .catch(() => setFeePayments([]));
     }, [divisionId, studentId]);
+
+    const getPayment = (feeMonthId: string): FeePayment =>
+        feePayments.find(p => p.studentId === studentId && p.feeMonthId === feeMonthId)
+            ?? { studentId, feeMonthId, status: 'PENDING', paidDate: null, remark: null, extraFields: null, extraStructureIds: null };
+
+    const monthTotal = (m: FeeMonth) =>
+        feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
+
+    const getAutoLateFee = (m: FeeMonth): FeeStructure | null => {
+        const payment = getPayment(m.id);
+        if (!isLateFeeApplicable(m.dueDate, payment.paidDate)) return null;
+        const lateFee = feeStructures.find(s => s.type === 'LATE_FEE');
+        if (!lateFee) return null;
+        if (m.assignedStructureIds.includes(lateFee.id)) return null;
+        if ((payment.extraStructureIds ?? []).includes(lateFee.id)) return null;
+        return lateFee;
+    };
+
+    const getAutoBusFee = (m: FeeMonth): { structure: FeeStructure; amount: number } | null => {
+        const busField = studentFields.find(f => f.kind === 'default' && f.defaultKey === 'bus');
+        if (!busField) return null;
+        const detailFields = student?.extraDetailFields;
+        if (detailFields?.[`${busField.id}-enabled`] !== 'true') return null;
+        const rawMonths = detailFields?.[`${busField.id}-months`];
+        let monthIds: string[] = [];
+        if (rawMonths) {
+            try {
+                const parsed = JSON.parse(rawMonths);
+                if (Array.isArray(parsed)) monthIds = parsed.filter((x): x is string => typeof x === 'string');
+            } catch { /* ignore malformed value */ }
+        }
+        if (!monthIds.includes(m.id)) return null;
+        const busStructure = feeStructures.find(s => s.type === 'BUS');
+        if (!busStructure) return null;
+        if (m.assignedStructureIds.includes(busStructure.id)) return null;
+        const amount = Number(detailFields?.[`${busField.id}-fee`]) || 0;
+        return { structure: busStructure, amount };
+    };
+
+    const studentMonthTotal = (m: FeeMonth) => {
+        const extraIds = (getPayment(m.id).extraStructureIds ?? []).filter(id => !m.assignedStructureIds.includes(id));
+        const extra = feeStructures.filter(s => extraIds.includes(s.id)).reduce((n, s) => n + structureTotal(s), 0);
+        const autoLateFee = getAutoLateFee(m);
+        const autoBusFee = getAutoBusFee(m);
+        return monthTotal(m) + extra + (autoLateFee ? structureTotal(autoLateFee) : 0) + (autoBusFee ? autoBusFee.amount : 0);
+    };
+
+    const feeMonthsProfile = feeMonths.map(m => {
+        const payment = getPayment(m.id);
+        return {
+            month: m.month,
+            dueDate: m.dueDate,
+            amount: studentMonthTotal(m),
+            status: payment.status,
+            paidDate: payment.paidDate ?? undefined,
+        };
+    });
+    const termData = [
+        { label: 'Term 1', range: 'June – October', months: feeMonthsProfile.filter(m => TERM1_MONTHS.includes(m.month)) },
+        { label: 'Term 2', range: 'November – May', months: feeMonthsProfile.filter(m => TERM2_MONTHS.includes(m.month)) },
+    ];
 
     if (loading) {
         return <div className="flex items-center justify-center h-full text-sm text-muted-foreground">Loading...</div>;
@@ -127,13 +241,19 @@ export default function TeacherStudentProfilePage() {
     }
 
     const feesElement = (
-        <SectionCard title="Fees" icon={IndianRupee} iconColor="#10B981">
+        <SectionCard title="Fees" icon={IndianRupee} iconColor="#10B981"
+            action={
+                <button onClick={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/fees`)} className="flex items-center gap-1.5 text-xs font-semibold leading-none px-3 py-1.5 rounded-lg bg-muted hover:bg-muted/80 text-foreground transition-all">
+                    <span className="leading-none">View Details</span>
+                    <ChevronRight size={12} />
+                </button>
+            }>
             <div className="space-y-2.5 mb-4">
                 {termData.map((term) => {
                     const paid = term.months.filter(m => m.status === 'PAID').length;
                     const total = term.months.length;
-                    const pct = Math.round((paid / total) * 100);
-                    const cleared = paid === total;
+                    const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
+                    const cleared = total > 0 && paid === total;
                     return (
                         <div key={term.label} className="p-3 bg-muted/40 rounded-xl space-y-1.5">
                             <div className="flex items-center justify-between">
@@ -182,7 +302,9 @@ export default function TeacherStudentProfilePage() {
                                 <col style={{ width: '22%' }} />
                             </colgroup>
                             <tbody className="divide-y divide-border/20">
-                                {FEE_MONTHS_PROFILE.map((m, i) => (
+                                {feeMonthsProfile.length === 0 ? (
+                                    <tr><td colSpan={5} className="px-3 py-6 text-center text-[11px] text-muted-foreground">No fee months configured yet</td></tr>
+                                ) : feeMonthsProfile.map((m, i) => (
                                     <tr key={i}>
                                         <td className="px-3 py-2 font-semibold text-[11px]">{m.month}</td>
                                         <td className="px-3 py-2 text-[11px]">₹{m.amount.toLocaleString()}</td>
@@ -248,6 +370,7 @@ export default function TeacherStudentProfilePage() {
             onBack={() => router.back()}
             onViewDetail={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/detail`)}
             onViewReportCard={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/reportcard`)}
+            onViewAttendanceDetails={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/attendance`)}
             onViewAllFlags={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/reports?name=${encodeURIComponent(student.user.name ?? 'Student')}&class=${encodeURIComponent(divisionName)}&from=profile`)}
             feesSlot={feesElement}
             projectsSlot={projectsElement}
