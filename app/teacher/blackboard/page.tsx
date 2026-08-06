@@ -71,6 +71,31 @@ function stripExtension(name: string) {
     return name.replace(/\.[^/.]+$/, '');
 }
 
+// The backend's aiScan/aiQuiz endpoints accept an optional `pageText` field
+// (capped at 8000 chars server-side) to ground the AI in what's actually on
+// the selected pages, instead of having it improvise from just the page
+// numbers + instructions. We extract that text client-side via pdf.js, which
+// react-pdf already loads for rendering — no extra dependency needed.
+const PAGE_TEXT_CHAR_LIMIT = 7500;
+
+async function extractPdfPageText(fileUrl: string, pages: number[]): Promise<string> {
+    if (pages.length === 0) return '';
+    const { pdfjs } = await import('react-pdf');
+    const pdf = await pdfjs.getDocument(fileUrl).promise;
+    const chunks: string[] = [];
+    for (const pageNum of pages) {
+        const page = await pdf.getPage(pageNum);
+        const content = await page.getTextContent();
+        const text = content.items
+            .map(item => ('str' in item ? item.str : ''))
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (text) chunks.push(`[Page ${pageNum}]\n${text}`);
+    }
+    return chunks.join('\n\n').slice(0, PAGE_TEXT_CHAR_LIMIT);
+}
+
 // ── AI Scan Panel ─────────────────────────────────────────────────────────────
 function AIScanPanel({
     onClose, docName, doc, totalPages, selectedPages, onTogglePage,
@@ -103,10 +128,10 @@ function AIScanPanel({
     const handleScan = async () => {
         if (!canScan) return;
         const sorted = [...selectedPages].sort((a, b) => a - b);
-        const pagesLabel = sorted.length > 0 ? `Pages ${sorted.join(', ')}` : (docName ? stripExtension(docName) : '');
-        // TODO: backend still expects a plain `topic` string — once a page-aware
-        // scan endpoint exists, send { pages: sorted, instructions } instead.
-        const topic = [pagesLabel, instructions.trim()].filter(Boolean).join(' — ');
+        // Just the page/document label — instructions are sent as their own field
+        // below so the backend can treat them as explicit guidance rather than
+        // having them buried (and easy to ignore) inside a single topic string.
+        const topic = sorted.length > 0 ? `Pages ${sorted.join(', ')}` : (docName ? stripExtension(docName) : instructions.trim());
         if (!topic.trim()) return;
         setPhase('loading');
         onScanStart();
@@ -114,8 +139,29 @@ function AIScanPanel({
         const minDelay = new Promise(resolve => setTimeout(resolve, 5000));
 
         try {
+            // Ground the scan in what's actually on the selected pages instead of
+            // having the AI guess from just the page numbers + instructions.
+            let pageText = '';
+            if (isPdf && sorted.length > 0) {
+                try {
+                    pageText = await extractPdfPageText(doc!.url, sorted);
+                } catch (extractErr) {
+                    // Extraction failure (e.g. scanned/image-only PDF with no text
+                    // layer, or a CORS-blocked file host) — fall back to the
+                    // topic-only request rather than blocking the scan entirely.
+                    console.error('[AI Scan] PDF text extraction failed, falling back to topic-only:', extractErr);
+                }
+            }
+            // Instructions are sent as their own field regardless of whether page
+            // text extraction succeeded — previously this was only sent alongside
+            // pageText, so a failed/empty extraction silently dropped whatever the
+            // teacher typed in the Instructions box.
             const [res] = await Promise.all([
-                api.post('/teacher/blackboard/ai/scan', { topic: topic.trim() }),
+                api.post('/teacher/blackboard/ai/scan', {
+                    topic: topic.trim(),
+                    ...(pageText ? { pageText } : {}),
+                    ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+                }),
                 minDelay,
             ]);
             setResult(res.data.data);
@@ -634,8 +680,6 @@ function AIQuizPanel({
         if (!canGenerate) return;
         const sorted = [...selectedPages].sort((a, b) => a - b);
         const pagesLabel = sorted.length > 0 ? `Pages ${sorted.join(', ')}` : (docName ? stripExtension(docName) : '');
-        // TODO: backend still expects a plain `topic` string — once a page-aware
-        // quiz endpoint exists, send { pages: sorted, instructions } instead.
         const topic = [pagesLabel, instructions.trim()].filter(Boolean).join(' — ');
         if (!topic.trim()) return;
         setPhase('loading');
@@ -643,8 +687,19 @@ function AIQuizPanel({
         const minDelay = new Promise(resolve => setTimeout(resolve, 5000));
 
         try {
+            // Ground the quiz in what's actually on the selected pages instead of
+            // having the AI guess from just the page numbers + instructions.
+            let pageText = '';
+            if (isPdf && sorted.length > 0) {
+                try {
+                    pageText = await extractPdfPageText(doc!.url, sorted);
+                } catch {
+                    // Extraction failure (e.g. scanned/image-only PDF with no text
+                    // layer) — fall back to the topic-only request rather than blocking.
+                }
+            }
             const [res] = await Promise.all([
-                api.post('/teacher/blackboard/ai/quiz', { topic: topic.trim(), count, difficulty }),
+                api.post('/teacher/blackboard/ai/quiz', { topic: topic.trim(), count, difficulty, ...(pageText ? { pageText } : {}) }),
                 minDelay,
             ]);
             setQuestions(res.data.data.questions);
