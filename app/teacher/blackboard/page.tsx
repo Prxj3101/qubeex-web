@@ -145,6 +145,11 @@ function AIScanPanel({
             if (isPdf && sorted.length > 0) {
                 try {
                     pageText = await extractPdfPageText(doc!.url, sorted);
+                    if (pageText) {
+                        console.log(`[AI Scan] Extracted ${pageText.length} chars from pages ${sorted.join(', ')}. Preview: "${pageText.slice(0, 150)}..."`);
+                    } else {
+                        console.warn(`[AI Scan] Extraction returned no text for pages ${sorted.join(', ')} — likely a scanned/image-only PDF. Falling back to topic-only.`);
+                    }
                 } catch (extractErr) {
                     // Extraction failure (e.g. scanned/image-only PDF with no text
                     // layer, or a CORS-blocked file host) — fall back to the
