@@ -91,6 +91,9 @@ export default function DivisionClassPageClient() {
     const tabParam = searchParams.get('tab') as TabKey | null;
     const [activeTab, setActiveTab] = useState<TabKey>(tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'view');
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+    // Holds TasksTab's paper-builder close function while the builder overlay is open,
+    // so the page's own back button steps back into the Tests list instead of leaving the class.
+    const builderCloseRef = useRef<(() => void) | null>(null);
 
     useEffect(() => {
         api.get(`/teacher/classes/${divisionId}/leaderboard`)
@@ -167,7 +170,10 @@ export default function DivisionClassPageClient() {
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 flex-wrap">
                         {/* Back button */}
-                        <button onClick={() => activeTab === 'promotions' ? setActiveTab('manage') : router.back()}
+                        <button onClick={() => {
+                            if (builderCloseRef.current) { builderCloseRef.current(); return; }
+                            activeTab === 'promotions' ? setActiveTab('manage') : router.back();
+                        }}
                             className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
                             <ArrowLeft size={16} />
                         </button>
@@ -454,7 +460,7 @@ export default function DivisionClassPageClient() {
                     )}
                     {activeTab === 'tasks' && (
                         <motion.div key="tasks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                            <TasksTab divisionId={divisionId} subjectId={subjectId} subTab={tasksSubTab} onSubTabChange={setTasksSubTab} onStatsChange={setTasksStats} />
+                            <TasksTab divisionId={divisionId} subjectId={subjectId} subTab={tasksSubTab} onSubTabChange={setTasksSubTab} onStatsChange={setTasksStats} onBuilderCloseChange={(fn) => { builderCloseRef.current = fn; }} />
                         </motion.div>
                     )}
                 </AnimatePresence>

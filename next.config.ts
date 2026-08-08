@@ -14,6 +14,11 @@ const nextConfig: NextConfig = {
         hostname: "vggykhnjqbubxikmnolt.supabase.co",
         pathname: "/storage/v1/**",
       },
+      {
+        protocol: "https",
+        hostname: "files.qubeex.in",
+        pathname: "/**",
+      },
     ],
   },
 };

@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Upload, FileText, X, Plus, Trash2, Download,
     Loader2, BookOpen, Layers, Check, X as XIcon,
     Clock, Link2, Play, Eye, ChevronDown, ChevronUp,
     FlaskConical, Brain, Users, Copy, CheckCircle2, AlertCircle,
-    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil, ArrowDownToLine, Share2, ShieldAlert,
+    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil, ArrowDownToLine, Share2, ShieldAlert, Save, ZoomIn, ZoomOut,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -181,10 +181,10 @@ interface Assignment {
 
 export type TasksSubTab = 'questions' | 'tests' | 'assignments' | 'modules';
 
-interface TasksTabProps { divisionId: string; subjectId: string | null; subTab: TasksSubTab; onSubTabChange: (tab: TasksSubTab) => void; onStatsChange?: (stats: { tests: number; assignments: number }) => void; }
+interface TasksTabProps { divisionId: string; subjectId: string | null; subTab: TasksSubTab; onSubTabChange: (tab: TasksSubTab) => void; onStatsChange?: (stats: { tests: number; assignments: number }) => void; onBuilderCloseChange?: (closeFn: (() => void) | null) => void; }
 
 
-export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange: _onSubTabChange, onStatsChange }: TasksTabProps) {
+export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange: _onSubTabChange, onStatsChange, onBuilderCloseChange }: TasksTabProps) {
 
     // ── Containers ────────────────────────────────────────────────────────────
     interface QContainer { id: string; name: string; createdAt: string; questionCount: number; }
@@ -306,9 +306,36 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     const [copiedLink, setCopiedLink] = useState<string | null>(null);
     const [resultsTestId, setResultsTestId] = useState<string | null>(null);
     const [submissionsAssignmentId, setSubmissionsAssignmentId] = useState<string | null>(null);
-    const [paperBuilderOpen, setPaperBuilderOpen] = useState(false);
-    const [paperBuilderTestId, setPaperBuilderTestId] = useState<string | null>(null);
-    const [paperBuilderType, setPaperBuilderType] = useState<'TEST' | 'ASSIGNMENT'>('TEST');
+    // Test and assignment builders are tracked independently — opening one must not clobber
+    // the other's open state, so switching Tests -> Assignments -> Tests leaves the original
+    // test's builder exactly as it was instead of losing it.
+    const [testBuilderOpen, setTestBuilderOpen] = useState(false);
+    const [testBuilderId, setTestBuilderId] = useState<string | null>(null);
+    const [assignmentBuilderOpen, setAssignmentBuilderOpen] = useState(false);
+    const [assignmentBuilderId, setAssignmentBuilderId] = useState<string | null>(null);
+
+    // Each builder overlay is only actually shown while its own subtab (Tests for a test
+    // paper, Assignments for an assignment paper) is the active one — switching to another
+    // nav tab (Modules, AI Questions, etc.) while one is open must reveal that tab's content,
+    // not hide it behind the still-open overlay. The open/id state itself is untouched though,
+    // so navigating back to the matching subtab brings the same paper back up.
+    const testBuilderVisible = testBuilderOpen && !!testBuilderId && subTab === 'tests';
+    const assignmentBuilderVisible = assignmentBuilderOpen && !!assignmentBuilderId && subTab === 'assignments';
+
+    // ── Let the parent (class page) know how to close whichever builder overlay is
+    // currently visible, so its own top-level back button steps back into the matching
+    // list instead of navigating away from the class entirely. Only wired up while an
+    // overlay is actually visible — otherwise the back button should behave normally. ──
+    useEffect(() => {
+        const closeFn = testBuilderVisible
+            ? () => { setTestBuilderOpen(false); setTestBuilderId(null); }
+            : assignmentBuilderVisible
+                ? () => { setAssignmentBuilderOpen(false); setAssignmentBuilderId(null); }
+                : null;
+        onBuilderCloseChange?.(closeFn);
+        return () => { onBuilderCloseChange?.(null); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [testBuilderVisible, assignmentBuilderVisible]);
 
     // ── Assignments ───────────────────────────────────────────────────────────
     const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -328,6 +355,14 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     const [modules, setModules] = useState<TaskModule[]>([]);
     const [mLoading, setMLoading] = useState(false);
     const [selectedModuleId, setSelectedModuleId] = useState<string | null>(null);
+    const [expandedMQIds, setExpandedMQIds] = useState<Set<string>>(new Set());
+    const [editingMQId, setEditingMQId] = useState<string | null>(null);
+    const [editMQText, setEditMQText] = useState('');
+    const [editMQAnswer, setEditMQAnswer] = useState('');
+    const [editMQOptions, setEditMQOptions] = useState<string[]>(['', '', '', '']);
+    const [editMQCorrectIdx, setEditMQCorrectIdx] = useState(0);
+    const [dragMQId, setDragMQId] = useState<string | null>(null);
+    const [dragOverMQId, setDragOverMQId] = useState<string | null>(null);
     const [creatingModule, setCreatingModule] = useState(false);
     const [newModName, setNewModName] = useState('');
     const [newModDesc, setNewModDesc] = useState('');
@@ -335,6 +370,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     const [dragModuleId, setDragModuleId] = useState<string | null>(null);
     const [dragOverModuleId, setDragOverModuleId] = useState<string | null>(null);
     const [deleteModuleConfirmId, setDeleteModuleConfirmId] = useState<string | null>(null);
+    const [removeMQConfirm, setRemoveMQConfirm] = useState<{ moduleId: string; questionId: string; questionText: string } | null>(null);
     const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
     const [editModName, setEditModName] = useState('');
     const [editModDesc, setEditModDesc] = useState('');
@@ -515,8 +551,40 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
             if (opts) body.options = opts;
             const res = await api.patch(`/teacher/tasks/questions/${id}`, body);
             setQuestions(prev => prev.map(existing => existing.id === id ? { ...existing, ...res.data.data } : existing));
+            setModules(prev => prev.map(m => ({
+                ...m,
+                questions: m.questions.map(mq => mq.questionId === id ? { ...mq, question: { ...mq.question, ...res.data.data } } : mq),
+            })));
             toast.success('Question updated');
         } catch (err) { toast.error(apiError(err)); }
+    };
+
+    const startEditMQ = (mq: ModuleQuestion) => {
+        const q = mq.question;
+        const isMcq = q.type === 'MCQ' || q.type === 'CONCEPTUAL';
+        let opts: string[] = ['', '', '', ''];
+        let correctIdx = 0;
+        if (isMcq) {
+            if (q.type === 'MCQ') {
+                opts = q.options ?? ['', '', '', ''];
+                correctIdx = Math.max(0, opts.indexOf(q.answer));
+            } else {
+                const cd = q.details as ConceptualDetails | null;
+                opts = cd ? [cd.correct_answer, ...(cd.distractors ?? ['', '', ''])].slice(0, 4) : ['', '', '', ''];
+                correctIdx = 0;
+            }
+        }
+        setEditMQText(q.question);
+        setEditMQAnswer(q.answer);
+        setEditMQOptions(opts);
+        setEditMQCorrectIdx(correctIdx);
+        setEditingMQId(mq.id);
+    };
+
+    const saveEditMQ = (mq: ModuleQuestion) => {
+        const isMcq = mq.question.type === 'MCQ' || mq.question.type === 'CONCEPTUAL';
+        handleEditQuestion(mq.questionId, editMQText, editMQAnswer, isMcq ? editMQOptions : undefined);
+        setEditingMQId(null);
     };
 
 
@@ -601,8 +669,8 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
             toast.success('Test created — opening Paper Builder');
             setCreateTestOpen(false);
             setNewTest({ title: '', description: '', durationMinutes: 60, totalMarks: 100, numberOfQuestions: 10, maxAttempts: 1, startDate: '', validUntil: '' });
-            setPaperBuilderTestId(created.id);
-            setPaperBuilderOpen(true);
+            setTestBuilderId(created.id);
+            setTestBuilderOpen(true);
         } catch (err) { toast.error(apiError(err)); } finally { setSavingTest(false); }
     };
 
@@ -638,16 +706,21 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
         } catch (err) { toast.error(apiError(err)); }
     };
 
-    const openBuilder = (testId: string, type: 'TEST' | 'ASSIGNMENT' = 'TEST') => {
-        setPaperBuilderTestId(testId);
-        setPaperBuilderType(type);
-        setPaperBuilderOpen(true);
+    const openBuilder = (id: string, type: 'TEST' | 'ASSIGNMENT' = 'TEST') => {
+        if (type === 'ASSIGNMENT') { setAssignmentBuilderId(id); setAssignmentBuilderOpen(true); }
+        else { setTestBuilderId(id); setTestBuilderOpen(true); }
     };
 
-    const handlePaperSaved = () => {
+    const handleTestPaperSaved = () => {
         fetchTests();
-        setPaperBuilderOpen(false);
-        setPaperBuilderTestId(null);
+        setTestBuilderOpen(false);
+        setTestBuilderId(null);
+    };
+
+    const handleAssignmentPaperSaved = () => {
+        fetchAssignments();
+        setAssignmentBuilderOpen(false);
+        setAssignmentBuilderId(null);
     };
 
     const copyLink = (testLink: string) => {
@@ -728,6 +801,8 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
             const toIdx = arr.findIndex(m => m.id === targetId);
             const [item] = arr.splice(fromIdx, 1);
             arr.splice(toIdx, 0, item);
+            api.patch('/teacher/tasks/modules/reorder', { modules: arr.map((m, i) => ({ id: m.id, order: i })) })
+                .catch(err => toast.error(apiError(err)));
             return arr;
         });
         setDragModuleId(null);
@@ -735,10 +810,36 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     };
     const handleModuleDragEnd = () => { setDragModuleId(null); setDragOverModuleId(null); };
 
+    const handleMQDragStart = (id: string) => setDragMQId(id);
+    const handleMQDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); if (id !== dragMQId) setDragOverMQId(id); };
+    const handleMQDrop = (moduleId: string, targetId: string) => {
+        if (!dragMQId || dragMQId === targetId) { setDragMQId(null); setDragOverMQId(null); return; }
+        setModules(prev => prev.map(m => {
+            if (m.id !== moduleId) return m;
+            const arr = [...m.questions];
+            const fromIdx = arr.findIndex(mq => mq.id === dragMQId);
+            const toIdx = arr.findIndex(mq => mq.id === targetId);
+            if (fromIdx === -1 || toIdx === -1) return m;
+            const [item] = arr.splice(fromIdx, 1);
+            arr.splice(toIdx, 0, item);
+            api.patch(`/teacher/tasks/modules/${moduleId}/questions/reorder`, { questions: arr.map((mq, i) => ({ questionId: mq.questionId, order: i })) })
+                .catch(err => toast.error(apiError(err)));
+            return { ...m, questions: arr };
+        }));
+        setDragMQId(null);
+        setDragOverMQId(null);
+    };
+    const handleMQDragEnd = () => { setDragMQId(null); setDragOverMQId(null); };
+
     const deleteModule = async (id: string) => {
         try {
             await api.delete(`/teacher/tasks/modules/${id}`);
+            const deletedModule = modules.find(m => m.id === id);
+            const clearedQuestionIds = new Set((deletedModule?.questions ?? []).map(mq => mq.questionId));
             setModules(prev => prev.filter(m => m.id !== id));
+            if (clearedQuestionIds.size > 0) {
+                setQuestions(prev => prev.map(q => clearedQuestionIds.has(q.id) ? { ...q, moduleAssignment: null } : q));
+            }
             if (selectedModuleId === id) setSelectedModuleId(null);
             toast.success('Module deleted');
         } catch (err) { toast.error(apiError(err)); }
@@ -1456,12 +1557,9 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                         ) : (
                             <div className="space-y-3 px-1">
                                 {modules.map(m => (
-                                    <div key={m.id}
-                                        draggable={editingModuleId !== m.id}
-                                        onDragStart={() => handleModuleDragStart(m.id)}
+                                    <div key={m.id} data-module-card
                                         onDragOver={e => handleModuleDragOver(e, m.id)}
                                         onDrop={() => handleModuleDrop(m.id)}
-                                        onDragEnd={handleModuleDragEnd}
                                         className={`rounded-xl border bg-card overflow-hidden transition-all ${dragOverModuleId === m.id ? 'border-primary shadow-md scale-[1.01]' : 'border-border'} ${dragModuleId === m.id ? 'opacity-40' : 'opacity-100'}`}>
 
                                         {editingModuleId === m.id ? (
@@ -1487,7 +1585,18 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                                 <div className="flex items-center justify-between px-4 py-3 cursor-pointer hover:bg-muted/40 transition-all"
                                                     onClick={() => setSelectedModuleId(selectedModuleId === m.id ? null : m.id)}>
                                                     <div className="flex items-center gap-2">
-                                                        <GripVertical size={14} className="text-muted-foreground/40 cursor-grab shrink-0" onClick={e => e.stopPropagation()} />
+                                                        <div draggable={editingModuleId !== m.id}
+                                                            onClick={e => e.stopPropagation()}
+                                                            onDragStart={e => {
+                                                                e.stopPropagation();
+                                                                handleModuleDragStart(m.id);
+                                                                const card = e.currentTarget.closest('[data-module-card]') as HTMLElement | null;
+                                                                if (card) e.dataTransfer.setDragImage(card, 20, 20);
+                                                            }}
+                                                            onDragEnd={handleModuleDragEnd}
+                                                            className="shrink-0 cursor-grab active:cursor-grabbing">
+                                                            <GripVertical size={14} className="text-muted-foreground/40" />
+                                                        </div>
                                                         <BookOpen size={15} className="text-muted-foreground" />
                                                         <span className="font-medium text-sm">{m.name}</span>
                                                         <span className="text-xs text-muted-foreground">{m.questions.length} questions</span>
@@ -1507,17 +1616,138 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                                             )}
                                                             {m.questions.length === 0 ? (
                                                                 <p className="text-xs text-muted-foreground py-2">No questions in this module</p>
-                                                            ) : m.questions.map(mq => (
-                                                                <div key={mq.id} className="flex items-start gap-2 py-1.5 group/mq">
-                                                                    <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[mq.question.type]?.color ?? 'bg-muted text-muted-foreground'}`}>{TYPE_META[mq.question.type]?.label}</span>
-                                                                    <span className="flex-1 text-sm">{mq.question.question}</span>
-                                                                    <button onClick={() => removeFromModule(m.id, mq.questionId)}
-                                                                        className="shrink-0 text-muted-foreground hover:text-red-500 opacity-0 group-hover/mq:opacity-100 transition-all p-0.5 rounded mt-0.5"
-                                                                        title="Remove from module">
-                                                                        <X size={12} />
-                                                                    </button>
-                                                                </div>
-                                                            ))}
+                                                            ) : m.questions.map(mq => {
+                                                                const isOptsOpen = expandedMQIds.has(mq.id);
+                                                                const opts: string[] = mq.question.type === 'MCQ'
+                                                                    ? (Array.isArray(mq.question.options) ? mq.question.options : [])
+                                                                    : mq.question.type === 'CONCEPTUAL'
+                                                                        ? (() => { const d = mq.question.details as ConceptualDetails | null; return d ? [d.correct_answer, ...(d.distractors ?? [])] : []; })()
+                                                                        : [];
+                                                                const isPlainAnswer = mq.question.type === 'FILL_BLANK' || mq.question.type === 'SHORT_ANSWER' || mq.question.type === 'NUMERICAL';
+                                                                const hasOpts = opts.length > 0 || mq.question.type === 'TRUE_FALSE' || isPlainAnswer;
+                                                                const isMcqType = mq.question.type === 'MCQ' || mq.question.type === 'CONCEPTUAL';
+                                                                if (editingMQId === mq.id) {
+                                                                    return (
+                                                                        <div key={mq.id} className="py-2 px-1.5 -mx-1.5 rounded-md bg-muted/40 flex flex-col gap-2">
+                                                                            <div className="flex flex-col gap-1">
+                                                                                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Question</label>
+                                                                                <textarea value={editMQText} onChange={e => setEditMQText(e.target.value)} rows={2}
+                                                                                    className="w-full text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                                            </div>
+                                                                            {isMcqType ? (
+                                                                                <div className="flex flex-col gap-1.5">
+                                                                                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Options (select correct)</label>
+                                                                                    {editMQOptions.map((opt, i) => (
+                                                                                        <div key={i} className="flex items-center gap-2">
+                                                                                            <button onClick={() => { setEditMQCorrectIdx(i); setEditMQAnswer(editMQOptions[i]); }}
+                                                                                                className={`w-4 h-4 rounded-full border-2 shrink-0 ${editMQCorrectIdx === i ? 'border-emerald-500 bg-emerald-500' : 'border-border'}`} />
+                                                                                            <span className="text-xs text-muted-foreground shrink-0 w-4">{'ABCD'[i]}.</span>
+                                                                                            <input value={opt} onChange={e => {
+                                                                                                const next = [...editMQOptions]; next[i] = e.target.value;
+                                                                                                setEditMQOptions(next);
+                                                                                                if (editMQCorrectIdx === i) setEditMQAnswer(e.target.value);
+                                                                                            }} className="flex-1 text-sm rounded-lg border border-border bg-background px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <div className="flex flex-col gap-1">
+                                                                                    <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Answer</label>
+                                                                                    <textarea value={editMQAnswer} onChange={e => setEditMQAnswer(e.target.value)} rows={2}
+                                                                                        className="w-full text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                                                </div>
+                                                                            )}
+                                                                            <div className="flex gap-2 justify-end">
+                                                                                <button onClick={() => setEditingMQId(null)}
+                                                                                    className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                                                                    Cancel
+                                                                                </button>
+                                                                                <button onClick={() => saveEditMQ(mq)}
+                                                                                    className="text-xs px-3 py-1.5 rounded-lg text-white font-medium transition-all"
+                                                                                    style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                                                                                    Save
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    );
+                                                                }
+                                                                return (
+                                                                    <div key={mq.id}
+                                                                        onDragOver={e => handleMQDragOver(e, mq.id)}
+                                                                        onDrop={() => handleMQDrop(m.id, mq.id)}
+                                                                        onClick={() => {
+                                                                            if (!hasOpts) return;
+                                                                            setExpandedMQIds(prev => {
+                                                                                const next = new Set(prev);
+                                                                                if (next.has(mq.id)) next.delete(mq.id); else next.add(mq.id);
+                                                                                return next;
+                                                                            });
+                                                                        }}
+                                                                        className={`flex items-start gap-2 py-1.5 px-1.5 -mx-1.5 rounded-md group/mq transition-all hover:bg-muted/50 ${hasOpts ? 'cursor-pointer' : ''} ${dragOverMQId === mq.id ? 'bg-black/5 dark:bg-white/10' : ''} ${dragMQId === mq.id ? 'opacity-40' : ''}`}>
+                                                                        <div draggable
+                                                                            onClick={e => e.stopPropagation()}
+                                                                            onDragStart={e => {
+                                                                                e.stopPropagation();
+                                                                                handleMQDragStart(mq.id);
+                                                                                const row = e.currentTarget.parentElement as HTMLElement | null;
+                                                                                if (row) e.dataTransfer.setDragImage(row, 20, 20);
+                                                                            }}
+                                                                            onDragEnd={handleMQDragEnd}
+                                                                            className="mt-0.5 shrink-0 text-muted-foreground/50 hover:text-muted-foreground cursor-grab active:cursor-grabbing">
+                                                                            <GripVertical size={13} />
+                                                                        </div>
+                                                                        <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[mq.question.type]?.color ?? 'bg-muted text-muted-foreground'}`}>{TYPE_META[mq.question.type]?.label}</span>
+                                                                        <div className="flex-1 min-w-0">
+                                                                            <div className="flex items-start gap-1.5">
+                                                                                <span className="flex-1 text-sm">{mq.question.question}</span>
+                                                                                {hasOpts && (isOptsOpen ? <ChevronUp size={12} className="text-muted-foreground shrink-0 mt-0.5" /> : <ChevronDown size={12} className="text-muted-foreground shrink-0 mt-0.5" />)}
+                                                                            </div>
+                                                                            {isOptsOpen && opts.length > 0 && (
+                                                                                <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5">
+                                                                                    {opts.map((opt, oi) => {
+                                                                                        const isCorrect = (mq.question.type === 'MCQ' || mq.question.type === 'CONCEPTUAL') && opt === mq.question.answer;
+                                                                                        return (
+                                                                                            <span key={oi} className={`text-xs truncate ${isCorrect ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>{String.fromCharCode(65 + oi)}) {opt}</span>
+                                                                                        );
+                                                                                    })}
+                                                                                </div>
+                                                                            )}
+                                                                            {isOptsOpen && mq.question.type === 'TRUE_FALSE' && (
+                                                                                <div className="mt-1 flex gap-4">
+                                                                                    <span className={`text-xs ${mq.question.answer?.toLowerCase() === 'true' ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>A) True</span>
+                                                                                    <span className={`text-xs ${mq.question.answer?.toLowerCase() === 'false' ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>B) False</span>
+                                                                                </div>
+                                                                            )}
+                                                                            {isOptsOpen && isPlainAnswer && (
+                                                                                <div className="mt-1 text-xs space-y-0.5">
+                                                                                    {mq.question.type === 'NUMERICAL' && (mq.question.details as NumericalDetails | null)?.correct_answer_formula && (
+                                                                                        <div>
+                                                                                            <span className="text-muted-foreground">Formula: </span>
+                                                                                            <span className="font-mono">{(mq.question.details as NumericalDetails).correct_answer_formula}</span>
+                                                                                        </div>
+                                                                                    )}
+                                                                                    <div>
+                                                                                        <span className="text-muted-foreground">Answer: </span>
+                                                                                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{mq.question.answer}</span>
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/mq:opacity-100 transition-all">
+                                                                            <button onClick={e => { e.stopPropagation(); startEditMQ(mq); }}
+                                                                                className="text-muted-foreground hover:text-primary p-0.5 rounded mt-0.5"
+                                                                                title="Edit question">
+                                                                                <Pencil size={12} />
+                                                                            </button>
+                                                                            <button onClick={e => { e.stopPropagation(); setRemoveMQConfirm({ moduleId: m.id, questionId: mq.questionId, questionText: mq.question.question }); }}
+                                                                                className="text-muted-foreground hover:text-red-500 p-0.5 rounded mt-0.5"
+                                                                                title="Remove from module">
+                                                                                <X size={12} />
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
                                                         </div>
 
                                                         {/* Add custom question form / button */}
@@ -1653,16 +1883,29 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                 <AssignmentSubmissionsPanel assignmentId={submissionsAssignmentId} onClose={() => setSubmissionsAssignmentId(null)} />
             )}
 
-            {/* Paper Builder — full-screen overlay */}
-            {paperBuilderOpen && paperBuilderTestId && (
+            {/* Paper Builder — full-screen overlay (test) */}
+            {testBuilderVisible && (
                 <PaperBuilder
-                    testId={paperBuilderTestId}
+                    testId={testBuilderId}
                     approvedQuestions={approvedQuestions}
                     modules={modules}
-                    lockedPaperType={paperBuilderType}
-                    entityType={paperBuilderType === 'ASSIGNMENT' ? 'assignment' : 'test'}
-                    onClose={() => { setPaperBuilderOpen(false); setPaperBuilderTestId(null); }}
-                    onSaved={handlePaperSaved}
+                    lockedPaperType="TEST"
+                    entityType="test"
+                    onClose={() => { setTestBuilderOpen(false); setTestBuilderId(null); }}
+                    onSaved={handleTestPaperSaved}
+                />
+            )}
+
+            {/* Paper Builder — full-screen overlay (assignment) */}
+            {assignmentBuilderVisible && (
+                <PaperBuilder
+                    testId={assignmentBuilderId}
+                    approvedQuestions={approvedQuestions}
+                    modules={modules}
+                    lockedPaperType="ASSIGNMENT"
+                    entityType="assignment"
+                    onClose={() => { setAssignmentBuilderOpen(false); setAssignmentBuilderId(null); }}
+                    onSaved={handleAssignmentPaperSaved}
                 />
             )}
 
@@ -1935,6 +2178,47 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                     <button onClick={() => { deleteModule(deleteModuleConfirmId); setDeleteModuleConfirmId(null); }}
                                         className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
                                         Delete
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Remove question from module confirm modal */}
+            <AnimatePresence>
+                {removeMQConfirm && (
+                    <>
+                        <motion.div
+                            key="rmq-overlay"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                            onClick={() => setRemoveMQConfirm(null)}
+                        />
+                        <motion.div
+                            key="rmq-modal"
+                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+                        >
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-80 pointer-events-auto flex flex-col gap-4">
+                                <div className="flex flex-col gap-1">
+                                    <p className="text-sm font-semibold text-foreground">Remove this question?</p>
+                                    <p className="text-xs text-muted-foreground line-clamp-2">
+                                        "{removeMQConfirm.questionText}" will be removed from this module.
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <button onClick={() => setRemoveMQConfirm(null)}
+                                        className="px-4 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                        Cancel
+                                    </button>
+                                    <button onClick={() => { removeFromModule(removeMQConfirm.moduleId, removeMQConfirm.questionId); setRemoveMQConfirm(null); }}
+                                        className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                        Remove
                                     </button>
                                 </div>
                             </div>
@@ -2967,7 +3251,10 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
 }) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
+    const [draftSaveStatus, setDraftSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+    const draftAutoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [paperZoom, setPaperZoom] = useState(1);
     const [mainTop, setMainTop] = useState(0);
 
     useLayoutEffect(() => {
@@ -2994,6 +3281,11 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
 
     // Left panel filters
     const [expandedModuleId, setExpandedModuleId] = useState<string | null>(null);
+    const [expandedQIds, setExpandedQIds] = useState<Set<string>>(new Set());
+    const [deleteSectionConfirmId, setDeleteSectionConfirmId] = useState<string | null>(null);
+    const [dragQId, setDragQId] = useState<string | null>(null);
+    const [dragOverQId, setDragOverQId] = useState<string | null>(null);
+    const [removeQConfirm, setRemoveQConfirm] = useState<{ questionId: string; questionText: string } | null>(null);
 
     useEffect(() => {
         const loadUrl = entityType === 'assignment'
@@ -3060,8 +3352,19 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
         setActiveSectionId(newSec.id);
     };
 
+    const moveSection = (sectionId: string, direction: 'up' | 'down') => {
+        setSections(prev => {
+            const idx = prev.findIndex(s => s.id === sectionId);
+            const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
+            if (idx === -1 || swapIdx < 0 || swapIdx >= prev.length) return prev;
+            const next = [...prev];
+            [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+            return next;
+        });
+    };
+
     const removeSection = (sectionId: string) => {
-        setBuilderQs(prev => prev.map(q => q.sectionId === sectionId ? { ...q, sectionId: null } : q));
+        setBuilderQs(prev => prev.filter(q => q.sectionId !== sectionId).map((q, i) => ({ ...q, order: i })));
         setSections(prev => {
             const next = prev.filter(s => s.id !== sectionId);
             if (activeSectionId === sectionId) setActiveSectionId(next[0]?.id ?? null);
@@ -3103,9 +3406,29 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
         });
     };
 
-    const savePaper = async (activate = false) => {
-        if (!title.trim()) return toast.error('Title is required');
-        setSaving(true);
+    const handleQDragStart = (id: string) => setDragQId(id);
+    const handleQDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); if (id !== dragQId) setDragOverQId(id); };
+    const handleQDrop = (targetId: string, sectionId: string | null) => {
+        if (!dragQId || dragQId === targetId) { setDragQId(null); setDragOverQId(null); return; }
+        setBuilderQs(prev => {
+            const pool = prev.filter(q => q.sectionId === sectionId);
+            const others = prev.filter(q => q.sectionId !== sectionId);
+            const fromIdx = pool.findIndex(q => q.questionId === dragQId);
+            const toIdx = pool.findIndex(q => q.questionId === targetId);
+            if (fromIdx === -1 || toIdx === -1) return prev;
+            const newPool = [...pool];
+            const [item] = newPool.splice(fromIdx, 1);
+            newPool.splice(toIdx, 0, item);
+            return [...others, ...newPool].map((q, i) => ({ ...q, order: i }));
+        });
+        setDragQId(null);
+        setDragOverQId(null);
+    };
+    const handleQDragEnd = () => { setDragQId(null); setDragOverQId(null); };
+
+    const savePaper = async (activate = false, silent = false) => {
+        if (!title.trim()) { if (!silent) toast.error('Title is required'); return; }
+        if (silent) setDraftSaveStatus('saving'); else setSaving(true);
         try {
             const questionPayload = builderQs.map((q, i) => ({
                 questionId: q.questionId,
@@ -3145,10 +3468,33 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                     await api.patch(`/teacher/tasks/tests/${testId}`, { status: 'ACTIVE' });
                 }
             }
-            toast.success(activate ? 'Paper saved and activated' : 'Paper saved');
-            onSaved();
-        } catch (err) { toast.error(apiError(err)); } finally { setSaving(false); }
+            if (!activate) {
+                // Draft saves (auto or manual) just update the status indicator — they
+                // must never close the builder overlay, only "Save & Activate" should.
+                setDraftSaveStatus('saved');
+                setTimeout(() => setDraftSaveStatus('idle'), 2000);
+                if (!silent) toast.success('Paper saved');
+            } else {
+                toast.success('Paper saved and activated');
+                onSaved();
+            }
+        } catch (err) {
+            if (activate) toast.error(apiError(err));
+            else { setDraftSaveStatus('idle'); if (!silent) toast.error(apiError(err)); }
+        } finally {
+            if (!silent) setSaving(false);
+        }
     };
+
+    // Auto-save the draft 2s after the teacher stops editing — same debounce pattern
+    // used for Attendance/Fees, so there's no need to click "Save Draft" manually.
+    useEffect(() => {
+        if (loading || !title.trim()) return;
+        if (draftAutoSaveTimer.current) clearTimeout(draftAutoSaveTimer.current);
+        draftAutoSaveTimer.current = setTimeout(() => { savePaper(false, true); }, 2000);
+        return () => { if (draftAutoSaveTimer.current) clearTimeout(draftAutoSaveTimer.current); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [title, description, durationMinutes, maxAttempts, startDate, validUntil, isRandomized, answerSpace, sections, builderQs]);
 
     const addedIds = new Set(builderQs.map(q => q.questionId));
     const totalMarks = paperType === 'TEST'
@@ -3171,18 +3517,21 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
 
     // Paper color theme
     const theme = lockedPaperType === 'TEST' ? {
-        outerBg:   '#C8BFB3', scrollbar: '#A89880 #C8BFB3',
-        paperBg:   '#FEFCF8', paperBorder: '#D8C4A0',
-        topBar1:   '#2A1F10', topBar2: '#8B6914',
-        headingColor: '#8B7355', titleColor: '#1A1208',
-        metaColor: '#4A3728', accentColor: '#8B6914',
-        sectionActiveBg: '#EDE4D6', sectionBg: '#F5EFE6', sectionBorder: '#8B6914', sectionBorderInactive: '#D8C4A0',
-        sectionText: '#2A1F10', sectionMeta: '#8B7355',
-        inputBg: '#FAF5EE', inputBorder: '#D8C4A0', inputText: '#2A1F10',
-        rowBorder: '#EDE4D6', marksBadgeBg: '#EDE4D6', marksBadgeText: '#6B5B45', marksBadgeBorder: '#D8C4A0',
-        emptyBorder: '#D8C4A0', emptyText: '#C4A882', emptyActiveText: '#8B7355',
-        footerBg: '#FAF5EE', footerText: '#8B7355',
-        addSectionBorder: '#D8C4A0', addSectionText: '#8B7355', addSectionHoverBorder: '#8B6914', addSectionHoverText: '#8B6914',
+        // Authentic school/board exam-paper look: plain white sheet, black rules,
+        // serif type, neutral grey backdrop — no decorative gold/cream card styling.
+        outerBg:   '#9C9C9C', scrollbar: '#7A7A7A #9C9C9C',
+        paperBg:   '#FFFFFF', paperBorder: '#1A1A1A',
+        topBar1:   '#000000', topBar2: '#000000',
+        headingColor: '#333333', titleColor: '#000000',
+        metaColor: '#1A1A1A', accentColor: '#000000',
+        sectionActiveBg: '#F2F2F2', sectionBg: '#FFFFFF', sectionBorder: '#000000', sectionBorderInactive: '#B0B0B0',
+        sectionText: '#000000', sectionMeta: '#4D4D4D',
+        inputBg: '#FFFFFF', inputBorder: '#8C8C8C', inputText: '#000000',
+        rowBorder: '#D9D9D9', marksBadgeBg: '#FFFFFF', marksBadgeText: '#000000', marksBadgeBorder: '#8C8C8C',
+        emptyBorder: '#B0B0B0', emptyText: '#8C8C8C', emptyActiveText: '#4D4D4D',
+        footerBg: '#FFFFFF', footerText: '#4D4D4D',
+        addSectionBorder: '#8C8C8C', addSectionText: '#4D4D4D', addSectionHoverBorder: '#000000', addSectionHoverText: '#000000',
+        fontFamily: '"Times New Roman", Georgia, serif',
     } : {
         outerBg:   '#B8C8D8', scrollbar: '#8AAAC8 #B8C8D8',
         paperBg:   '#F8FBFF', paperBorder: '#A8C0DC',
@@ -3196,88 +3545,198 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
         emptyBorder: '#A8C0DC', emptyText: '#7AAAC8', emptyActiveText: '#2563EB',
         footerBg: '#F0F6FE', footerText: '#4A7AAA',
         addSectionBorder: '#A8C0DC', addSectionText: '#4A7AAA', addSectionHoverBorder: '#2563EB', addSectionHoverText: '#2563EB',
+        fontFamily: 'inherit',
     };
 
     // Global question counter across sections
     let qCounter = 0;
 
     return (
+        <>
         <div style={containerStyle} className="bg-background flex flex-col">
-            {/* Header */}
-            <div className="shrink-0 flex items-center gap-3 px-4 py-3 border-b border-border">
-                <button onClick={onClose} className="text-sm text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all">
-                    ← Back
-                </button>
-                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Paper title…"
-                    className="flex-1 text-base font-semibold bg-transparent focus:outline-none border-b border-transparent focus:border-border/60 pb-0.5 transition-all" />
-                <div className="flex items-center gap-1.5 px-3 py-1 rounded-lg bg-muted text-xs font-medium text-muted-foreground">
-                    {lockedPaperType === 'TEST' ? <ClipboardList size={13} /> : <ClipboardCheck size={13} />}
-                    {lockedPaperType === 'TEST' ? 'Test' : 'Assignment'}
-                </div>
-                <button onClick={() => savePaper(false)} disabled={saving}
-                    className="text-sm px-4 py-1.5 rounded-lg border border-border hover:bg-muted transition-all disabled:opacity-50">
-                    {saving ? 'Saving…' : 'Save Draft'}
-                </button>
-                <button onClick={() => savePaper(true)} disabled={saving || builderQs.length === 0}
-                    className="text-sm font-medium px-4 py-1.5 rounded-lg text-white disabled:opacity-50"
-                    style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
-                    Save & Activate
-                </button>
-                <button onClick={() => setIsFullscreen(v => !v)}
-                    className="p-1.5 rounded-lg border border-border hover:bg-muted transition-all text-muted-foreground hover:text-foreground"
-                    title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
-                    {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
-                </button>
-            </div>
-
             {/* Body */}
             <div className="flex-1 flex flex-col lg:flex-row overflow-y-auto lg:overflow-hidden">
                 {/* Left panel — Modules */}
-                <div className="w-full lg:w-[38%] h-[320px] lg:h-auto shrink-0 lg:shrink border-r-0 lg:border-r border-b lg:border-b-0 border-border flex flex-col overflow-hidden">
-                    <div className="shrink-0 px-4 py-3 border-b border-border/50">
+                <div className="w-full lg:w-[38%] h-[320px] lg:h-auto shrink-0 lg:shrink border-r-0 lg:border-r border-b lg:border-b-0 border-border flex flex-col overflow-hidden bg-card">
+                    {/* Metadata bar */}
+                    <div className="shrink-0 pl-3 pr-4 py-2.5 border-b border-border/50 flex flex-col gap-0.5 text-sm">
+                        {entityType === 'test' && (
+                            <div className="flex items-start gap-3 flex-wrap">
+                                <div className="flex flex-col gap-2.5">
+                                    <div className="flex items-center gap-1.5">
+                                        <label className="text-[11px] text-muted-foreground">Duration</label>
+                                        <input type="number" min={5} max={600} value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))}
+                                            className="w-14 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                                        <span className="text-[11px] text-muted-foreground -ml-1">mins</span>
+                                        <label className="text-[11px] text-muted-foreground ml-6">Attempts</label>
+                                        <input type="number" min={1} max={10} value={maxAttempts} onChange={e => setMaxAttempts(Number(e.target.value))}
+                                            className="w-10 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                                    </div>
+                                    <div className="flex items-center gap-12 flex-wrap">
+                                        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                                            <div onClick={() => setAnswerSpace(v => !v)}
+                                                className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${answerSpace ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${answerSpace ? 'translate-x-4' : ''}`} />
+                                            </div>
+                                            <span className="text-muted-foreground">Answer Space</span>
+                                        </label>
+                                        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                                            <div onClick={() => setIsRandomized(v => !v)}
+                                                className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${isRandomized ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${isRandomized ? 'translate-x-4' : ''}`} />
+                                            </div>
+                                            <Shuffle size={12} className="text-muted-foreground" />
+                                            <span className="text-muted-foreground">Randomize</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-1.5 ml-auto">
+                                    <div className="flex items-center gap-1.5">
+                                        <label className="text-[11px] text-muted-foreground">Start date</label>
+                                        <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)}
+                                            className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                        <label className="text-[11px] text-muted-foreground">Valid until</label>
+                                        <input type="datetime-local" value={validUntil} onChange={e => setValidUntil(e.target.value)}
+                                            className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        {entityType !== 'test' && (
+                            <div className="flex items-center gap-12 flex-wrap">
+                                <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                                    <div onClick={() => setAnswerSpace(v => !v)}
+                                        className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${answerSpace ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                        <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${answerSpace ? 'translate-x-4' : ''}`} />
+                                    </div>
+                                    <span className="text-muted-foreground">Answer Space</span>
+                                </label>
+                                <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
+                                    <div onClick={() => setIsRandomized(v => !v)}
+                                        className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${isRandomized ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                        <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${isRandomized ? 'translate-x-4' : ''}`} />
+                                    </div>
+                                    <Shuffle size={12} className="text-muted-foreground" />
+                                    <span className="text-muted-foreground">Randomize</span>
+                                </label>
+                            </div>
+                        )}
+                        <div className="flex items-center justify-end gap-2 mt-3">
+                            <button onClick={() => savePaper(false)} disabled={saving || draftSaveStatus === 'saving'}
+                                className="flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg border border-border hover:bg-muted transition-all disabled:opacity-50">
+                                {(saving || draftSaveStatus === 'saving')
+                                    ? <span className="w-3 h-3 border-2 border-current/30 border-t-current rounded-full animate-spin" />
+                                    : draftSaveStatus === 'saved'
+                                        ? <CheckCircle2 size={12} className="text-emerald-500" />
+                                        : <Save size={12} />}
+                                {(saving || draftSaveStatus === 'saving') ? 'Saving…' : draftSaveStatus === 'saved' ? 'Saved!' : 'Save Draft'}
+                            </button>
+                            <button onClick={() => savePaper(true)} disabled={saving || builderQs.length === 0}
+                                className="text-sm font-medium px-4 py-1.5 rounded-lg text-white disabled:opacity-50"
+                                style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+                                Save & Activate
+                            </button>
+                        </div>
+                    </div>
+                    <div className="shrink-0 px-4 py-3 border-b border-border/50 bg-muted/40 flex items-center justify-between">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Modules</p>
+                        <span className="text-xs text-muted-foreground">
+                            {builderQs.length} Q · {totalMarks} marks
+                        </span>
                     </div>
                     <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
                         {modules.length === 0 ? (
                             <p className="text-xs text-muted-foreground text-center py-8">No modules yet. Create modules and assign questions first.</p>
                         ) : modules.map(mod => {
                             const isExpanded = expandedModuleId === mod.id;
+                            const selectedCount = mod.questions.filter(mq => addedIds.has(mq.question.id)).length;
                             return (
-                                <div key={mod.id} className="rounded-lg border border-border/60 overflow-hidden">
+                                <div key={mod.id} className="rounded-lg border border-border/60 overflow-hidden bg-muted/40">
                                     <button
                                         onClick={() => setExpandedModuleId(isExpanded ? null : mod.id)}
                                         className="w-full flex items-center gap-2 px-3 py-2 hover:bg-muted/60 transition-all text-left">
                                         <BookMarked size={13} className="text-primary/70 shrink-0" />
                                         <span className="flex-1 text-xs font-semibold truncate">{mod.name}</span>
-                                        <span className="text-[10px] text-muted-foreground shrink-0">{mod.questions.length}q</span>
+                                        <span className={`text-[10px] shrink-0 ${selectedCount > 0 ? 'text-primary font-semibold' : 'text-muted-foreground'}`}>
+                                            {selectedCount > 0 ? `${selectedCount}/${mod.questions.length}q` : `${mod.questions.length}q`}
+                                        </span>
                                         {isExpanded ? <ChevronUp size={12} className="text-muted-foreground shrink-0" /> : <ChevronDown size={12} className="text-muted-foreground shrink-0" />}
                                     </button>
                                     {isExpanded && (
-                                        <div className="border-t border-border/40 bg-muted/20">
+                                        <div className="border-t border-border/40 bg-white dark:bg-black/20">
                                             {mod.questions.length === 0 ? (
                                                 <p className="text-[11px] text-muted-foreground px-4 py-3">No questions in this module.</p>
                                             ) : mod.questions.map(mq => {
                                                 const q = mq.question;
                                                 const alreadyAdded = addedIds.has(q.id);
+                                                const isOptsOpen = expandedQIds.has(q.id);
+                                                const opts: string[] = q.type === 'MCQ'
+                                                    ? (Array.isArray(q.options) ? q.options : [])
+                                                    : q.type === 'CONCEPTUAL'
+                                                        ? (() => { const d = q.details as ConceptualDetails | null; return d ? [d.correct_answer, ...(d.distractors ?? [])] : []; })()
+                                                        : [];
+                                                const isPlainAnswer = q.type === 'FILL_BLANK' || q.type === 'SHORT_ANSWER' || q.type === 'NUMERICAL';
+                                                const hasOpts = opts.length > 0 || q.type === 'TRUE_FALSE' || isPlainAnswer;
                                                 return (
                                                     <div key={mq.id}
                                                         onClick={() => {
-                                                            if (alreadyAdded) { toast.info('Already in paper'); return; }
-                                                            addQuestionToBuilder(q as unknown as Question);
+                                                            if (!hasOpts) return;
+                                                            setExpandedQIds(prev => {
+                                                                const next = new Set(prev);
+                                                                if (next.has(q.id)) next.delete(q.id); else next.add(q.id);
+                                                                return next;
+                                                            });
                                                         }}
-                                                        className={`flex items-start gap-2 px-3 py-2 border-b border-border/30 last:border-0 transition-all group ${alreadyAdded ? 'opacity-40 cursor-not-allowed' : 'hover:bg-muted/50 cursor-pointer'}`}>
+                                                        className={`flex items-start gap-2 px-3 py-2 border-b border-border/30 last:border-0 transition-all group ${hasOpts ? 'cursor-pointer' : ''} ${alreadyAdded ? '' : 'hover:bg-muted/50'}`}
+                                                        style={alreadyAdded ? { background: 'rgba(218,119,86,0.08)' } : undefined}>
+                                                        <span onClick={e => {
+                                                                e.stopPropagation();
+                                                                if (alreadyAdded) removeQuestion(q.id);
+                                                                else addQuestionToBuilder(q as unknown as Question);
+                                                            }}
+                                                            className="mt-0.5 w-3.5 h-3.5 rounded-[4px] border shrink-0 flex items-center justify-center transition-all cursor-pointer"
+                                                            style={alreadyAdded ? { background: '#DA7756', borderColor: '#DA7756' } : { borderColor: 'var(--border)' }}>
+                                                            {alreadyAdded && <Check size={10} className="text-white" strokeWidth={3} />}
+                                                        </span>
                                                         <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[q.type]?.color}`}>{TYPE_META[q.type]?.label}</span>
                                                         <div className="flex-1 min-w-0">
-                                                            <span className="text-xs leading-snug line-clamp-2">{q.question}</span>
-                                                            {q.type === 'MCQ' && Array.isArray(q.options) && q.options.length > 0 && (
+                                                            <div className="flex items-start gap-1">
+                                                                <span className="flex-1 text-xs leading-snug line-clamp-2">{q.question}</span>
+                                                                {hasOpts && (isOptsOpen ? <ChevronUp size={11} className="text-muted-foreground shrink-0 mt-0.5" /> : <ChevronDown size={11} className="text-muted-foreground shrink-0 mt-0.5" />)}
+                                                            </div>
+                                                            {isOptsOpen && opts.length > 0 && (
                                                                 <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0">
-                                                                    {q.options.map((opt, oi) => (
-                                                                        <span key={oi} className="text-[10px] text-muted-foreground truncate">{String.fromCharCode(65 + oi)}) {opt}</span>
-                                                                    ))}
+                                                                    {opts.map((opt, oi) => {
+                                                                        const isCorrect = (q.type === 'MCQ' || q.type === 'CONCEPTUAL') && opt === q.answer;
+                                                                        return (
+                                                                            <span key={oi} className={`text-[10px] truncate ${isCorrect ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>{String.fromCharCode(65 + oi)}) {opt}</span>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                            {isOptsOpen && q.type === 'TRUE_FALSE' && (
+                                                                <div className="mt-1 flex gap-4">
+                                                                    <span className={`text-[10px] ${q.answer?.toLowerCase() === 'true' ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>A) True</span>
+                                                                    <span className={`text-[10px] ${q.answer?.toLowerCase() === 'false' ? 'font-medium text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>B) False</span>
+                                                                </div>
+                                                            )}
+                                                            {isOptsOpen && isPlainAnswer && (
+                                                                <div className="mt-1 text-[10px] space-y-0.5">
+                                                                    {q.type === 'NUMERICAL' && (q.details as NumericalDetails | null)?.correct_answer_formula && (
+                                                                        <div>
+                                                                            <span className="text-muted-foreground">Formula: </span>
+                                                                            <span className="font-mono">{(q.details as NumericalDetails).correct_answer_formula}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    <div>
+                                                                        <span className="text-muted-foreground">Answer: </span>
+                                                                        <span className="font-medium text-emerald-600 dark:text-emerald-400">{q.answer}</span>
+                                                                    </div>
                                                                 </div>
                                                             )}
                                                         </div>
-                                                        {!alreadyAdded && <Plus size={11} className="text-primary shrink-0 opacity-0 group-hover:opacity-100 mt-0.5 transition-all" />}
                                                     </div>
                                                 );
                                             })}
@@ -3290,63 +3749,41 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 </div>
 
                 {/* Right panel — Paper document */}
-                <div className="w-full lg:flex-1 h-[55vh] lg:h-auto flex flex-col min-h-0 overflow-hidden">
-                {/* Metadata bar */}
-                <div className="shrink-0 px-4 py-2.5 border-b border-border/50 flex items-center gap-4 flex-wrap text-sm">
-                    {entityType === 'test' && (
-                        <>
-                            <div className="flex items-center gap-1.5">
-                                <label className="text-[11px] text-muted-foreground">Duration</label>
-                                <input type="number" min={5} max={600} value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))}
-                                    className="w-14 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
-                                <span className="text-[11px] text-muted-foreground">min</span>
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <label className="text-[11px] text-muted-foreground">Attempts</label>
-                                <input type="number" min={1} max={10} value={maxAttempts} onChange={e => setMaxAttempts(Number(e.target.value))}
-                                    className="w-10 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <label className="text-[11px] text-muted-foreground">Start date</label>
-                                <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)}
-                                    className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
-                            </div>
-                            <div className="flex items-center gap-1.5">
-                                <label className="text-[11px] text-muted-foreground">Valid until</label>
-                                <input type="datetime-local" value={validUntil} onChange={e => setValidUntil(e.target.value)}
-                                    className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
-                            </div>
-                        </>
-                    )}
-                    <div className="ml-auto flex items-center gap-3">
-                        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                            <div onClick={() => setAnswerSpace(v => !v)}
-                                className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${answerSpace ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
-                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${answerSpace ? 'translate-x-4' : ''}`} />
-                            </div>
-                            <span className="text-muted-foreground">Answer Space</span>
-                        </label>
-                        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                            <div onClick={() => setIsRandomized(v => !v)}
-                                className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${isRandomized ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
-                                <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${isRandomized ? 'translate-x-4' : ''}`} />
-                            </div>
-                            <Shuffle size={12} className="text-muted-foreground" />
-                            <span className="text-muted-foreground">Randomize</span>
-                        </label>
-                        <span className="text-xs text-muted-foreground border-l border-border pl-3">
-                            {builderQs.length} Q · {totalMarks} marks
-                        </span>
+                <div className="w-full lg:flex-1 h-[55vh] lg:h-auto flex flex-col min-h-0 overflow-hidden relative">
+                <div className="absolute top-3 right-3 z-10 flex flex-col items-end gap-1.5">
+                    <button onClick={() => setIsFullscreen(v => !v)}
+                        className="p-1.5 rounded-lg border border-black/20 bg-black/50 hover:bg-black/70 transition-all text-white"
+                        title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+                        {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                    </button>
+                    <div className="flex flex-col rounded-lg border border-black/20 bg-black/50 overflow-hidden">
+                        <button onClick={() => setPaperZoom(z => Math.min(2, Math.round((z + 0.1) * 10) / 10))}
+                            disabled={paperZoom >= 2}
+                            className="p-1.5 hover:bg-black/30 transition-all text-white disabled:opacity-30" title="Zoom in">
+                            <ZoomIn size={15} />
+                        </button>
+                        <button onClick={() => setPaperZoom(1)}
+                            className="px-1.5 py-0.5 text-[10px] font-semibold text-white/80 hover:bg-black/30 transition-all border-t border-b border-white/10"
+                            title="Reset zoom">
+                            {Math.round(paperZoom * 100)}%
+                        </button>
+                        <button onClick={() => setPaperZoom(z => Math.max(0.5, Math.round((z - 0.1) * 10) / 10))}
+                            disabled={paperZoom <= 0.5}
+                            className="p-1.5 hover:bg-black/30 transition-all text-white disabled:opacity-30" title="Zoom out">
+                            <ZoomOut size={15} />
+                        </button>
                     </div>
                 </div>
-                <div className="flex-1 overflow-y-auto py-8 px-6" style={{ background: theme.outerBg, scrollbarWidth: 'thin', scrollbarColor: theme.scrollbar }}>
+                <div className="flex-1 overflow-y-auto pt-3 pb-8 px-6" style={{ background: theme.outerBg, scrollbarWidth: 'thin', scrollbarColor: theme.scrollbar }}>
 
                     {/* ── The actual paper ── */}
                     <div className="max-w-3xl mx-auto shadow-2xl" style={{
                         background: theme.paperBg,
                         border: `1px solid ${theme.paperBorder}`,
                         boxShadow: '0 8px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
-                    }}>
+                        fontFamily: theme.fontFamily,
+                        zoom: paperZoom,
+                    } as CSSProperties}>
 
                         {/* Paper top decorative border */}
                         <div style={{ height: 6, background: theme.topBar1 }} />
@@ -3355,14 +3792,14 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                         {/* Paper header */}
                         <div className="px-10 pt-6 pb-4" style={{ borderBottom: `1.5px solid ${theme.paperBorder}` }}>
                             <div className="text-center mb-4">
-                                <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Paper Title"
+                                <input value={title} onChange={e => setTitle(e.target.value)} placeholder={entityType === 'assignment' ? 'Assignment Title' : 'Paper Title'}
                                     className="text-center text-xl font-bold w-full focus:outline-none bg-transparent"
                                     style={{ color: theme.titleColor, borderBottom: `1px dashed ${theme.paperBorder}`, paddingBottom: 2 }} />
                                 <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description / instructions for students (optional)"
                                     rows={2} className="w-full text-center text-xs mt-2 resize-none focus:outline-none bg-transparent"
                                     style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}` }} />
                             </div>
-                            <div className="flex items-center justify-between text-[11px] mt-3" style={{ color: theme.metaColor }}>
+                            <div className="flex items-center justify-between text-[13px] mt-3" style={{ color: theme.metaColor }}>
                                 <div className="flex items-center gap-6">
                                     <span><span className="font-semibold">Time:</span> {durationMinutes} min</span>
                                     <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
@@ -3371,7 +3808,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 </div>
                                 <div className="flex items-center gap-4">
                                     <span><span className="font-semibold">Total Questions:</span> {builderQs.length}</span>
-                                    <span className="font-bold text-sm" style={{ color: theme.accentColor }}>Total Marks: {totalMarks}</span>
+                                    <span className="font-bold text-base" style={{ color: theme.accentColor }}>Total Marks: {totalMarks}</span>
                                 </div>
                             </div>
                             {isRandomized && (
@@ -3400,7 +3837,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                         <input value={section.title} onClick={e => e.stopPropagation()}
                                                             onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, title: e.target.value } : s))}
                                                             className="text-sm font-bold uppercase tracking-wider bg-transparent focus:outline-none"
-                                                            style={{ color: theme.sectionText }} />
+                                                            style={{ color: theme.sectionText, borderBottom: `1px dashed ${theme.sectionBorderInactive}`, paddingBottom: 1 }} />
                                                         {sectionQs.length > 0 && (
                                                             <span className="text-[10px]" style={{ color: theme.sectionMeta }}>
                                                                 ({effectiveAttempt}/{sectionQs.length} × {section.marksPerQuestion}m = {sectionTotal} marks)
@@ -3408,7 +3845,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                         )}
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                                                        <span className="text-[10px]" style={{ color: theme.sectionMeta }}>Attempt</span>
+                                                        <span className="text-[12px]" style={{ color: theme.sectionMeta }}>Attempt</span>
                                                         <input type="number" min={0} max={sectionQs.length || 99}
                                                             value={section.attemptCount === 0 ? '' : section.attemptCount}
                                                             placeholder="all"
@@ -3424,9 +3861,17 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                             }}
                                                             className="w-10 text-xs text-center rounded focus:outline-none"
                                                             style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
-                                                        <span className="text-[10px]" style={{ color: theme.sectionMeta }}>m each</span>
+                                                        <span className="text-[12px]" style={{ color: theme.sectionMeta }}>m each</span>
                                                         {sections.length > 1 && (
-                                                            <button onClick={() => removeSection(section.id)}
+                                                            <div className="flex flex-col gap-0 opacity-0 group-hover:opacity-100 transition-all">
+                                                                <button onClick={() => moveSection(section.id, 'up')} disabled={sections.findIndex(s => s.id === section.id) === 0}
+                                                                    className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowUp size={9} /></button>
+                                                                <button onClick={() => moveSection(section.id, 'down')} disabled={sections.findIndex(s => s.id === section.id) === sections.length - 1}
+                                                                    className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
+                                                            </div>
+                                                        )}
+                                                        {sections.length > 1 && (
+                                                            <button onClick={e => { e.stopPropagation(); setDeleteSectionConfirmId(section.id); }}
                                                                 className="opacity-0 group-hover:opacity-100 transition-all p-0.5 rounded"
                                                                 style={{ color: '#C05050' }}>
                                                                 <X size={12} />
@@ -3443,10 +3888,8 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                 <input value={section.instruction}
                                                     onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, instruction: e.target.value } : s))}
                                                     placeholder="Section instruction (e.g. Answer any five of the following)"
-                                                    className="w-full text-xs italic mb-3 focus:outline-none bg-transparent"
-                                                    style={{ color: theme.sectionMeta, borderBottom: '1px dashed transparent', paddingBottom: 2 }}
-                                                    onFocus={e => e.currentTarget.style.borderBottomColor = theme.paperBorder}
-                                                    onBlur={e => e.currentTarget.style.borderBottomColor = 'transparent'} />
+                                                    className="w-full text-sm italic mb-3 focus:outline-none bg-transparent"
+                                                    style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}`, paddingBottom: 2 }} />
 
                                                 {/* Questions */}
                                                 {sectionQs.length === 0 ? (
@@ -3459,17 +3902,24 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                             qCounter++;
                                                             const num = qCounter;
                                                             return (
-                                                                <div key={bq.questionId} className="flex items-start gap-3 py-2.5 group transition-all"
+                                                                <div key={bq.questionId}
+                                                                    onDragOver={e => handleQDragOver(e, bq.questionId)}
+                                                                    onDrop={() => handleQDrop(bq.questionId, section.id)}
+                                                                    className={`flex items-start gap-3 py-2.5 group transition-all ${dragOverQId === bq.questionId ? 'bg-black/5 dark:bg-white/10' : ''} ${dragQId === bq.questionId ? 'opacity-40' : ''}`}
                                                                     style={{ borderBottom: `0.5px solid ${theme.rowBorder}` }}>
-                                                                    <div className="flex flex-col gap-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                                                                        <button onClick={() => moveQuestion(bq.questionId, 'up', section.id)} disabled={qi === 0}
-                                                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowUp size={9} /></button>
-                                                                        <button onClick={() => moveQuestion(bq.questionId, 'down', section.id)} disabled={qi === sectionQs.length - 1}
-                                                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
+                                                                    <div draggable
+                                                                        onDragStart={e => {
+                                                                            handleQDragStart(bq.questionId);
+                                                                            const row = e.currentTarget.parentElement as HTMLElement | null;
+                                                                            if (row) e.dataTransfer.setDragImage(row, 20, 20);
+                                                                        }}
+                                                                        onDragEnd={handleQDragEnd}
+                                                                        className="pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-grab active:cursor-grabbing" style={{ color: theme.sectionMeta }}>
+                                                                        <GripVertical size={13} />
                                                                     </div>
                                                                     <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{num}.</span>
-                                                                    <div className="flex-1 min-w-0">
-                                                                        <span className="text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
+                                                                    <div className="flex-1 min-w-0 -mt-[2.8px]">
+                                                                        <span className="text-[15px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
                                                                         {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
                                                                             const opts = bq.question.type === 'MCQ'
                                                                                 ? (bq.question.options ?? [])
@@ -3477,18 +3927,18 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                                             return opts.length > 0 ? (
                                                                                 <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-0.5 pl-1">
                                                                                     {opts.map((opt, oi) => (
-                                                                                        <span key={oi} className="text-[11px]" style={{ color: theme.metaColor }}>{String.fromCharCode(65 + oi)}) {opt}</span>
+                                                                                        <span key={oi} className="text-[13px]" style={{ color: theme.metaColor }}>{String.fromCharCode(65 + oi)}) {opt}</span>
                                                                                     ))}
                                                                                 </div>
                                                                             ) : null;
                                                                         })()}
                                                                         {bq.question.type === 'TRUE_FALSE' && (
                                                                             <div className="mt-1.5 flex gap-8 pl-1">
-                                                                                <span className="text-[11px]" style={{ color: theme.metaColor }}>A) True</span>
-                                                                                <span className="text-[11px]" style={{ color: theme.metaColor }}>B) False</span>
+                                                                                <span className="text-[13px]" style={{ color: theme.metaColor }}>A) True</span>
+                                                                                <span className="text-[13px]" style={{ color: theme.metaColor }}>B) False</span>
                                                                             </div>
                                                                         )}
-                                                                        {answerSpace && (bq.question.type === 'FILL_BLANK' || bq.question.type === 'NUMERICAL') && (
+                                                                        {answerSpace && bq.question.type === 'NUMERICAL' && (
                                                                             <div className="mt-2 pl-1" style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.3, width: '60%' }} />
                                                                         )}
                                                                         {answerSpace && bq.question.type === 'SHORT_ANSWER' && (
@@ -3499,9 +3949,9 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                                     </div>
                                                                     <div className="flex items-center gap-2 shrink-0">
                                                                         <div className="opacity-0 group-hover:opacity-100 transition-all">
-                                                                            <button onClick={() => removeQuestion(bq.questionId)} className="p-0.5 rounded transition-all" style={{ color: '#C05050' }}><X size={12} /></button>
+                                                                            <button onClick={() => setRemoveQConfirm({ questionId: bq.questionId, questionText: bq.question.question })} className="p-0.5 rounded transition-all" style={{ color: '#C05050' }}><X size={12} /></button>
                                                                         </div>
-                                                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
+                                                                        <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
                                                                             style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
                                                                             [{section.marksPerQuestion}m]
                                                                         </span>
@@ -3570,7 +4020,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                                 <span className="text-[11px]" style={{ color: theme.metaColor }}>B) False</span>
                                                             </div>
                                                         )}
-                                                        {answerSpace && (bq.question.type === 'FILL_BLANK' || bq.question.type === 'NUMERICAL') && (
+                                                        {answerSpace && bq.question.type === 'NUMERICAL' && (
                                                             <div className="mt-2 pl-1" style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.3, width: '60%' }} />
                                                         )}
                                                         {answerSpace && bq.question.type === 'SHORT_ANSWER' && (
@@ -3591,7 +4041,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                                 onChange={e => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: Number(e.target.value) } : q))}
                                                                 className="w-9 text-xs text-center rounded focus:outline-none"
                                                                 style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 2px' }} />
-                                                            <button onClick={() => removeQuestion(bq.questionId)} className="p-0.5" style={{ color: '#C05050' }}><X size={12} /></button>
+                                                            <button onClick={() => setRemoveQConfirm({ questionId: bq.questionId, questionText: bq.question.question })} className="p-0.5" style={{ color: '#C05050' }}><X size={12} /></button>
                                                         </div>
                                                         <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
                                                             style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
@@ -3608,8 +4058,8 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
 
                         {/* Paper footer */}
                         <div className="px-10 py-4 flex items-center justify-between" style={{ borderTop: `1px solid ${theme.paperBorder}`, background: theme.footerBg }}>
-                            <span className="text-[10px] italic" style={{ color: theme.footerText }}>— End of {paperType === 'TEST' ? 'Exam Paper' : 'Assignment'} —</span>
-                            <span className="text-[10px]" style={{ color: theme.footerText }}>Total: {totalMarks} marks</span>
+                            <span className="text-[12px] italic" style={{ color: theme.footerText }}>— End of {paperType === 'TEST' ? 'Exam Paper' : 'Assignment'} —</span>
+                            <span className="text-[12px]" style={{ color: theme.footerText }}>Total: {totalMarks} marks</span>
                         </div>
 
                         {/* Paper bottom decorative border */}
@@ -3621,5 +4071,88 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 </div>
             </div>
         </div>
+
+        {/* Delete section confirm modal */}
+        <AnimatePresence>
+            {deleteSectionConfirmId && (
+                <>
+                    <motion.div
+                        key="del-sec-overlay"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+                        onClick={() => setDeleteSectionConfirmId(null)}
+                    />
+                    <motion.div
+                        key="del-sec-modal"
+                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                        className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none"
+                    >
+                        <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-80 pointer-events-auto flex flex-col gap-4">
+                            <div className="flex flex-col gap-1">
+                                <p className="text-sm font-semibold text-foreground">Delete this section?</p>
+                                <p className="text-xs text-muted-foreground">
+                                    "{sections.find(s => s.id === deleteSectionConfirmId)?.title}" and all its questions will be removed from the paper. This cannot be undone.
+                                </p>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setDeleteSectionConfirmId(null)}
+                                    className="px-4 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => { removeSection(deleteSectionConfirmId); setDeleteSectionConfirmId(null); }}
+                                    className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </>
+            )}
+        </AnimatePresence>
+
+        {/* Remove question from paper confirm modal */}
+        <AnimatePresence>
+            {removeQConfirm && (
+                <>
+                    <motion.div
+                        key="del-q-overlay"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+                        onClick={() => setRemoveQConfirm(null)}
+                    />
+                    <motion.div
+                        key="del-q-modal"
+                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                        className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none"
+                    >
+                        <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-80 pointer-events-auto flex flex-col gap-4">
+                            <div className="flex flex-col gap-1">
+                                <p className="text-sm font-semibold text-foreground">Remove this question?</p>
+                                <p className="text-xs text-muted-foreground line-clamp-2">
+                                    "{removeQConfirm.questionText}" will be removed from this {entityType === 'test' ? 'paper' : 'assignment'}.
+                                </p>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setRemoveQConfirm(null)}
+                                    className="px-4 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => { removeQuestion(removeQConfirm.questionId); setRemoveQConfirm(null); }}
+                                    className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                    Remove
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </>
+            )}
+        </AnimatePresence>
+        </>
     );
 }
