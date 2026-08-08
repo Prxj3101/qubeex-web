@@ -65,6 +65,8 @@ interface ScanResult {
     overview: string;
     keyPoints: string[];
     images: { url: string; caption: string }[];
+    // Only present when the scan was run in "Detailed Notes" mode.
+    detailedNotes?: string;
 }
 
 function stripExtension(name: string) {
@@ -82,7 +84,9 @@ async function extractPdfPageText(fileUrl: string, pages: number[]): Promise<str
     if (pages.length === 0) return '';
     const { pdfjs } = await import('react-pdf');
     const pdf = await pdfjs.getDocument(fileUrl).promise;
-    const chunks: string[] = [];
+    const textByPage = new Map<number, string>();
+    const needsOcr: number[] = [];
+
     for (const pageNum of pages) {
         const page = await pdf.getPage(pageNum);
         const content = await page.getTextContent();
@@ -91,9 +95,104 @@ async function extractPdfPageText(fileUrl: string, pages: number[]): Promise<str
             .join(' ')
             .replace(/\s+/g, ' ')
             .trim();
-        if (text) chunks.push(`[Page ${pageNum}]\n${text}`);
+        // A scanned page can still surface a handful of stray "text items"
+        // (e.g. a printed page number caught by the scanner's text layer, or
+        // a watermark) — require a reasonable amount of real text before
+        // trusting this layer, otherwise treat it as needing OCR.
+        if (text.length >= 20) {
+            textByPage.set(pageNum, text);
+        } else {
+            needsOcr.push(pageNum);
+        }
+    }
+
+    // Scanned/image-only pages have no embedded text layer at all — pdf.js
+    // can't read pixels, so fall back to free, client-side OCR (Tesseract.js)
+    // for just those pages rather than leaving them ungrounded entirely.
+    if (needsOcr.length > 0) {
+        console.log(`[AI Scan] No text layer on page(s) ${needsOcr.join(', ')} — running OCR (this can take a few seconds per page)...`);
+        try {
+            const { createWorker } = await import('tesseract.js');
+            const worker = await createWorker('eng');
+            try {
+                for (const pageNum of needsOcr) {
+                    const page = await pdf.getPage(pageNum);
+                    const viewport = page.getViewport({ scale: 2 }); // higher render scale improves OCR accuracy
+                    const canvas = document.createElement('canvas');
+                    canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    const ctx = canvas.getContext('2d');
+                    if (!ctx) continue;
+                    await page.render({ canvas, canvasContext: ctx, viewport }).promise;
+                    const { data } = await worker.recognize(canvas);
+                    const ocrText = (data.text ?? '').replace(/\s+/g, ' ').trim();
+                    if (ocrText) {
+                        console.log(`[AI Scan] OCR extracted ${ocrText.length} chars from page ${pageNum}`);
+                        textByPage.set(pageNum, ocrText);
+                    }
+                }
+            } finally {
+                await worker.terminate();
+            }
+        } catch (ocrErr) {
+            console.error('[AI Scan] OCR failed, continuing without those pages:', ocrErr);
+        }
+    }
+
+    const chunks = [...textByPage.entries()]
+        .sort(([a], [b]) => a - b)
+        .map(([pageNum, text]) => `[Page ${pageNum}]\n${text}`);
+    return chunks.join('\n\n').slice(0, PAGE_TEXT_CHAR_LIMIT);
+}
+
+// .pptx is a zip archive of XML parts — one `ppt/slides/slideN.xml` per
+// slide, with visible text held in <a:t> (DrawingML text run) elements. No
+// page-picker UI exists for PPT today (unlike PDF), so this always reads
+// every slide — matching the existing "whole document will be scanned"
+// behavior for non-PDF types, just now backed by real content instead of
+// just the filename. Legacy binary .ppt (pre-2007, not a zip) isn't
+// supported by this approach; callers should only call this for the modern
+// OOXML `application/vnd.openxmlformats-officedocument.presentationml.presentation` type.
+async function extractPptxSlideText(fileUrl: string): Promise<string> {
+    const JSZip = (await import('jszip')).default;
+    const res = await fetch(fileUrl);
+    if (!res.ok) throw new Error(`Failed to fetch .pptx file: ${res.status}`);
+    const buffer = await res.arrayBuffer();
+    const zip = await JSZip.loadAsync(buffer);
+
+    const slideFiles = Object.keys(zip.files)
+        .map(path => {
+            const match = path.match(/^ppt\/slides\/slide(\d+)\.xml$/);
+            return match ? { path, num: parseInt(match[1], 10) } : null;
+        })
+        .filter((f): f is { path: string; num: number } => f !== null)
+        .sort((a, b) => a.num - b.num);
+
+    const parser = new DOMParser();
+    const chunks: string[] = [];
+    for (const { path, num } of slideFiles) {
+        const xml = await zip.files[path].async('text');
+        const doc = parser.parseFromString(xml, 'application/xml');
+        const textNodes = doc.getElementsByTagNameNS('http://schemas.openxmlformats.org/drawingml/2006/main', 't');
+        const text = Array.from(textNodes)
+            .map(n => n.textContent ?? '')
+            .join(' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+        if (text) chunks.push(`[Slide ${num}]\n${text}`);
     }
     return chunks.join('\n\n').slice(0, PAGE_TEXT_CHAR_LIMIT);
+}
+
+/** Dispatches to the right client-side extractor based on document type; returns '' for unsupported types. */
+async function extractDocumentText(doc: { url: string; type: string }, selectedPages: number[]): Promise<string> {
+    if (doc.type === 'application/pdf') {
+        return selectedPages.length > 0 ? extractPdfPageText(doc.url, selectedPages) : '';
+    }
+    if (doc.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
+        return extractPptxSlideText(doc.url);
+    }
+    return '';
 }
 
 // ── AI Scan Panel ─────────────────────────────────────────────────────────────
@@ -113,6 +212,7 @@ function AIScanPanel({
 }) {
     const [phase, setPhase] = useState<'input' | 'loading' | 'result'>('input');
     const [instructions, setInstructions] = useState('');
+    const [mode, setMode] = useState<'summary' | 'notes'>('summary');
     const [result, setResult] = useState<ScanResult | null>(null);
     const loadingAnim = useScanLoadingAnim();
     const isPdf = doc?.type === 'application/pdf';
@@ -139,23 +239,21 @@ function AIScanPanel({
         const minDelay = new Promise(resolve => setTimeout(resolve, 5000));
 
         try {
-            // Ground the scan in what's actually on the selected pages instead of
-            // having the AI guess from just the page numbers + instructions.
+            // Ground the scan in what's actually on the selected pages/slides
+            // instead of having the AI guess from just labels + instructions.
             let pageText = '';
-            if (isPdf && sorted.length > 0) {
-                try {
-                    pageText = await extractPdfPageText(doc!.url, sorted);
-                    if (pageText) {
-                        console.log(`[AI Scan] Extracted ${pageText.length} chars from pages ${sorted.join(', ')}. Preview: "${pageText.slice(0, 150)}..."`);
-                    } else {
-                        console.warn(`[AI Scan] Extraction returned no text for pages ${sorted.join(', ')} — likely a scanned/image-only PDF. Falling back to topic-only.`);
-                    }
-                } catch (extractErr) {
-                    // Extraction failure (e.g. scanned/image-only PDF with no text
-                    // layer, or a CORS-blocked file host) — fall back to the
-                    // topic-only request rather than blocking the scan entirely.
-                    console.error('[AI Scan] PDF text extraction failed, falling back to topic-only:', extractErr);
+            try {
+                pageText = await extractDocumentText(doc!, sorted);
+                if (pageText) {
+                    console.log(`[AI Scan] Extracted ${pageText.length} chars. Preview: "${pageText.slice(0, 150)}..."`);
+                } else {
+                    console.warn('[AI Scan] Extraction returned no text (unsupported type, or a scanned/image-only document) — falling back to topic-only.');
                 }
+            } catch (extractErr) {
+                // Extraction failure (e.g. scanned/image-only PDF with no text
+                // layer, a corrupt/legacy-format file, or a CORS-blocked host) —
+                // fall back to the topic-only request rather than blocking the scan.
+                console.error('[AI Scan] Document text extraction failed, falling back to topic-only:', extractErr);
             }
             // Instructions are sent as their own field regardless of whether page
             // text extraction succeeded — previously this was only sent alongside
@@ -164,6 +262,7 @@ function AIScanPanel({
             const [res] = await Promise.all([
                 api.post('/teacher/blackboard/ai/scan', {
                     topic: topic.trim(),
+                    mode,
                     ...(pageText ? { pageText } : {}),
                     ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
                 }),
@@ -280,6 +379,21 @@ function AIScanPanel({
                     {/* Sticky footer — instructions + scan button never scroll */}
                     <div className="shrink-0 px-4 pt-3 pb-4 border-t border-white/10 flex flex-col gap-3 mb-7" style={{ background: '#000' }}>
                         <div>
+                            <p className="text-[11px] text-white/50 mb-1.5">Output</p>
+                            <div className="flex gap-2">
+                                {([
+                                    { key: 'summary' as const, label: 'Quick Summary' },
+                                    { key: 'notes' as const, label: 'Detailed Notes' },
+                                ]).map(opt => (
+                                    <button key={opt.key} type="button" onClick={() => setMode(opt.key)}
+                                        className={`flex-1 h-8 rounded-lg text-[11px] font-semibold border transition-all ${mode === opt.key ? 'bg-primary/20 border-primary/50 text-white' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div>
                             <p className="text-[11px] text-white/50 mb-1.5">Instructions (optional)</p>
                             <textarea
                                 value={instructions}
@@ -326,6 +440,18 @@ function AIScanPanel({
                                         <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
                                         <p className="text-xs text-white/80">{point}</p>
                                     </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Detailed Notes — only present when scanned in Detailed Notes mode */}
+                    {result.detailedNotes && (
+                        <div>
+                            <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">Detailed Notes</p>
+                            <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                                {result.detailedNotes.split(/\n{2,}/).map((para, i) => (
+                                    <p key={i} className="text-xs text-white/80 leading-relaxed whitespace-pre-line">{para}</p>
                                 ))}
                             </div>
                         </div>
