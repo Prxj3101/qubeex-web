@@ -58,15 +58,59 @@ interface QuizQuestion {
     question: string;
     options: string[];
     answer: number;
+    /** Why the correct option is right — shown once the answer is revealed. Best-effort from the model. */
+    explanation?: string;
 }
 
 interface ScanResult {
     topic: string;
     overview: string;
-    keyPoints: string[];
-    images: { url: string; caption: string }[];
-    // Only present when the scan was run in "Detailed Notes" mode.
-    detailedNotes?: string;
+    // Typed as unknown, not string[]/string: these fields originate from an LLM
+    // and, despite the backend normalizing them, the shape isn't something the
+    // type system can actually guarantee at runtime. Rendering goes through
+    // toBullets/toParagraphs so a wrong shape degrades instead of crashing —
+    // an array reaching `.split()` took the whole page down previously.
+    keyPoints: unknown;
+    images?: { url: string; caption: string }[];
+    /** Only present when the scan was run in "Detailed Notes" mode. */
+    detailedNotes?: unknown;
+}
+
+/** Coerces an LLM-sourced value into bullet strings, whatever shape it arrived in. */
+function toBullets(value: unknown): string[] {
+    if (Array.isArray(value)) {
+        return value
+            .map(item => (typeof item === 'string' ? item : item == null ? '' : String(item)))
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+    if (typeof value === 'string') {
+        return value.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    }
+    return [];
+}
+
+/** Coerces an LLM-sourced value into paragraph strings, whatever shape it arrived in. */
+function toParagraphs(value: unknown): string[] {
+    if (typeof value === 'string') {
+        return value.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+    }
+    if (Array.isArray(value)) {
+        return value
+            .map(item => {
+                if (typeof item === 'string') return item;
+                // Sectioned notes can arrive as [{ heading, body }, ...].
+                if (item && typeof item === 'object') {
+                    return Object.values(item as Record<string, unknown>)
+                        .filter((v): v is string => typeof v === 'string')
+                        .join('\n');
+                }
+                return '';
+            })
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+    return [];
 }
 
 function stripExtension(name: string) {
@@ -431,11 +475,11 @@ function AIScanPanel({
                     </div>
 
                     {/* Key Points */}
-                    {result.keyPoints.length > 0 && (
+                    {toBullets(result.keyPoints).length > 0 && (
                         <div>
                             <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">Key Points</p>
                             <div className="space-y-1">
-                                {result.keyPoints.map((point, i) => (
+                                {toBullets(result.keyPoints).map((point, i) => (
                                     <div key={i} className="flex items-start gap-2">
                                         <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
                                         <p className="text-xs text-white/80">{point}</p>
@@ -446,11 +490,11 @@ function AIScanPanel({
                     )}
 
                     {/* Detailed Notes — only present when scanned in Detailed Notes mode */}
-                    {result.detailedNotes && (
+                    {toParagraphs(result.detailedNotes).length > 0 && (
                         <div>
                             <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">Detailed Notes</p>
                             <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2">
-                                {result.detailedNotes.split(/\n{2,}/).map((para, i) => (
+                                {toParagraphs(result.detailedNotes).map((para, i) => (
                                     <p key={i} className="text-xs text-white/80 leading-relaxed whitespace-pre-line">{para}</p>
                                 ))}
                             </div>
@@ -458,11 +502,11 @@ function AIScanPanel({
                     )}
 
                     {/* Images */}
-                    {result.images.length > 0 && (
+                    {(result.images?.length ?? 0) > 0 && (
                         <div>
                             <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">Related Images</p>
                             <div className="space-y-2">
-                                {result.images.map((img, i) => (
+                                {(result.images ?? []).map((img, i) => (
                                     <div key={i} className="rounded-xl overflow-hidden border border-white/10">
                                         <img src={img.url} alt={img.caption} className="w-full object-cover" />
                                         <p className="text-[10px] text-white/60 text-center py-1.5 bg-white/5">{img.caption}</p>
@@ -483,10 +527,101 @@ const CHAT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 type ChatMessage = { role: 'user' | 'ai'; text: string; streaming?: boolean; timestamp?: number };
 
+// ── Lightweight markdown rendering for chat replies ───────────────────────────
+//
+// The model answers in markdown (bold, numbered steps, bullets), which
+// previously rendered as literal "**asterisks**" in the bubble. A full
+// markdown library is overkill here and behaves badly with the word-by-word
+// streaming below — it would re-parse on every tick and flash broken output
+// for half-written syntax. This handles the subset that actually appears and
+// leaves unclosed markers as plain text mid-stream, which reads naturally.
+
+/** Renders inline emphasis/code within a single line. */
+function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+    // Order matters: **bold** must be tried before *italic*, or the italic
+    // rule would consume the first pair of asterisks in a bold marker.
+    const pattern = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*\n]+\*)/g;
+    const out: React.ReactNode[] = [];
+    let last = 0;
+    let m: RegExpExecArray | null;
+    let n = 0;
+    while ((m = pattern.exec(text)) !== null) {
+        if (m.index > last) out.push(text.slice(last, m.index));
+        const tok = m[0];
+        const key = `${keyPrefix}-i${n++}`;
+        if (tok.startsWith('**')) {
+            out.push(<strong key={key} className="font-semibold text-white">{tok.slice(2, -2)}</strong>);
+        } else if (tok.startsWith('`')) {
+            out.push(<code key={key} className="px-1 py-0.5 rounded bg-white/10 text-[11px] font-mono">{tok.slice(1, -1)}</code>);
+        } else {
+            out.push(<em key={key}>{tok.slice(1, -1)}</em>);
+        }
+        last = m.index + tok.length;
+    }
+    if (last < text.length) out.push(text.slice(last));
+    return out;
+}
+
+function Markdown({ text }: { text: string }) {
+    const lines = text.split('\n');
+    const blocks: React.ReactNode[] = [];
+    let paragraph: string[] = [];
+    let list: { ordered: boolean; items: string[] } | null = null;
+
+    const flushParagraph = () => {
+        if (paragraph.length === 0) return;
+        const key = `p${blocks.length}`;
+        blocks.push(<p key={key}>{renderInline(paragraph.join(' '), key)}</p>);
+        paragraph = [];
+    };
+    const flushList = () => {
+        if (!list) return;
+        const key = `l${blocks.length}`;
+        const items = list.items.map((it, i) => <li key={`${key}-${i}`}>{renderInline(it, `${key}-${i}`)}</li>);
+        blocks.push(list.ordered
+            ? <ol key={key} className="list-decimal pl-4 space-y-0.5">{items}</ol>
+            : <ul key={key} className="list-disc pl-4 space-y-0.5">{items}</ul>);
+        list = null;
+    };
+
+    for (const raw of lines) {
+        const line = raw.trimEnd();
+        if (!line.trim()) { flushParagraph(); flushList(); continue; }
+
+        const heading = line.match(/^#{1,6}\s+(.*)$/);
+        const ordered = line.match(/^\s*\d+[.)]\s+(.*)$/);
+        const bullet = line.match(/^\s*[-*•]\s+(.*)$/);
+
+        if (heading) {
+            flushParagraph(); flushList();
+            const key = `h${blocks.length}`;
+            blocks.push(<p key={key} className="font-semibold text-white mt-1">{renderInline(heading[1], key)}</p>);
+        } else if (ordered || bullet) {
+            flushParagraph();
+            const isOrdered = !!ordered;
+            const item = (ordered ?? bullet)![1];
+            // A change of list type starts a new list rather than mixing markers.
+            if (list && list.ordered !== isOrdered) flushList();
+            if (!list) list = { ordered: isOrdered, items: [] };
+            list.items.push(item);
+        } else {
+            flushList();
+            paragraph.push(line.trim());
+        }
+    }
+    flushParagraph();
+    flushList();
+
+    return <div className="space-y-1.5">{blocks}</div>;
+}
+
 // Reveals `text` word-by-word like a typewriter, then calls onDone once fully shown.
 function StreamingText({ text, onDone, onUpdate }: { text: string; onDone: () => void; onUpdate?: () => void }) {
     const [shown, setShown] = useState('');
     useEffect(() => {
+        // Split on spaces only (not all whitespace) so newlines stay attached to
+        // their word — otherwise every line break would be lost and the
+        // markdown block structure would collapse into one paragraph.
         const words = text.split(' ');
         let i = 0;
         setShown('');
@@ -502,7 +637,7 @@ function StreamingText({ text, onDone, onUpdate }: { text: string; onDone: () =>
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [text]);
-    return <>{shown}</>;
+    return <Markdown text={shown} />;
 }
 
 function loadPersistedChat(): { messages: ChatMessage[]; savedAt: Date } | null {
@@ -538,9 +673,41 @@ const WELCOME_MESSAGE: ChatMessage = {
 // ── AI Prompt Panel ───────────────────────────────────────────────────────────
 const THINKING_WORDS = ['Thinking', 'Working on it', 'Analyzing', 'Reasoning', 'Putting it together'];
 
-function AIPromptPanel({ onClose, context }: { onClose: () => void; context?: string }) {
+function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
+    onClose: () => void;
+    context?: string;
+    doc: { url: string; type: string } | null;
+    selectedPages: number[];
+    currentPage: number;
+}) {
     const [input, setInput] = useState('');
     const [aiLoading, setAiLoading] = useState(false);
+    // Text of the page(s) on the board, so the assistant can answer against
+    // what is actually being taught rather than just the file name.
+    const [pageText, setPageText] = useState('');
+
+    // Page selection lives in the Scan panel, so a teacher who opens Prompt
+    // directly has selected nothing — fall back to the page they're actually
+    // looking at, which is what "the lesson" means from the chat's point of view.
+    const contextPages = selectedPages.length > 0 ? selectedPages : [currentPage];
+    const contextPagesKey = contextPages.join(',');
+
+    useEffect(() => {
+        let cancelled = false;
+        if (!doc) { setPageText(''); return; }
+        extractDocumentText(doc, contextPages)
+            .then(text => {
+                if (cancelled) return;
+                if (!text) console.warn(`[AI Prompt] No text extracted for page(s) ${contextPagesKey} — the assistant will answer without document context.`);
+                setPageText(text);
+            })
+            .catch(err => {
+                console.error('[AI Prompt] Could not read document for context:', err);
+                if (!cancelled) setPageText('');
+            });
+        return () => { cancelled = true; };
+        // Re-extract when the document or the pages in view change.
+    }, [doc, contextPagesKey]); // eslint-disable-line react-hooks/exhaustive-deps
     const [restoredAt, setRestoredAt] = useState<Date | null>(null);
     const [thinkingWordIdx, setThinkingWordIdx] = useState(0);
     const [showThinkingText, setShowThinkingText] = useState(false);
@@ -638,6 +805,7 @@ function AIPromptPanel({ onClose, context }: { onClose: () => void; context?: st
                 api.post('/teacher/blackboard/ai/chat', {
                     messages: apiMessages,
                     ...(context ? { context } : {}),
+                    ...(pageText ? { pageText } : {}),
                 }),
                 minDelay,
             ]);
@@ -709,6 +877,10 @@ function AIPromptPanel({ onClose, context }: { onClose: () => void; context?: st
                                     onDone={() => {
                                         setMessages(prev => prev.map((m, mi) => mi === i ? { ...m, streaming: false } : m));
                                     }} />
+                            ) : msg.role === 'ai' ? (
+                                // Only AI replies are markdown — a teacher typing
+                                // "2 * 3" shouldn't get mangled into italics.
+                                <Markdown text={msg.text} />
                             ) : msg.text}
                         </div>
                         {msg.role === 'ai' && !msg.streaming && msg !== WELCOME_MESSAGE && (
@@ -810,30 +982,54 @@ function AIQuizPanel({
     const handleGenerate = async () => {
         if (!canGenerate) return;
         const sorted = [...selectedPages].sort((a, b) => a - b);
-        const pagesLabel = sorted.length > 0 ? `Pages ${sorted.join(', ')}` : (docName ? stripExtension(docName) : '');
-        const topic = [pagesLabel, instructions.trim()].filter(Boolean).join(' — ');
+        // Just the page/document label — instructions go as their own field so
+        // they shape the questions rather than competing with the subject.
+        const topic = sorted.length > 0 ? `Pages ${sorted.join(', ')}` : (docName ? stripExtension(docName) : instructions.trim());
         if (!topic.trim()) return;
         setPhase('loading');
 
         const minDelay = new Promise(resolve => setTimeout(resolve, 5000));
 
         try {
-            // Ground the quiz in what's actually on the selected pages instead of
-            // having the AI guess from just the page numbers + instructions.
+            // Ground the quiz in what's actually on the selected pages/slides.
+            // Uses the shared extractor so PPTX works too — this previously
+            // called the PDF-only path, leaving PowerPoint quizzes ungrounded.
             let pageText = '';
-            if (isPdf && sorted.length > 0) {
-                try {
-                    pageText = await extractPdfPageText(doc!.url, sorted);
-                } catch {
-                    // Extraction failure (e.g. scanned/image-only PDF with no text
-                    // layer) — fall back to the topic-only request rather than blocking.
-                }
+            try {
+                pageText = await extractDocumentText(doc!, sorted);
+                if (!pageText) console.warn('[AI Quiz] No text extracted — questions will not be grounded in the document.');
+            } catch (extractErr) {
+                console.error('[AI Quiz] Document text extraction failed, falling back to topic-only:', extractErr);
             }
             const [res] = await Promise.all([
-                api.post('/teacher/blackboard/ai/quiz', { topic: topic.trim(), count, difficulty, ...(pageText ? { pageText } : {}) }),
+                api.post('/teacher/blackboard/ai/quiz', {
+                    topic: topic.trim(),
+                    count,
+                    difficulty,
+                    ...(pageText ? { pageText } : {}),
+                    ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+                }),
                 minDelay,
             ]);
-            setQuestions(res.data.data.questions);
+            // The backend normalizes these, but this data ultimately originates
+            // from an LLM — validate the shape at the boundary rather than
+            // trusting it all the way down into rendering, where a bad
+            // `options` array would crash the panel mid-quiz.
+            const incoming: QuizQuestion[] = (Array.isArray(res.data?.data?.questions) ? res.data.data.questions : [])
+                .filter((q: unknown): q is QuizQuestion => {
+                    if (!q || typeof q !== 'object') return false;
+                    const c = q as Partial<QuizQuestion>;
+                    return typeof c.question === 'string'
+                        && Array.isArray(c.options) && c.options.length >= 2
+                        && typeof c.answer === 'number' && c.answer >= 0 && c.answer < c.options.length;
+                });
+            if (incoming.length === 0) {
+                await minDelay;
+                toast.error('Quiz generation returned no usable questions. Please try again.');
+                setPhase('input');
+                return;
+            }
+            setQuestions(incoming);
             setCurrentQ(0);
             setAnswers({});
             setRevealedMap({});
@@ -1063,14 +1259,22 @@ function AIQuizPanel({
                         </div>
 
                         {revealed && (
-                            <div className="p-2.5 rounded-xl flex items-center gap-2 text-xs font-semibold"
-                                style={selectedOption === q.answer
-                                    ? { background: 'rgba(16,185,129,0.1)', color: '#34D399' }
-                                    : { background: 'rgba(239,68,68,0.1)', color: '#F87171' }}>
-                                {selectedOption === q.answer ? (
-                                    <><Check size={13} strokeWidth={3} /> Correct!</>
-                                ) : (
-                                    <><X size={13} strokeWidth={3} /> Incorrect — correct answer is {String.fromCharCode(65 + q.answer)}. {q.options[q.answer]}</>
+                            <div className="space-y-2">
+                                <div className="p-2.5 rounded-xl flex items-center gap-2 text-xs font-semibold"
+                                    style={selectedOption === q.answer
+                                        ? { background: 'rgba(16,185,129,0.1)', color: '#34D399' }
+                                        : { background: 'rgba(239,68,68,0.1)', color: '#F87171' }}>
+                                    {selectedOption === q.answer ? (
+                                        <><Check size={13} strokeWidth={3} /> Correct!</>
+                                    ) : (
+                                        <><X size={13} strokeWidth={3} /> Incorrect — correct answer is {String.fromCharCode(65 + q.answer)}. {q.options[q.answer]}</>
+                                    )}
+                                </div>
+                                {q.explanation && (
+                                    <div className="p-2.5 rounded-xl bg-white/5 border border-white/10">
+                                        <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1">Why</p>
+                                        <p className="text-xs text-white/80 leading-relaxed">{q.explanation}</p>
+                                    </div>
                                 )}
                             </div>
                         )}
@@ -1905,7 +2109,13 @@ export default function BlackboardPage() {
                                     />
                                 )}
                                 {activeMode === 'prompt' && (
-                                    <AIPromptPanel onClose={() => setActiveMode(null)} context={doc?.name} />
+                                    <AIPromptPanel
+                                        onClose={() => setActiveMode(null)}
+                                        context={doc?.name}
+                                        doc={doc}
+                                        selectedPages={selectedScanPages}
+                                        currentPage={currentPage}
+                                    />
                                 )}
                                 {activeMode === 'quiz' && (
                                     <AIQuizPanel
