@@ -1381,6 +1381,10 @@ export default function BlackboardPage() {
     const [showLoadMenu, setShowLoadMenu] = useState(false);
     const router = useRouter();
     const [totalPages, setTotalPages] = useState(0);
+    // Always-editable "current / total" page box — type a page number and hit Enter to jump.
+    const [pageJumpValue, setPageJumpValue] = useState('1');
+    const [isPageJumpFocused, setIsPageJumpFocused] = useState(false);
+    const pageJumpInputRef = useRef<HTMLInputElement>(null);
 
     // Pages selected in the AI Scan panel — also shown as a badge on the main
     // blackboard viewer when browsing that page, and used to drive the scan animation.
@@ -1442,6 +1446,16 @@ export default function BlackboardPage() {
 
     const [showControls, setShowControls] = useState(true);
     const controlsTimerRef = useRef<NodeJS.Timeout | null>(null);
+    // Cursor sitting on top of the floating toolbar should pin it visible — mousemove
+    // over the document behind/around it still bubbles and would otherwise re-arm the
+    // hide timer, so the timer callback itself checks this ref before hiding.
+    const isOverControlsBarRef = useRef(false);
+    const scheduleHideControls = () => {
+        if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
+        controlsTimerRef.current = setTimeout(() => {
+            if (!isOverControlsBarRef.current) setShowControls(false);
+        }, 2500);
+    };
 
     const [scale, setScale] = useState(1);
     const [rotation, setRotation] = useState(0);
@@ -1482,12 +1496,55 @@ export default function BlackboardPage() {
 
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
+            if (isPageJumpFocused) return; // don't hijack arrow keys while typing a page number
             if (e.key === 'ArrowRight') setCurrentPage(p => Math.min(totalPages, p + 1));
             if (e.key === 'ArrowLeft') setCurrentPage(p => Math.max(1, p - 1));
         };
         window.addEventListener('keydown', handleKey);
         return () => window.removeEventListener('keydown', handleKey);
-    }, [totalPages]);
+    }, [totalPages, isPageJumpFocused]);
+
+    // Keep the page-jump box in sync with the actual current page, except while the
+    // teacher is actively typing in it (otherwise every render would stomp their input).
+    useEffect(() => {
+        if (!isPageJumpFocused) setPageJumpValue(String(currentPage));
+    }, [currentPage, isPageJumpFocused]);
+
+    // Commit whatever's typed in the page-jump input: clamp to a valid page.
+    const commitPageJump = () => {
+        const n = parseInt(pageJumpValue, 10);
+        if (!isNaN(n) && totalPages > 0) {
+            setCurrentPage(Math.min(totalPages, Math.max(1, n)));
+        } else {
+            setPageJumpValue(String(currentPage));
+        }
+    };
+
+    // Prev/next page arrows: a normal click steps one page. Press-and-hold keeps
+    // stepping continuously (after a short delay, so a quick click doesn't double-step)
+    // until the mouse/touch is released.
+    const pageHoldTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const pageHoldIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const stepPage = (dir: -1 | 1) => {
+        setCurrentPage(p => dir === 1 ? Math.min(totalPages, p + 1) : Math.max(1, p - 1));
+    };
+    const startPageHold = (dir: -1 | 1) => {
+        // Keep the floating toolbar visible for the whole hold — normally it auto-hides
+        // after 2.5s of no mouse movement, but holding a button still counts as "in use".
+        setShowControls(true);
+        if (controlsTimerRef.current) { clearTimeout(controlsTimerRef.current); controlsTimerRef.current = null; }
+        stepPage(dir);
+        pageHoldTimeoutRef.current = setTimeout(() => {
+            pageHoldIntervalRef.current = setInterval(() => stepPage(dir), 120);
+        }, 400);
+    };
+    const stopPageHold = () => {
+        if (pageHoldTimeoutRef.current) { clearTimeout(pageHoldTimeoutRef.current); pageHoldTimeoutRef.current = null; }
+        if (pageHoldIntervalRef.current) { clearInterval(pageHoldIntervalRef.current); pageHoldIntervalRef.current = null; }
+        // Resume the normal auto-hide countdown now that the hold has ended.
+        scheduleHideControls();
+    };
+    useEffect(() => stopPageHold, []);
 
     useEffect(() => {
         if (viewerRef.current && pageWidth && pageHeight) {
@@ -1529,8 +1586,7 @@ export default function BlackboardPage() {
 
     const handleMouseMove = () => {
         setShowControls(true);
-        if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-        controlsTimerRef.current = setTimeout(() => setShowControls(false), 2500);
+        scheduleHideControls();
     };
 
     const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -1750,8 +1806,7 @@ export default function BlackboardPage() {
                                             if (totalPages <= 1) return;
                                             e.preventDefault();
                                             setShowControls(true);
-                                            if (controlsTimerRef.current) clearTimeout(controlsTimerRef.current);
-                                            controlsTimerRef.current = setTimeout(() => setShowControls(false), 2500);
+                                            scheduleHideControls();
                                             if (e.deltaY > 0) {
                                                 setCurrentPage(p => Math.min(totalPages, p + 1));
                                             } else if (e.deltaY < 0) {
@@ -1905,6 +1960,15 @@ export default function BlackboardPage() {
                                         drag
                                         dragMomentum={false}
                                         dragConstraints={docViewerRef}
+                                        onMouseEnter={() => {
+                                            isOverControlsBarRef.current = true;
+                                            setShowControls(true);
+                                            if (controlsTimerRef.current) { clearTimeout(controlsTimerRef.current); controlsTimerRef.current = null; }
+                                        }}
+                                        onMouseLeave={() => {
+                                            isOverControlsBarRef.current = false;
+                                            scheduleHideControls();
+                                        }}
                                         style={{ x: barX, y: barY, background: 'rgba(0,0,0,0.6)', maxWidth: 'calc(100% - 2rem)' }}
                                         animate={{ opacity: showControls ? 1 : 0 }}
                                         transition={{ duration: 0.3 }}
@@ -1968,14 +2032,39 @@ export default function BlackboardPage() {
                                             <>
                                                 <div className="w-px h-4 bg-white/10" />
 
-                                                <button onClick={() => setCurrentPage(p => Math.max(1, p - 1))} disabled={currentPage === 1}
+                                                <button
+                                                    onMouseDown={() => startPageHold(-1)}
+                                                    onMouseUp={stopPageHold}
+                                                    onMouseLeave={stopPageHold}
+                                                    onTouchStart={() => startPageHold(-1)}
+                                                    onTouchEnd={stopPageHold}
+                                                    disabled={currentPage === 1}
                                                     className="w-6 h-6 flex items-center justify-center text-white/50 hover:text-white disabled:opacity-20 transition-all">
                                                     <ChevronLeft size={14} />
                                                 </button>
-                                                <span className="text-xs text-white/60 text-center shrink-0">
-                                                    {currentPage} / {totalPages}
-                                                </span>
-                                                <button onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} disabled={currentPage === totalPages}
+                                                <input
+                                                    ref={pageJumpInputRef}
+                                                    type="text"
+                                                    inputMode="numeric"
+                                                    value={pageJumpValue}
+                                                    title="Type a page number and press Enter to jump"
+                                                    onFocus={e => { setIsPageJumpFocused(true); e.currentTarget.select(); }}
+                                                    onChange={e => setPageJumpValue(e.target.value.replace(/[^0-9]/g, ''))}
+                                                    onBlur={() => { setIsPageJumpFocused(false); commitPageJump(); }}
+                                                    onKeyDown={e => {
+                                                        if (e.key === 'Enter') { e.currentTarget.blur(); }
+                                                        if (e.key === 'Escape') { setPageJumpValue(String(currentPage)); e.currentTarget.blur(); }
+                                                    }}
+                                                    className="w-8 text-xs text-center bg-white/10 rounded text-white shrink-0 focus:outline-none focus:ring-1 focus:ring-white/40"
+                                                />
+                                                <span className="text-xs text-white/60 shrink-0">/ {totalPages}</span>
+                                                <button
+                                                    onMouseDown={() => startPageHold(1)}
+                                                    onMouseUp={stopPageHold}
+                                                    onMouseLeave={stopPageHold}
+                                                    onTouchStart={() => startPageHold(1)}
+                                                    onTouchEnd={stopPageHold}
+                                                    disabled={currentPage === totalPages}
                                                     className="w-6 h-6 flex items-center justify-center text-white/50 hover:text-white disabled:opacity-20 transition-all">
                                                     <ChevronRight size={14} />
                                                 </button>
