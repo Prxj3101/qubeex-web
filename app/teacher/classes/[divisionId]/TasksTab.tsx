@@ -96,6 +96,18 @@ interface BuilderQuestion {
     question: Question;
 }
 
+// Flow blocks used to auto-paginate the paper builder (TEST and ASSIGNMENT) into A4-sized pages.
+type FlowBlock =
+    | { key: string; kind: 'header' }
+    | { key: string; kind: 'spacer'; height: number }
+    | { key: string; kind: 'sectionHeader'; section: PaperSection }
+    | { key: string; kind: 'sectionEmpty'; section: PaperSection }
+    | { key: string; kind: 'question'; section: PaperSection; bq: BuilderQuestion; num: number }
+    | { key: string; kind: 'assignmentQuestionsHeader' }
+    | { key: string; kind: 'assignmentEmpty' }
+    | { key: string; kind: 'assignmentQuestion'; bq: BuilderQuestion; num: number }
+    | { key: string; kind: 'footer' };
+
 interface TestBase {
     id: string;
     title: string;
@@ -3286,6 +3298,9 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     const [dragQId, setDragQId] = useState<string | null>(null);
     const [dragOverQId, setDragOverQId] = useState<string | null>(null);
     const [removeQConfirm, setRemoveQConfirm] = useState<{ questionId: string; questionText: string } | null>(null);
+    const [pageGroups, setPageGroups] = useState<string[][] | null>(null);
+    const pageBlockElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+    const testFlowBlocksRef = useRef<FlowBlock[]>([]);
 
     useEffect(() => {
         const loadUrl = entityType === 'assignment'
@@ -3509,6 +3524,46 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
         ? { position: 'fixed' as const, top: mainTop, left: 0, right: 0, bottom: 0, zIndex: 60 }
         : { position: 'absolute' as const, inset: 0, zIndex: 50 };
 
+    // ── A4 pagination (both TEST and ASSIGNMENT papers) ─────────────────────────
+    // CSS spec fixes 1in = 96px, so mm→px is an exact conversion (not an approximation).
+    const MM_TO_PX = 96 / 25.4;
+    const PAGE_HEIGHT_PX = 297 * MM_TO_PX;
+    const PAGE_CHROME_PX = 11 + 11; // top decorative bars (6+3+2) + bottom bars (2+3+6)
+    const PAGE_PADDING_Y_PX = 48; // content wrapper padding: 24px top + 24px bottom
+    const PAGE_CONTENT_CAPACITY_PX = PAGE_HEIGHT_PX - PAGE_CHROME_PX - PAGE_PADDING_Y_PX;
+
+    // Hook must be called unconditionally every render (before the `loading` early
+    // return below) — it reads the latest flow-block list via a ref that's updated
+    // further down in the render body, since the block list itself depends on
+    // `theme`/`sections`/`builderQs`, which are only meaningful once loaded.
+    useLayoutEffect(() => {
+        if (loading) return;
+        const heights = testFlowBlocksRef.current.map(b => {
+            const el = pageBlockElRefs.current.get(b.key);
+            return { key: b.key, height: el ? el.getBoundingClientRect().height : 0 };
+        });
+        const groups: string[][] = [];
+        let current: string[] = [];
+        let currentHeight = 0;
+        for (const { key, height } of heights) {
+            if (current.length > 0 && currentHeight + height > PAGE_CONTENT_CAPACITY_PX) {
+                groups.push(current);
+                current = [];
+                currentHeight = 0;
+            }
+            current.push(key);
+            currentHeight += height;
+        }
+        if (current.length > 0 || groups.length === 0) groups.push(current);
+        setPageGroups(prev => {
+            if (prev && prev.length === groups.length && prev.every((g, i) => g.length === groups[i].length && g.every((k, j) => k === groups[i][j]))) {
+                return prev;
+            }
+            return groups;
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [loading, paperType, sections, builderQs, answerSpace, isRandomized, title, description, durationMinutes, maxAttempts, startDate, validUntil, totalMarks, activeSectionId, paperZoom]);
+
     if (loading) return (
         <div style={containerStyle} className="bg-background flex items-center justify-center">
             <Loader2 size={24} className="animate-spin text-muted-foreground" />
@@ -3548,8 +3603,303 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
         fontFamily: 'inherit',
     };
 
-    // Global question counter across sections
-    let qCounter = 0;
+    const testFlowBlocks: FlowBlock[] = [];
+    testFlowBlocks.push({ key: 'header', kind: 'header' });
+    if (paperType === 'TEST') {
+        let qNum = 0;
+        sections.forEach((section, si) => {
+            if (si > 0) testFlowBlocks.push({ key: `spacer-${section.id}`, kind: 'spacer', height: 24 });
+            testFlowBlocks.push({ key: `sh-${section.id}`, kind: 'sectionHeader', section });
+            const sectionQs = builderQs.filter(q => q.sectionId === section.id);
+            if (sectionQs.length === 0) {
+                testFlowBlocks.push({ key: `se-${section.id}`, kind: 'sectionEmpty', section });
+            } else {
+                sectionQs.forEach(bq => {
+                    qNum++;
+                    testFlowBlocks.push({ key: `q-${bq.questionId}`, kind: 'question', section, bq, num: qNum });
+                });
+            }
+        });
+    } else {
+        testFlowBlocks.push({ key: 'assign-qh', kind: 'assignmentQuestionsHeader' });
+        if (builderQs.length === 0) {
+            testFlowBlocks.push({ key: 'assign-empty', kind: 'assignmentEmpty' });
+        } else {
+            builderQs.forEach((bq, qi) => {
+                testFlowBlocks.push({ key: `aq-${bq.questionId}`, kind: 'assignmentQuestion', bq, num: qi + 1 });
+            });
+        }
+    }
+    testFlowBlocks.push({ key: 'spacer-footer', kind: 'spacer', height: 16 });
+    testFlowBlocks.push({ key: 'footer', kind: 'footer' });
+    testFlowBlocksRef.current = testFlowBlocks;
+    const testBlocksByKey = new Map(testFlowBlocks.map(b => [b.key, b] as const));
+
+    const renderFlowBlock = (block: FlowBlock) => {
+        switch (block.kind) {
+            case 'header':
+                return (
+                    <div style={{ borderBottom: `1.5px solid ${theme.paperBorder}`, paddingBottom: 16, marginBottom: 16 }}>
+                        <div className="text-center mb-4">
+                            <input value={title} onChange={e => setTitle(e.target.value)} placeholder={entityType === 'assignment' ? 'Assignment Title' : 'Paper Title'}
+                                className="text-center text-xl font-bold w-full focus:outline-none bg-transparent"
+                                style={{ color: theme.titleColor, borderBottom: `1px dashed ${theme.paperBorder}`, paddingBottom: 2 }} />
+                            <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description / instructions for students (optional)"
+                                rows={2} className="w-full text-center text-xs mt-2 resize-none focus:outline-none bg-transparent"
+                                style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}` }} />
+                        </div>
+                        <div className="flex items-center justify-between text-[13px] mt-3" style={{ color: theme.metaColor }}>
+                            <div className="flex items-center gap-6">
+                                <span><span className="font-semibold">Time:</span> {durationMinutes} min</span>
+                                <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
+                                {startDate && <span><span className="font-semibold">Start:</span> {new Date(startDate).toLocaleDateString()}</span>}
+                                {validUntil && <span><span className="font-semibold">Valid Until:</span> {new Date(validUntil).toLocaleDateString()}</span>}
+                            </div>
+                            <div className="flex items-center gap-4">
+                                <span><span className="font-semibold">Total Questions:</span> {builderQs.length}</span>
+                                <span className="font-bold text-base" style={{ color: theme.accentColor }}>Total Marks: {totalMarks}</span>
+                            </div>
+                        </div>
+                        {isRandomized && (
+                            <div className="mt-2 flex items-center gap-1.5 text-[10px]" style={{ color: theme.headingColor }}>
+                                <Shuffle size={10} /> Questions will be shuffled for each student
+                            </div>
+                        )}
+                    </div>
+                );
+            case 'spacer':
+                return <div style={{ height: block.height }} />;
+            case 'sectionHeader': {
+                const section = block.section;
+                const sectionQs = builderQs.filter(q => q.sectionId === section.id);
+                const isActive = activeSectionId === section.id;
+                const effectiveAttempt = section.attemptCount > 0 ? Math.min(section.attemptCount, sectionQs.length) : sectionQs.length;
+                const sectionTotal = effectiveAttempt * section.marksPerQuestion;
+                return (
+                    <div>
+                        <div className="flex items-center gap-3 px-3 py-2 cursor-pointer -mx-3 mb-3 group transition-all"
+                            style={{ background: isActive ? theme.sectionActiveBg : theme.sectionBg, borderLeft: `3px solid ${isActive ? theme.sectionBorder : theme.sectionBorderInactive}`, borderBottom: `1px solid ${theme.paperBorder}` }}
+                            onClick={() => setActiveSectionId(section.id)}>
+                            <div className="flex-1 flex items-center gap-3">
+                                <input value={section.title} onClick={e => e.stopPropagation()}
+                                    onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, title: e.target.value } : s))}
+                                    className="text-sm font-bold uppercase tracking-wider bg-transparent focus:outline-none"
+                                    style={{ color: theme.sectionText, borderBottom: `1px dashed ${theme.sectionBorderInactive}`, paddingBottom: 1 }} />
+                                {sectionQs.length > 0 && (
+                                    <span className="text-[10px]" style={{ color: theme.sectionMeta }}>
+                                        ({effectiveAttempt}/{sectionQs.length} × {section.marksPerQuestion}m = {sectionTotal} marks)
+                                    </span>
+                                )}
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                                <span className="text-[12px]" style={{ color: theme.sectionMeta }}>Attempt</span>
+                                <input type="number" min={0} max={sectionQs.length || 99}
+                                    value={section.attemptCount === 0 ? '' : section.attemptCount}
+                                    placeholder="all"
+                                    onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, attemptCount: Number(e.target.value) || 0 } : s))}
+                                    className="w-10 text-xs text-center rounded focus:outline-none"
+                                    style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
+                                <span className="text-[10px]" style={{ color: theme.sectionMeta }}>·</span>
+                                <input type="number" min={0} max={100} value={section.marksPerQuestion}
+                                    onChange={e => {
+                                        const mpq = Number(e.target.value);
+                                        setSections(prev => prev.map(s => s.id === section.id ? { ...s, marksPerQuestion: mpq } : s));
+                                        setBuilderQs(prev => prev.map(q => q.sectionId === section.id ? { ...q, marks: mpq } : q));
+                                    }}
+                                    className="w-10 text-xs text-center rounded focus:outline-none"
+                                    style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
+                                <span className="text-[12px]" style={{ color: theme.sectionMeta }}>m each</span>
+                                {sections.length > 1 && (
+                                    <div className="flex flex-col gap-0 opacity-0 group-hover:opacity-100 transition-all">
+                                        <button onClick={() => moveSection(section.id, 'up')} disabled={sections.findIndex(s => s.id === section.id) === 0}
+                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowUp size={9} /></button>
+                                        <button onClick={() => moveSection(section.id, 'down')} disabled={sections.findIndex(s => s.id === section.id) === sections.length - 1}
+                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
+                                    </div>
+                                )}
+                                {sections.length > 1 && (
+                                    <button onClick={e => { e.stopPropagation(); setDeleteSectionConfirmId(section.id); }}
+                                        className="opacity-0 group-hover:opacity-100 transition-all p-0.5 rounded"
+                                        style={{ color: '#C05050' }}>
+                                        <X size={12} />
+                                    </button>
+                                )}
+                                {isActive && (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
+                                        style={{ background: theme.accentColor, color: theme.inputBg }}>ACTIVE</span>
+                                )}
+                            </div>
+                        </div>
+                        <input value={section.instruction}
+                            onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, instruction: e.target.value } : s))}
+                            placeholder="Section instruction (e.g. Answer any five of the following)"
+                            className="w-full text-sm italic mb-3 focus:outline-none bg-transparent"
+                            style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}`, paddingBottom: 2 }} />
+                    </div>
+                );
+            }
+            case 'sectionEmpty': {
+                const isActive = activeSectionId === block.section.id;
+                return (
+                    <div className="py-4 mb-3 text-center rounded" style={{ border: `1.5px dashed ${theme.emptyBorder}`, color: isActive ? theme.emptyActiveText : theme.emptyText }}>
+                        <p className="text-xs">{isActive ? '← Click a question from the bank to add it here' : 'Click section header to activate, then add questions'}</p>
+                    </div>
+                );
+            }
+            case 'question': {
+                const { section, bq, num } = block;
+                return (
+                    <div
+                        onDragOver={e => handleQDragOver(e, bq.questionId)}
+                        onDrop={() => handleQDrop(bq.questionId, section.id)}
+                        className={`flex items-start gap-3 py-2.5 group transition-all ${dragOverQId === bq.questionId ? 'bg-black/5 dark:bg-white/10' : ''} ${dragQId === bq.questionId ? 'opacity-40' : ''}`}
+                        style={{ borderBottom: `0.5px solid ${theme.rowBorder}` }}>
+                        <div draggable
+                            onDragStart={e => {
+                                handleQDragStart(bq.questionId);
+                                const row = e.currentTarget.parentElement as HTMLElement | null;
+                                if (row) e.dataTransfer.setDragImage(row, 20, 20);
+                            }}
+                            onDragEnd={handleQDragEnd}
+                            className="pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-grab active:cursor-grabbing" style={{ color: theme.sectionMeta }}>
+                            <GripVertical size={13} />
+                        </div>
+                        <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{num}.</span>
+                        <div className="flex-1 min-w-0 -mt-[2.8px]">
+                            <span className="text-[15px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
+                            {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
+                                const opts = bq.question.type === 'MCQ'
+                                    ? (bq.question.options ?? [])
+                                    : (() => { const d = bq.question.details as ConceptualDetails | null; return d ? [d.correct_answer, ...d.distractors] : []; })();
+                                return opts.length > 0 ? (
+                                    <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-0.5 pl-1">
+                                        {opts.map((opt, oi) => (
+                                            <span key={oi} className="text-[13px]" style={{ color: theme.metaColor }}>{String.fromCharCode(65 + oi)}) {opt}</span>
+                                        ))}
+                                    </div>
+                                ) : null;
+                            })()}
+                            {bq.question.type === 'TRUE_FALSE' && (
+                                <div className="mt-1.5 flex gap-8 pl-1">
+                                    <span className="text-[13px]" style={{ color: theme.metaColor }}>A) True</span>
+                                    <span className="text-[13px]" style={{ color: theme.metaColor }}>B) False</span>
+                                </div>
+                            )}
+                            {answerSpace && bq.question.type === 'NUMERICAL' && (
+                                <div className="mt-2 pl-1" style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.3, width: '60%' }} />
+                            )}
+                            {answerSpace && bq.question.type === 'SHORT_ANSWER' && (
+                                <div className="mt-2 pl-1 space-y-2.5">
+                                    {[0, 1, 2].map(i => <div key={i} style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.22, width: '100%' }} />)}
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <div className="opacity-0 group-hover:opacity-100 transition-all">
+                                <button onClick={() => setRemoveQConfirm({ questionId: bq.questionId, questionText: bq.question.question })} className="p-0.5 rounded transition-all" style={{ color: '#C05050' }}><X size={12} /></button>
+                            </div>
+                            <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
+                                style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
+                                [{section.marksPerQuestion}m]
+                            </span>
+                        </div>
+                    </div>
+                );
+            }
+            case 'assignmentQuestionsHeader':
+                return (
+                    <div className="flex items-center justify-between mb-4" style={{ borderBottom: `1px solid ${theme.paperBorder}`, paddingBottom: 8 }}>
+                        <span className="text-sm font-bold uppercase tracking-wider" style={{ color: theme.titleColor }}>Questions</span>
+                        <span className="text-xs" style={{ color: theme.headingColor }}>{builderQs.length} questions · {totalMarks} marks</span>
+                    </div>
+                );
+            case 'assignmentEmpty':
+                return (
+                    <div className="py-8 text-center rounded" style={{ border: `1.5px dashed ${theme.emptyBorder}`, color: theme.emptyText }}>
+                        <p className="text-xs">← Click a question from the modules to add it here</p>
+                    </div>
+                );
+            case 'assignmentQuestion': {
+                const { bq, num } = block;
+                const qi = num - 1;
+                return (
+                    <div className="flex items-start gap-3 py-2.5 group transition-all" style={{ borderBottom: `0.5px solid ${theme.rowBorder}` }}>
+                        <div className="flex flex-col gap-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                            <button onClick={() => moveQuestion(bq.questionId, 'up', null)} disabled={qi === 0}
+                                className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowUp size={9} /></button>
+                            <button onClick={() => moveQuestion(bq.questionId, 'down', null)} disabled={qi === builderQs.length - 1}
+                                className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
+                        </div>
+                        <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{num}.</span>
+                        <div className="flex-1 min-w-0">
+                            <div className="flex items-start gap-1.5">
+                                <span className="flex-1 text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
+                                {!bq.isCompulsory && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FEF3C7', color: '#92400E', border: '0.5px solid #F59E0B' }}>Optional</span>}
+                            </div>
+                            {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
+                                const opts = bq.question.type === 'MCQ'
+                                    ? (bq.question.options ?? [])
+                                    : (() => { const d = bq.question.details as ConceptualDetails | null; return d ? [d.correct_answer, ...d.distractors] : []; })();
+                                return opts.length > 0 ? (
+                                    <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-0.5 pl-1">
+                                        {opts.map((opt, oi) => (
+                                            <span key={oi} className="text-[11px]" style={{ color: theme.metaColor }}>{String.fromCharCode(65 + oi)}) {opt}</span>
+                                        ))}
+                                    </div>
+                                ) : null;
+                            })()}
+                            {bq.question.type === 'TRUE_FALSE' && (
+                                <div className="mt-1.5 flex gap-8 pl-1">
+                                    <span className="text-[11px]" style={{ color: theme.metaColor }}>A) True</span>
+                                    <span className="text-[11px]" style={{ color: theme.metaColor }}>B) False</span>
+                                </div>
+                            )}
+                            {answerSpace && bq.question.type === 'NUMERICAL' && (
+                                <div className="mt-2 pl-1" style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.3, width: '60%' }} />
+                            )}
+                            {answerSpace && bq.question.type === 'SHORT_ANSWER' && (
+                                <div className="mt-2 pl-1 space-y-2.5">
+                                    {[0, 1, 2].map(i => <div key={i} style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.22, width: '100%' }} />)}
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                <button onClick={() => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, isCompulsory: !q.isCompulsory } : q))}
+                                    title={bq.isCompulsory ? 'Mark as optional' : 'Mark as compulsory'}
+                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded transition-all"
+                                    style={{ background: bq.isCompulsory ? theme.marksBadgeBg : '#FEF3C7', color: bq.isCompulsory ? theme.marksBadgeText : '#92400E', border: `0.5px solid ${bq.isCompulsory ? theme.marksBadgeBorder : '#F59E0B'}` }}>
+                                    {bq.isCompulsory ? 'C' : 'O'}
+                                </button>
+                                <input type="number" min={0} value={bq.marks}
+                                    onChange={e => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: Number(e.target.value) } : q))}
+                                    className="w-9 text-xs text-center rounded focus:outline-none"
+                                    style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 2px' }} />
+                                <button onClick={() => setRemoveQConfirm({ questionId: bq.questionId, questionText: bq.question.question })} className="p-0.5" style={{ color: '#C05050' }}><X size={12} /></button>
+                            </div>
+                            <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
+                                style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
+                                [{bq.marks}m]
+                            </span>
+                        </div>
+                    </div>
+                );
+            }
+            case 'footer':
+                return (
+                    <div className="flex items-center justify-between pt-4 mt-2" style={{ borderTop: `1px solid ${theme.paperBorder}` }}>
+                        <span className="text-[12px] italic" style={{ color: theme.footerText }}>— End of {paperType === 'TEST' ? 'Exam Paper' : 'Assignment'} —</span>
+                        <span className="text-[12px]" style={{ color: theme.footerText }}>Total: {totalMarks} marks</span>
+                    </div>
+                );
+            default:
+                return null;
+        }
+    };
+
+    const effectiveTestPageGroups: string[][] = pageGroups && pageGroups.length > 0
+        ? pageGroups
+        : [testFlowBlocks.map(b => b.key)];
 
     return (
         <>
@@ -3776,295 +4126,53 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 </div>
                 <div className="flex-1 overflow-y-auto pt-3 pb-8 px-6" style={{ background: theme.outerBg, scrollbarWidth: 'thin', scrollbarColor: theme.scrollbar }}>
 
-                    {/* ── The actual paper ── */}
-                    <div className="max-w-3xl mx-auto shadow-2xl" style={{
-                        background: theme.paperBg,
-                        border: `1px solid ${theme.paperBorder}`,
-                        boxShadow: '0 8px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
-                        fontFamily: theme.fontFamily,
-                        zoom: paperZoom,
-                    } as CSSProperties}>
-
-                        {/* Paper top decorative border */}
-                        <div style={{ height: 6, background: theme.topBar1 }} />
-                        <div style={{ height: 2, background: theme.topBar2, marginTop: 3 }} />
-
-                        {/* Paper header */}
-                        <div className="px-10 pt-6 pb-4" style={{ borderBottom: `1.5px solid ${theme.paperBorder}` }}>
-                            <div className="text-center mb-4">
-                                <input value={title} onChange={e => setTitle(e.target.value)} placeholder={entityType === 'assignment' ? 'Assignment Title' : 'Paper Title'}
-                                    className="text-center text-xl font-bold w-full focus:outline-none bg-transparent"
-                                    style={{ color: theme.titleColor, borderBottom: `1px dashed ${theme.paperBorder}`, paddingBottom: 2 }} />
-                                <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description / instructions for students (optional)"
-                                    rows={2} className="w-full text-center text-xs mt-2 resize-none focus:outline-none bg-transparent"
-                                    style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}` }} />
-                            </div>
-                            <div className="flex items-center justify-between text-[13px] mt-3" style={{ color: theme.metaColor }}>
-                                <div className="flex items-center gap-6">
-                                    <span><span className="font-semibold">Time:</span> {durationMinutes} min</span>
-                                    <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
-                                    {startDate && <span><span className="font-semibold">Start:</span> {new Date(startDate).toLocaleDateString()}</span>}
-                                    {validUntil && <span><span className="font-semibold">Valid Until:</span> {new Date(validUntil).toLocaleDateString()}</span>}
-                                </div>
-                                <div className="flex items-center gap-4">
-                                    <span><span className="font-semibold">Total Questions:</span> {builderQs.length}</span>
-                                    <span className="font-bold text-base" style={{ color: theme.accentColor }}>Total Marks: {totalMarks}</span>
-                                </div>
-                            </div>
-                            {isRandomized && (
-                                <div className="mt-2 flex items-center gap-1.5 text-[10px]" style={{ color: theme.headingColor }}>
-                                    <Shuffle size={10} /> Questions will be shuffled for each student
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Paper body — sections or flat questions */}
-                        <div className="px-10 py-4">
-                            {paperType === 'TEST' ? (
-                                <div className="space-y-6">
-                                    {sections.map((section) => {
-                                        const sectionQs = builderQs.filter(q => q.sectionId === section.id);
-                                        const isActive = activeSectionId === section.id;
-                                        const effectiveAttempt = section.attemptCount > 0 ? Math.min(section.attemptCount, sectionQs.length) : sectionQs.length;
-                                        const sectionTotal = effectiveAttempt * section.marksPerQuestion;
+                    {/* ── The actual paper (both TEST and ASSIGNMENT paginate into A4 pages) ── */}
+                    <div className="mx-auto" style={{ width: 'fit-content', zoom: paperZoom } as CSSProperties}>
+                        {effectiveTestPageGroups.map((group, pi) => (
+                            <div key={`page-${pi}`} className={pi > 0 ? 'mt-6' : ''} style={{
+                                width: '210mm', minHeight: `${PAGE_HEIGHT_PX}px`,
+                                display: 'flex', flexDirection: 'column',
+                                background: theme.paperBg, border: `1px solid ${theme.paperBorder}`,
+                                boxShadow: '0 8px 40px rgba(0,0,0,0.35), 0 2px 8px rgba(0,0,0,0.2)',
+                                fontFamily: theme.fontFamily,
+                            }}>
+                                <div style={{ height: 6, background: theme.topBar1, flexShrink: 0 }} />
+                                <div style={{ height: 2, background: theme.topBar2, marginTop: 3, flexShrink: 0 }} />
+                                <div style={{ padding: '24px 40px', flex: 1 }}>
+                                    {group.map(key => {
+                                        const block = testBlocksByKey.get(key);
+                                        if (!block) return null;
                                         return (
-                                            <div key={section.id}>
-                                                {/* Section header */}
-                                                <div className="flex items-center gap-3 px-3 py-2 cursor-pointer -mx-3 mb-3 group transition-all"
-                                                    style={{ background: isActive ? theme.sectionActiveBg : theme.sectionBg, borderLeft: `3px solid ${isActive ? theme.sectionBorder : theme.sectionBorderInactive}`, borderBottom: `1px solid ${theme.paperBorder}` }}
-                                                    onClick={() => setActiveSectionId(section.id)}>
-                                                    <div className="flex-1 flex items-center gap-3">
-                                                        <input value={section.title} onClick={e => e.stopPropagation()}
-                                                            onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, title: e.target.value } : s))}
-                                                            className="text-sm font-bold uppercase tracking-wider bg-transparent focus:outline-none"
-                                                            style={{ color: theme.sectionText, borderBottom: `1px dashed ${theme.sectionBorderInactive}`, paddingBottom: 1 }} />
-                                                        {sectionQs.length > 0 && (
-                                                            <span className="text-[10px]" style={{ color: theme.sectionMeta }}>
-                                                                ({effectiveAttempt}/{sectionQs.length} × {section.marksPerQuestion}m = {sectionTotal} marks)
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                                                        <span className="text-[12px]" style={{ color: theme.sectionMeta }}>Attempt</span>
-                                                        <input type="number" min={0} max={sectionQs.length || 99}
-                                                            value={section.attemptCount === 0 ? '' : section.attemptCount}
-                                                            placeholder="all"
-                                                            onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, attemptCount: Number(e.target.value) || 0 } : s))}
-                                                            className="w-10 text-xs text-center rounded focus:outline-none"
-                                                            style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
-                                                        <span className="text-[10px]" style={{ color: theme.sectionMeta }}>·</span>
-                                                        <input type="number" min={0} max={100} value={section.marksPerQuestion}
-                                                            onChange={e => {
-                                                                const mpq = Number(e.target.value);
-                                                                setSections(prev => prev.map(s => s.id === section.id ? { ...s, marksPerQuestion: mpq } : s));
-                                                                setBuilderQs(prev => prev.map(q => q.sectionId === section.id ? { ...q, marks: mpq } : q));
-                                                            }}
-                                                            className="w-10 text-xs text-center rounded focus:outline-none"
-                                                            style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
-                                                        <span className="text-[12px]" style={{ color: theme.sectionMeta }}>m each</span>
-                                                        {sections.length > 1 && (
-                                                            <div className="flex flex-col gap-0 opacity-0 group-hover:opacity-100 transition-all">
-                                                                <button onClick={() => moveSection(section.id, 'up')} disabled={sections.findIndex(s => s.id === section.id) === 0}
-                                                                    className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowUp size={9} /></button>
-                                                                <button onClick={() => moveSection(section.id, 'down')} disabled={sections.findIndex(s => s.id === section.id) === sections.length - 1}
-                                                                    className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
-                                                            </div>
-                                                        )}
-                                                        {sections.length > 1 && (
-                                                            <button onClick={e => { e.stopPropagation(); setDeleteSectionConfirmId(section.id); }}
-                                                                className="opacity-0 group-hover:opacity-100 transition-all p-0.5 rounded"
-                                                                style={{ color: '#C05050' }}>
-                                                                <X size={12} />
-                                                            </button>
-                                                        )}
-                                                        {isActive && (
-                                                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded"
-                                                                style={{ background: theme.accentColor, color: theme.inputBg }}>ACTIVE</span>
-                                                        )}
-                                                    </div>
-                                                </div>
-
-                                                {/* Section instruction */}
-                                                <input value={section.instruction}
-                                                    onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, instruction: e.target.value } : s))}
-                                                    placeholder="Section instruction (e.g. Answer any five of the following)"
-                                                    className="w-full text-sm italic mb-3 focus:outline-none bg-transparent"
-                                                    style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}`, paddingBottom: 2 }} />
-
-                                                {/* Questions */}
-                                                {sectionQs.length === 0 ? (
-                                                    <div className="py-4 text-center rounded" style={{ border: `1.5px dashed ${theme.emptyBorder}`, color: isActive ? theme.emptyActiveText : theme.emptyText }}>
-                                                        <p className="text-xs">{isActive ? '← Click a question from the bank to add it here' : 'Click section header to activate, then add questions'}</p>
-                                                    </div>
-                                                ) : (
-                                                    <div className="space-y-0">
-                                                        {sectionQs.map((bq, qi) => {
-                                                            qCounter++;
-                                                            const num = qCounter;
-                                                            return (
-                                                                <div key={bq.questionId}
-                                                                    onDragOver={e => handleQDragOver(e, bq.questionId)}
-                                                                    onDrop={() => handleQDrop(bq.questionId, section.id)}
-                                                                    className={`flex items-start gap-3 py-2.5 group transition-all ${dragOverQId === bq.questionId ? 'bg-black/5 dark:bg-white/10' : ''} ${dragQId === bq.questionId ? 'opacity-40' : ''}`}
-                                                                    style={{ borderBottom: `0.5px solid ${theme.rowBorder}` }}>
-                                                                    <div draggable
-                                                                        onDragStart={e => {
-                                                                            handleQDragStart(bq.questionId);
-                                                                            const row = e.currentTarget.parentElement as HTMLElement | null;
-                                                                            if (row) e.dataTransfer.setDragImage(row, 20, 20);
-                                                                        }}
-                                                                        onDragEnd={handleQDragEnd}
-                                                                        className="pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-grab active:cursor-grabbing" style={{ color: theme.sectionMeta }}>
-                                                                        <GripVertical size={13} />
-                                                                    </div>
-                                                                    <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{num}.</span>
-                                                                    <div className="flex-1 min-w-0 -mt-[2.8px]">
-                                                                        <span className="text-[15px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
-                                                                        {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
-                                                                            const opts = bq.question.type === 'MCQ'
-                                                                                ? (bq.question.options ?? [])
-                                                                                : (() => { const d = bq.question.details as ConceptualDetails | null; return d ? [d.correct_answer, ...d.distractors] : []; })();
-                                                                            return opts.length > 0 ? (
-                                                                                <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-0.5 pl-1">
-                                                                                    {opts.map((opt, oi) => (
-                                                                                        <span key={oi} className="text-[13px]" style={{ color: theme.metaColor }}>{String.fromCharCode(65 + oi)}) {opt}</span>
-                                                                                    ))}
-                                                                                </div>
-                                                                            ) : null;
-                                                                        })()}
-                                                                        {bq.question.type === 'TRUE_FALSE' && (
-                                                                            <div className="mt-1.5 flex gap-8 pl-1">
-                                                                                <span className="text-[13px]" style={{ color: theme.metaColor }}>A) True</span>
-                                                                                <span className="text-[13px]" style={{ color: theme.metaColor }}>B) False</span>
-                                                                            </div>
-                                                                        )}
-                                                                        {answerSpace && bq.question.type === 'NUMERICAL' && (
-                                                                            <div className="mt-2 pl-1" style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.3, width: '60%' }} />
-                                                                        )}
-                                                                        {answerSpace && bq.question.type === 'SHORT_ANSWER' && (
-                                                                            <div className="mt-2 pl-1 space-y-2.5">
-                                                                                {[0, 1, 2].map(i => <div key={i} style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.22, width: '100%' }} />)}
-                                                                            </div>
-                                                                        )}
-                                                                    </div>
-                                                                    <div className="flex items-center gap-2 shrink-0">
-                                                                        <div className="opacity-0 group-hover:opacity-100 transition-all">
-                                                                            <button onClick={() => setRemoveQConfirm({ questionId: bq.questionId, questionText: bq.question.question })} className="p-0.5 rounded transition-all" style={{ color: '#C05050' }}><X size={12} /></button>
-                                                                        </div>
-                                                                        <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
-                                                                            style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
-                                                                            [{section.marksPerQuestion}m]
-                                                                        </span>
-                                                                    </div>
-                                                                </div>
-                                                            );
-                                                        })}
-                                                    </div>
+                                            <div key={key}>
+                                                {paperType === 'TEST' && pi === effectiveTestPageGroups.length - 1 && block.kind === 'footer' && (
+                                                    <button onClick={addSection}
+                                                        className="w-full mb-4 py-2.5 text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                                                        style={{ border: `1.5px dashed ${theme.addSectionBorder}`, color: theme.addSectionText, borderRadius: 4, background: 'transparent' }}
+                                                        onMouseEnter={e => { e.currentTarget.style.borderColor = theme.addSectionHoverBorder; e.currentTarget.style.color = theme.addSectionHoverText; }}
+                                                        onMouseLeave={e => { e.currentTarget.style.borderColor = theme.addSectionBorder; e.currentTarget.style.color = theme.addSectionText; }}>
+                                                        <Plus size={13} /> Add Section
+                                                    </button>
                                                 )}
+                                                <div ref={el => { if (el) pageBlockElRefs.current.set(key, el); }} style={{ display: 'flow-root' }}>
+                                                    {renderFlowBlock(block)}
+                                                </div>
                                             </div>
                                         );
                                     })}
-
-                                    {/* Add section */}
-                                    <button onClick={addSection}
-                                        className="w-full py-2.5 text-xs font-medium transition-all flex items-center justify-center gap-1.5"
-                                        style={{ border: `1.5px dashed ${theme.addSectionBorder}`, color: theme.addSectionText, borderRadius: 4, background: 'transparent' }}
-                                        onMouseEnter={e => { e.currentTarget.style.borderColor = theme.addSectionHoverBorder; e.currentTarget.style.color = theme.addSectionHoverText; }}
-                                        onMouseLeave={e => { e.currentTarget.style.borderColor = theme.addSectionBorder; e.currentTarget.style.color = theme.addSectionText; }}>
-                                        <Plus size={13} /> Add Section
-                                    </button>
-                                </div>
-                            ) : (
-                                /* Assignment — flat list */
-                                <div>
-                                    <div className="flex items-center justify-between mb-4" style={{ borderBottom: `1px solid ${theme.paperBorder}`, paddingBottom: 8 }}>
-                                        <span className="text-sm font-bold uppercase tracking-wider" style={{ color: theme.titleColor }}>Questions</span>
-                                        <span className="text-xs" style={{ color: theme.headingColor }}>{builderQs.length} questions · {totalMarks} marks</span>
-                                    </div>
-                                    {builderQs.length === 0 ? (
-                                        <div className="py-8 text-center rounded" style={{ border: `1.5px dashed ${theme.emptyBorder}`, color: theme.emptyText }}>
-                                            <p className="text-xs">← Click a question from the modules to add it here</p>
-                                        </div>
-                                    ) : (
-                                        <div className="space-y-0">
-                                            {builderQs.map((bq, qi) => (
-                                                <div key={bq.questionId} className="flex items-start gap-3 py-2.5 group transition-all"
-                                                    style={{ borderBottom: `0.5px solid ${theme.rowBorder}` }}>
-                                                    <div className="flex flex-col gap-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                                                        <button onClick={() => moveQuestion(bq.questionId, 'up', null)} disabled={qi === 0}
-                                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowUp size={9} /></button>
-                                                        <button onClick={() => moveQuestion(bq.questionId, 'down', null)} disabled={qi === builderQs.length - 1}
-                                                            className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
-                                                    </div>
-                                                    <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{qi + 1}.</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="flex items-start gap-1.5">
-                                                            <span className="flex-1 text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
-                                                            {!bq.isCompulsory && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FEF3C7', color: '#92400E', border: '0.5px solid #F59E0B' }}>Optional</span>}
-                                                        </div>
-                                                        {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
-                                                            const opts = bq.question.type === 'MCQ'
-                                                                ? (bq.question.options ?? [])
-                                                                : (() => { const d = bq.question.details as ConceptualDetails | null; return d ? [d.correct_answer, ...d.distractors] : []; })();
-                                                            return opts.length > 0 ? (
-                                                                <div className="mt-1.5 grid grid-cols-2 gap-x-6 gap-y-0.5 pl-1">
-                                                                    {opts.map((opt, oi) => (
-                                                                        <span key={oi} className="text-[11px]" style={{ color: theme.metaColor }}>{String.fromCharCode(65 + oi)}) {opt}</span>
-                                                                    ))}
-                                                                </div>
-                                                            ) : null;
-                                                        })()}
-                                                        {bq.question.type === 'TRUE_FALSE' && (
-                                                            <div className="mt-1.5 flex gap-8 pl-1">
-                                                                <span className="text-[11px]" style={{ color: theme.metaColor }}>A) True</span>
-                                                                <span className="text-[11px]" style={{ color: theme.metaColor }}>B) False</span>
-                                                            </div>
-                                                        )}
-                                                        {answerSpace && bq.question.type === 'NUMERICAL' && (
-                                                            <div className="mt-2 pl-1" style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.3, width: '60%' }} />
-                                                        )}
-                                                        {answerSpace && bq.question.type === 'SHORT_ANSWER' && (
-                                                            <div className="mt-2 pl-1 space-y-2.5">
-                                                                {[0, 1, 2].map(i => <div key={i} style={{ borderBottom: `1px solid ${theme.metaColor}`, opacity: 0.22, width: '100%' }} />)}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div className="flex items-center gap-2 shrink-0">
-                                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                                            <button onClick={() => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, isCompulsory: !q.isCompulsory } : q))}
-                                                                title={bq.isCompulsory ? 'Mark as optional' : 'Mark as compulsory'}
-                                                                className="text-[9px] font-bold px-1.5 py-0.5 rounded transition-all"
-                                                                style={{ background: bq.isCompulsory ? theme.marksBadgeBg : '#FEF3C7', color: bq.isCompulsory ? theme.marksBadgeText : '#92400E', border: `0.5px solid ${bq.isCompulsory ? theme.marksBadgeBorder : '#F59E0B'}` }}>
-                                                                {bq.isCompulsory ? 'C' : 'O'}
-                                                            </button>
-                                                            <input type="number" min={0} value={bq.marks}
-                                                                onChange={e => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: Number(e.target.value) } : q))}
-                                                                className="w-9 text-xs text-center rounded focus:outline-none"
-                                                                style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 2px' }} />
-                                                            <button onClick={() => setRemoveQConfirm({ questionId: bq.questionId, questionText: bq.question.question })} className="p-0.5" style={{ color: '#C05050' }}><X size={12} /></button>
-                                                        </div>
-                                                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
-                                                            style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
-                                                            [{bq.marks}m]
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                    {paperType === 'TEST' && pi === effectiveTestPageGroups.length - 1 && !testFlowBlocksRef.current.some(b => b.kind === 'footer') && (
+                                        <button onClick={addSection}
+                                            className="w-full mt-4 py-2.5 text-xs font-medium transition-all flex items-center justify-center gap-1.5"
+                                            style={{ border: `1.5px dashed ${theme.addSectionBorder}`, color: theme.addSectionText, borderRadius: 4, background: 'transparent' }}
+                                            onMouseEnter={e => { e.currentTarget.style.borderColor = theme.addSectionHoverBorder; e.currentTarget.style.color = theme.addSectionHoverText; }}
+                                            onMouseLeave={e => { e.currentTarget.style.borderColor = theme.addSectionBorder; e.currentTarget.style.color = theme.addSectionText; }}>
+                                            <Plus size={13} /> Add Section
+                                        </button>
                                     )}
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Paper footer */}
-                        <div className="px-10 py-4 flex items-center justify-between" style={{ borderTop: `1px solid ${theme.paperBorder}`, background: theme.footerBg }}>
-                            <span className="text-[12px] italic" style={{ color: theme.footerText }}>— End of {paperType === 'TEST' ? 'Exam Paper' : 'Assignment'} —</span>
-                            <span className="text-[12px]" style={{ color: theme.footerText }}>Total: {totalMarks} marks</span>
-                        </div>
-
-                        {/* Paper bottom decorative border */}
-                        <div style={{ height: 2, background: theme.topBar2 }} />
-                        <div style={{ height: 6, background: theme.topBar1, marginTop: 3 }} />
+                                <div style={{ height: 2, background: theme.topBar2, flexShrink: 0 }} />
+                                <div style={{ height: 6, background: theme.topBar1, marginTop: 3, flexShrink: 0 }} />
+                            </div>
+                        ))}
                     </div>
 
                 </div>
