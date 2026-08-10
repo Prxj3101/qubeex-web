@@ -272,16 +272,21 @@ function ScanImages({ images }: { images: { url: string; caption: string }[] }) 
     return (
         <div>
             <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">
-                Related Images <span className="text-white/30 normal-case font-normal">· click to enlarge</span>
+                Related Images
+                <span className="text-white/30 normal-case font-normal"> · {visible.length} found · click to enlarge</span>
             </p>
-            <div className="space-y-2">
+            {/* Two columns: the scan panel now returns every usable diagram
+                rather than a fixed five, and a single column of 20+ would be an
+                unusable scroll. auto-fill keeps it one column if the split pane
+                is dragged narrow. */}
+            <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
                 {visible.map((img, i) => (
                     <button key={`${img.url}-${i}`} type="button" onClick={() => setExpanded(img)}
-                        className="w-full rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-colors text-left group">
+                        className="rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-colors text-left group">
                         <div className="relative bg-white">
                             {/* object-contain, not cover: diagrams must not be cropped. */}
                             <img src={img.url} alt={img.caption}
-                                className="w-full object-contain max-h-48"
+                                className="w-full object-contain h-28"
                                 loading="lazy"
                                 referrerPolicy="no-referrer"
                                 onError={() => setBroken(prev => ({ ...prev, [img.url]: true }))} />
@@ -290,7 +295,7 @@ function ScanImages({ images }: { images: { url: string; caption: string }[] }) 
                         <div className="px-2 py-1.5 bg-white/5">
                             <p className="text-[10px] text-white/70 leading-snug line-clamp-2">{img.caption}</p>
                             {sourceHost(img.url) && (
-                                <p className="text-[9px] text-white/35 mt-0.5">{sourceHost(img.url)}</p>
+                                <p className="text-[9px] text-white/35 mt-0.5 truncate">{sourceHost(img.url)}</p>
                             )}
                         </div>
                     </button>
