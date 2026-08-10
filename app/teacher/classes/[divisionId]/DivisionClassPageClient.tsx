@@ -90,6 +90,17 @@ export default function DivisionClassPageClient() {
     const VALID_TABS: TabKey[] = ['view', 'manage', 'students', 'promotions', 'attendance', 'marks', 'fees', 'tasks'];
     const tabParam = searchParams.get('tab') as TabKey | null;
     const [activeTab, setActiveTab] = useState<TabKey>(tabParam && VALID_TABS.includes(tabParam) ? tabParam : 'view');
+    // Tab switches only ever touched local state, so the URL never reflected which tab
+    // was open — refreshing the page always re-read the (unchanged) `tab` query param
+    // and fell back to "view". Mirroring every tab change into the URL means a refresh
+    // lands back on whatever tab/page the teacher was actually looking at.
+    const updateTab = useCallback((key: TabKey) => {
+        setActiveTab(key);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('tab', key);
+        router.replace(`?${params.toString()}`, { scroll: false });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     // Holds TasksTab's paper-builder close function while the builder overlay is open,
     // so the page's own back button steps back into the Tests list instead of leaving the class.
@@ -110,7 +121,20 @@ export default function DivisionClassPageClient() {
     const [marksStats, setMarksStats] = useState<MarksStats>({ avg: null, topGrade: null });
 
     // ── Tasks sub-tab state ───────────────────────────────────────────────────
-    const [tasksSubTab, setTasksSubTab] = useState<TasksSubTab>('questions');
+    // Same URL-sync treatment as the main tabs — otherwise refreshing while on
+    // Tasks > Tests would silently drop back to the AI Questions sub-tab.
+    const subtabParam = searchParams.get('subtab');
+    const VALID_TASKS_SUBTABS: TasksSubTab[] = ['questions', 'tests', 'assignments', 'modules'];
+    const [tasksSubTab, setTasksSubTabState] = useState<TasksSubTab>(
+        subtabParam && VALID_TASKS_SUBTABS.includes(subtabParam as TasksSubTab) ? (subtabParam as TasksSubTab) : 'questions'
+    );
+    const updateTasksSubTab = useCallback((key: TasksSubTab) => {
+        setTasksSubTabState(key);
+        const params = new URLSearchParams(searchParams.toString());
+        params.set('subtab', key);
+        router.replace(`?${params.toString()}`, { scroll: false });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
     const [tasksStats, setTasksStats] = useState({ tests: 0, assignments: 0 });
 
     const fetchedRef = useRef(false);
@@ -172,7 +196,7 @@ export default function DivisionClassPageClient() {
                         {/* Back button */}
                         <button onClick={() => {
                             if (builderCloseRef.current) { builderCloseRef.current(); return; }
-                            activeTab === 'promotions' ? setActiveTab('manage') : router.back();
+                            activeTab === 'promotions' ? updateTab('manage') : router.back();
                         }}
                             className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-muted transition-all">
                             <ArrowLeft size={16} />
@@ -209,7 +233,7 @@ export default function DivisionClassPageClient() {
                             {TABS.map(tab => {
                                 const isActive = activeTab === tab.key || (tab.key === 'manage' && activeTab === 'promotions');
                                 return (
-                                    <button key={tab.key} onClick={() => setActiveTab(tab.key)} className="relative">
+                                    <button key={tab.key} onClick={() => updateTab(tab.key)} className="relative">
                                         {isActive && (
                                             <motion.div layoutId="divTabTeacher"
                                                 className="absolute inset-0 bg-primary rounded-4xl"
@@ -296,7 +320,7 @@ export default function DivisionClassPageClient() {
                                         { key: 'assignments' as const, label: 'Assignments', count: tasksStats.assignments },
                                         { key: 'modules' as const, label: 'Modules', count: null },
                                     ]).map(({ key, label, count }) => (
-                                        <button key={key} onClick={() => setTasksSubTab(key)}
+                                        <button key={key} onClick={() => updateTasksSubTab(key)}
                                             className={`relative flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all
                                             ${tasksSubTab === key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                                             {label}
@@ -370,7 +394,7 @@ export default function DivisionClassPageClient() {
                         ) : (
                             <div className="flex items-center gap-4">
                                 {activeTab === 'manage' && isClassTeacher && (
-                                    <button onClick={() => setActiveTab('promotions')}
+                                    <button onClick={() => updateTab('promotions')}
                                         className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-white shrink-0"
                                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                         <TrendingUp size={13} /> Promotions
@@ -460,7 +484,7 @@ export default function DivisionClassPageClient() {
                     )}
                     {activeTab === 'tasks' && (
                         <motion.div key="tasks" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">
-                            <TasksTab divisionId={divisionId} subjectId={subjectId} subTab={tasksSubTab} onSubTabChange={setTasksSubTab} onStatsChange={setTasksStats} onBuilderCloseChange={(fn) => { builderCloseRef.current = fn; }} />
+                            <TasksTab divisionId={divisionId} subjectId={subjectId} subTab={tasksSubTab} onSubTabChange={updateTasksSubTab} onStatsChange={setTasksStats} onBuilderCloseChange={(fn) => { builderCloseRef.current = fn; }} />
                         </motion.div>
                     )}
                 </AnimatePresence>

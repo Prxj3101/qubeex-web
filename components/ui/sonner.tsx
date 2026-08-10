@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { Octagon, Check, X, InfoIcon, TriangleAlertIcon, Loader2Icon } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -14,19 +14,25 @@ const Toaster = ({ ...props }: ToasterProps) => {
       closeButton
       icons={{
         success: (
-          <CircleCheckIcon className="size-4" />
+          <span className="relative inline-flex items-center justify-center">
+            <Octagon className="size-5 cn-badge-shape" strokeWidth={2} />
+            <Check className="absolute size-2.5 cn-badge-mark" strokeWidth={3} />
+          </span>
         ),
         info: (
-          <InfoIcon className="size-4" />
+          <InfoIcon className="size-5" strokeWidth={2} />
         ),
         warning: (
-          <TriangleAlertIcon className="size-4" />
+          <TriangleAlertIcon className="size-5" strokeWidth={2} />
         ),
         error: (
-          <OctagonXIcon className="size-4" />
+          <span className="relative inline-flex items-center justify-center">
+            <Octagon className="size-5 cn-badge-shape" strokeWidth={2} />
+            <X className="absolute size-2.5 cn-badge-mark" strokeWidth={3} />
+          </span>
         ),
         loading: (
-          <Loader2Icon className="size-4 animate-spin" />
+          <Loader2Icon className="size-5 animate-spin" />
         ),
       }}
       style={

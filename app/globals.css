@@ -239,8 +239,47 @@
 }
 
 .cn-toast [data-icon] {
+  opacity: 1;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cn-toast[data-type="success"] [data-icon] .cn-badge-shape {
+  color: #22C55E !important;
+  fill: #22C55E !important;
+  stroke: #FFFFFF !important;
+}
+
+.cn-toast[data-type="success"] [data-icon] .cn-badge-mark {
   color: #FFFFFF !important;
-  opacity: 0.95;
+  fill: none !important;
+  stroke: #FFFFFF !important;
+}
+
+.cn-toast[data-type="error"] [data-icon] .cn-badge-shape {
+  color: #EF4444 !important;
+  fill: #EF4444 !important;
+  stroke: #FFFFFF !important;
+}
+
+.cn-toast[data-type="error"] [data-icon] .cn-badge-mark {
+  color: #FFFFFF !important;
+  fill: none !important;
+  stroke: #FFFFFF !important;
+}
+
+.cn-toast[data-type="warning"] [data-icon] svg {
+  color: #EAB308 !important;
+  fill: #EAB308 !important;
+  stroke: #FFFFFF !important;
+}
+
+.cn-toast[data-type="info"] [data-icon] svg {
+  color: #3B82F6 !important;
+  fill: #3B82F6 !important;
+  stroke: #FFFFFF !important;
 }
 
 .cn-toast [data-title] {

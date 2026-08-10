@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, useMemo, type CSSProperties } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Upload, FileText, X, Plus, Trash2, Download,
     Loader2, BookOpen, Layers, Check, X as XIcon,
     Clock, Link2, Play, Eye, ChevronDown, ChevronUp,
     FlaskConical, Brain, Users, Copy, CheckCircle2, AlertCircle,
-    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil, ArrowDownToLine, Share2, ShieldAlert, Save, ZoomIn, ZoomOut,
+    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil, ArrowDownToLine, Share2, ShieldAlert, Save, ZoomIn, ZoomOut, Square,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -125,7 +126,7 @@ interface TestBase {
     answerSpace: boolean;
     sections: PaperSection[] | null;
     createdAt?: string;
-    _count: { attempts: number; submissions?: number };
+    _count: { attempts: number; submitted?: number };
 }
 
 interface Test extends TestBase {
@@ -197,6 +198,8 @@ interface TasksTabProps { divisionId: string; subjectId: string | null; subTab: 
 
 
 export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange: _onSubTabChange, onStatsChange, onBuilderCloseChange }: TasksTabProps) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
 
     // ── Containers ────────────────────────────────────────────────────────────
     interface QContainer { id: string; name: string; createdAt: string; questionCount: number; }
@@ -313,7 +316,11 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     const [tests, setTests] = useState<Test[]>([]);
     const [tLoading, setTLoading] = useState(false);
     const [createTestOpen, setCreateTestOpen] = useState(false);
-    const [newTest, setNewTest] = useState({ title: '', description: '', durationMinutes: 60, totalMarks: 100, numberOfQuestions: 10, maxAttempts: 1, startDate: '', validUntil: '' });
+    const [newTest, setNewTest] = useState({ title: '', description: '', durationMinutes: 30, totalMarks: 0, numberOfQuestions: 10, maxAttempts: 1, startDate: '', validUntil: '' });
+    // Free-typing buffers for the numeric fields below — same fix as the paper builder's
+    // duration box: lets each box go fully empty while editing instead of snapping to a
+    // stuck "0" that turns "45" into "045".
+    const [newTestDraft, setNewTestDraft] = useState<Record<string, string | null>>({});
     const [savingTest, setSavingTest] = useState(false);
     const [copiedLink, setCopiedLink] = useState<string | null>(null);
     const [resultsTestId, setResultsTestId] = useState<string | null>(null);
@@ -321,10 +328,26 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     // Test and assignment builders are tracked independently — opening one must not clobber
     // the other's open state, so switching Tests -> Assignments -> Tests leaves the original
     // test's builder exactly as it was instead of losing it.
-    const [testBuilderOpen, setTestBuilderOpen] = useState(false);
-    const [testBuilderId, setTestBuilderId] = useState<string | null>(null);
-    const [assignmentBuilderOpen, setAssignmentBuilderOpen] = useState(false);
-    const [assignmentBuilderId, setAssignmentBuilderId] = useState<string | null>(null);
+    // Which paper is open is also mirrored into the URL (?testId=/?assignmentId=) — otherwise
+    // refreshing while inside a paper would drop straight back to the list, same class of bug
+    // as the tab/subtab reset.
+    const initialTestId = searchParams.get('testId');
+    const initialAssignmentId = searchParams.get('assignmentId');
+    const [testBuilderOpen, setTestBuilderOpen] = useState(!!initialTestId);
+    const [testBuilderId, setTestBuilderId] = useState<string | null>(initialTestId);
+    const [assignmentBuilderOpen, setAssignmentBuilderOpen] = useState(!!initialAssignmentId);
+    const [assignmentBuilderId, setAssignmentBuilderId] = useState<string | null>(initialAssignmentId);
+
+    const setUrlParam = useCallback((key: string, value: string | null) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (value) params.set(key, value); else params.delete(key);
+        router.replace(`?${params.toString()}`, { scroll: false });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [searchParams]);
+    const openTestBuilder = useCallback((id: string) => { setTestBuilderId(id); setTestBuilderOpen(true); setUrlParam('testId', id); }, [setUrlParam]);
+    const closeTestBuilder = useCallback(() => { setTestBuilderOpen(false); setTestBuilderId(null); setUrlParam('testId', null); }, [setUrlParam]);
+    const openAssignmentBuilder = useCallback((id: string) => { setAssignmentBuilderId(id); setAssignmentBuilderOpen(true); setUrlParam('assignmentId', id); }, [setUrlParam]);
+    const closeAssignmentBuilder = useCallback(() => { setAssignmentBuilderOpen(false); setAssignmentBuilderId(null); setUrlParam('assignmentId', null); }, [setUrlParam]);
 
     // Each builder overlay is only actually shown while its own subtab (Tests for a test
     // paper, Assignments for an assignment paper) is the active one — switching to another
@@ -340,9 +363,9 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     // overlay is actually visible — otherwise the back button should behave normally. ──
     useEffect(() => {
         const closeFn = testBuilderVisible
-            ? () => { setTestBuilderOpen(false); setTestBuilderId(null); }
+            ? () => { closeTestBuilder(); fetchTests(); }
             : assignmentBuilderVisible
-                ? () => { setAssignmentBuilderOpen(false); setAssignmentBuilderId(null); }
+                ? () => { closeAssignmentBuilder(); fetchAssignments(); }
                 : null;
         onBuilderCloseChange?.(closeFn);
         return () => { onBuilderCloseChange?.(null); };
@@ -478,6 +501,22 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     useEffect(() => {
         fetchContainers();
     }, [fetchContainers]);
+
+    // Pressing the browser/device back button to leave the paper builder can land the
+    // teacher back on this page via the browser's bfcache or Next's router cache —
+    // neither of which re-runs the mount effects above, so the test/assignment cards
+    // would otherwise keep showing whatever was on screen before the edit. `pageshow`
+    // fires every time the page becomes visible again (fresh load AND cache restores),
+    // so re-fetching there guarantees the cards are never stale after a back-navigation.
+    useEffect(() => {
+        const onPageShow = () => {
+            fetchTests();
+            fetchAssignments();
+            fetchModules();
+        };
+        window.addEventListener('pageshow', onPageShow);
+        return () => window.removeEventListener('pageshow', onPageShow);
+    }, [fetchTests, fetchAssignments, fetchModules]);
 
     // Poll active upload
     useEffect(() => {
@@ -666,6 +705,9 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
 
     const handleCreateTest = async () => {
         if (!newTest.title.trim()) return toast.error('Test title is required');
+        if (newTest.startDate && newTest.validUntil && new Date(newTest.validUntil) <= new Date(newTest.startDate)) {
+            return toast.error('Valid Until must be after the Start Date');
+        }
         setSavingTest(true);
         try {
             const payload: Record<string, unknown> = {
@@ -680,17 +722,31 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
             setTests(prev => [created, ...prev]);
             toast.success('Test created — opening Paper Builder');
             setCreateTestOpen(false);
-            setNewTest({ title: '', description: '', durationMinutes: 60, totalMarks: 100, numberOfQuestions: 10, maxAttempts: 1, startDate: '', validUntil: '' });
-            setTestBuilderId(created.id);
-            setTestBuilderOpen(true);
+            setNewTest({ title: '', description: '', durationMinutes: 30, totalMarks: 0, numberOfQuestions: 10, maxAttempts: 1, startDate: '', validUntil: '' });
+            openTestBuilder(created.id);
         } catch (err) { toast.error(apiError(err)); } finally { setSavingTest(false); }
     };
 
-    const updateTestStatus = async (test: Test, status: TestStatus) => {
+    // `startNow` only matters when activating: true locks Start Date to right now (test
+    // goes live immediately); false leaves whatever Start Date is already set untouched,
+    // so the test stays "Upcoming" for students until that scheduled moment arrives.
+    const updateTestStatus = async (test: Test, status: TestStatus, startNow = true) => {
         try {
-            const res = await api.patch(`/teacher/tasks/tests/${test.id}`, { status });
+            const body: Record<string, unknown> = { status };
+            if (status === 'ACTIVE' && startNow) body.startDate = new Date().toISOString();
+            const res = await api.patch(`/teacher/tasks/tests/${test.id}`, body);
             setTests(prev => prev.map(t => t.id === test.id ? { ...t, ...res.data.data } : t));
-            toast.success(status === 'ACTIVE' ? 'Test activated — link is now live' : 'Test completed');
+            toast.success(status === 'ACTIVE' ? (startNow ? 'Test activated — link is now live' : 'Test scheduled — will go live at the set Start Date') : 'Test completed');
+        } catch (err) { toast.error(apiError(err)); }
+    };
+
+    // Ends an ACTIVE test immediately instead of waiting for its Valid Until date —
+    // pulls Valid Until to right now so "Ended at" reflects the real stop moment.
+    const stopTestNow = async (test: Test) => {
+        try {
+            const res = await api.patch(`/teacher/tasks/tests/${test.id}`, { status: 'COMPLETED', validUntil: new Date().toISOString() });
+            setTests(prev => prev.map(t => t.id === test.id ? { ...t, ...res.data.data } : t));
+            toast.success('Test stopped — now shows as completed');
         } catch (err) { toast.error(apiError(err)); }
     };
 
@@ -719,20 +775,18 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     };
 
     const openBuilder = (id: string, type: 'TEST' | 'ASSIGNMENT' = 'TEST') => {
-        if (type === 'ASSIGNMENT') { setAssignmentBuilderId(id); setAssignmentBuilderOpen(true); }
-        else { setTestBuilderId(id); setTestBuilderOpen(true); }
+        if (type === 'ASSIGNMENT') openAssignmentBuilder(id);
+        else openTestBuilder(id);
     };
 
     const handleTestPaperSaved = () => {
         fetchTests();
-        setTestBuilderOpen(false);
-        setTestBuilderId(null);
+        closeTestBuilder();
     };
 
     const handleAssignmentPaperSaved = () => {
         fetchAssignments();
-        setAssignmentBuilderOpen(false);
-        setAssignmentBuilderId(null);
+        closeAssignmentBuilder();
     };
 
     const copyLink = (testLink: string) => {
@@ -956,7 +1010,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     // ── Render ─────────────────────────────────────────────────────────────────
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="relative flex flex-col h-full overflow-hidden">
             {/* Action buttons */}
             <div className="shrink-0 px-2 pt-1 pb-1 flex flex-wrap items-center justify-between gap-2 relative">
                 {subTab === 'questions' && selectedContainerId && (
@@ -1424,7 +1478,8 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                     onOpen={() => openBuilder(test.id)}
                                     onCopyLink={() => copyLink(test.testLink)}
                                     onDelete={() => deleteTest(test.id)}
-                                    onActivate={() => updateTestStatus(test, 'ACTIVE')}
+                                    onActivate={(startNow) => updateTestStatus(test, 'ACTIVE', startNow)}
+                                    onStopNow={() => stopTestNow(test)}
                                     onResults={() => setResultsTestId(test.id)}
                                     copiedLink={copiedLink}
                                 />
@@ -1903,7 +1958,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                     modules={modules}
                     lockedPaperType="TEST"
                     entityType="test"
-                    onClose={() => { setTestBuilderOpen(false); setTestBuilderId(null); }}
+                    onClose={() => { closeTestBuilder(); fetchTests(); }}
                     onSaved={handleTestPaperSaved}
                 />
             )}
@@ -1916,7 +1971,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                     modules={modules}
                     lockedPaperType="ASSIGNMENT"
                     entityType="assignment"
-                    onClose={() => { setAssignmentBuilderOpen(false); setAssignmentBuilderId(null); }}
+                    onClose={() => { closeAssignmentBuilder(); fetchAssignments(); }}
                     onSaved={handleAssignmentPaperSaved}
                 />
             )}
@@ -1976,25 +2031,61 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                     { label: 'Total Marks', key: 'totalMarks', min: 1, max: 1000 },
                                     { label: 'No. of Questions', key: 'numberOfQuestions', min: 1, max: 100 },
                                     { label: 'Max Attempts', key: 'maxAttempts', min: 1, max: 10 },
-                                ].map(({ label, key, min, max }) => (
-                                    <div key={key}>
-                                        <label className="text-xs text-muted-foreground">{label}</label>
-                                        <input type="number" min={min} max={max}
-                                            value={(newTest as Record<string, unknown>)[key] as number}
-                                            onChange={e => setNewTest(p => ({ ...p, [key]: Number(e.target.value) }))}
-                                            className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
-                                    </div>
-                                ))}
+                                ].map(({ label, key, min, max }) => {
+                                    const current = (newTest as Record<string, unknown>)[key] as number;
+                                    const draft = newTestDraft[key];
+                                    return (
+                                        <div key={key}>
+                                            <label className="text-xs text-muted-foreground">{label}</label>
+                                            <input type="text" inputMode="numeric"
+                                                value={draft !== null && draft !== undefined ? draft : String(current)}
+                                                onFocus={e => { setNewTestDraft(d => ({ ...d, [key]: String(current) })); e.currentTarget.select(); }}
+                                                onChange={e => {
+                                                    const digits = e.target.value.replace(/[^0-9]/g, '');
+                                                    setNewTestDraft(d => ({ ...d, [key]: digits }));
+                                                    if (digits !== '') setNewTest(p => ({ ...p, [key]: Number(digits) }));
+                                                }}
+                                                onBlur={() => {
+                                                    const raw = newTestDraft[key];
+                                                    const n = parseInt(raw ?? '', 10);
+                                                    setNewTest(p => ({ ...p, [key]: !isNaN(n) ? Math.min(max, Math.max(min, n)) : current }));
+                                                    setNewTestDraft(d => ({ ...d, [key]: null }));
+                                                }}
+                                                onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                                className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                        </div>
+                                    );
+                                })}
                                 <div>
                                     <label className="text-xs text-muted-foreground">Start Date (optional)</label>
-                                    <input type="datetime-local" value={newTest.startDate}
-                                        onChange={e => setNewTest(p => ({ ...p, startDate: e.target.value }))}
+                                    <input type="datetime-local" value={newTest.startDate} min={toLocalDatetimeInput(new Date().toISOString())}
+                                        onChange={e => {
+                                            const v = e.target.value;
+                                            if (v && new Date(v) < new Date()) {
+                                                toast.error('Start Date cannot be in the past');
+                                                return;
+                                            }
+                                            setNewTest(p => {
+                                                // If Valid Until is already set and would now fall before/at the
+                                                // new Start Date, clear it rather than silently allowing an invalid pair.
+                                                const clearValidUntil = p.validUntil && v && new Date(p.validUntil) <= new Date(v);
+                                                if (clearValidUntil) toast.error('Valid Until was cleared — it was before the new Start Date');
+                                                return { ...p, startDate: v, validUntil: clearValidUntil ? '' : p.validUntil };
+                                            });
+                                        }}
                                         className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
                                 </div>
                                 <div>
                                     <label className="text-xs text-muted-foreground">Valid Until (optional)</label>
-                                    <input type="datetime-local" value={newTest.validUntil}
-                                        onChange={e => setNewTest(p => ({ ...p, validUntil: e.target.value }))}
+                                    <input type="datetime-local" value={newTest.validUntil} min={newTest.startDate || undefined}
+                                        onChange={e => {
+                                            const v = e.target.value;
+                                            if (newTest.startDate && v && new Date(v) <= new Date(newTest.startDate)) {
+                                                toast.error('Valid Until must be after the Start Date');
+                                                return;
+                                            }
+                                            setNewTest(p => ({ ...p, validUntil: v }));
+                                        }}
                                         className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
                                 </div>
                             </div>
@@ -2685,6 +2776,7 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
     onDelete: () => void; onActivate: () => void; onComplete: () => void; onSubmissions: () => void;
 }) {
     const [deleteConfirm, setDeleteConfirm] = useState(false);
+    const [activateConfirm, setActivateConfirm] = useState(false);
     const effectiveStatus: AssignmentStatus = (assignment.dueDate && new Date(assignment.dueDate) < new Date()) ? 'COMPLETED' : assignment.status;
     const statusColor = {
         DRAFT: 'text-muted-foreground bg-muted',
@@ -2759,9 +2851,34 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
                 </div>
                 <div className="flex items-center gap-2">
                     {effectiveStatus === 'DRAFT' && (
-                        <button onClick={onActivate} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
-                            <Play size={12} /> Activate
-                        </button>
+                        <div className="relative">
+                            <button onClick={() => setActivateConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
+                                <Play size={12} /> Activate
+                            </button>
+                            <AnimatePresence>
+                                {activateConfirm && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                        className="absolute right-0 bottom-9 z-30 bg-card border border-border rounded-xl shadow-xl p-3 w-60 flex flex-col gap-2">
+                                        <p className="text-xs font-semibold text-foreground">Activate this assignment?</p>
+                                        <p className="text-[11px] text-muted-foreground">Students will be able to see and submit it immediately.</p>
+                                        <div className="flex gap-1.5 justify-end">
+                                            <button onClick={() => setActivateConfirm(false)}
+                                                className="px-2.5 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                                Cancel
+                                            </button>
+                                            <button onClick={() => { setActivateConfirm(false); onActivate(); }}
+                                                className="px-2.5 py-1 text-xs rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-all">
+                                                Activate
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     )}
                     {effectiveStatus === 'ACTIVE' && (
                         <button onClick={onComplete} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
@@ -2829,11 +2946,11 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="absolute inset-0 z-50 flex">
             <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-            <div className="relative ml-auto w-full max-w-3xl h-full bg-background border-l border-border flex flex-col shadow-2xl">
+            <div className="relative ml-auto w-full max-w-3xl h-full bg-card border-l border-border flex flex-col shadow-2xl">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0 bg-card">
                     <div>
                         <h2 className="font-semibold text-sm">{data?.test.title ?? 'Results'}</h2>
                         {data && <p className="text-xs text-muted-foreground">{data.test.subject.name} · {data.test.division.name}</p>}
@@ -2841,7 +2958,8 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
                     <div className="flex items-center gap-2">
                         {data && data.attempts.length > 0 && (
                             <button onClick={handleDownload}
-                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:opacity-90 transition-all">
+                                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-white hover:opacity-90 transition-all"
+                                style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
                                 <Download size={12} /> Download CSV
                             </button>
                         )}
@@ -2852,7 +2970,7 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-6 bg-background">
                     {loading ? (
                         <div className="flex items-center justify-center h-full"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
                     ) : !data || data.attempts.length === 0 ? (
@@ -2899,7 +3017,7 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
                                         {data.attempts.map((a, i) => {
                                             const pct = a.maxScore > 0 ? Math.round((a.totalScore / a.maxScore) * 100) : 0;
                                             return (
-                                                <tr key={i} className={`border-b border-border/60 ${a.malpracticeFlag ? 'bg-red-500/5' : ''}`}>
+                                                <tr key={i} className={`border-b border-border/60 ${a.malpracticeFlag ? 'bg-red-500/5' : 'bg-card'}`}>
                                                     <td className="px-4 py-2.5 font-mono text-muted-foreground">{a.rollNo}</td>
                                                     <td className="px-4 py-2.5 font-medium">{a.studentName}</td>
                                                     <td className="px-4 py-2.5 text-center">{a.totalScore}/{a.maxScore}</td>
@@ -2993,7 +3111,7 @@ function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: s
     const total = data?.students.length ?? 0;
 
     return (
-        <div className="fixed inset-0 z-50 flex">
+        <div className="absolute inset-0 z-50 flex">
             <div className="flex-1 bg-black/40" onClick={onClose} />
             <div className="w-full max-w-xl bg-background border-l border-border flex flex-col overflow-hidden">
                 {/* Header */}
@@ -3123,31 +3241,47 @@ function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: s
 
 // ── Test Card ─────────────────────────────────────────────────────────────────
 
-function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, onResults, copiedLink }: {
+function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, onStopNow, onResults, copiedLink }: {
     test: Test;
     onOpen: () => void;
     onCopyLink: () => void;
     onDelete: () => void;
-    onActivate: () => void;
+    onActivate: (startNow: boolean) => void;
+    onStopNow: () => void;
     onResults: () => void;
     copiedLink: string | null;
 }) {
     const [deleteConfirm, setDeleteConfirm] = useState(false);
+    const [activateConfirm, setActivateConfirm] = useState(false);
+    const [activateMenuOpen, setActivateMenuOpen] = useState(false);
+    const [activateStartNow, setActivateStartNow] = useState(true);
+    const [stopConfirm, setStopConfirm] = useState(false);
     const effectiveStatus = (test.validUntil && new Date(test.validUntil) < new Date()) ? 'COMPLETED' : test.status;
-    const statusColor = { DRAFT: 'text-muted-foreground bg-muted', ACTIVE: 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950', COMPLETED: 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950' }[effectiveStatus];
+    // Activated via "Start at set time" but that time hasn't arrived yet — link isn't live
+    // for students, so the badge/labels should read "Upcoming" rather than "Active" even
+    // though the backend status is already ACTIVE. Flips to "Active" on its own once the
+    // Start Date passes (same derived-on-render pattern as the validUntil → COMPLETED check).
+    const isUpcoming = effectiveStatus === 'ACTIVE' && !!test.startDate && new Date(test.startDate) > new Date();
+    const displayStatus = isUpcoming ? 'UPCOMING' : effectiveStatus;
+    const statusColor = {
+        DRAFT: 'text-muted-foreground bg-muted',
+        UPCOMING: 'text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-950',
+        ACTIVE: 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950',
+        COMPLETED: 'text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950',
+    }[displayStatus];
 
     return (
-        <div className="rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]">
+        <div className="group rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]">
             {/* Top row: content + icons */}
             <div className="flex gap-4">
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 mb-2 flex-wrap">
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md shrink-0 ${statusColor}`}>{effectiveStatus}</span>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded-md shrink-0 ${statusColor}`}>{displayStatus}</span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground"><BookOpen size={12} />{test.questions.length}/{test.numberOfQuestions} questions</span>
                         <span className="text-muted-foreground opacity-40">·</span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground"><Users size={12} />{test._count.attempts} attempts</span>
                         <span className="text-muted-foreground opacity-40">·</span>
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 size={12} />{test._count.submissions ?? 0} submitted</span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><CheckCircle2 size={12} />{test._count.submitted ?? 0} submitted</span>
                     </div>
                     <h3 className="font-semibold text-base truncate mb-1.5">{test.title}</h3>
                     {test.description && (
@@ -3156,6 +3290,9 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, onResults, c
                 </div>
                 {/* Top-right icons: copy + delete */}
                 <div className="flex items-start gap-1 shrink-0">
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap self-start mt-1 mr-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-foreground/50">Created at:</span> {test.createdAt ? `${new Date(test.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(test.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}
+                    </span>
                     {effectiveStatus === 'ACTIVE' && (
                         <div className="relative">
                             <button onClick={onCopyLink} className="text-muted-foreground hover:text-foreground p-1 rounded transition-all" title="Copy link">
@@ -3215,18 +3352,112 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, onResults, c
                     <span className="opacity-40">·</span>
                     <span>{test.totalMarks} marks</span>
                     <span className="opacity-40">|</span>
-                    <span><span className="text-foreground/50">Created at:</span> {test.createdAt ? `${new Date(test.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(test.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
+                    <span><span className="text-foreground/50">{(displayStatus === 'DRAFT' || displayStatus === 'UPCOMING') ? 'Starts at:' : 'Started at:'}</span> {test.startDate ? `${new Date(test.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(test.startDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
                     <span className="opacity-40">·</span>
-                    <span><span className="text-foreground/50">{test.status === 'COMPLETED' ? 'Ended at:' : 'Ends at:'}</span> {test.validUntil ? `${new Date(test.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(test.validUntil).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
+                    <span><span className="text-foreground/50">{effectiveStatus === 'COMPLETED' ? 'Ended at:' : 'Ends at:'}</span> {test.validUntil ? `${new Date(test.validUntil).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(test.validUntil).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     {effectiveStatus === 'DRAFT' && (
-                        <button onClick={onActivate} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
-                            <Play size={12} /> Activate
-                        </button>
+                        <div className="relative">
+                            <button onClick={() => setActivateMenuOpen(true)}
+                                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
+                                <Play size={12} /> Activate
+                            </button>
+                            <AnimatePresence>
+                                {activateMenuOpen && (
+                                    <>
+                                        <div className="fixed inset-0 z-20" onClick={() => setActivateMenuOpen(false)} />
+                                        <motion.div
+                                            initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                                            exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                                            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                            className="absolute right-0 bottom-9 z-30 bg-card border border-border rounded-xl shadow-xl p-1.5 w-64 flex flex-col gap-0.5">
+                                            <button onClick={() => {
+                                                    if (!test.startDate) { toast.error('Set a Start Date first to use this option'); return; }
+                                                    setActivateMenuOpen(false); setActivateStartNow(false); setActivateConfirm(true);
+                                                }}
+                                                className="text-left px-3 py-2 rounded-lg text-xs hover:bg-muted transition-all">
+                                                <span className="font-medium text-foreground">Start at set time</span>
+                                                <span className="block text-[11px] text-muted-foreground">
+                                                    {test.startDate
+                                                        ? `${new Date(test.startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ${new Date(test.startDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+                                                        : 'Set a Start Date first'}
+                                                </span>
+                                            </button>
+                                            <button onClick={() => { setActivateMenuOpen(false); setActivateStartNow(true); setActivateConfirm(true); }}
+                                                className="text-left px-3 py-2 rounded-lg text-xs hover:bg-muted transition-all">
+                                                <span className="font-medium text-foreground">Start now</span>
+                                                <span className="block text-[11px] text-muted-foreground">Goes live immediately</span>
+                                            </button>
+                                        </motion.div>
+                                    </>
+                                )}
+                            </AnimatePresence>
+                            <AnimatePresence>
+                                {activateConfirm && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                        className="absolute right-0 bottom-9 z-30 bg-card border border-border rounded-xl shadow-xl p-3 w-64 flex flex-col gap-2">
+                                        <p className="text-xs font-semibold text-foreground">Activate this test?</p>
+                                        <p className="text-[11px] text-muted-foreground">
+                                            {activateStartNow
+                                                ? "The link goes live immediately and the Start Date locks to right now. This can't be undone."
+                                                : `Students will see it as "Upcoming" until ${new Date(test.startDate!).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, ${new Date(test.startDate!).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} — it'll go live on its own at that time, no need to activate it again.`}
+                                        </p>
+                                        <div className="flex gap-1.5 justify-end">
+                                            <button onClick={() => setActivateConfirm(false)}
+                                                className="px-2.5 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                                Cancel
+                                            </button>
+                                            <button onClick={() => { setActivateConfirm(false); onActivate(activateStartNow); }}
+                                                className="px-2.5 py-1 text-xs rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium transition-all">
+                                                Activate
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
+                    )}
+                    {displayStatus === 'ACTIVE' && (
+                        <div className="relative">
+                            <button onClick={() => setStopConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-all">
+                                <Square size={11} /> Stop Now
+                            </button>
+                            <AnimatePresence>
+                                {stopConfirm && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                        className="absolute left-0 bottom-9 z-30 bg-card border border-border rounded-xl shadow-xl p-3 w-64 flex flex-col gap-2">
+                                        <p className="text-xs font-semibold text-foreground">Stop this test now?</p>
+                                        <p className="text-[11px] text-muted-foreground">
+                                            The test will end immediately. This can't be undone.
+                                        </p>
+                                        <div className="flex gap-1.5 justify-end">
+                                            <button onClick={() => setStopConfirm(false)}
+                                                className="px-2.5 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                                Cancel
+                                            </button>
+                                            <button onClick={() => { setStopConfirm(false); onStopNow(); }}
+                                                className="px-2.5 py-1 text-xs rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                                Stop Now
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     )}
                     {effectiveStatus === 'ACTIVE' && (
-                        <button className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
+                        <button title="Sends students a fresh notification about this test - use it if some of them missed the first one"
+                            className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
                             <ArrowRight size={12} /> Resend
                         </button>
                     )}
@@ -3280,6 +3511,10 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     const [description, setDescription] = useState('');
     const [paperType, setPaperType] = useState<'TEST' | 'ASSIGNMENT'>(lockedPaperType);
     const [durationMinutes, setDurationMinutes] = useState(60);
+    // Free-typing buffer for the duration input — lets the box go fully empty while
+    // editing instead of snapping to "0" (which used to leave a stuck leading zero,
+    // e.g. typing "45" over a cleared box became "045").
+    const [durationDraft, setDurationDraft] = useState<string | null>(null);
     const [maxAttempts, setMaxAttempts] = useState(1);
     const [startDate, setStartDate] = useState('');
     const [validUntil, setValidUntil] = useState('');
@@ -3299,6 +3534,12 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     const [dragOverQId, setDragOverQId] = useState<string | null>(null);
     const [removeQConfirm, setRemoveQConfirm] = useState<{ questionId: string; questionText: string } | null>(null);
     const [pageGroups, setPageGroups] = useState<string[][] | null>(null);
+    // Once a test has been activated, its Start Date is locked to the real activation
+    // moment and can no longer be hand-edited.
+    const [isActivated, setIsActivated] = useState(false);
+    const [activateConfirm, setActivateConfirm] = useState(false);
+    const [activateMenuOpen, setActivateMenuOpen] = useState(false);
+    const [activateStartNow, setActivateStartNow] = useState(true);
     const pageBlockElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
     const testFlowBlocksRef = useRef<FlowBlock[]>([]);
 
@@ -3316,6 +3557,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 setMaxAttempts(t.maxAttempts);
                 setStartDate(t.startDate ? toLocalDatetimeInput(t.startDate) : '');
                 setValidUntil(t.validUntil ? toLocalDatetimeInput(t.validUntil) : '');
+                setIsActivated(t.status === 'ACTIVE' || t.status === 'COMPLETED');
                 setIsRandomized(t.isRandomized ?? false);
                 setAnswerSpace(t.answerSpace ?? true);
                 const rawSections = (t.sections ?? []) as unknown as Array<Record<string, unknown>>;
@@ -3441,8 +3683,15 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     };
     const handleQDragEnd = () => { setDragQId(null); setDragOverQId(null); };
 
-    const savePaper = async (activate = false, silent = false) => {
+    // `startNow` only matters when activating: true locks Start Date to right now (test
+    // goes live immediately); false leaves whatever Start Date is already set untouched,
+    // so the test stays "Upcoming" for students until that scheduled moment arrives.
+    const savePaper = async (activate = false, silent = false, startNow = true) => {
         if (!title.trim()) { if (!silent) toast.error('Title is required'); return; }
+        if (startDate && validUntil && new Date(validUntil) <= new Date(startDate)) {
+            if (!silent) toast.error('Valid Until must be after the Start Date');
+            return;
+        }
         if (silent) setDraftSaveStatus('saving'); else setSaving(true);
         try {
             const questionPayload = builderQs.map((q, i) => ({
@@ -3461,26 +3710,35 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                     answerSpace,
                     sections,
                     questions: questionPayload,
+                    totalMarks,
                 });
                 if (activate) {
                     await api.patch(`/teacher/tasks/assignments/${testId}`, { status: 'ACTIVE' });
                 }
             } else {
+                // "Start now" locks in the real moment the test goes live as the Start Date,
+                // overriding whatever was pre-set in the picker. "Start at set time" leaves
+                // the picker's value exactly as-is — the test becomes ACTIVE but stays
+                // "Upcoming" (no Start button) for students until that scheduled time arrives.
+                const effectiveStartDateIso = (activate && startNow) ? new Date().toISOString() : (startDate ? new Date(startDate).toISOString() : null);
                 await api.put(`/teacher/tasks/tests/${testId}/paper`, {
                     title,
                     description: description || null,
                     paperType,
                     durationMinutes,
                     maxAttempts,
-                    startDate: startDate ? new Date(startDate).toISOString() : null,
+                    startDate: effectiveStartDateIso,
                     validUntil: validUntil ? new Date(validUntil).toISOString() : null,
                     isRandomized,
                     answerSpace,
                     sections: paperType === 'TEST' ? sections : [],
                     questions: questionPayload,
+                    totalMarks,
                 });
                 if (activate) {
                     await api.patch(`/teacher/tasks/tests/${testId}`, { status: 'ACTIVE' });
+                    if (effectiveStartDateIso) setStartDate(toLocalDatetimeInput(effectiveStartDateIso));
+                    setIsActivated(true);
                 }
             }
             if (!activate) {
@@ -3490,7 +3748,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 setTimeout(() => setDraftSaveStatus('idle'), 2000);
                 if (!silent) toast.success('Paper saved');
             } else {
-                toast.success('Paper saved and activated');
+                toast.success(entityType === 'test' && !startNow ? 'Paper saved — will go live at the set Start Date' : 'Paper saved and activated');
                 onSaved();
             }
         } catch (err) {
@@ -3519,6 +3777,13 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
             return sum + attemptN * s.marksPerQuestion;
           }, 0) + builderQs.filter(q => !q.sectionId).reduce((sum, q) => sum + q.marks, 0)
         : builderQs.reduce((sum, q) => sum + q.marks, 0);
+
+    // Only lock Start Date once the test has actually gone live. If it was activated via
+    // "Start at set time" and that time hasn't arrived yet, the link still isn't live —
+    // the teacher can freely push it earlier/later. "Start now" always locks immediately
+    // since the link is already live by definition.
+    const startDateInFuture = !!startDate && new Date(startDate) > new Date();
+    const startDateLocked = isActivated && !startDateInFuture;
 
     const containerStyle = isFullscreen
         ? { position: 'fixed' as const, top: mainTop, left: 0, right: 0, bottom: 0, zIndex: 60 }
@@ -3652,8 +3917,6 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                             <div className="flex items-center gap-6">
                                 <span><span className="font-semibold">Time:</span> {durationMinutes} min</span>
                                 <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
-                                {startDate && <span><span className="font-semibold">Start:</span> {new Date(startDate).toLocaleDateString()}</span>}
-                                {validUntil && <span><span className="font-semibold">Valid Until:</span> {new Date(validUntil).toLocaleDateString()}</span>}
                             </div>
                             <div className="flex items-center gap-4">
                                 <span><span className="font-semibold">Total Questions:</span> {builderQs.length}</span>
@@ -3915,7 +4178,20 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 <div className="flex flex-col gap-2.5">
                                     <div className="flex items-center gap-1.5">
                                         <label className="text-[11px] text-muted-foreground">Duration</label>
-                                        <input type="number" min={5} max={600} value={durationMinutes} onChange={e => setDurationMinutes(Number(e.target.value))}
+                                        <input type="text" inputMode="numeric"
+                                            value={durationDraft !== null ? durationDraft : String(durationMinutes)}
+                                            onFocus={e => { setDurationDraft(String(durationMinutes)); e.currentTarget.select(); }}
+                                            onChange={e => {
+                                                const digits = e.target.value.replace(/[^0-9]/g, '');
+                                                setDurationDraft(digits);
+                                                if (digits !== '') setDurationMinutes(Number(digits));
+                                            }}
+                                            onBlur={() => {
+                                                const n = parseInt(durationDraft ?? '', 10);
+                                                setDurationMinutes(!isNaN(n) ? Math.min(600, Math.max(5, n)) : durationMinutes);
+                                                setDurationDraft(null);
+                                            }}
+                                            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                                             className="w-14 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
                                         <span className="text-[11px] text-muted-foreground -ml-1">mins</span>
                                         <label className="text-[11px] text-muted-foreground ml-6">Attempts</label>
@@ -3943,12 +4219,36 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 <div className="flex flex-col gap-1.5 ml-auto">
                                     <div className="flex items-center gap-1.5">
                                         <label className="text-[11px] text-muted-foreground">Start date</label>
-                                        <input type="datetime-local" value={startDate} onChange={e => setStartDate(e.target.value)}
-                                            className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                                        <input type="datetime-local" value={startDate} disabled={startDateLocked}
+                                            min={toLocalDatetimeInput(new Date().toISOString())}
+                                            title={startDateLocked ? 'Start Date is locked to the moment this test went live' : undefined}
+                                            onChange={e => {
+                                                const v = e.target.value;
+                                                if (v && new Date(v) < new Date()) {
+                                                    toast.error('Start Date cannot be in the past');
+                                                    return;
+                                                }
+                                                // If Valid Until is already set and would now fall before/at the
+                                                // new Start Date, clear it rather than silently allowing an invalid pair.
+                                                if (validUntil && v && new Date(validUntil) <= new Date(v)) {
+                                                    toast.error('Valid Until was cleared — it was before the new Start Date');
+                                                    setValidUntil('');
+                                                }
+                                                setStartDate(v);
+                                            }}
+                                            className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" />
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <label className="text-[11px] text-muted-foreground">Valid until</label>
-                                        <input type="datetime-local" value={validUntil} onChange={e => setValidUntil(e.target.value)}
+                                        <input type="datetime-local" value={validUntil} min={startDate || undefined}
+                                            onChange={e => {
+                                                const v = e.target.value;
+                                                if (startDate && v && new Date(v) <= new Date(startDate)) {
+                                                    toast.error('Valid Until must be after the Start Date');
+                                                    return;
+                                                }
+                                                setValidUntil(v);
+                                            }}
                                             className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
                                     </div>
                                 </div>
@@ -3983,11 +4283,54 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                         : <Save size={12} />}
                                 {(saving || draftSaveStatus === 'saving') ? 'Saving…' : draftSaveStatus === 'saved' ? 'Saved!' : 'Save Draft'}
                             </button>
-                            <button onClick={() => savePaper(true)} disabled={saving || builderQs.length === 0}
-                                className="text-sm font-medium px-4 py-1.5 rounded-lg text-white disabled:opacity-50"
-                                style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
-                                Save & Activate
-                            </button>
+                            {isActivated ? (
+                                <span className="flex items-center gap-1.5 text-sm font-medium px-4 py-1.5 rounded-lg text-emerald-600 bg-emerald-500/10 border border-emerald-500/30">
+                                    <CheckCircle2 size={14} /> Activated
+                                </span>
+                            ) : (
+                                <div className="relative">
+                                    <button onClick={() => {
+                                            if (entityType === 'test') setActivateMenuOpen(true);
+                                            else { setActivateStartNow(true); setActivateConfirm(true); }
+                                        }}
+                                        disabled={saving || builderQs.length === 0}
+                                        className="text-sm font-medium px-4 py-1.5 rounded-lg text-white disabled:opacity-50"
+                                        style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+                                        Save & Activate
+                                    </button>
+                                    <AnimatePresence>
+                                        {activateMenuOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-[59]" onClick={() => setActivateMenuOpen(false)} />
+                                                <motion.div
+                                                    initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                                                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                                                    exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                                                    transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                                    className="absolute right-0 top-full mt-1 z-[60] bg-card border border-border rounded-xl shadow-xl p-1.5 w-64 flex flex-col gap-0.5">
+                                                    <button onClick={() => {
+                                                            if (!startDate) { toast.error('Set a Start Date first to use this option'); return; }
+                                                            setActivateMenuOpen(false); setActivateStartNow(false); setActivateConfirm(true);
+                                                        }}
+                                                        className="text-left px-3 py-2 rounded-lg text-xs hover:bg-muted transition-all">
+                                                        <span className="font-medium text-foreground">Start at set time</span>
+                                                        <span className="block text-[11px] text-muted-foreground">
+                                                            {startDate
+                                                                ? `${new Date(startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} · ${new Date(startDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}`
+                                                                : 'Set a Start Date first'}
+                                                        </span>
+                                                    </button>
+                                                    <button onClick={() => { setActivateMenuOpen(false); setActivateStartNow(true); setActivateConfirm(true); }}
+                                                        className="text-left px-3 py-2 rounded-lg text-xs hover:bg-muted transition-all">
+                                                        <span className="font-medium text-foreground">Start now</span>
+                                                        <span className="block text-[11px] text-muted-foreground">Goes live immediately</span>
+                                                    </button>
+                                                </motion.div>
+                                            </>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                            )}
                         </div>
                     </div>
                     <div className="shrink-0 px-4 py-3 border-b border-border/50 bg-muted/40 flex items-center justify-between">
@@ -4041,15 +4384,17 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                         }}
                                                         className={`flex items-start gap-2 px-3 py-2 border-b border-border/30 last:border-0 transition-all group ${hasOpts ? 'cursor-pointer' : ''} ${alreadyAdded ? '' : 'hover:bg-muted/50'}`}
                                                         style={alreadyAdded ? { background: 'rgba(218,119,86,0.08)' } : undefined}>
-                                                        <span onClick={e => {
+                                                        <div onClick={e => {
                                                                 e.stopPropagation();
                                                                 if (alreadyAdded) removeQuestion(q.id);
                                                                 else addQuestionToBuilder(q as unknown as Question);
                                                             }}
-                                                            className="mt-0.5 w-3.5 h-3.5 rounded-[4px] border shrink-0 flex items-center justify-center transition-all cursor-pointer"
-                                                            style={alreadyAdded ? { background: '#DA7756', borderColor: '#DA7756' } : { borderColor: 'var(--border)' }}>
-                                                            {alreadyAdded && <Check size={10} className="text-white" strokeWidth={3} />}
-                                                        </span>
+                                                            className="self-stretch shrink-0 flex items-start justify-center cursor-pointer -my-2 -ml-3 pl-3 pr-1.5 pt-2.5">
+                                                            <span className="w-3.5 h-3.5 rounded-[4px] border shrink-0 flex items-center justify-center transition-all"
+                                                                style={alreadyAdded ? { background: '#DA7756', borderColor: '#DA7756' } : { borderColor: 'var(--border)' }}>
+                                                                {alreadyAdded && <Check size={10} className="text-white" strokeWidth={3} />}
+                                                            </span>
+                                                        </div>
                                                         <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[q.type]?.color}`}>{TYPE_META[q.type]?.label}</span>
                                                         <div className="flex-1 min-w-0">
                                                             <div className="flex items-start gap-1">
@@ -4179,6 +4524,54 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 </div>
             </div>
         </div>
+
+        {/* Save & Activate confirm modal */}
+        <AnimatePresence>
+            {activateConfirm && (
+                <>
+                    <motion.div
+                        key="activate-overlay"
+                        initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
+                        onClick={() => setActivateConfirm(false)}
+                    />
+                    <motion.div
+                        key="activate-modal"
+                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                        className="fixed inset-0 z-[70] flex items-center justify-center pointer-events-none"
+                    >
+                        <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-80 pointer-events-auto flex flex-col gap-4">
+                            <div className="flex flex-col gap-1">
+                                <p className="text-sm font-semibold text-foreground">
+                                    {entityType === 'test' ? 'Save & activate this test?' : 'Save & activate this assignment?'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                    {entityType !== 'test'
+                                        ? 'Students will be able to see and submit it immediately.'
+                                        : activateStartNow
+                                            ? "The link goes live immediately and the Start Date locks to right now. This can't be undone."
+                                            : `Students will see it as "Upcoming" until ${new Date(startDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, ${new Date(startDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })} — it'll go live on its own at that time, no need to activate it again.`}
+                                </p>
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                                <button onClick={() => setActivateConfirm(false)}
+                                    className="px-4 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                    Cancel
+                                </button>
+                                <button onClick={() => { setActivateConfirm(false); savePaper(true, false, activateStartNow); }}
+                                    className="px-4 py-1.5 text-sm rounded-lg text-white font-medium transition-all"
+                                    style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
+                                    Activate
+                                </button>
+                            </div>
+                        </div>
+                    </motion.div>
+                </>
+            )}
+        </AnimatePresence>
 
         {/* Delete section confirm modal */}
         <AnimatePresence>
