@@ -239,6 +239,96 @@ async function extractDocumentText(doc: { url: string; type: string }, selectedP
     return '';
 }
 
+/** Host shown under each image — lets a teacher judge the source at a glance. */
+function sourceHost(url: string): string {
+    try {
+        return new URL(url).hostname.replace(/^www\./, '');
+    } catch {
+        return '';
+    }
+}
+
+/**
+ * Scan result images. Two things the plain <img> grid didn't handle:
+ * the scan panel is a narrow split pane, so a detailed diagram is unreadable
+ * inline — hence click-to-expand; and images now come from arbitrary web
+ * hosts, some of which block hot-linking, so anything that fails to load is
+ * dropped rather than left as a broken-image icon.
+ */
+function ScanImages({ images }: { images: { url: string; caption: string }[] }) {
+    const [broken, setBroken] = useState<Record<string, true>>({});
+    const [expanded, setExpanded] = useState<{ url: string; caption: string } | null>(null);
+
+    useEffect(() => {
+        if (!expanded) return;
+        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpanded(null); };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [expanded]);
+
+    const visible = images.filter(img => !broken[img.url]);
+    if (visible.length === 0) return null;
+
+    return (
+        <div>
+            <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">
+                Related Images <span className="text-white/30 normal-case font-normal">· click to enlarge</span>
+            </p>
+            <div className="space-y-2">
+                {visible.map((img, i) => (
+                    <button key={`${img.url}-${i}`} type="button" onClick={() => setExpanded(img)}
+                        className="w-full rounded-xl overflow-hidden border border-white/10 hover:border-white/30 transition-colors text-left group">
+                        <div className="relative bg-white">
+                            {/* object-contain, not cover: diagrams must not be cropped. */}
+                            <img src={img.url} alt={img.caption}
+                                className="w-full object-contain max-h-48"
+                                loading="lazy"
+                                referrerPolicy="no-referrer"
+                                onError={() => setBroken(prev => ({ ...prev, [img.url]: true }))} />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                        </div>
+                        <div className="px-2 py-1.5 bg-white/5">
+                            <p className="text-[10px] text-white/70 leading-snug line-clamp-2">{img.caption}</p>
+                            {sourceHost(img.url) && (
+                                <p className="text-[9px] text-white/35 mt-0.5">{sourceHost(img.url)}</p>
+                            )}
+                        </div>
+                    </button>
+                ))}
+            </div>
+
+            {expanded && (
+                <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-sm p-6"
+                    onClick={() => setExpanded(null)}>
+                    <div className="relative max-w-5xl w-full flex flex-col gap-2" onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between gap-3">
+                            <p className="text-sm text-white/90 font-medium truncate">{expanded.caption}</p>
+                            <div className="flex items-center gap-2 shrink-0">
+                                <a href={expanded.url} target="_blank" rel="noreferrer noopener"
+                                    className="h-8 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center transition-colors">
+                                    Open original
+                                </a>
+                                <button onClick={() => setExpanded(null)}
+                                    className="w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors">
+                                    <X size={15} />
+                                </button>
+                            </div>
+                        </div>
+                        <div className="bg-white rounded-2xl overflow-hidden flex items-center justify-center">
+                            <img src={expanded.url} alt={expanded.caption}
+                                referrerPolicy="no-referrer"
+                                className="max-w-full max-h-[78vh] object-contain" />
+                        </div>
+                        {sourceHost(expanded.url) && (
+                            <p className="text-[11px] text-white/40 text-center">Source: {sourceHost(expanded.url)}</p>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 // ── AI Scan Panel ─────────────────────────────────────────────────────────────
 function AIScanPanel({
     onClose, docName, doc, totalPages, selectedPages, onTogglePage,
@@ -503,17 +593,7 @@ function AIScanPanel({
 
                     {/* Images */}
                     {(result.images?.length ?? 0) > 0 && (
-                        <div>
-                            <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">Related Images</p>
-                            <div className="space-y-2">
-                                {(result.images ?? []).map((img, i) => (
-                                    <div key={i} className="rounded-xl overflow-hidden border border-white/10">
-                                        <img src={img.url} alt={img.caption} className="w-full object-cover" />
-                                        <p className="text-[10px] text-white/60 text-center py-1.5 bg-white/5">{img.caption}</p>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
+                        <ScanImages images={result.images ?? []} />
                     )}
                 </div>
             )}
