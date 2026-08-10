@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Clock, ShieldAlert } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, ShieldAlert, Check, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
 
 interface StartQuestion {
@@ -17,6 +17,7 @@ interface StartResponse {
     attemptId: string;
     attemptNumber: number;
     testTitle: string;
+    subjectName: string;
     durationMinutes: number;
     totalMarks: number;
     startTime: string;
@@ -45,6 +46,7 @@ export default function TakeTestPage() {
     const [secondsLeft, setSecondsLeft] = useState(0);
     const [submitting, setSubmitting] = useState(false);
     const [malpracticeWarned, setMalpracticeWarned] = useState(false);
+    const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
 
     const answersRef = useRef(answers);
     answersRef.current = answers;
@@ -87,7 +89,12 @@ export default function TakeTestPage() {
         }
     }, [testId, router]);
 
-    // Start the attempt — check status first.
+    // Start the attempt — check status first. The backend's /start is idempotent
+    // (it resumes an existing in-progress attempt instead of creating a new one),
+    // so it's safe for this effect to fire more than once — no need to guard
+    // against that here. A ref-based guard was tried before, but it broke the
+    // legitimate "cancelled" cleanup/retry cycle React does on remount, leaving
+    // the page stuck on "Loading test…" forever even after a valid response.
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -139,10 +146,10 @@ export default function TakeTestPage() {
                 if (!malpracticeWarnedRef.current) {
                     // First strike
                     setMalpracticeWarned(true);
-                    toast.warning('⚠️ Warning: Leaving the test tab has been recorded. One more time will auto-submit your exam.', { duration: 6000 });
+                    toast.warning('⚠️ Warning: Leaving the test tab has been recorded. One more time will auto-submit your exam.', { duration: Infinity });
                 } else {
-                    // Second strike — auto-submit and flag
-                    toast.error('🚨 Malpractice detected. Your exam is being submitted automatically.', { duration: 4000 });
+                    // Second strike - auto-submit and flag
+                    toast.error('🚨 Malpractice detected. Your exam is being submitted automatically.', { duration: Infinity });
                     doSubmit(false);
                 }
             }
@@ -193,41 +200,56 @@ export default function TakeTestPage() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto px-2 pb-10" onCopy={preventCopy} onPaste={preventCopy} onCut={preventCopy}>
+        <div className="max-w-2xl mx-auto px-2 pb-10 min-h-full flex flex-col justify-center" onCopy={preventCopy} onPaste={preventCopy} onCut={preventCopy}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-4 sticky top-0 bg-background py-2 z-10 gap-2">
-                <h1 className="text-sm font-bold truncate min-w-0 flex-1">{session.testTitle}</h1>
-                <div className="flex items-center gap-2 shrink-0">
+            <div className="w-full flex flex-col items-center justify-center mb-3 sticky top-0 bg-background py-2 z-10">
+                <h1 className="text-3xl font-bold truncate text-center max-w-[70%] relative -top-3">{session.testTitle}</h1>
+                <p className="text-sm text-muted-foreground -mt-1">{session.subjectName} · {session.totalMarks} marks</p>
+            </div>
+
+            <div className="flex items-start justify-between gap-2 mb-2">
+                <p className="text-sm text-muted-foreground relative top-3">Question {index + 1} of {session.questions.length}</p>
+                <div className="flex items-center gap-2">
                     {malpracticeWarned && (
-                        <span className="flex items-center gap-1 text-[10px] font-semibold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-1 rounded-full">
-                            <ShieldAlert size={11} /> 1 warning
+                        <span className="flex items-center gap-1 text-xs font-semibold text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2.5 py-1.5 rounded-full">
+                            <ShieldAlert size={12} /> 1 warning
                         </span>
                     )}
-                    <span className={`flex items-center gap-1.5 text-sm font-bold px-3 py-1 rounded-full ${secondsLeft < 60 ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-muted text-foreground'}`}>
-                        <Clock size={14} /> {mins}:{secs.toString().padStart(2, '0')}
+                    <span className={`flex items-center gap-1.5 text-base font-bold px-3.5 py-1.5 rounded-full ${secondsLeft < 60 ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300' : 'bg-white dark:bg-muted text-foreground'}`}>
+                        <Clock size={16} /> {mins}:{secs.toString().padStart(2, '0')}
                     </span>
                 </div>
             </div>
 
             {/* Progress bar */}
             <div className="w-full h-1 bg-muted rounded-full mb-3">
-                <div className="h-1 bg-primary rounded-full transition-all" style={{ width: `${((index + 1) / session.questions.length) * 100}%` }} />
+                <div className="h-1 rounded-full transition-all" style={{ width: `${((index + 1) / session.questions.length) * 100}%`, background: 'linear-gradient(135deg,#E8876A,#C06040)' }} />
             </div>
 
-            <p className="text-xs text-muted-foreground mb-2">Question {index + 1} of {session.questions.length}</p>
             <div className="rounded-2xl border border-border bg-card p-5 mb-4">
-                <p className="text-sm font-medium leading-relaxed mb-4">{q.questionText}</p>
+                <p className="text-base font-medium leading-relaxed mb-8">{index + 1}. {q.questionText}</p>
 
                 {(q.type === 'MCQ' || q.type === 'CONCEPTUAL' || q.type === 'NUMERICAL') && (
-                    <div className="space-y-2">
-                        {q.options.map((opt, oi) => (
-                            <button key={oi} onClick={() => setAnswers((a) => ({ ...a, [q.questionId]: opt }))}
-                                className={`w-full text-left px-4 py-2.5 rounded-xl border text-sm transition-all ${
-                                    answers[q.questionId] === opt ? 'border-primary bg-primary/10 font-semibold' : 'border-border bg-background'
-                                }`}>
-                                {String.fromCharCode(65 + oi)}) {opt}
-                            </button>
-                        ))}
+                    <div className="space-y-3">
+                        {q.options.map((opt, oi) => {
+                            const isSelected = answers[q.questionId] === opt;
+                            return (
+                                <div key={oi} className="w-full flex items-center gap-2">
+                                    <button onClick={() => setAnswers((a) => ({ ...a, [q.questionId]: opt }))}
+                                        className={`shrink-0 rounded-[4px] flex items-center justify-center text-white font-bold transition-all ${
+                                        isSelected ? 'w-[20px] h-[20px] text-[11px] bg-[#DA7756]' : 'w-[18px] h-[18px] text-[11px] border-[1.5px] border-muted-foreground/40'
+                                    }`}>
+                                        {isSelected && '✓'}
+                                    </button>
+                                    <button onClick={() => setAnswers((a) => ({ ...a, [q.questionId]: opt }))}
+                                        className={`flex-1 text-left px-4 py-2.5 rounded-xl border text-sm transition-all origin-left ${
+                                            isSelected ? 'border-[1.5px] border-[#C06040] scale-[1.02]' : 'border-border'
+                                        }`}>
+                                        <span className={isSelected ? 'font-semibold' : ''}>{String.fromCharCode(65 + oi)}) {opt}</span>
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
 
@@ -236,7 +258,7 @@ export default function TakeTestPage() {
                         {['true', 'false'].map((v) => (
                             <button key={v} onClick={() => setAnswers((a) => ({ ...a, [q.questionId]: v }))}
                                 className={`py-2.5 rounded-xl border text-sm font-semibold capitalize transition-all ${
-                                    answers[q.questionId] === v ? 'border-primary bg-primary/10' : 'border-border bg-background'
+                                    answers[q.questionId] === v ? 'border-[#C06040] bg-[#DA7756]/10 text-[#C06040]' : 'border-border bg-background'
                                 }`}>
                                 {v}
                             </button>
@@ -257,23 +279,50 @@ export default function TakeTestPage() {
                 )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2">
                 <button onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={index === 0}
                     className="flex items-center gap-1 px-4 py-2 rounded-xl border border-border text-sm disabled:opacity-40">
                     <ChevronLeft size={14} /> Prev
                 </button>
                 {isLast ? (
-                    <button onClick={() => doSubmit(false)} disabled={submitting}
-                        className="flex-1 py-2 rounded-xl text-sm font-semibold text-white bg-emerald-600 disabled:opacity-50">
-                        {submitting ? 'Submitting…' : 'Submit Test'}
+                    <button onClick={() => setShowSubmitConfirm(true)} disabled={submitting}
+                        className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-emerald-600 disabled:opacity-50">
+                        <CheckCircle2 size={14} /> {submitting ? 'Submitting…' : 'Submit Test'}
                     </button>
                 ) : (
                     <button onClick={() => setIndex((i) => Math.min(session.questions.length - 1, i + 1))}
-                        className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-sm font-semibold text-white bg-primary">
+                        className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+                        style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
                         Next <ChevronRight size={14} />
                     </button>
                 )}
             </div>
+
+            {showSubmitConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+                    <div className="w-full max-w-sm rounded-2xl bg-card border border-border p-5">
+                        <h2 className="text-base font-bold mb-1">Submit test?</h2>
+                        <p className="text-sm text-muted-foreground mb-1">
+                            You've answered {Object.keys(answers).length} of {session.questions.length} questions.
+                        </p>
+                        {Object.keys(answers).length < session.questions.length && (
+                            <p className="text-sm text-orange-600 dark:text-orange-400 mb-4">
+                                {session.questions.length - Object.keys(answers).length} question(s) left unanswered. You won't be able to change answers after submitting.
+                            </p>
+                        )}
+                        <div className="flex items-center gap-2 mt-4">
+                            <button onClick={() => setShowSubmitConfirm(false)}
+                                className="flex-1 py-2 rounded-xl border border-border text-sm font-medium">
+                                Cancel
+                            </button>
+                            <button onClick={() => { setShowSubmitConfirm(false); doSubmit(false); }} disabled={submitting}
+                                className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-sm font-semibold text-white bg-emerald-600 disabled:opacity-50">
+                                <CheckCircle2 size={14} /> {submitting ? 'Submitting…' : 'Yes, Submit'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

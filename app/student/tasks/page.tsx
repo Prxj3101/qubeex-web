@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import {
-    FileText, ChevronDown, ChevronUp, Clock, Calendar, Zap, BarChart2, Layers,
-    Upload, CheckCircle2, AlertCircle, RefreshCw, BookOpen, ClipboardList,
+    FileText, ChevronDown, ChevronUp, Calendar, Timer, BarChart2, Layers,
+    Upload, CheckCircle2, AlertCircle, RefreshCw, BookOpen, ClipboardList, Radio,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -58,10 +59,10 @@ interface StudentAssignment {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const TEST_STATUS_META: Record<StudentStatus, { label: string; dotColor: string; textColor: string; bgColor: string }> = {
-    LIVE: { label: 'Live Now', dotColor: 'bg-red-500', textColor: 'text-red-500', bgColor: 'bg-red-500/10' },
-    UPCOMING: { label: 'Upcoming', textColor: 'text-orange-500', dotColor: 'bg-orange-400', bgColor: 'bg-orange-500/10' },
-    DONE: { label: 'Completed', textColor: 'text-emerald-500', dotColor: 'bg-emerald-500', bgColor: 'bg-emerald-500/10' },
+const TEST_STATUS_META: Record<StudentStatus, { label: string; emoji: string; textColor: string; bgColor: string }> = {
+    LIVE: { label: 'Live Now', emoji: '🔴', textColor: 'text-red-500', bgColor: 'bg-red-500/10' },
+    UPCOMING: { label: 'Upcoming', emoji: '⏰', textColor: 'text-amber-500', bgColor: 'bg-amber-500/10' },
+    DONE: { label: 'Completed', emoji: '✅', textColor: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
 };
 
 const ASSIGNMENT_STATUS_META: Record<AssignmentStatus, { label: string; textColor: string; bgColor: string }> = {
@@ -115,11 +116,13 @@ function TestCard({ test }: { test: StudentTest }) {
     const syllabusLines = (test.description ?? '')
         .split('\n').map((l) => l.trim()).filter(Boolean);
 
-    const dateChip = test.startDate ? formatDate(test.startDate) : (test.validUntil ? formatDate(test.validUntil) : null);
-    const timeChip = test.startDate ? formatTime(test.startDate) : (test.validUntil ? formatTime(test.validUntil) : null);
+    // A bare date/time chip with no label left students guessing whether it was
+    // the start or end time — show both whenever both exist, each clearly labeled.
+    const startLabel = test.studentStatus === 'UPCOMING' ? 'Starts' : 'Started';
+    const endLabel = test.studentStatus === 'DONE' ? 'Ended' : 'Ends';
     const durationLabel = test.durationMinutes >= 60
-        ? `${Math.floor(test.durationMinutes / 60)}hr${test.durationMinutes % 60 ? ` ${test.durationMinutes % 60}m` : ''}`
-        : `${test.durationMinutes}m`;
+        ? `${Math.floor(test.durationMinutes / 60)}hr${test.durationMinutes % 60 ? ` ${test.durationMinutes % 60}mins` : ''}`
+        : `${test.durationMinutes}mins`;
 
     function handleAction() {
         if (test.studentStatus === 'LIVE') router.push(`/student/tasks/tests/${test.id}`);
@@ -132,87 +135,87 @@ function TestCard({ test }: { test: StudentTest }) {
             <div className="p-4">
                 <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: test.studentStatus === 'LIVE' ? '#ef44441a' : test.studentStatus === 'UPCOMING' ? '#f975161a' : '#22c55e1a' }}>
-                        <FileText size={20} className={test.studentStatus === 'LIVE' ? 'text-red-400' : test.studentStatus === 'UPCOMING' ? 'text-orange-400' : 'text-emerald-500'} />
+                        style={{ backgroundColor: test.studentStatus === 'LIVE' ? '#ef44441a' : test.studentStatus === 'UPCOMING' ? '#f59e0b1a' : '#22c55e1a' }}>
+                        <FileText size={20} className={test.studentStatus === 'LIVE' ? 'text-red-400' : test.studentStatus === 'UPCOMING' ? 'text-amber-500' : 'text-emerald-500'} />
                     </div>
                     <div className="flex-1 min-w-0">
                         <h2 className="text-sm font-bold leading-snug">{test.title}</h2>
                         <p className="text-xs text-muted-foreground">{test.subjectName}</p>
                     </div>
-                    {test.studentStatus === 'DONE' && test.bestScore !== null ? (
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold shrink-0 bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                            {test.bestScore}/{test.totalMarks}
-                        </div>
-                    ) : (
-                        <span className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full shrink-0 ${meta.bgColor} ${meta.textColor}`}>
-                            <span className={`inline-block w-1.5 h-1.5 rounded-full ${meta.dotColor}`} />
-                            {meta.label}
+                    {test.studentStatus === 'DONE' && test.bestScore !== null && (
+                        <span className="text-xs font-semibold text-foreground shrink-0 relative top-[2px]">
+                            Score: {test.bestScore}/{test.totalMarks}
+                            {test.bestPercentage !== null && ` (${test.bestPercentage}%)`}
                         </span>
                     )}
+                    <span className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full shrink-0 ${meta.bgColor} ${meta.textColor}`}>
+                        {meta.emoji} {meta.label}
+                    </span>
                 </div>
 
                 <div className="flex flex-wrap gap-2 mt-3">
-                    {dateChip && (
+                    {test.startDate && (
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
-                            <Calendar size={10} /> {dateChip}
+                            <Calendar size={10} />
+                            <span className="font-semibold text-foreground/70">{startLabel}:</span>
+                            {formatDate(test.startDate)}, {formatTime(test.startDate)}
                         </span>
                     )}
-                    {timeChip && (
+                    {test.validUntil && (
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
-                            <Clock size={10} /> {timeChip}
+                            <Calendar size={10} />
+                            <span className="font-semibold text-foreground/70">{endLabel}:</span>
+                            {formatDate(test.validUntil)}, {formatTime(test.validUntil)}
                         </span>
                     )}
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
-                        <Zap size={10} /> {durationLabel}
+                        <Timer size={10} /> {durationLabel}
                     </span>
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
                         <BarChart2 size={10} /> {test.totalMarks} marks
                     </span>
-                    {test.daysLeft !== null && test.studentStatus !== 'DONE' && <DaysLeftBadge daysLeft={test.daysLeft} />}
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
+                        <Layers size={10} /> {test.numberOfQuestions} Ques
+                    </span>
+                    <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
+                        Attempt {test.attemptsUsed}/{test.maxAttempts}
+                    </span>
                 </div>
 
-                {expanded && (
+                {expanded && syllabusLines.length > 0 && (
                     <div className="mt-3">
-                        {syllabusLines.length > 0 && (
-                            <div className="mb-2">
-                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Syllabus</p>
-                                <ul className="space-y-1">
-                                    {syllabusLines.map((line, i) => (
-                                        <li key={i} className="flex items-start gap-1.5 text-xs text-foreground">
-                                            <span className="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
-                                            {line}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                        <div className="flex items-center gap-2 mt-2">
-                            <Layers size={12} className="text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground">
-                                {test.numberOfQuestions} questions · Attempt {test.attemptsUsed}/{test.maxAttempts}
-                            </span>
-                        </div>
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Syllabus</p>
+                        <ul className="space-y-1">
+                            {syllabusLines.map((line, i) => (
+                                <li key={i} className="flex items-start gap-1.5 text-xs text-foreground">
+                                    <span className="mt-1 w-1.5 h-1.5 rounded-full bg-primary shrink-0" />
+                                    {line}
+                                </li>
+                            ))}
+                        </ul>
                     </div>
                 )}
 
                 {test.studentStatus === 'LIVE' && (
                     <button onClick={handleAction}
                         className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
-                        <span className="inline-block w-2 h-2 rounded-full bg-white animate-pulse" />
+                        <Radio size={15} />
                         Start Test Now
                     </button>
                 )}
                 {test.studentStatus === 'DONE' && test.lastAttemptId && (
                     <button onClick={handleAction}
-                        className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold border border-emerald-500/40 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 active:scale-[0.98] transition-all">
+                        className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold border border-border text-foreground hover:bg-muted/50 active:scale-[0.98] transition-all">
                         View Result
                     </button>
                 )}
             </div>
-            <button onClick={() => setExpanded(!expanded)}
-                className="w-full flex items-center justify-center gap-1 py-2 border-t border-border text-[11px] text-muted-foreground hover:bg-muted/30 transition-colors">
-                {expanded ? <><ChevronUp size={12} /> Show less</> : <><ChevronDown size={12} /> Show more</>}
-            </button>
+            {syllabusLines.length > 0 && (
+                <button onClick={() => setExpanded(!expanded)}
+                    className="w-full flex items-center justify-center gap-1 py-2 border-t border-border text-[11px] text-muted-foreground hover:bg-muted/30 transition-colors">
+                    {expanded ? <><ChevronUp size={12} /> Hide syllabus/instructions</> : <><ChevronDown size={12} /> View syllabus/instructions</>}
+                </button>
+            )}
         </div>
     );
 }
@@ -459,111 +462,130 @@ export default function StudentTasksPage() {
         UPCOMING: tests.filter((t) => t.studentStatus === 'UPCOMING').length,
         DONE: tests.filter((t) => t.studentStatus === 'DONE').length,
     };
+    const pendingCount = assignments.filter((a) => a.studentStatus === 'PENDING' || a.studentStatus === 'WRITE_AGAIN').length;
 
     return (
         <div className="max-w-2xl mx-auto px-3 pb-10">
-            {/* Tab bar */}
-            <div className="flex gap-1 mb-5 mt-1 bg-muted/40 p-1 rounded-2xl">
-                <button
-                    onClick={() => handleTabChange('tests')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
-                        tab === 'tests' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    }`}>
-                    <FileText size={14} /> Tests & Exams
-                </button>
-                <button
-                    onClick={() => handleTabChange('assignments')}
-                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-semibold transition-all ${
-                        tab === 'assignments' ? 'bg-background shadow text-foreground' : 'text-muted-foreground hover:text-foreground'
-                    }`}>
-                    <ClipboardList size={14} /> Submissions
-                </button>
+            {/* Sticky header: summary strip + tab bar + filter chips stay pinned while
+                the cards below scroll underneath (scroll container is the layout's
+                <main>, so `sticky top-0` here pins relative to that). */}
+            <div className="sticky top-0 z-10 bg-background pt-1 pb-2">
+                {/* Summary strip — only meaningful for the Tests tab. Rendered even while
+                    testsLoading (just showing 0s) instead of being skipped entirely, so
+                    the tab bar below doesn't render at the top first and then jump down
+                    once loading finishes — that was the visible "flash" on refresh. */}
+                {tab === 'tests' && (
+                    <div className="flex gap-2 mb-3 overflow-x-auto">
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                            <span className="text-xl font-bold text-red-500">{testCounts.LIVE}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">Live</span>
+                        </div>
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                            <span className="text-xl font-bold text-orange-500">{testCounts.UPCOMING}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">Upcoming</span>
+                        </div>
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                            <span className="text-xl font-bold text-emerald-500">{testCounts.DONE}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">Done</span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Tab bar — same pill/active-indicator style as the main nav (Overview/Feed/Tasks) */}
+                <div className="flex gap-1 mb-2 bg-muted/50 rounded-4xl p-0.5 border border-border/30">
+                    <button onClick={() => handleTabChange('tests')} className="relative flex-1">
+                        {tab === 'tests' && (
+                            <motion.div layoutId="studentTasksActiveTab" className="absolute inset-0 bg-primary rounded-4xl"
+                                transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }} />
+                        )}
+                        <div className={`relative z-10 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-4xl transition-colors ${
+                            tab === 'tests' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
+                        }`}>
+                            📝 Tests & Exams
+                            {testCounts.LIVE > 0 && (
+                                <span className="w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                                    {testCounts.LIVE}
+                                </span>
+                            )}
+                        </div>
+                    </button>
+                    <button onClick={() => handleTabChange('assignments')} className="relative flex-1">
+                        {tab === 'assignments' && (
+                            <motion.div layoutId="studentTasksActiveTab" className="absolute inset-0 bg-primary rounded-4xl"
+                                transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }} />
+                        )}
+                        <div className={`relative z-10 flex items-center justify-center gap-1.5 py-2 text-sm font-semibold rounded-4xl transition-colors ${
+                            tab === 'assignments' ? 'text-white' : 'text-muted-foreground hover:text-foreground'
+                        }`}>
+                            📤 Submissions
+                            {pendingCount > 0 && (
+                                <span className="w-[18px] h-[18px] rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">
+                                    {pendingCount}
+                                </span>
+                            )}
+                        </div>
+                    </button>
+                </div>
+
+                {/* Filter chips — swap with the active tab, not gated on loading so the
+                    sticky header's height stays stable while the list below loads */}
+                {tab === 'tests' ? (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                        {TEST_FILTERS.map((f) => (
+                            <button key={f.key} onClick={() => setTestFilter(f.key)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold border shrink-0 transition-all ${
+                                    testFilter === f.key ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border'
+                                }`}>
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+                ) : (
+                    <div className="flex gap-2 overflow-x-auto pb-1">
+                        {ASSIGNMENT_FILTERS.map((f) => (
+                            <button key={f.key} onClick={() => setAFilter(f.key)}
+                                className={`px-3 py-1.5 rounded-full text-xs font-semibold border shrink-0 transition-all ${
+                                    aFilter === f.key ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border'
+                                }`}>
+                                {f.label}
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* ── Tests Tab ─────────────────────────────────────────────── */}
             {tab === 'tests' && (
-                <>
-                    {testsLoading ? (
-                        <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading tests…</div>
-                    ) : (
-                        <>
-                            {/* Summary strip */}
-                            <div className="flex gap-2 mb-5 overflow-x-auto">
-                                <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
-                                    <span className="text-xl font-bold text-red-500">{testCounts.LIVE}</span>
-                                    <span className="text-[10px] text-muted-foreground font-medium">Live</span>
-                                </div>
-                                <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
-                                    <span className="text-xl font-bold text-orange-500">{testCounts.UPCOMING}</span>
-                                    <span className="text-[10px] text-muted-foreground font-medium">Upcoming</span>
-                                </div>
-                                <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
-                                    <span className="text-xl font-bold text-emerald-500">{testCounts.DONE}</span>
-                                    <span className="text-[10px] text-muted-foreground font-medium">Done</span>
-                                </div>
-                            </div>
-
-                            {/* Filter chips */}
-                            <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-                                {TEST_FILTERS.map((f) => (
-                                    <button key={f.key} onClick={() => setTestFilter(f.key)}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border shrink-0 transition-all ${
-                                            testFilter === f.key ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border'
-                                        }`}>
-                                        {f.label}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {filteredTests.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
-                                    <FileText size={40} className="text-muted-foreground/40" />
-                                    <p className="text-sm text-muted-foreground">No tests here yet.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {filteredTests.map((t) => <TestCard key={t.id} test={t} />)}
-                                </div>
-                            )}
-                        </>
-                    )}
-                </>
+                testsLoading ? (
+                    <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading tests…</div>
+                ) : filteredTests.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                        <FileText size={40} className="text-muted-foreground/40" />
+                        <p className="text-sm text-muted-foreground">No tests here yet.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {filteredTests.map((t) => <TestCard key={t.id} test={t} />)}
+                    </div>
+                )
             )}
 
             {/* ── Assignments Tab ───────────────────────────────────────── */}
             {tab === 'assignments' && (
-                <>
-                    {assignmentsLoading ? (
-                        <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading assignments…</div>
-                    ) : (
-                        <>
-                            {/* Filter chips */}
-                            <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-                                {ASSIGNMENT_FILTERS.map((f) => (
-                                    <button key={f.key} onClick={() => setAFilter(f.key)}
-                                        className={`px-3 py-1.5 rounded-full text-xs font-semibold border shrink-0 transition-all ${
-                                            aFilter === f.key ? 'bg-primary text-primary-foreground border-primary' : 'bg-card text-muted-foreground border-border'
-                                        }`}>
-                                        {f.label}
-                                    </button>
-                                ))}
-                            </div>
-
-                            {filteredAssignments.length === 0 ? (
-                                <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
-                                    <ClipboardList size={40} className="text-muted-foreground/40" />
-                                    <p className="text-sm text-muted-foreground">No assignments here.</p>
-                                </div>
-                            ) : (
-                                <div className="space-y-3">
-                                    {filteredAssignments.map((a) => (
-                                        <AssignmentCard key={a.id} assignment={a} onSubmitted={loadAssignments} />
-                                    ))}
-                                </div>
-                            )}
-                        </>
-                    )}
-                </>
+                assignmentsLoading ? (
+                    <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">Loading assignments…</div>
+                ) : filteredAssignments.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center gap-2">
+                        <ClipboardList size={40} className="text-muted-foreground/40" />
+                        <p className="text-sm text-muted-foreground">No assignments here.</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {filteredAssignments.map((a) => (
+                            <AssignmentCard key={a.id} assignment={a} onSubmitted={loadAssignments} />
+                        ))}
+                    </div>
+                )
             )}
         </div>
     );

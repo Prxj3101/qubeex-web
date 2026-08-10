@@ -31,11 +31,13 @@ interface NavItem {
     activePath?: string | string[];
     locked?: boolean;
     badge?: boolean;
+    lockToastMessage?: string;
 }
 
 interface TopbarProps {
     navItems?: NavItem[];
     restrictNav?: boolean;
+    lockMessage?: string;
 }
 
 type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'SUB_ADMIN' | 'TEACHER' | 'STUDENT';
@@ -103,7 +105,7 @@ function RoleBadge() {
     );
 }
 
-function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
+function AvatarMenu({ restrictNav, lockMessage }: { restrictNav?: boolean; lockMessage: string }) {
     const { user, clearAuth } = useAuthStore();
     const router = useRouter();
     const pathname = usePathname();
@@ -170,7 +172,7 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
                 <div className="h-px bg-border/50 mx-1 mb-1" />
 
                 <DropdownMenuItem
-                    onClick={() => restrictNav ? toast.error('Set your password to continue') : router.push(profileHref)}
+                    onClick={() => restrictNav ? toast.error(lockMessage) : router.push(profileHref)}
                     className={cn(
                         "flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors",
                         restrictNav ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"
@@ -194,8 +196,11 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
                 </DropdownMenuItem>
 
                 <DropdownMenuItem
-                    onClick={handleLogout}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors mt-0.5">
+                    onClick={() => restrictNav ? toast.error(lockMessage) : handleLogout()}
+                    className={cn(
+                        "flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors mt-0.5",
+                        restrictNav ? "opacity-40 cursor-not-allowed" : "hover:bg-red-50 dark:hover:bg-red-950/30"
+                    )}>
                     <div className="w-7 h-7 rounded-lg bg-red-100 dark:bg-red-950 flex items-center justify-center shrink-0">
                         <LogOut size={13} className="text-red-500" />
                     </div>
@@ -206,8 +211,9 @@ function AvatarMenu({ restrictNav }: { restrictNav?: boolean }) {
     );
 }
 
-export function Topbar({ navItems, restrictNav }: TopbarProps) {
+export function Topbar({ navItems, restrictNav, lockMessage }: TopbarProps) {
     const pathname = usePathname();
+    const effectiveLockMessage = lockMessage ?? 'Set your password to continue';
 
     return (
         <div className="flex flex-col gap-2 px-2">
@@ -232,9 +238,9 @@ export function Topbar({ navItems, restrictNav }: TopbarProps) {
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                    <NotificationsBell />
+                    <NotificationsBell restrictNav={restrictNav} lockMessage={effectiveLockMessage} />
                     <ThemeToggle />
-                    <AvatarMenu restrictNav={restrictNav} />
+                    <AvatarMenu restrictNav={restrictNav} lockMessage={effectiveLockMessage} />
                 </div>
             </header>
 
@@ -255,7 +261,7 @@ export function Topbar({ navItems, restrictNav }: TopbarProps) {
                                 <div
                                     key={item.href}
                                     className="relative flex-1 min-w-fit opacity-40 cursor-not-allowed"
-                                    onClick={() => toast.error('Access restricted — contact your admin')}
+                                    onClick={() => toast.error(item.lockToastMessage ?? 'Access restricted - contact your admin')}
                                 >
                                     <div className="relative z-10 flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-4xl text-muted-foreground">
                                         {Icon && <Icon size={15} />}

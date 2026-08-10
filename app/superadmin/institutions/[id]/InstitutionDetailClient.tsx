@@ -2981,7 +2981,7 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                           setFeatures(getDefaultFeatures("BASIC"));
                           setUpgradeDate(null);
                           if (storageWarning) {
-                            toast.warning("Downgraded to Basic. Storage exceeds 500GB limit — consider purchasing extra storage.", { duration: 6000 });
+                            toast.warning("Downgraded to Basic. Storage exceeds 500GB limit - consider purchasing extra storage.", { duration: 6000 });
                           } else {
                             toast.success("Downgraded to Basic. Notification sent to admin.");
                           }

@@ -11,6 +11,7 @@ import {
     ShieldAlert, Clock, Loader2,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { toast } from 'sonner';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,7 +98,7 @@ const SA_LAST_SEEN_KEY = 'sa-notifs-last-seen';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function NotificationsBell() {
+export function NotificationsBell({ restrictNav, lockMessage }: { restrictNav?: boolean; lockMessage?: string } = {}) {
     const pathname = usePathname();
     const router = useRouter();
     const [open, setOpen] = useState(false);
@@ -240,11 +241,11 @@ export function NotificationsBell() {
         <div className="relative">
             {/* Bell Button */}
             <button
-                onClick={open ? handleClose : handleOpen}
-                className="relative h-9 w-9 flex items-center justify-center rounded-xl hover:bg-muted/50 transition-colors"
+                onClick={restrictNav ? () => toast.error(lockMessage ?? 'Navigation is locked') : (open ? handleClose : handleOpen)}
+                className={`relative h-9 w-9 flex items-center justify-center rounded-xl transition-colors ${restrictNav ? 'opacity-40 cursor-not-allowed' : 'hover:bg-muted/50'}`}
             >
                 <Bell size={18} className="text-muted-foreground" />
-                {unreadCount > 0 && (
+                {!restrictNav && unreadCount > 0 && (
                     <span className="absolute top-1.5 right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-primary text-white text-[10px] font-bold flex items-center justify-center">
                         {unreadCount > 9 ? '9+' : unreadCount}
                     </span>

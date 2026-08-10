@@ -3537,6 +3537,10 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     // Once a test has been activated, its Start Date is locked to the real activation
     // moment and can no longer be hand-edited.
     const [isActivated, setIsActivated] = useState(false);
+    // Distinct from isActivated (which is also true for a plain ACTIVE test) — this
+    // specifically means the test has ended (either its Valid Until passed, or the
+    // teacher hit Stop Now), at which point Valid Until shouldn't be editable anymore.
+    const [isCompleted, setIsCompleted] = useState(false);
     const [activateConfirm, setActivateConfirm] = useState(false);
     const [activateMenuOpen, setActivateMenuOpen] = useState(false);
     const [activateStartNow, setActivateStartNow] = useState(true);
@@ -3558,6 +3562,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 setStartDate(t.startDate ? toLocalDatetimeInput(t.startDate) : '');
                 setValidUntil(t.validUntil ? toLocalDatetimeInput(t.validUntil) : '');
                 setIsActivated(t.status === 'ACTIVE' || t.status === 'COMPLETED');
+                setIsCompleted(t.status === 'COMPLETED');
                 setIsRandomized(t.isRandomized ?? false);
                 setAnswerSpace(t.answerSpace ?? true);
                 const rawSections = (t.sections ?? []) as unknown as Array<Record<string, unknown>>;
@@ -4240,7 +4245,8 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <label className="text-[11px] text-muted-foreground">Valid until</label>
-                                        <input type="datetime-local" value={validUntil} min={startDate || undefined}
+                                        <input type="datetime-local" value={validUntil} min={startDate || undefined} disabled={isCompleted}
+                                            title={isCompleted ? 'Test has ended - Valid Until can no longer be changed' : undefined}
                                             onChange={e => {
                                                 const v = e.target.value;
                                                 if (startDate && v && new Date(v) <= new Date(startDate)) {
@@ -4249,7 +4255,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                 }
                                                 setValidUntil(v);
                                             }}
-                                            className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                                            className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" />
                                     </div>
                                 </div>
                             </div>
