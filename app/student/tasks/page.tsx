@@ -33,6 +33,7 @@ interface StudentTest {
     bestScore: number | null;
     bestPercentage: number | null;
     lastAttemptId: string | null;
+    lastAttemptEndTime: string | null;
 }
 
 interface StudentAssignment {
@@ -74,11 +75,12 @@ const ASSIGNMENT_STATUS_META: Record<AssignmentStatus, { label: string; textColo
     OVERDUE:    { label: 'Overdue',     textColor: 'text-red-500',     bgColor: 'bg-red-500/10' },
 };
 
-const TEST_FILTERS: { key: 'ALL' | StudentStatus; label: string }[] = [
+const TEST_FILTERS: { key: 'ALL' | StudentStatus | 'MISSED'; label: string }[] = [
     { key: 'ALL', label: 'All' },
     { key: 'LIVE', label: '🔴 Live' },
     { key: 'UPCOMING', label: '⏰ Upcoming' },
     { key: 'DONE', label: '✅ Done' },
+    { key: 'MISSED', label: '❌ Missed' },
 ];
 
 const ASSIGNMENT_FILTERS: { key: 'ALL' | AssignmentStatus; label: string }[] = [
@@ -111,7 +113,10 @@ function DaysLeftBadge({ daysLeft }: { daysLeft: number }) {
 function TestCard({ test }: { test: StudentTest }) {
     const [expanded, setExpanded] = useState(false);
     const router = useRouter();
-    const meta = TEST_STATUS_META[test.studentStatus];
+    const missed = test.studentStatus === 'DONE' && test.attemptsUsed === 0;
+    const meta = missed
+        ? { label: 'Missed', emoji: '❌', textColor: 'text-red-500', bgColor: 'bg-red-500/10' }
+        : TEST_STATUS_META[test.studentStatus];
 
     const syllabusLines = (test.description ?? '')
         .split('\n').map((l) => l.trim()).filter(Boolean);
@@ -135,8 +140,8 @@ function TestCard({ test }: { test: StudentTest }) {
             <div className="p-4">
                 <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                        style={{ backgroundColor: test.studentStatus === 'LIVE' ? '#ef44441a' : test.studentStatus === 'UPCOMING' ? '#f59e0b1a' : '#22c55e1a' }}>
-                        <FileText size={20} className={test.studentStatus === 'LIVE' ? 'text-red-400' : test.studentStatus === 'UPCOMING' ? 'text-amber-500' : 'text-emerald-500'} />
+                        style={{ backgroundColor: test.studentStatus === 'LIVE' ? '#ef44441a' : test.studentStatus === 'UPCOMING' ? '#f59e0b1a' : missed ? '#ef44441a' : '#22c55e1a' }}>
+                        <FileText size={20} className={test.studentStatus === 'LIVE' ? 'text-red-400' : test.studentStatus === 'UPCOMING' ? 'text-amber-500' : missed ? 'text-red-400' : 'text-emerald-500'} />
                     </div>
                     <div className="flex-1 min-w-0">
                         <h2 className="text-sm font-bold leading-snug">{test.title}</h2>
@@ -150,6 +155,11 @@ function TestCard({ test }: { test: StudentTest }) {
                             <span className="text-xs font-semibold text-foreground">
                                 Score: {test.bestScore}/{test.totalMarks}
                                 {test.bestPercentage !== null && ` (${test.bestPercentage}%)`}
+                            </span>
+                        )}
+                        {missed && (
+                            <span className="text-xs font-semibold text-foreground">
+                                Score: 0/{test.totalMarks} (0%)
                             </span>
                         )}
                     </div>
@@ -182,6 +192,13 @@ function TestCard({ test }: { test: StudentTest }) {
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
                         Attempt {test.attemptsUsed}/{test.maxAttempts}
                     </span>
+                    {test.studentStatus === 'DONE' && test.lastAttemptEndTime && (
+                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-lg whitespace-nowrap" style={{ background: 'rgba(192,96,64,0.12)' }}>
+                            <Calendar size={10} />
+                            <span className="font-semibold text-foreground/70">Given at :</span>
+                            {formatDate(test.lastAttemptEndTime)}, {formatTime(test.lastAttemptEndTime)}
+                        </span>
+                    )}
                 </div>
 
                 {expanded && syllabusLines.length > 0 && (
@@ -417,7 +434,7 @@ export default function StudentTasksPage() {
     const [assignmentsLoading, setAssignmentsLoading] = useState(false);
     const [tests, setTests] = useState<StudentTest[]>([]);
     const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
-    const [testFilter, setTestFilter] = useState<'ALL' | StudentStatus>('ALL');
+    const [testFilter, setTestFilter] = useState<'ALL' | StudentStatus | 'MISSED'>('ALL');
     const [aFilter, setAFilter] = useState<'ALL' | AssignmentStatus>('ALL');
     const assignmentsFetched = useRef(false);
 
@@ -456,7 +473,11 @@ export default function StudentTasksPage() {
         }
     }
 
-    const filteredTests = testFilter === 'ALL' ? tests : tests.filter((t) => t.studentStatus === testFilter);
+    const filteredTests = testFilter === 'ALL'
+        ? tests
+        : testFilter === 'MISSED'
+            ? tests.filter((t) => t.studentStatus === 'DONE' && t.attemptsUsed === 0)
+            : tests.filter((t) => t.studentStatus === testFilter);
     const filteredAssignments = aFilter === 'ALL' ? assignments : assignments.filter((a) => a.studentStatus === aFilter);
 
     const testCounts = {

@@ -11,6 +11,9 @@ interface StartQuestion {
     questionText: string;
     options: string[];
     type: 'MCQ' | 'FILL_BLANK' | 'TRUE_FALSE' | 'SHORT_ANSWER' | 'NUMERICAL' | 'CONCEPTUAL';
+    sectionId?: string | null;
+    sectionTitle?: string | null;
+    sectionInstruction?: string | null;
 }
 
 interface StartResponse {
@@ -166,6 +169,24 @@ export default function TakeTestPage() {
         return () => window.removeEventListener('beforeunload', onBeforeUnload);
     }, [session, doSubmit]);
 
+    // Forced submit on browser/nav back button. Back is an in-app navigation
+    // (no page reload), so beforeunload never fires for it — without this a
+    // student could back out of a test without it counting as submitted.
+    // A guard history entry is pushed so the first back press is caught here
+    // instead of silently leaving the page; it's re-armed if submit fails.
+    useEffect(() => {
+        if (!session) return;
+        window.history.pushState(null, '', window.location.href);
+        const onPopState = () => {
+            if (submittedRef.current) return;
+            doSubmit(false).then(() => {
+                if (!submittedRef.current) window.history.pushState(null, '', window.location.href);
+            });
+        };
+        window.addEventListener('popstate', onPopState);
+        return () => window.removeEventListener('popstate', onPopState);
+    }, [session, doSubmit]);
+
     if (loading) {
         return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading test…</div>;
     }
@@ -192,6 +213,24 @@ export default function TakeTestPage() {
     const mins = Math.floor(secondsLeft / 60);
     const secs = secondsLeft % 60;
     const isLast = index === session.questions.length - 1;
+    const allAnswered = Object.keys(answers).length >= session.questions.length;
+    // The progress bar treats every section as an equal-width slice (not
+    // proportional to how many questions it has) - a 2-question Section B
+    // gets the same visual width as a 6-question Section A, split 50/50.
+    const segments: { start: number; length: number }[] = [];
+    session.questions.forEach((sQ, i) => {
+        if (i === 0 || sQ.sectionId !== session.questions[i - 1].sectionId) {
+            segments.push({ start: i, length: 1 });
+        } else {
+            segments[segments.length - 1].length += 1;
+        }
+    });
+    const segmentWidth = 100 / segments.length;
+    const sectionBoundaries = segments.slice(1).map((_, i) => (i + 1) * segmentWidth);
+    const currentSegIdx = segments.findIndex((seg) => index >= seg.start && index < seg.start + seg.length);
+    const currentSeg = segments[currentSegIdx] ?? segments[0];
+    const posInSeg = index - currentSeg.start;
+    const progressPct = currentSegIdx * segmentWidth + (posInSeg / currentSeg.length) * segmentWidth;
 
     // Block copy/paste/cut across the entire exam
     const preventCopy = (e: React.ClipboardEvent) => {
@@ -203,7 +242,7 @@ export default function TakeTestPage() {
         <div className="max-w-2xl mx-auto px-2 pb-10 min-h-full flex flex-col justify-center" onCopy={preventCopy} onPaste={preventCopy} onCut={preventCopy}>
             {/* Header */}
             <div className="w-full flex flex-col items-center justify-center mb-3 sticky top-0 bg-background py-2 z-10">
-                <h1 className="text-3xl font-bold truncate text-center max-w-[70%] relative -top-3">{session.testTitle}</h1>
+                <h1 className="text-3xl font-bold truncate text-center max-w-[70%] relative -top-1">{session.testTitle}</h1>
                 <p className="text-sm text-muted-foreground -mt-1">{session.subjectName} · {session.totalMarks} marks</p>
             </div>
 
@@ -222,13 +261,37 @@ export default function TakeTestPage() {
             </div>
 
             {/* Progress bar */}
-            <div className="w-full h-1 bg-muted rounded-full mb-3">
-                <div className="h-1 rounded-full transition-all" style={{ width: `${((index + 1) / session.questions.length) * 100}%`, background: 'linear-gradient(135deg,#E8876A,#C06040)' }} />
+            <div className="relative w-full h-1 bg-muted rounded-full mb-3">
+                <div className="h-1 rounded-full transition-all" style={{ width: `${progressPct}%`, background: 'linear-gradient(135deg,#E8876A,#C06040)' }} />
+                {sectionBoundaries.map((pct, i) => (
+                    <div key={i} className="absolute top-1/2 -translate-y-1/2 w-[4px] h-2.5 rounded-full bg-background"
+                        style={{ left: `${pct}%` }} />
+                ))}
             </div>
 
-            <div className="rounded-2xl border border-border bg-card p-5 mb-4">
+            {q.sectionTitle && (
+                <div className="mb-4 pl-3 flex items-center justify-between gap-3" style={{ borderLeft: '3px solid #C06040' }}>
+                    <p className="text-base">
+                        <span className="font-bold text-foreground">{q.sectionTitle}{q.sectionInstruction && ' :'}</span>
+                        {q.sectionInstruction && (
+                            <span className="text-muted-foreground" style={{ fontSize: '15px' }}> {q.sectionInstruction}</span>
+                        )}
+                    </p>
+                    <div className="flex items-center gap-1 shrink-0 flex-wrap justify-end">
+                        {session.questions.filter((sq) => sq.sectionId === q.sectionId).map((sq) => (
+                            <span key={sq.questionId} className="w-3 h-3 rounded-full shrink-0" style={{
+                                background: answers[sq.questionId] ? 'linear-gradient(135deg,#E8876A,#C06040)' : 'transparent',
+                                border: '1.5px solid #C06040',
+                            }} />
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="rounded-2xl border border-border bg-card p-5 mb-4 h-[370px] flex flex-col">
                 <p className="text-base font-medium leading-relaxed mb-8">{index + 1}. {q.questionText}</p>
 
+                <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
                 {(q.type === 'MCQ' || q.type === 'CONCEPTUAL' || q.type === 'NUMERICAL') && (
                     <div className="space-y-3">
                         {q.options.map((opt, oi) => {
@@ -236,14 +299,14 @@ export default function TakeTestPage() {
                             return (
                                 <div key={oi} className="w-full flex items-center gap-2">
                                     <button onClick={() => setAnswers((a) => ({ ...a, [q.questionId]: opt }))}
-                                        className={`shrink-0 rounded-[4px] flex items-center justify-center text-white font-bold transition-all ${
-                                        isSelected ? 'w-[20px] h-[20px] text-[11px] bg-[#DA7756]' : 'w-[18px] h-[18px] text-[11px] border-[1.5px] border-muted-foreground/40'
+                                        className={`shrink-0 w-[18px] h-[18px] rounded-[4px] flex items-center justify-center text-white font-bold text-[11px] transition-all ${
+                                        isSelected ? 'bg-[#DA7756]' : 'border-[1.5px] border-muted-foreground/40'
                                     }`}>
                                         {isSelected && '✓'}
                                     </button>
                                     <button onClick={() => setAnswers((a) => ({ ...a, [q.questionId]: opt }))}
-                                        className={`flex-1 text-left px-4 py-2.5 rounded-xl border text-sm transition-all origin-left ${
-                                            isSelected ? 'border-[1.5px] border-[#C06040] scale-[1.02]' : 'border-border'
+                                        className={`flex-1 text-left px-4 py-2.5 rounded-xl border text-sm transition-all ${
+                                            isSelected ? 'border-[1.5px] border-[#C06040]' : 'border-border'
                                         }`}>
                                         <span className={isSelected ? 'font-semibold' : ''}>{String.fromCharCode(65 + oi)}) {opt}</span>
                                     </button>
@@ -254,15 +317,26 @@ export default function TakeTestPage() {
                 )}
 
                 {q.type === 'TRUE_FALSE' && (
-                    <div className="grid grid-cols-2 gap-2">
-                        {['true', 'false'].map((v) => (
-                            <button key={v} onClick={() => setAnswers((a) => ({ ...a, [q.questionId]: v }))}
-                                className={`py-2.5 rounded-xl border text-sm font-semibold capitalize transition-all ${
-                                    answers[q.questionId] === v ? 'border-[#C06040] bg-[#DA7756]/10 text-[#C06040]' : 'border-border bg-background'
-                                }`}>
-                                {v}
-                            </button>
-                        ))}
+                    <div className="space-y-3">
+                        {['true', 'false'].map((v, oi) => {
+                            const isSelected = answers[q.questionId] === v;
+                            return (
+                                <div key={v} className="w-full flex items-center gap-2">
+                                    <button onClick={() => setAnswers((a) => ({ ...a, [q.questionId]: v }))}
+                                        className={`shrink-0 w-[18px] h-[18px] rounded-[4px] flex items-center justify-center text-white font-bold text-[11px] transition-all ${
+                                        isSelected ? 'bg-[#DA7756]' : 'border-[1.5px] border-muted-foreground/40'
+                                    }`}>
+                                        {isSelected && '✓'}
+                                    </button>
+                                    <button onClick={() => setAnswers((a) => ({ ...a, [q.questionId]: v }))}
+                                        className={`flex-1 text-left px-4 py-2.5 rounded-xl border text-sm capitalize transition-all ${
+                                            isSelected ? 'border-[1.5px] border-[#C06040]' : 'border-border'
+                                        }`}>
+                                        <span className={isSelected ? 'font-semibold' : ''}>{String.fromCharCode(65 + oi)}) {v}</span>
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
                 )}
 
@@ -277,6 +351,7 @@ export default function TakeTestPage() {
                         rows={4} placeholder="Your answer…"
                         className="w-full px-4 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none resize-none" />
                 )}
+                </div>
             </div>
 
             <div className="flex items-center justify-between gap-2">
@@ -285,8 +360,9 @@ export default function TakeTestPage() {
                     <ChevronLeft size={14} /> Prev
                 </button>
                 {isLast ? (
-                    <button onClick={() => setShowSubmitConfirm(true)} disabled={submitting}
-                        className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-emerald-600 disabled:opacity-50">
+                    <button onClick={() => setShowSubmitConfirm(true)} disabled={submitting || !allAnswered}
+                        title={!allAnswered ? `Answer all ${session.questions.length} questions to submit` : undefined}
+                        className="flex items-center gap-1 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-emerald-600 disabled:opacity-50 disabled:cursor-not-allowed">
                         <CheckCircle2 size={14} /> {submitting ? 'Submitting…' : 'Submit Test'}
                     </button>
                 ) : (

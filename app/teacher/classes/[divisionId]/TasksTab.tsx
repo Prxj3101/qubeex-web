@@ -3277,7 +3277,7 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, onStopNow, o
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 mb-2 flex-wrap">
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md shrink-0 ${statusColor}`}>{displayStatus}</span>
-                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><BookOpen size={12} />{test.questions.length}/{test.numberOfQuestions} questions</span>
+                        <span className="flex items-center gap-1 text-xs text-muted-foreground"><BookOpen size={12} />{test.numberOfQuestions} questions</span>
                         <span className="text-muted-foreground opacity-40">·</span>
                         <span className="flex items-center gap-1 text-xs text-muted-foreground"><Users size={12} />{test._count.attempts} attempts</span>
                         <span className="text-muted-foreground opacity-40">·</span>
@@ -3602,6 +3602,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     }, [testId]);
 
     const addSection = () => {
+        if (isLocked) return;
         const newSec: PaperSection = {
             id: crypto.randomUUID(),
             title: `Section ${String.fromCharCode(65 + sections.length)}`,
@@ -3615,6 +3616,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     };
 
     const moveSection = (sectionId: string, direction: 'up' | 'down') => {
+        if (isLocked) return;
         setSections(prev => {
             const idx = prev.findIndex(s => s.id === sectionId);
             const swapIdx = direction === 'up' ? idx - 1 : idx + 1;
@@ -3626,6 +3628,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     };
 
     const removeSection = (sectionId: string) => {
+        if (isLocked) return;
         setBuilderQs(prev => prev.filter(q => q.sectionId !== sectionId).map((q, i) => ({ ...q, order: i })));
         setSections(prev => {
             const next = prev.filter(s => s.id !== sectionId);
@@ -3635,6 +3638,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     };
 
     const addQuestionToBuilder = (question: Question) => {
+        if (isLocked) return;
         if (builderQs.find(q => q.questionId === question.id)) {
             toast.info('Already in paper');
             return;
@@ -3646,16 +3650,21 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
             sectionId,
             marks: section ? section.marksPerQuestion : 1,
             order: prev.length,
-            isCompulsory: true,
+            // TEST questions default to Optional so "Show N" works out of the box
+            // (only questions explicitly marked Compulsory always survive the trim).
+            // ASSIGNMENT questions keep the old default since they don't use Show.
+            isCompulsory: paperType !== 'TEST',
             question,
         }]);
     };
 
     const removeQuestion = (questionId: string) => {
+        if (isLocked) return;
         setBuilderQs(prev => prev.filter(q => q.questionId !== questionId).map((q, i) => ({ ...q, order: i })));
     };
 
     const moveQuestion = (questionId: string, direction: 'up' | 'down', sectionId: string | null) => {
+        if (isLocked) return;
         setBuilderQs(prev => {
             const pool = prev.filter(q => q.sectionId === sectionId);
             const idx = pool.findIndex(q => q.questionId === questionId);
@@ -3668,9 +3677,10 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
         });
     };
 
-    const handleQDragStart = (id: string) => setDragQId(id);
+    const handleQDragStart = (id: string) => { if (isLocked) return; setDragQId(id); };
     const handleQDragOver = (e: React.DragEvent, id: string) => { e.preventDefault(); if (id !== dragQId) setDragOverQId(id); };
     const handleQDrop = (targetId: string, sectionId: string | null) => {
+        if (isLocked) { setDragQId(null); setDragOverQId(null); return; }
         if (!dragQId || dragQId === targetId) { setDragQId(null); setDragOverQId(null); return; }
         setBuilderQs(prev => {
             const pool = prev.filter(q => q.sectionId === sectionId);
@@ -3692,6 +3702,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     // goes live immediately); false leaves whatever Start Date is already set untouched,
     // so the test stays "Upcoming" for students until that scheduled moment arrives.
     const savePaper = async (activate = false, silent = false, startNow = true) => {
+        if (isLocked && !activate) { if (!silent) toast.error('Test is live or completed - it can no longer be edited'); return; }
         if (!title.trim()) { if (!silent) toast.error('Title is required'); return; }
         if (startDate && validUntil && new Date(validUntil) <= new Date(startDate)) {
             if (!silent) toast.error('Valid Until must be after the Start Date');
@@ -3782,6 +3793,15 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
             return sum + attemptN * s.marksPerQuestion;
           }, 0) + builderQs.filter(q => !q.sectionId).reduce((sum, q) => sum + q.marks, 0)
         : builderQs.reduce((sum, q) => sum + q.marks, 0);
+    // Effective question count a student will actually see — sectioned
+    // questions apply their own "Show N of M", not the raw count added.
+    const effectiveTotalQuestions = paperType === 'TEST'
+        ? sections.reduce((sum, s) => {
+            const sQs = builderQs.filter(q => q.sectionId === s.id).length;
+            const attemptN = s.attemptCount > 0 ? Math.min(s.attemptCount, sQs) : sQs;
+            return sum + attemptN;
+          }, 0) + builderQs.filter(q => !q.sectionId).length
+        : builderQs.length;
 
     // Only lock Start Date once the test has actually gone live. If it was activated via
     // "Start at set time" and that time hasn't arrived yet, the link still isn't live —
@@ -3789,6 +3809,11 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     // since the link is already live by definition.
     const startDateInFuture = !!startDate && new Date(startDate) > new Date();
     const startDateLocked = isActivated && !startDateInFuture;
+    // True editability lock: a test that's ACTIVE but still scheduled to start later
+    // (startDate in the future) hasn't actually gone live yet, so it should stay fully
+    // editable like a draft/upcoming test. Only a genuinely live (started) or completed
+    // test should be locked down.
+    const isLocked = isCompleted || (isActivated && !startDateInFuture);
 
     const containerStyle = isFullscreen
         ? { position: 'fixed' as const, top: mainTop, left: 0, right: 0, bottom: 0, zIndex: 60 }
@@ -3924,7 +3949,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
                             </div>
                             <div className="flex items-center gap-4">
-                                <span><span className="font-semibold">Total Questions:</span> {builderQs.length}</span>
+                                <span><span className="font-semibold">Total Questions:</span> {effectiveTotalQuestions}</span>
                                 <span className="font-bold text-base" style={{ color: theme.accentColor }}>Total Marks: {totalMarks}</span>
                             </div>
                         </div>
@@ -3943,6 +3968,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 const isActive = activeSectionId === section.id;
                 const effectiveAttempt = section.attemptCount > 0 ? Math.min(section.attemptCount, sectionQs.length) : sectionQs.length;
                 const sectionTotal = effectiveAttempt * section.marksPerQuestion;
+                const compulsoryCount = sectionQs.filter(q => q.isCompulsory).length;
                 return (
                     <div>
                         <div className="flex items-center gap-3 px-3 py-2 cursor-pointer -mx-3 mb-3 group transition-all"
@@ -3960,11 +3986,19 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                                <span className="text-[12px]" style={{ color: theme.sectionMeta }}>Attempt</span>
-                                <input type="number" min={0} max={sectionQs.length || 99}
+                                <span className="text-[12px]" style={{ color: theme.sectionMeta }}
+                                    title="Randomly picks this many questions from the section for each student - leave empty to show all questions in this section">Show</span>
+                                <input type="number" min={compulsoryCount} max={sectionQs.length || 99}
                                     value={section.attemptCount === 0 ? '' : section.attemptCount}
                                     placeholder="all"
-                                    onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, attemptCount: Number(e.target.value) || 0 } : s))}
+                                    onChange={e => {
+                                        const val = Number(e.target.value) || 0;
+                                        if (val > 0 && val < compulsoryCount) {
+                                            toast.error(`${compulsoryCount} question(s) in this section are marked Compulsory - Show can't be set below that`);
+                                            return;
+                                        }
+                                        setSections(prev => prev.map(s => s.id === section.id ? { ...s, attemptCount: val } : s));
+                                    }}
                                     className="w-10 text-xs text-center rounded focus:outline-none"
                                     style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
                                 <span className="text-[10px]" style={{ color: theme.sectionMeta }}>·</span>
@@ -4000,7 +4034,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                         </div>
                         <input value={section.instruction}
                             onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, instruction: e.target.value } : s))}
-                            placeholder="Section instruction (e.g. Answer any five of the following)"
+                            placeholder="Section instruction (e.g. MCQs, True or False, Numerical, etc.)"
                             className="w-full text-sm italic mb-3 focus:outline-none bg-transparent"
                             style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}`, paddingBottom: 2 }} />
                     </div>
@@ -4062,14 +4096,32 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 </div>
                             )}
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                            <div className="opacity-0 group-hover:opacity-100 transition-all">
-                                <button onClick={() => setRemoveQConfirm({ questionId: bq.questionId, questionText: bq.question.question })} className="p-0.5 rounded transition-all" style={{ color: '#C05050' }}><X size={12} /></button>
+                        <div className="flex flex-col items-end gap-1 shrink-0">
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                                    <button onClick={() => {
+                                            if (!bq.isCompulsory && section.attemptCount > 0) {
+                                                const compulsoryCount = builderQs.filter(q => q.sectionId === section.id && q.isCompulsory).length;
+                                                if (compulsoryCount >= section.attemptCount) {
+                                                    toast.error(`Only ${section.attemptCount} question(s) can be Compulsory in this section - matches the "Show" count`);
+                                                    return;
+                                                }
+                                            }
+                                            setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, isCompulsory: !q.isCompulsory } : q));
+                                        }}
+                                        title={bq.isCompulsory ? 'Always included - click to make it part of the random Show pool' : 'In the random Show pool - click to always include it'}
+                                        className="text-[9px] font-bold px-1.5 py-0.5 rounded transition-all"
+                                        style={{ background: bq.isCompulsory ? theme.marksBadgeBg : '#FEF3C7', color: bq.isCompulsory ? theme.marksBadgeText : '#92400E', border: `0.5px solid ${bq.isCompulsory ? theme.marksBadgeBorder : '#F59E0B'}` }}>
+                                        {bq.isCompulsory ? 'C' : 'O'}
+                                    </button>
+                                    <button onClick={() => setRemoveQConfirm({ questionId: bq.questionId, questionText: bq.question.question })} className="p-0.5 rounded transition-all" style={{ color: '#C05050' }}><X size={12} /></button>
+                                </div>
+                                <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
+                                    style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
+                                    [{section.marksPerQuestion}m]
+                                </span>
                             </div>
-                            <span className="text-[12px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap"
-                                style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>
-                                [{section.marksPerQuestion}m]
-                            </span>
+                            {bq.isCompulsory && <span className="text-[11px] font-bold px-1 py-0 rounded" style={{ background: theme.marksBadgeBg, color: theme.marksBadgeText, border: `0.5px solid ${theme.marksBadgeBorder}` }}>Compulsory</span>}
                         </div>
                     </div>
                 );
@@ -4078,7 +4130,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 return (
                     <div className="flex items-center justify-between mb-4" style={{ borderBottom: `1px solid ${theme.paperBorder}`, paddingBottom: 8 }}>
                         <span className="text-sm font-bold uppercase tracking-wider" style={{ color: theme.titleColor }}>Questions</span>
-                        <span className="text-xs" style={{ color: theme.headingColor }}>{builderQs.length} questions · {totalMarks} marks</span>
+                        <span className="text-xs" style={{ color: theme.headingColor }}>{effectiveTotalQuestions} questions · {totalMarks} marks</span>
                     </div>
                 );
             case 'assignmentEmpty':
@@ -4183,7 +4235,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 <div className="flex flex-col gap-2.5">
                                     <div className="flex items-center gap-1.5">
                                         <label className="text-[11px] text-muted-foreground">Duration</label>
-                                        <input type="text" inputMode="numeric"
+                                        <input type="text" inputMode="numeric" disabled={isLocked}
                                             value={durationDraft !== null ? durationDraft : String(durationMinutes)}
                                             onFocus={e => { setDurationDraft(String(durationMinutes)); e.currentTarget.select(); }}
                                             onChange={e => {
@@ -4197,23 +4249,24 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                 setDurationDraft(null);
                                             }}
                                             onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
-                                            className="w-14 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                                            className="w-14 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" />
                                         <span className="text-[11px] text-muted-foreground -ml-1">mins</span>
                                         <label className="text-[11px] text-muted-foreground ml-6">Attempts</label>
-                                        <input type="number" min={1} max={10} value={maxAttempts} onChange={e => setMaxAttempts(Number(e.target.value))}
-                                            className="w-10 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none" />
+                                        <input type="number" min={1} max={10} value={maxAttempts} disabled={isLocked}
+                                            onChange={e => setMaxAttempts(Number(e.target.value))}
+                                            className="w-10 text-xs text-center rounded-md border border-border bg-background px-2 py-1 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" />
                                     </div>
                                     <div className="flex items-center gap-12 flex-wrap">
-                                        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                                            <div onClick={() => setAnswerSpace(v => !v)}
-                                                className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${answerSpace ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                        <label className={`flex items-center gap-1.5 text-xs select-none ${isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                                            <div onClick={() => { if (!isLocked) setAnswerSpace(v => !v); }}
+                                                className={`relative w-8 h-4 rounded-full transition-colors ${isLocked ? '' : 'cursor-pointer'} ${answerSpace ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
                                                 <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${answerSpace ? 'translate-x-4' : ''}`} />
                                             </div>
                                             <span className="text-muted-foreground">Answer Space</span>
                                         </label>
-                                        <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                                            <div onClick={() => setIsRandomized(v => !v)}
-                                                className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${isRandomized ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                        <label className={`flex items-center gap-1.5 text-xs select-none ${isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                                            <div onClick={() => { if (!isLocked) setIsRandomized(v => !v); }}
+                                                className={`relative w-8 h-4 rounded-full transition-colors ${isLocked ? '' : 'cursor-pointer'} ${isRandomized ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
                                                 <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${isRandomized ? 'translate-x-4' : ''}`} />
                                             </div>
                                             <Shuffle size={12} className="text-muted-foreground" />
@@ -4262,16 +4315,16 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                         )}
                         {entityType !== 'test' && (
                             <div className="flex items-center gap-12 flex-wrap">
-                                <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                                    <div onClick={() => setAnswerSpace(v => !v)}
-                                        className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${answerSpace ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                <label className={`flex items-center gap-1.5 text-xs select-none ${isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                                    <div onClick={() => { if (!isLocked) setAnswerSpace(v => !v); }}
+                                        className={`relative w-8 h-4 rounded-full transition-colors ${isLocked ? '' : 'cursor-pointer'} ${answerSpace ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
                                         <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${answerSpace ? 'translate-x-4' : ''}`} />
                                     </div>
                                     <span className="text-muted-foreground">Answer Space</span>
                                 </label>
-                                <label className="flex items-center gap-1.5 text-xs cursor-pointer select-none">
-                                    <div onClick={() => setIsRandomized(v => !v)}
-                                        className={`relative w-8 h-4 rounded-full cursor-pointer transition-colors ${isRandomized ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
+                                <label className={`flex items-center gap-1.5 text-xs select-none ${isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
+                                    <div onClick={() => { if (!isLocked) setIsRandomized(v => !v); }}
+                                        className={`relative w-8 h-4 rounded-full transition-colors ${isLocked ? '' : 'cursor-pointer'} ${isRandomized ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
                                         <div className={`absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-white shadow transition-transform ${isRandomized ? 'translate-x-4' : ''}`} />
                                     </div>
                                     <Shuffle size={12} className="text-muted-foreground" />
@@ -4280,7 +4333,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                             </div>
                         )}
                         <div className="flex items-center justify-end gap-2 mt-3">
-                            <button onClick={() => savePaper(false)} disabled={saving || draftSaveStatus === 'saving'}
+                            <button onClick={() => savePaper(false)} disabled={saving || draftSaveStatus === 'saving' || isLocked}
                                 className="flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg border border-border hover:bg-muted transition-all disabled:opacity-50">
                                 {(saving || draftSaveStatus === 'saving')
                                     ? <span className="w-3 h-3 border-2 border-current/30 border-t-current rounded-full animate-spin" />
@@ -4342,10 +4395,17 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                     <div className="shrink-0 px-4 py-3 border-b border-border/50 bg-muted/40 flex items-center justify-between">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">Modules</p>
                         <span className="text-xs text-muted-foreground">
-                            {builderQs.length} Q · {totalMarks} marks
+                            {effectiveTotalQuestions} Q · {totalMarks} marks
                         </span>
                     </div>
-                    <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+                    {isLocked && (
+                        <div className="shrink-0 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-1.5">
+                            <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                                {isCompleted ? 'Test has ended - read only' : 'Test is live - questions can no longer be changed'}
+                            </span>
+                        </div>
+                    )}
+                    <div className={`flex-1 overflow-y-auto px-3 py-2 space-y-1 ${isLocked ? 'pointer-events-none opacity-50' : ''}`}>
                         {modules.length === 0 ? (
                             <p className="text-xs text-muted-foreground text-center py-8">No modules yet. Create modules and assign questions first.</p>
                         ) : modules.map(mod => {
@@ -4388,15 +4448,20 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                                 return next;
                                                             });
                                                         }}
-                                                        className={`flex items-start gap-2 px-3 py-2 border-b border-border/30 last:border-0 transition-all group ${hasOpts ? 'cursor-pointer' : ''} ${alreadyAdded ? '' : 'hover:bg-muted/50'}`}
+                                                        className={`flex items-start gap-2 px-3 py-2 border-b border-border/30 last:border-0 transition-all group ${hasOpts ? 'cursor-pointer' : ''} ${alreadyAdded ? '' : 'hover:bg-muted/50'} ${paperType === 'TEST' && q.type === 'SHORT_ANSWER' && !alreadyAdded ? 'opacity-50' : ''}`}
                                                         style={alreadyAdded ? { background: 'rgba(218,119,86,0.08)' } : undefined}>
                                                         <div onClick={e => {
                                                                 e.stopPropagation();
-                                                                if (alreadyAdded) removeQuestion(q.id);
-                                                                else addQuestionToBuilder(q as unknown as Question);
+                                                                if (alreadyAdded) { removeQuestion(q.id); return; }
+                                                                if (paperType === 'TEST' && q.type === 'SHORT_ANSWER') {
+                                                                    toast.error("Short Answer questions can't be added to a Test - there's no fixed option to auto-grade against");
+                                                                    return;
+                                                                }
+                                                                addQuestionToBuilder(q as unknown as Question);
                                                             }}
-                                                            className="self-stretch shrink-0 flex items-start justify-center cursor-pointer -my-2 -ml-3 pl-3 pr-1.5 pt-2.5">
-                                                            <span className="w-3.5 h-3.5 rounded-[4px] border shrink-0 flex items-center justify-center transition-all"
+                                                            title={paperType === 'TEST' && q.type === 'SHORT_ANSWER' && !alreadyAdded ? "Short Answer questions can't be used in a Test" : undefined}
+                                                            className={`self-stretch shrink-0 flex items-start justify-center -my-2 -ml-3 pl-3 pr-1.5 pt-2.5 ${paperType === 'TEST' && q.type === 'SHORT_ANSWER' && !alreadyAdded ? 'cursor-not-allowed' : 'cursor-pointer'}`}>
+                                                            <span className={`w-3.5 h-3.5 rounded-[4px] border shrink-0 flex items-center justify-center transition-all ${paperType === 'TEST' && q.type === 'SHORT_ANSWER' && !alreadyAdded ? 'opacity-40' : ''}`}
                                                                 style={alreadyAdded ? { background: '#DA7756', borderColor: '#DA7756' } : { borderColor: 'var(--border)' }}>
                                                                 {alreadyAdded && <Check size={10} className="text-white" strokeWidth={3} />}
                                                             </span>
@@ -4478,7 +4543,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 <div className="flex-1 overflow-y-auto pt-3 pb-8 px-6" style={{ background: theme.outerBg, scrollbarWidth: 'thin', scrollbarColor: theme.scrollbar }}>
 
                     {/* ── The actual paper (both TEST and ASSIGNMENT paginate into A4 pages) ── */}
-                    <div className="mx-auto" style={{ width: 'fit-content', zoom: paperZoom } as CSSProperties}>
+                    <div className={`mx-auto ${isLocked ? 'pointer-events-none' : ''}`} style={{ width: 'fit-content', zoom: paperZoom } as CSSProperties}>
                         {effectiveTestPageGroups.map((group, pi) => (
                             <div key={`page-${pi}`} className={pi > 0 ? 'mt-6' : ''} style={{
                                 width: '210mm', minHeight: `${PAGE_HEIGHT_PX}px`,
