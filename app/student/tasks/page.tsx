@@ -142,15 +142,17 @@ function TestCard({ test }: { test: StudentTest }) {
                         <h2 className="text-sm font-bold leading-snug">{test.title}</h2>
                         <p className="text-xs text-muted-foreground">{test.subjectName}</p>
                     </div>
-                    {test.studentStatus === 'DONE' && test.bestScore !== null && (
-                        <span className="text-xs font-semibold text-foreground shrink-0 relative top-[2px]">
-                            Score: {test.bestScore}/{test.totalMarks}
-                            {test.bestPercentage !== null && ` (${test.bestPercentage}%)`}
+                    <div className="flex flex-col items-end gap-1 shrink-0">
+                        <span className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full ${meta.bgColor} ${meta.textColor}`}>
+                            {meta.emoji} {meta.label}
                         </span>
-                    )}
-                    <span className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full shrink-0 ${meta.bgColor} ${meta.textColor}`}>
-                        {meta.emoji} {meta.label}
-                    </span>
+                        {test.studentStatus === 'DONE' && test.bestScore !== null && (
+                            <span className="text-xs font-semibold text-foreground">
+                                Score: {test.bestScore}/{test.totalMarks}
+                                {test.bestPercentage !== null && ` (${test.bestPercentage}%)`}
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-2 mt-3">

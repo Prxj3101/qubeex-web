@@ -193,6 +193,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
         plan: 'TRIAL' as 'BASIC' | 'PRO' | 'TRIAL',
         trialDays: '14',
         board: '', medium: '',
+        isDemo: false,
     });
 
     const set = (k: string, v: string) => setForm(p => ({ ...p, [k]: v }));
@@ -279,7 +280,7 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
     };
 
     const resetForm = () => {
-        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', abbreviation: '', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '', establishedOn: '', plan: 'TRIAL', trialDays: '14', board: '', medium: '' });
+        setForm({ name: '', email: '', phone: '', type: 'SCHOOL', abbreviation: '', address: '', city: '', state: '', country: 'India', pincode: '', adminName: '', adminEmail: '', adminPhone: '', adminDob: '', adminGender: '', establishedOn: '', plan: 'TRIAL', trialDays: '14', board: '', medium: '', isDemo: false });
         setLogoPreview(null);
         setLogoFile(null);
         if (fileRef.current) fileRef.current.value = '';
@@ -391,6 +392,18 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                 <div>
                                     <FL>Institute Email *</FL>
                                     <Input placeholder="admin@school.edu.in" value={form.email} onChange={e => set('email', e.target.value)} className="h-8 text-sm" />
+                                </div>
+                                <div className="flex items-center gap-2 sm:col-span-2">
+                                    <input
+                                        type="checkbox"
+                                        id="isDemo"
+                                        checked={form.isDemo}
+                                        onChange={e => setForm(p => ({ ...p, isDemo: e.target.checked }))}
+                                        className="h-3.5 w-3.5 rounded border-border accent-primary"
+                                    />
+                                    <label htmlFor="isDemo" className="text-xs text-muted-foreground">
+                                        Mark as demo institute <span className="text-muted-foreground/60">(gets code ending in 0000, excluded from dashboard totals)</span>
+                                    </label>
                                 </div>
                                 <div>
                                     <FL>Established On</FL>
