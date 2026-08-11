@@ -68,6 +68,7 @@ import type {
   PlanDashboardResponse,
 } from "./institution-detail.types";
 import { PRICING, ALL_FEATURES, statusCfg, PLAN_BASE, COMMITTED_DISCOUNT } from "./institution-detail.constants";
+import { DataStorageConfig } from "./DataStorageConfig";
 import {
   toIST,
   mapApiBillToUiBill,
@@ -928,6 +929,11 @@ function ViewDetailsTab({
             value={toIST(inst.updatedAt)}
           />
         </SectionCard>
+      </div>
+
+      {/* BYOD — Data Storage Configuration */}
+      <div className="mt-4">
+        <DataStorageConfig institutionId={inst.id} />
       </div>
 
       {/* Delete Confirmation Modal */}
