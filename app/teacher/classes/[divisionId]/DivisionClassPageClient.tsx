@@ -167,6 +167,7 @@ export default function DivisionClassPageClient() {
                     { id: 'a2', subjectId: 's1', teacher: { id: 't2', prefix: null, user: { id: 'u2', name: 'Amit Verma' } }, subject: { id: 's1', name: 'Mathematics', color: 'var(--primary)' } },
                     { id: 'a3', subjectId: 's2', teacher: { id: 't3', prefix: null, user: { id: 'u3', name: 'Priya Nair' } }, subject: { id: 's2', name: 'Science', color: '#0891B2' } },
                 ],
+                timetableUrl: null,
             });
         } finally {
             setLoading(false);
