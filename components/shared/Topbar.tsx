@@ -1,10 +1,11 @@
 'use client';
 
+import { useState } from 'react';
 import api from '@/lib/api';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LucideIcon, User, LogOut, Settings, Lock } from 'lucide-react';
+import { LucideIcon, User, LogOut, Settings, Lock, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { NotificationsBell } from './NotificationsBell';
 import {
@@ -17,7 +18,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useStudentStore } from '@/store/studentStore';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
 import { useUserTitleStore } from '@/store/userTitleStore';
@@ -107,6 +108,8 @@ function RoleBadge() {
 
 function AvatarMenu({ restrictNav, lockMessage }: { restrictNav?: boolean; lockMessage: string }) {
     const { user, clearAuth } = useAuthStore();
+    const [expandedPhoto, setExpandedPhoto] = useState(false);
+    const [menuOpen, setMenuOpen] = useState(false);
     const router = useRouter();
     const pathname = usePathname();
     const role = getRole(pathname, user?.role);
@@ -140,7 +143,7 @@ function AvatarMenu({ restrictNav, lockMessage }: { restrictNav?: boolean; lockM
     };
 
     return (
-        <DropdownMenu>
+        <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
             <DropdownMenuTrigger asChild>
                 <button className="outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-full">
                     <Avatar className="h-8 w-8 cursor-pointer ring-2 ring-border">
@@ -155,7 +158,9 @@ function AvatarMenu({ restrictNav, lockMessage }: { restrictNav?: boolean; lockM
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52 p-2 rounded-2xl border border-border/50 shadow-lg bg-card text-card-foreground">
                 <div className="flex items-center gap-3 px-2 py-2.5 mb-1">
-                    <Avatar className="w-9 h-9 rounded-xl shrink-0">
+                    <Avatar
+                        onClick={e => { if (photoUrl) { e.stopPropagation(); setMenuOpen(false); setExpandedPhoto(true); } }}
+                        className={cn("w-9 h-9 rounded-xl shrink-0", photoUrl && "cursor-pointer")}>
                         {photoUrl && <AvatarImage src={photoUrl} alt={displayName} className="object-cover rounded-xl" />}
                         <AvatarFallback className="rounded-xl bg-muted text-sm font-bold text-primary">
                             {isStudent && studentName
@@ -207,6 +212,35 @@ function AvatarMenu({ restrictNav, lockMessage }: { restrictNav?: boolean; lockM
                     <span className="text-sm font-medium text-red-500">Logout</span>
                 </DropdownMenuItem>
             </DropdownMenuContent>
+
+            {/* Expanded profile photo — same treatment as My Profile's avatar zoom */}
+            <AnimatePresence>
+                {expandedPhoto && photoUrl && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        onClick={() => setExpandedPhoto(false)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img src={photoUrl} alt={displayName} className="w-full h-full object-cover" />
+                            <button
+                                onClick={() => setExpandedPhoto(false)}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                <X size={14} className="text-white" />
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </DropdownMenu>
     );
 }

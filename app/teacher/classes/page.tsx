@@ -49,21 +49,41 @@ function getDivisionInitial(name: string) {
     return name.includes('-') ? name.split('-').pop() ?? name[0] : name[0];
 }
 
-// Ascending by grade number then division letter, e.g. 9-A, 9-B, 10-A, 10-B...
-function classSortKey(divisionName: string): [number, string] {
-    const match = divisionName.match(/(\d+)/);
+// Ascending by grade number (from standardName, e.g. "Class 10" → 10) then
+// division letter (from divisionName, e.g. "A"). divisionName alone (just "A"/"B")
+// has no grade info, so sorting on it in isolation groups purely by letter across
+// every standard — 9-A, 10-A, 11-A all cluster before any -B, which is the "mix
+// mix" bug. Standard must be the primary sort key.
+function classSortKey(standardName: string, divisionName: string): [number, string, string] {
+    const match = standardName.match(/(\d+)/);
     const num = match ? parseInt(match[1], 10) : Number.MAX_SAFE_INTEGER;
-    const letter = divisionName.includes('-') ? divisionName.split('-').pop() ?? '' : divisionName;
-    return [num, letter];
+    return [num, standardName, divisionName];
 }
 
-function sortByClassAscending<T extends { divisionName: string }>(items: T[]): T[] {
+function sortByClassAscending<T extends { divisionName: string; standardName: string }>(items: T[]): T[] {
     return [...items].sort((a, b) => {
-        const [numA, letterA] = classSortKey(a.divisionName);
-        const [numB, letterB] = classSortKey(b.divisionName);
+        const [numA, stdA, letterA] = classSortKey(a.standardName, a.divisionName);
+        const [numB, stdB, letterB] = classSortKey(b.standardName, b.divisionName);
         if (numA !== numB) return numA - numB;
+        if (stdA !== stdB) return stdA.localeCompare(stdB);
         return letterA.localeCompare(letterB);
     });
+}
+
+// Group already-sorted subject-teacher rows by division so each class's subject
+// cards render together as one block, with the next class starting fresh below —
+// not interleaved into the same flat grid.
+function groupByDivision<T extends { divisionId: string; divisionName: string; standardName: string }>(items: T[]): { divisionId: string; divisionName: string; standardName: string; items: T[] }[] {
+    const groups: { divisionId: string; divisionName: string; standardName: string; items: T[] }[] = [];
+    for (const item of items) {
+        const last = groups[groups.length - 1];
+        if (last && last.divisionId === item.divisionId) {
+            last.items.push(item);
+        } else {
+            groups.push({ divisionId: item.divisionId, divisionName: item.divisionName, standardName: item.standardName, items: [item] });
+        }
+    }
+    return groups;
 }
 
 // ── Class Teacher Card ────────────────────────────────────────────────────────
@@ -311,9 +331,20 @@ export default function TeacherClassesPage() {
                                 <p className="text-xs text-muted-foreground/50 mt-0.5">Admin will assign you subjects</p>
                             </div>
                         ) : (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 pr-1">
-                                {subjectTeacher.map((item, i) => (
-                                    <SubjectTeacherCard key={item.id} item={item} index={i} />
+                            <div className="space-y-4 pr-1">
+                                {groupByDivision(subjectTeacher).map(group => (
+                                    <div key={group.divisionId}>
+                                        <div className="flex items-center gap-2 mb-2">
+                                            <p className="text-[11px] font-bold text-foreground">{group.divisionName}</p>
+                                            <p className="text-[10px] text-muted-foreground">{group.standardName}</p>
+                                            <div className="flex-1 h-px bg-border/40" />
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                                            {group.items.map((item, i) => (
+                                                <SubjectTeacherCard key={item.id} item={item} index={i} />
+                                            ))}
+                                        </div>
+                                    </div>
                                 ))}
                             </div>
                         )}

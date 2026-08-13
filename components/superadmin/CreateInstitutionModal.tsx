@@ -379,6 +379,18 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                     <FL>Institution Name *</FL>
                                     <Input placeholder="e.g. Delhi Public School" value={form.name} onChange={e => set('name', e.target.value)} className="h-8 text-sm" />
                                 </div>
+                                <div className="flex items-center gap-2 sm:col-span-2">
+                                    <input
+                                        type="checkbox"
+                                        id="isDemo"
+                                        checked={form.isDemo}
+                                        onChange={e => setForm(p => ({ ...p, isDemo: e.target.checked }))}
+                                        className="h-3.5 w-3.5 rounded border-border accent-primary"
+                                    />
+                                    <label htmlFor="isDemo" className="text-xs text-muted-foreground">
+                                        Mark as demo institute <span className="text-muted-foreground/60">(gets code ending in 0000, excluded from dashboard totals)</span>
+                                    </label>
+                                </div>
                                 <div>
                                     <FL>Abbreviation * <span className="text-muted-foreground/60 font-normal normal-case">(exactly 4 letters/digits — used in the institution code and every user ID)</span></FL>
                                     <Input
@@ -392,18 +404,6 @@ export function CreateInstitutionModal({ open, onClose, onSuccess }: Props) {
                                 <div>
                                     <FL>Institute Email *</FL>
                                     <Input placeholder="admin@school.edu.in" value={form.email} onChange={e => set('email', e.target.value)} className="h-8 text-sm" />
-                                </div>
-                                <div className="flex items-center gap-2 sm:col-span-2">
-                                    <input
-                                        type="checkbox"
-                                        id="isDemo"
-                                        checked={form.isDemo}
-                                        onChange={e => setForm(p => ({ ...p, isDemo: e.target.checked }))}
-                                        className="h-3.5 w-3.5 rounded border-border accent-primary"
-                                    />
-                                    <label htmlFor="isDemo" className="text-xs text-muted-foreground">
-                                        Mark as demo institute <span className="text-muted-foreground/60">(gets code ending in 0000, excluded from dashboard totals)</span>
-                                    </label>
                                 </div>
                                 <div>
                                     <FL>Established On</FL>

@@ -29,7 +29,7 @@ interface FeedFile {
     postedBy: string; createdAt: string;
 }
 interface ClassData {
-    division: { id: string; name: string; standardName: string; classTeacherName: string | null; classTeacherPrefix?: string | null; classTeacherAvatarUrl: string | null; totalStudents: number; subjects: Subject[] } | null;
+    division: { id: string; name: string; standardName: string; classTeacherName: string | null; classTeacherPrefix?: string | null; classTeacherAvatarUrl: string | null; totalStudents: number; subjects: Subject[]; timetableUrl: string | null } | null;
     resultFiles: FeedFile[];
     subjectMaterials: Record<string, FeedFile[]>;
     generalMaterials?: FeedFile[];
@@ -171,7 +171,7 @@ function ViewTab({ data }: { data: ClassData }) {
                             <div className="flex items-center justify-between mb-2 shrink-0">
                                 <p className="text-white text-sm font-semibold">Timetable — {division?.name}</p>
                                 <div className="flex items-center gap-2">
-                                    <a href="/timetable.jpeg" download
+                                    <a href={division?.timetableUrl ?? '#'} download
                                         className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
                                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                         ⬇ Download
@@ -182,7 +182,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                     </button>
                                 </div>
                             </div>
-                            <img src="/timetable.jpeg" alt="Timetable" className="rounded-2xl w-full object-contain" style={{ maxHeight: 'calc(90vh - 48px)' }} />
+                            {division?.timetableUrl && <img src={division.timetableUrl} alt="Timetable" className="rounded-2xl w-full object-contain" style={{ maxHeight: 'calc(90vh - 48px)' }} />}
                         </motion.div>
                     </div>
                 )}
@@ -232,10 +232,17 @@ function ViewTab({ data }: { data: ClassData }) {
                                 <Calendar size={13} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Timetable</p>
                             </div>
-                            <div className="flex-1 flex items-center justify-center p-3 cursor-pointer overflow-hidden" onClick={() => setShowTimetable(true)}>
-                                <img src="/timetable.jpeg" alt="Timetable"
-                                    className="w-full h-full rounded-xl object-contain scale-[1.15] hover:opacity-90 transition-opacity" />
-                            </div>
+                            {division?.timetableUrl ? (
+                                <div className="flex-1 flex items-center justify-center p-3 cursor-pointer overflow-hidden" onClick={() => setShowTimetable(true)}>
+                                    <img src={division.timetableUrl} alt="Timetable"
+                                        className="w-full h-full rounded-xl object-contain scale-[1.15] hover:opacity-90 transition-opacity" />
+                                </div>
+                            ) : (
+                                <div className="flex-1 flex flex-col items-center justify-center gap-1.5 text-center">
+                                    <Calendar size={22} className="text-muted-foreground/40" />
+                                    <p className="text-[12px] text-muted-foreground">Timetable not uploaded yet</p>
+                                </div>
+                            )}
                         </div>
 
                         {/* Leaderboard (col 2, row 1) */}

@@ -242,7 +242,7 @@ function PostCard({
         className={`w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold shrink-0 mt-1 relative ${post.author.avatarUrl ? "" : avatarColor}`}
       >
         {post.author.avatarUrl
-          ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="32px" className="object-cover" />
+          ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="64px" quality={90} className="object-cover" />
           : getInitials(post.author.name)}
       </div>
 
@@ -456,6 +456,7 @@ export default function StaffroomPage() {
   // DM state
   const [threads, setThreads] = useState<DmThread[]>([]);
   const [threadsLoading, setThreadsLoading] = useState(true);
+  const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
   const [activeDm, setActiveDm] = useState<DmThread | null>(null);
   const [messages, setMessages] = useState<DmMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
@@ -1133,7 +1134,7 @@ export default function StaffroomPage() {
                       <div className="relative shrink-0">
                         {t.avatarUrl ? (
                           <div className="w-9 h-9 rounded-full overflow-hidden relative">
-                            <NextImage src={t.avatarUrl} alt={t.name} fill sizes="36px" className="object-cover" />
+                            <NextImage src={t.avatarUrl} alt={t.name} fill sizes="72px" quality={90} className="object-cover" />
                           </div>
                         ) : (
                           <div
@@ -1201,8 +1202,9 @@ export default function StaffroomPage() {
                   </button>
                   <div className="relative shrink-0">
                     {activeDm.avatarUrl ? (
-                      <div className="w-8 h-8 rounded-full overflow-hidden relative">
-                        <NextImage src={activeDm.avatarUrl} alt={activeDm.name} fill sizes="32px" className="object-cover" />
+                      <div onClick={() => setExpandedPhoto({ url: activeDm.avatarUrl!, name: activeDm.name })}
+                        className="w-8 h-8 rounded-full overflow-hidden relative cursor-pointer">
+                        <NextImage src={activeDm.avatarUrl} alt={activeDm.name} fill sizes="64px" quality={90} className="object-cover" />
                       </div>
                     ) : (
                       <div
@@ -1473,6 +1475,35 @@ export default function StaffroomPage() {
           </motion.div>
         </div>
       )}
+
+      {/* Expanded chat photo — same treatment as My Profile's avatar zoom */}
+      <AnimatePresence>
+        {expandedPhoto && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+            onClick={() => setExpandedPhoto(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.85, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.85, opacity: 0 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <img src={expandedPhoto.url} alt={expandedPhoto.name} className="w-full h-full object-cover" />
+              <button
+                onClick={() => setExpandedPhoto(null)}
+                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                <X size={14} className="text-white" />
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

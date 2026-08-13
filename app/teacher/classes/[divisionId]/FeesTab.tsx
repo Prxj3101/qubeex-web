@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    ChevronDown, Users, ImagePlus,
+    ChevronDown, Users, ImagePlus, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -141,6 +141,7 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
     const [extraColumns, setExtraColumns] = useState<{ label: string }[]>([]);
 
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+    const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
     const [studentFilter, setStudentFilter] = useState<'all' | 'paid' | 'pending'>('all');
     const [showListMenu, setShowListMenu] = useState(false);
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
@@ -349,7 +350,8 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                                 setStudentCardFlipped(false);
                             }}
                             className={`w-full flex items-center gap-3 px-3.5 py-3 border-b border-border/20 text-left hover:bg-muted/30 transition-colors ${selectedStudentId === student.id ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                            <div className="w-7 h-7 rounded-full overflow-hidden relative flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                            <div onClick={e => { if (student.avatarUrl) { e.stopPropagation(); setExpandedPhoto({ url: student.avatarUrl, name: student.name }); } }}
+                                className={`w-7 h-7 rounded-full overflow-hidden relative flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${student.avatarUrl ? 'cursor-pointer' : ''}`}
                                 style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
                                 {student.avatarUrl
                                     ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="56px" quality={90} className="object-cover" />
@@ -384,7 +386,8 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
 
                             {/* Student header */}
                             <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20">
-                                <div className="w-10 h-10 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                                <div onClick={() => selectedStudent.avatarUrl && setExpandedPhoto({ url: selectedStudent.avatarUrl, name: selectedStudent.name })}
+                                    className={`w-10 h-10 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0 ${selectedStudent.avatarUrl ? 'cursor-pointer' : ''}`}
                                     style={{ background: selectedStudent.avatarUrl ? 'transparent' : getAvatarColor(selectedStudent.name) }}>
                                     {selectedStudent.avatarUrl
                                         ? <NextImage src={selectedStudent.avatarUrl} alt={selectedStudent.name} fill sizes="80px" quality={90} className="object-cover" />
@@ -720,6 +723,35 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                     )}
                 </div>
             </div>
+
+            {/* Expanded student photo — same treatment as My Profile's avatar zoom */}
+            <AnimatePresence>
+                {expandedPhoto && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        onClick={() => setExpandedPhoto(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img src={expandedPhoto.url} alt={expandedPhoto.name} className="w-full h-full object-cover" />
+                            <button
+                                onClick={() => setExpandedPhoto(null)}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                <X size={14} className="text-white" />
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

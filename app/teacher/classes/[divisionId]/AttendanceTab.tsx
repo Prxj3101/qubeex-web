@@ -1182,6 +1182,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     const [calYear, setCalYear] = useState(today.getFullYear());
     const [calMonth, setCalMonth] = useState(today.getMonth());
     const [refreshKey, setRefreshKey] = useState(0);
+    const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
 
     const [attendance, setAttendance] = useState<Record<string, { status: AttendanceStatus; remark: string }>>({});
     const [remarkOpen, setRemarkOpen] = useState<string | null>(null);
@@ -1421,8 +1422,12 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                         return (
                             <div key={student.id} className="border-b border-border/20 last:border-none">
                                 <div className="flex items-center gap-3 px-4 py-2.5">
-                                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0" style={{ background: getAvatarColor(student.name) }}>
-                                        {getInitials(student.name)}
+                                    <div onClick={() => student.avatarUrl && setExpandedPhoto({ url: student.avatarUrl, name: student.name })}
+                                        className={`w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white shrink-0 relative ${student.avatarUrl ? 'cursor-pointer' : ''}`}
+                                        style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
+                                        {student.avatarUrl
+                                            ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="28px" className="object-cover" />
+                                            : getInitials(student.name)}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <p className="text-xs font-semibold truncate">{student.name}</p>
@@ -1515,6 +1520,35 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                 attBase={attBase}
                 readOnly={readOnly}
             />
+
+            {/* Expanded student photo — same treatment as My Profile's avatar zoom */}
+            <AnimatePresence>
+                {expandedPhoto && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        onClick={() => setExpandedPhoto(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img src={expandedPhoto.url} alt={expandedPhoto.name} className="w-full h-full object-cover" />
+                            <button
+                                onClick={() => setExpandedPhoto(null)}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                <X size={14} className="text-white" />
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -1575,7 +1609,7 @@ export default function AttendanceTab({
                 (summaryRes.data.data.students as SummaryStudent[]).map(ss => [ss.studentId, ss])
             );
             const s: AttendanceStudent[] = studRes.data.data.map((st: {
-                id: string; studentId: string; user: { name: string }; rollNo: string | null;
+                id: string; studentId: string; user: { name: string }; rollNo: string | null; avatarUrl?: string | null;
             }) => {
                 const summary = summaryByStudentId.get(st.id);
                 const cumulativeByMonth: Record<string, number | null> = {};
@@ -1585,6 +1619,7 @@ export default function AttendanceTab({
                     studentId: st.studentId,
                     name: st.user.name,
                     rollNo: st.rollNo ?? '',
+                    avatarUrl: st.avatarUrl ?? null,
                     overallPct: summary?.overallPct ?? null,
                     cumulativeByMonth,
                 };

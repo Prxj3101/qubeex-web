@@ -185,7 +185,7 @@ function TeacherCard({
                 {/* Avatar — photo ya initials */}
                 <div className="relative w-12 h-12 rounded-xl bg-muted ring-2 ring-border shrink-0 overflow-hidden flex items-center justify-center">
                     {teacher.avatarUrl ? (
-                        <NextImage src={teacher.avatarUrl} alt={teacher.name} fill sizes="48px" className="object-cover" />
+                        <NextImage src={teacher.avatarUrl} alt={teacher.name} fill sizes="96px" quality={90} className="object-cover" />
                     ) : (
                         <span className={`text-base font-bold select-none ${avatarColor.text}`}>
                             {getInitials(teacher.name)}

@@ -366,7 +366,7 @@ function SubAdminCard({
                     onClick={() => subadmin.avatarUrl && setPhotoExpanded(true)}
                 >
                     {subadmin.avatarUrl ? (
-                        <NextImage src={subadmin.avatarUrl} alt={subadmin.name} fill sizes="48px" className="object-cover" />
+                        <NextImage src={subadmin.avatarUrl} alt={subadmin.name} fill sizes="96px" quality={90} className="object-cover" />
                     ) : (
                         <span className={`text-base font-bold select-none ${avatarColor.text}`}>
                             {getInitials(subadmin.name)}

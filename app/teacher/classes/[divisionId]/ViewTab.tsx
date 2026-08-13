@@ -501,7 +501,8 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
     const fileInputRef = useRef<HTMLInputElement>(null);
     const timetableInputRef = useRef<HTMLInputElement>(null);
     const resultsFileInputRef = useRef<HTMLInputElement>(null);
-    const [timetableImage, setTimetableImage] = useState<string | null>(null);
+    const [timetableImage, setTimetableImage] = useState<string | null>(division.timetableUrl);
+    const [uploadingTimetable, setUploadingTimetable] = useState(false);
     const [leaderTab, setLeaderTab] = useState<'offline' | 'online' | 'combined'>('combined');
     const [previewMaterial, setPreviewMaterial] = useState<DivAnnouncement | null>(null);
     const fetchedRef = useRef(false);
@@ -888,7 +889,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                     })()}
                 </div>
 
-                {/* Timetable — mock */}
+                {/* Timetable */}
                 <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -897,29 +898,48 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                         {isClassTeacher && (
                             <button
                                 onClick={() => timetableInputRef.current?.click()}
-                                className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                                disabled={uploadingTimetable}
+                                className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all disabled:opacity-60"
                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                <Upload size={11} /> Upload
+                                <Upload size={11} /> {uploadingTimetable ? 'Uploading...' : timetableImage ? 'Replace' : 'Upload'}
                             </button>
                         )}
                     </div>
-                    <div className="p-2 cursor-pointer" onClick={() => setShowTimetable(true)}>
-                        <img src={timetableImage ?? '/timetable.jpeg'} alt="Timetable"
-                            className="w-full rounded-xl object-contain max-h-90 hover:opacity-90 transition-opacity" />
-                    </div>
+                    {timetableImage ? (
+                        <div className="p-2 cursor-pointer" onClick={() => setShowTimetable(true)}>
+                            <img src={timetableImage} alt="Timetable"
+                                className="w-full rounded-xl object-contain max-h-90 hover:opacity-90 transition-opacity" />
+                        </div>
+                    ) : (
+                        <div className="p-6 flex flex-col items-center justify-center gap-1.5 text-center">
+                            <Calendar size={22} className="text-muted-foreground/40" />
+                            <p className="text-[12px] text-muted-foreground">
+                                {isClassTeacher ? 'No timetable uploaded yet' : 'Timetable not uploaded yet'}
+                            </p>
+                        </div>
+                    )}
                 </div>
 
                 {isClassTeacher && (
                     <input ref={timetableInputRef} type="file" accept="image/*" className="hidden"
-                        onChange={e => {
+                        onChange={async e => {
                             const file = e.target.files?.[0];
-                            if (file) {
-                                const reader = new FileReader();
-                                reader.onload = () => setTimetableImage(reader.result as string);
-                                reader.readAsDataURL(file);
-                                toast.success('Timetable uploaded!');
-                            }
                             e.target.value = '';
+                            if (!file) return;
+                            setUploadingTimetable(true);
+                            try {
+                                const formData = new FormData();
+                                formData.append('timetable', file);
+                                const res = await api.post(`/teacher/classes/${division.id}/timetable`, formData, {
+                                    headers: { 'Content-Type': 'multipart/form-data' },
+                                });
+                                setTimetableImage(res.data.data.timetableUrl);
+                                toast.success('Timetable uploaded!');
+                            } catch {
+                                toast.error('Failed to upload timetable');
+                            } finally {
+                                setUploadingTimetable(false);
+                            }
                         }} />
                 )}
 
@@ -1087,7 +1107,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             <div className="flex items-center justify-between mb-2 shrink-0">
                                 <p className="text-white text-sm font-semibold">Timetable — {division.name}</p>
                                 <div className="flex items-center gap-2">
-                                    <a href={timetableImage ?? '/timetable.jpeg'} download
+                                    <a href={timetableImage ?? '#'} download
                                         className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
                                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                         ⬇ Download
@@ -1098,7 +1118,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                     </button>
                                 </div>
                             </div>
-                            <img src={timetableImage ?? '/timetable.jpeg'} alt="Timetable" className="rounded-2xl w-full object-contain" style={{ maxHeight: 'calc(90vh - 48px)' }} />
+                            {timetableImage && <img src={timetableImage} alt="Timetable" className="rounded-2xl w-full object-contain" style={{ maxHeight: 'calc(90vh - 48px)' }} />}
                         </motion.div>
                     </div>
                 )}

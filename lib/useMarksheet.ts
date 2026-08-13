@@ -100,7 +100,7 @@ export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarkshee
           // Marksheet not initialised yet — show empty sheet with real student names
           setMarksheet(null);
           try {
-            const fallback = await getClassStudents(divisionId);
+            const fallback = await getClassStudents(divisionId, isAdmin);
             if (!cancelled) setStudents(fallback);
           } catch {
             // class students unavailable — empty sheet is fine

@@ -8,7 +8,7 @@ import {
   Hash, Globe, BookOpen, School, GraduationCap,
   Users, Zap, FileText, CheckCircle, ShieldCheck,
   Pencil, X, Check, Camera, ChevronRight, Info,
-  User as UserIcon,
+  User as UserIcon, Database,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -69,6 +69,7 @@ type InstData = {
     planOption?: string | null;
   } | null;
   isTrial?: boolean;
+  dbConfig?: { mode?: string | null } | null;
 };
 
 // ── Verified Badge ────────────────────────────────────────────────────────────
@@ -803,6 +804,17 @@ export default function AdminProfilePage() {
                 <InfoRow icon={Globe} label="Medium" value={instSaved.medium || '—'} />
                 <InfoRow icon={Calendar} label="Established On" value={instSaved.establishedOn ? toIST(instSaved.establishedOn) : '—'} />
                 <InfoRow icon={Calendar} label="Joined (IST)" value={joinDate} />
+                <InfoRow
+                  icon={Database}
+                  label="Database"
+                  value={
+                    inst.dbConfig?.mode === 'BYOD' ? (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(192,96,64,0.12)', color: '#C06040' }}>BYOD</span>
+                    ) : (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">DEFAULT</span>
+                    )
+                  }
+                />
               </>
             )}
           </SectionCard>

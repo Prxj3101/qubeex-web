@@ -2,7 +2,9 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Users, Search, Shield, BookOpen, GraduationCap, Crown, ChevronLeft, ChevronRight, History } from 'lucide-react';
+import NextImage from 'next/image';
+import { motion, AnimatePresence } from 'framer-motion';
+import { ArrowLeft, Users, Search, Shield, BookOpen, GraduationCap, Crown, ChevronLeft, ChevronRight, History, X } from 'lucide-react';
 import api from '@/lib/api';
 
 const MONTHS_S = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -18,6 +20,7 @@ interface DirectoryUser {
     addedBy: string | null;
     joinedAt: string;
     status: 'ACTIVE' | 'INACTIVE';
+    avatarUrl: string | null;
 }
 
 // ── Role config ───────────────────────────────────────────────────────────────
@@ -45,6 +48,7 @@ export default function UsersInsightPage() {
     const [search, setSearch] = useState('');
     const [roleFilter, setRoleFilter] = useState<Role>('ALL');
     const [statusFilter, setStatusFilter] = useState<Status>('ALL');
+    const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
 
     // ── Billing month snapshot — shows which users existed as of that month ──
     const now = new Date();
@@ -293,9 +297,12 @@ export default function UsersInsightPage() {
                                                 <td className="px-4 py-3 text-[11px] text-muted-foreground/60 font-medium w-10">{idx + 1}</td>
                                                 <td className="px-3 py-3 whitespace-nowrap">
                                                     <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-white text-[9px] font-bold"
-                                                            style={{ background: rc.initBg }}>
-                                                            {initials(u.name)}
+                                                        <div onClick={() => u.avatarUrl && setExpandedPhoto({ url: u.avatarUrl, name: u.name })}
+                                                            className={`w-6 h-6 rounded-full overflow-hidden relative flex items-center justify-center shrink-0 text-white text-[9px] font-bold ${u.avatarUrl ? 'cursor-pointer' : ''}`}
+                                                            style={{ background: u.avatarUrl ? 'transparent' : rc.initBg }}>
+                                                            {u.avatarUrl
+                                                                ? <NextImage src={u.avatarUrl} alt={u.name} fill sizes="24px" className="object-cover" />
+                                                                : initials(u.name)}
                                                         </div>
                                                         <span className="font-semibold text-foreground">{u.name}</span>
                                                     </div>
@@ -338,6 +345,35 @@ export default function UsersInsightPage() {
                 </div>
 
             </div>
+
+            {/* Expanded user photo — same treatment as My Profile's avatar zoom */}
+            <AnimatePresence>
+                {expandedPhoto && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        onClick={() => setExpandedPhoto(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img src={expandedPhoto.url} alt={expandedPhoto.name} className="w-full h-full object-cover" />
+                            <button
+                                onClick={() => setExpandedPhoto(null)}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                <X size={14} className="text-white" />
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

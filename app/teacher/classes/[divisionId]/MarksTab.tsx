@@ -543,6 +543,7 @@ function MarkSheet({
     const yr = now.getFullYear();
     const mo = now.getMonth();
     const academicYear = mo >= 5 ? `${yr}–${String(yr + 1).slice(2)}` : `${yr - 1}–${String(yr).slice(2)}`;
+    const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
 
     const gs = marksheetHook?.gradeScale ?? [];
     const gradeLabel = (pct: number) => grade(pct, gs);
@@ -802,14 +803,14 @@ function MarkSheet({
                     </p>
                 </div>
                 <div className="ml-auto flex items-center gap-2">
-                    {mode === 'offline' && showPublishControl && marksheetHook && (
+                    {mode === 'offline' && !readOnly && showPublishControl && marksheetHook && (
                         <CompactPublishButton
                             marksheet={marksheetHook.marksheet}
                             hasUnpublishedChanges={marksheetHook.hasUnpublishedChanges}
                             onPublish={marksheetHook.handlePublish}
                         />
                     )}
-                    {mode === 'offline' && (
+                    {mode === 'offline' && !readOnly && (
                         <div className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold border ${
                             saveStatus === 'saved'
                                 ? 'border-green-500 text-green-600 bg-green-500/10'
@@ -1098,7 +1099,8 @@ function MarkSheet({
                                     <td className="sticky left-[60px] z-10 px-3 py-1.5 whitespace-nowrap"
                                         style={{ background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10' }}>
                                         <div className="flex items-center gap-1.5">
-                                            <div className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[9px] font-bold text-white shrink-0 relative"
+                                            <div onClick={() => student.avatarUrl && setExpandedPhoto({ url: student.avatarUrl, name: student.name })}
+                                                className={`w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[9px] font-bold text-white shrink-0 relative ${student.avatarUrl ? 'cursor-pointer' : ''}`}
                                                 style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
                                                 {student.avatarUrl
                                                     ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="20px" className="object-cover" />
@@ -1372,6 +1374,35 @@ function MarkSheet({
                     />
                 )}
             </AnimatePresence>
+
+            {/* Expanded student photo — same treatment as My Profile's avatar zoom */}
+            <AnimatePresence>
+                {expandedPhoto && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        onClick={() => setExpandedPhoto(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img src={expandedPhoto.url} alt={expandedPhoto.name} className="w-full h-full object-cover" />
+                            <button
+                                onClick={() => setExpandedPhoto(null)}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                <X size={14} className="text-white" />
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -1385,6 +1416,7 @@ function StudentSummaryPanel({
     selectedId: string | null;
     onSelect: (id: string) => void;
 }) {
+    const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
     const getOverall = (stId: string) => {
         let total = 0, scored = 0;
         subjects.forEach(sub => {
@@ -1411,7 +1443,8 @@ function StudentSummaryPanel({
                     return (
                         <button key={student.id} onClick={() => onSelect(student.id)}
                             className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-colors hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                            <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white shrink-0 relative"
+                            <div onClick={e => { if (student.avatarUrl) { e.stopPropagation(); setExpandedPhoto({ url: student.avatarUrl, name: student.name }); } }}
+                                className={`w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white shrink-0 relative ${student.avatarUrl ? 'cursor-pointer' : ''}`}
                                 style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
                                 {student.avatarUrl
                                     ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="28px" className="object-cover" />
@@ -1431,6 +1464,35 @@ function StudentSummaryPanel({
                     );
                 })}
             </div>
+
+            {/* Expanded student photo — same treatment as My Profile's avatar zoom */}
+            <AnimatePresence>
+                {expandedPhoto && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        onClick={() => setExpandedPhoto(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img src={expandedPhoto.url} alt={expandedPhoto.name} className="w-full h-full object-cover" />
+                            <button
+                                onClick={() => setExpandedPhoto(null)}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                <X size={14} className="text-white" />
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -1442,6 +1504,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
     onStatsChange?: (stats: MarksStats) => void;
     marksheetHook: UseMarksheetResult;
 }) {
+    const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
     const [rightTab, setRightTab] = useState<'class' | 'student'>('class');
     const [rankTab, setRankTab] = useState<'offline' | 'online' | 'combined'>('combined');
@@ -1554,7 +1617,8 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                             <button key={student.id}
                                 onClick={() => { setSelectedStudentId(prev => prev === student.id ? null : student.id); setRightTab('student'); }}
                                 className={`w-full flex items-center gap-2 px-3 py-3 border-b border-border/20 text-left transition-colors hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                                <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white shrink-0 relative"
+                                <div onClick={e => { if (student.avatarUrl) { e.stopPropagation(); setExpandedPhoto({ url: student.avatarUrl, name: student.name }); } }}
+                                    className={`w-7 h-7 rounded-full overflow-hidden flex items-center justify-center text-[10px] font-bold text-white shrink-0 relative ${student.avatarUrl ? 'cursor-pointer' : ''}`}
                                     style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
                                     {student.avatarUrl
                                         ? <NextImage src={student.avatarUrl} alt={student.name} fill sizes="28px" className="object-cover" />
@@ -1656,7 +1720,8 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                         const pct = getPct(st);
                                         return (
                                             <div key={st.student.id} className="flex flex-col items-center gap-1.5">
-                                                <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20 relative"
+                                                <div onClick={() => st.student.avatarUrl && setExpandedPhoto({ url: st.student.avatarUrl, name: st.student.name })}
+                                                    className={`w-10 h-10 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white ring-2 ring-white/20 relative ${st.student.avatarUrl ? 'cursor-pointer' : ''}`}
                                                     style={{ background: st.student.avatarUrl ? 'transparent' : getAvatarColor(st.student.name) }}>
                                                     {st.student.avatarUrl
                                                         ? <NextImage src={st.student.avatarUrl} alt={st.student.name} fill sizes="40px" className="object-cover" />
@@ -1678,9 +1743,12 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                         return (
                                             <div key={st.student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
                                                 <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
-                                                <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                                    style={{ background: getAvatarColor(st.student.name) }}>
-                                                    {getInitials(st.student.name)}
+                                                <div onClick={() => st.student.avatarUrl && setExpandedPhoto({ url: st.student.avatarUrl!, name: st.student.name })}
+                                                    className={`w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-[9px] font-bold text-white shrink-0 relative ${st.student.avatarUrl ? 'cursor-pointer' : ''}`}
+                                                    style={{ background: st.student.avatarUrl ? 'transparent' : getAvatarColor(st.student.name) }}>
+                                                    {st.student.avatarUrl
+                                                        ? <NextImage src={st.student.avatarUrl} alt={st.student.name} fill sizes="24px" className="object-cover" />
+                                                        : getInitials(st.student.name)}
                                                 </div>
                                                 <p className="text-xs font-semibold flex-1 truncate">{st.student.name}</p>
                                                 <span className="text-[11px] font-black" style={{ color: scoreColor(pct) }}>{pct}%</span>
@@ -1719,9 +1787,12 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                 return (
                                                     <div key={row.student.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/30">
                                                         <span className="text-[10px] font-black text-muted-foreground w-3 shrink-0">{idx + 1}</span>
-                                                        <div className="w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0"
-                                                            style={{ background: getAvatarColor(row.student.name) }}>
-                                                            {getInitials(row.student.name)}
+                                                        <div onClick={() => row.student.avatarUrl && setExpandedPhoto({ url: row.student.avatarUrl!, name: row.student.name })}
+                                                            className={`w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[8px] font-bold text-white shrink-0 relative ${row.student.avatarUrl ? 'cursor-pointer' : ''}`}
+                                                            style={{ background: row.student.avatarUrl ? 'transparent' : getAvatarColor(row.student.name) }}>
+                                                            {row.student.avatarUrl
+                                                                ? <NextImage src={row.student.avatarUrl} alt={row.student.name} fill sizes="20px" className="object-cover" />
+                                                                : getInitials(row.student.name)}
                                                         </div>
                                                         <p className="text-[11px] font-semibold flex-1 truncate">{row.student.name}</p>
                                                         <span className="text-[11px] font-black shrink-0" style={{ color: scoreColor(pct) }}>{pct}%</span>
@@ -1790,9 +1861,12 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                     {/* Body: student info left + chart right */}
                                     <div className="flex flex-col sm:flex-row flex-1 min-h-0">
                                         <div className="w-full sm:w-[22%] shrink-0 border-r-0 sm:border-r border-b sm:border-b-0 border-border/40 px-3 py-3 flex flex-row sm:flex-col items-center gap-2">
-                                            <div className="w-14 h-14 rounded-full flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20"
-                                                style={{ background: getAvatarColor(sel.student.name) }}>
-                                                {getInitials(sel.student.name)}
+                                            <div onClick={() => sel.student.avatarUrl && setExpandedPhoto({ url: sel.student.avatarUrl!, name: sel.student.name })}
+                                                className={`w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20 relative ${sel.student.avatarUrl ? 'cursor-pointer' : ''}`}
+                                                style={{ background: sel.student.avatarUrl ? 'transparent' : getAvatarColor(sel.student.name) }}>
+                                                {sel.student.avatarUrl
+                                                    ? <NextImage src={sel.student.avatarUrl} alt={sel.student.name} fill sizes="56px" className="object-cover" />
+                                                    : getInitials(sel.student.name)}
                                             </div>
                                             <div className="text-center">
                                                 <p className="text-sm font-bold leading-tight">{sel.student.name}</p>
@@ -2033,6 +2107,35 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                     })()}
                 </div>
             </div>
+
+            {/* Expanded student photo — same treatment as My Profile's avatar zoom */}
+            <AnimatePresence>
+                {expandedPhoto && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        onClick={() => setExpandedPhoto(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img src={expandedPhoto.url} alt={expandedPhoto.name} className="w-full h-full object-cover" />
+                            <button
+                                onClick={() => setExpandedPhoto(null)}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                <X size={14} className="text-white" />
+                            </button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

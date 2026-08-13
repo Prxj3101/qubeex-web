@@ -36,6 +36,7 @@ export interface Division {
     standard: { id: string; name: string };
     subjects: Subject[];
     assignments: Assignment[];
+    timetableUrl: string | null;
 }
 
 export function getInitials(name: string) {
@@ -143,7 +144,12 @@ export default function DivisionClassPageClient() {
         try {
             const res = await api.get(`/teacher/classes/${divisionId}`);
             const raw = res.data.data;
-            setDivision({ ...raw, subjects: raw.standard?.subjects ?? [] });
+            // Only the subjects the admin actually selected for this division
+            // (raw.divisionSubjects) should show up here — raw.standard.subjects
+            // is the institution-wide pool for the whole standard, not this class.
+            const selectedIds = new Set((raw.divisionSubjects ?? []).map((ds: { subjectId: string }) => ds.subjectId));
+            const subjects = (raw.standard?.subjects ?? []).filter((s: { id: string }) => selectedIds.has(s.id));
+            setDivision({ ...raw, subjects });
         } catch {
             setDivision({
                 id: divisionId,

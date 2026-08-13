@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useMemo, useEffect } from 'react';
-import { Plus, Megaphone, RefreshCw, Hash, AtSign, Building2, ArrowUpRight, CreditCard, School, GraduationCap, BookOpen, Phone, Mail, MapPin, User, Eye, Search, X, Users, UserCheck, CalendarDays, Filter, ArrowUpDown, ChevronDown } from 'lucide-react';
+import { Plus, Megaphone, RefreshCw, Hash, AtSign, Building2, ArrowUpRight, CreditCard, School, GraduationCap, BookOpen, Phone, Mail, MapPin, User, Eye, Search, X, Users, UserCheck, CalendarDays, Filter, ArrowUpDown, ChevronDown, Database } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { CreateInstitutionModal } from '@/components/superadmin/CreateInstitutionModal';
 import { Institution } from '@/types';
@@ -25,6 +25,10 @@ type InstitutionListItem = Institution & {
         status?: string | null;
         endDate?: string | null;
         trialOutcome?: string | null;
+    } | null;
+    dbConfig?: {
+        mode?: string | null;
+        engine?: string | null;
     } | null;
 };
 
@@ -235,6 +239,13 @@ function InstitutionCard({ inst, index }: { inst: InstitutionListItem; index: nu
                     { icon: MapPin,       label: 'Location',     value: inst.city ? `${inst.city}${inst.state ? ', ' + inst.state : ''}` : '—' },
                     { icon: CreditCard,   label: 'Plan',         value: planName },
                     { icon: CalendarDays, label: 'Joined',       value: toIST(inst.createdAt) },
+                    {
+                        icon: Database,
+                        label: 'Database',
+                        value: inst.dbConfig?.mode === 'BYOD'
+                            ? <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(192,96,64,0.12)', color: '#C06040' }}>BYOD</span>
+                            : <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">DEFAULT</span>,
+                    },
                 ] as { icon: React.ElementType; label: string; value: React.ReactNode }[]).map(({ icon: Icon, label, value }) => (
                     <div key={label} className="flex items-center gap-2">
                         <Icon size={15} className="shrink-0 text-muted-foreground/60" />

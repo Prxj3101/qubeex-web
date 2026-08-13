@@ -176,8 +176,8 @@ export async function downloadMarksheetPdf(
   return res.data as Blob;
 }
 
-export async function getClassStudents(divisionId: string): Promise<MarksheetStudent[]> {
-  const res = await api.get(`/teacher/classes/${divisionId}/students`);
-  const raw = res.data.data as Array<{ id: string; rollNo: number | string; user: { name: string } }>;
-  return raw.map(s => ({ id: s.id, name: s.user.name, rollNo: String(s.rollNo) }));
+export async function getClassStudents(divisionId: string, isAdmin?: boolean): Promise<MarksheetStudent[]> {
+  const res = await api.get(isAdmin ? `/admin/campus/divisions/${divisionId}/students` : `/teacher/classes/${divisionId}/students`);
+  const raw = res.data.data as Array<{ id: string; rollNo: number | string; user: { name: string }; avatarUrl?: string | null }>;
+  return raw.map(s => ({ id: s.id, name: s.user.name, rollNo: String(s.rollNo), avatarUrl: s.avatarUrl ?? null }));
 }

@@ -53,6 +53,7 @@ interface Division {
     standard: { id: string; name: string; subjects: Subject[] };
     divisionSubjects: { subjectId: string }[];
     assignments: Assignment[];
+    timetableUrl: string | null;
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -853,6 +854,7 @@ export default function DivisionDetailPage() {
     const [showTimetable, setShowTimetable] = useState(false);
     const [postSubject, setPostSubject] = useState('');
     const [selectedStudent, setSelectedStudent] = useState<AdminStudent | null>(null);
+    const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
     const [manageRightTab, setManageRightTab] = useState<'teachers' | 'student'>('teachers');
     const [confirmToggle, setConfirmToggle] = useState(false);
     const [togglingStatus, setTogglingStatus] = useState(false);
@@ -865,9 +867,7 @@ export default function DivisionDetailPage() {
     const [attendanceHeaderStats, setAttendanceHeaderStats] = useState<{ overall: number | null; thisMonth: number | null }>({ overall: null, thisMonth: null });
     const [marksheetSubTab, setMarksheetSubTab] = useState<MarksSubTab>('offline');
     const [marksStats, setMarksStats] = useState<MarksStats>({ avg: null, topGrade: null });
-    const [timetableImage, setTimetableImage] = useState<string | null>(null);
     const [leaderTab, setLeaderTab] = useState<'offline' | 'online' | 'combined'>('combined');
-    const timetableInputRef = useRef<HTMLInputElement>(null);
     const [showPassword, setShowPassword] = useState(false);
 
     interface StudentStats { attendance: { present: number; total: number; pct: number | null }; score: { pct: number | null }; classRank: number | null }
@@ -1624,13 +1624,20 @@ export default function DivisionDetailPage() {
                                             <Calendar size={12} /> Timetable
                                         </p>
                                     </div>
-                                    <div className="p-2 cursor-pointer" onClick={() => setShowTimetable(true)}>
-                                        <img
-                                            src="/timetable.jpeg"
-                                            alt="Timetable"
-                                            className="w-full rounded-xl object-contain max-h-84 hover:opacity-90 transition-opacity"
-                                        />
-                                    </div>
+                                    {division.timetableUrl ? (
+                                        <div className="p-2 cursor-pointer" onClick={() => setShowTimetable(true)}>
+                                            <img
+                                                src={division.timetableUrl}
+                                                alt="Timetable"
+                                                className="w-full rounded-xl object-contain max-h-84 hover:opacity-90 transition-opacity"
+                                            />
+                                        </div>
+                                    ) : (
+                                        <div className="p-6 flex flex-col items-center justify-center gap-1.5 text-center">
+                                            <Calendar size={22} className="text-muted-foreground/40" />
+                                            <p className="text-[12px] text-muted-foreground">Timetable not uploaded yet</p>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Class Calendar */}
@@ -1691,7 +1698,8 @@ export default function DivisionDetailPage() {
                                                 onClick={() => { setSelectedStudent(student); setManageRightTab('student'); }}
                                                 className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-colors hover:bg-muted/30 ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''
                                                     }`}>
-                                                <div className="w-7 h-7 rounded-full overflow-hidden relative flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+                                                <div onClick={e => { if (student.avatarUrl) { e.stopPropagation(); setExpandedPhoto({ url: student.avatarUrl, name }); } }}
+                                                    className={`w-7 h-7 rounded-full overflow-hidden relative flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${student.avatarUrl ? 'cursor-pointer' : ''}`}
                                                     style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(name) }}>
                                                     {student.avatarUrl
                                                         ? <NextImage src={student.avatarUrl} alt={name} fill sizes="28px" className="object-cover" />
@@ -1991,7 +1999,8 @@ export default function DivisionDetailPage() {
                                                             <div className="flex-1 px-4 py-3 md:border-r border-border/40 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={User} label="Student Info" />
                                                                 <div className="flex items-center gap-3 mb-2">
-                                                                    <div className="w-12 h-12 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
+                                                                    <div onClick={() => selectedStudent.avatarUrl && setExpandedPhoto({ url: selectedStudent.avatarUrl, name: selectedStudent.user.name ?? '—' })}
+                                                                        className={`w-12 h-12 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0 ${selectedStudent.avatarUrl ? 'cursor-pointer' : ''}`}
                                                                         style={{ background: selectedStudent.avatarUrl ? 'transparent' : getAvatarColor(selectedStudent.user.name ?? '—') }}>
                                                                         {selectedStudent.avatarUrl
                                                                             ? <NextImage src={selectedStudent.avatarUrl} alt={selectedStudent.user.name ?? 'Student'} fill sizes="48px" className="object-cover" />
@@ -2186,7 +2195,7 @@ export default function DivisionDetailPage() {
                             <div className="flex items-center justify-between mb-2">
                                 <p className="text-white text-sm font-semibold">Timetable — {division.name}</p>
                                 <div className="flex items-center gap-2">
-                                    <a href="/timetable.jpeg" download
+                                    <a href={division.timetableUrl ?? '#'} download
                                         className="flex items-center gap-1.5 h-8 px-3 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
                                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                         ⬇ Download
@@ -2197,8 +2206,8 @@ export default function DivisionDetailPage() {
                                     </button>
                                 </div>
                             </div>
-                            <img src="/timetable.jpeg" alt="Timetable"
-                                className="w-full rounded-2xl object-contain max-h-[80vh]" />
+                            {division.timetableUrl && <img src={division.timetableUrl} alt="Timetable"
+                                className="w-full rounded-2xl object-contain max-h-[80vh]" />}
                         </motion.div>
                     </div>
                 )}
@@ -2253,6 +2262,35 @@ export default function DivisionDetailPage() {
                             </div>
                         </motion.div>
                     </div>
+                )}
+            </AnimatePresence>
+
+            {/* Expanded student photo — same treatment as My Profile's avatar zoom */}
+            <AnimatePresence>
+                {expandedPhoto && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        onClick={() => setExpandedPhoto(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img src={expandedPhoto.url} alt={expandedPhoto.name} className="w-full h-full object-cover" />
+                            <button
+                                onClick={() => setExpandedPhoto(null)}
+                                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                <X size={14} className="text-white" />
+                            </button>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
         </div>

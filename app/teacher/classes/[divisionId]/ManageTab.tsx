@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Users, BookOpen, ExternalLink, ChevronDown, Power, Flag, Plus, Trash2,
     PowerOff, User, Shield, MapPin, Eye, EyeOff, Download, FileText, Table2, Camera, Heart, Pencil,
-    RotateCcw, Copy, ShieldCheck,
+    RotateCcw, Copy, ShieldCheck, X,
 } from 'lucide-react';
 import { Division, getInitials, getAvatarColor } from './DivisionClassPageClient';
 import { useStudentPhotosStore } from '@/store/studentPhotosStore';
@@ -273,6 +273,7 @@ export default function ManageTab({ division, isClassTeacher }: {
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const [selectedStudent, setSelectedStudent] = useState<Student | null>(null);
     const [manageRightTab, setManageRightTab] = useState<'teachers' | 'student'>('student');
+    const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
 
     const [showAddStudent, setShowAddStudent] = useState(false);
     const [addingStudent, setAddingStudent] = useState(false);
@@ -625,7 +626,8 @@ export default function ManageTab({ division, isClassTeacher }: {
                                 <button key={student.id}
                                     onClick={() => { setSelectedStudent(student); setManageRightTab('student'); }}
                                     className={`w-full flex items-center gap-3 px-4 py-3 border-b border-border/20 text-left transition-colors ${isSelected ? 'bg-primary/5 border-l-2 border-l-primary' : ''}`}>
-                                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden"
+                                    <div onClick={e => { if (photos[student.id]) { e.stopPropagation(); setExpandedPhoto({ url: photos[student.id], name: student.user.name ?? student.studentId }); } }}
+                                        className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 overflow-hidden ${photos[student.id] ? 'cursor-pointer' : ''}`}
                                         style={{ background: getAvatarColor(student.user.name ?? student.studentId) }}>
                                         {photos[student.id]
                                             ? <img src={photos[student.id]} alt="profile" className="w-full h-full object-cover" />
@@ -860,7 +862,8 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                 />
                                                 <div className="flex items-center gap-3 mb-2">
                                                     <div className="relative shrink-0">
-                                                        <div className="w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white overflow-hidden"
+                                                        <div onClick={() => photos[selectedStudent.id] && setExpandedPhoto({ url: photos[selectedStudent.id], name: selectedStudent.user.name ?? selectedStudent.studentId })}
+                                                            className={`w-12 h-12 rounded-xl flex items-center justify-center text-sm font-bold text-white overflow-hidden ${photos[selectedStudent.id] ? 'cursor-pointer' : ''}`}
                                                             style={{ background: getAvatarColor(selectedStudent.user.name ?? selectedStudent.studentId) }}>
                                                             {photos[selectedStudent.id]
                                                                 ? <img src={photos[selectedStudent.id]} alt="profile" className="w-full h-full object-cover" />
@@ -1318,6 +1321,35 @@ export default function ManageTab({ division, isClassTeacher }: {
                 </motion.div>
             </div>
         )}
+
+        {/* Expanded student photo — same treatment as My Profile's avatar zoom */}
+        <AnimatePresence>
+            {expandedPhoto && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                    onClick={() => setExpandedPhoto(null)}
+                >
+                    <motion.div
+                        initial={{ scale: 0.85, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.85, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                        className="relative w-72 h-72 rounded-2xl overflow-hidden shadow-2xl"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <img src={expandedPhoto.url} alt={expandedPhoto.name} className="w-full h-full object-cover" />
+                        <button
+                            onClick={() => setExpandedPhoto(null)}
+                            className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                            <X size={14} className="text-white" />
+                        </button>
+                    </motion.div>
+                </motion.div>
+            )}
+        </AnimatePresence>
         </>
     );
 }
