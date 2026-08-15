@@ -425,22 +425,22 @@ function FeeStructureForm({
                                 return !excludeTypes?.includes(t) && (!FEE_TYPE_CFG[t].unique || initial?.type === t);
                             })
                             .map(t => {
-                            const cfg = FEE_TYPE_CFG[t];
-                            const isActive = type === t;
-                            const isTaken = !!cfg.unique && (existingStructures ?? []).some(s => s.type === t && s.id !== initial?.id);
-                            return (
-                                <button key={t} type="button"
-                                    disabled={isTaken}
-                                    onClick={() => { setType(t); setColor(cfg.color); }}
-                                    title={isTaken ? `Only one ${cfg.label} structure is allowed — delete the existing one first` : undefined}
-                                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${isTaken ? 'opacity-40 cursor-not-allowed border-border/50 text-muted-foreground' : isActive ? `border-current ${cfg.bg} ${cfg.text}` : 'border-border/50 text-muted-foreground hover:border-border'}`}>
-                                    <span>{cfg.emoji}</span> {cfg.label}
-                                    {cfg.tag && (
-                                        <span className={`text-[9px] font-bold px-1 py-0.5 rounded-full ${isActive && !isTaken ? 'bg-white/60' : 'bg-muted-foreground/10'}`}>{cfg.tag}</span>
-                                    )}
-                                </button>
-                            );
-                        })}
+                                const cfg = FEE_TYPE_CFG[t];
+                                const isActive = type === t;
+                                const isTaken = !!cfg.unique && (existingStructures ?? []).some(s => s.type === t && s.id !== initial?.id);
+                                return (
+                                    <button key={t} type="button"
+                                        disabled={isTaken}
+                                        onClick={() => { setType(t); setColor(cfg.color); }}
+                                        title={isTaken ? `Only one ${cfg.label} structure is allowed — delete the existing one first` : undefined}
+                                        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border-2 text-xs font-semibold transition-all ${isTaken ? 'opacity-40 cursor-not-allowed border-border/50 text-muted-foreground' : isActive ? `border-current ${cfg.bg} ${cfg.text}` : 'border-border/50 text-muted-foreground hover:border-border'}`}>
+                                        <span>{cfg.emoji}</span> {cfg.label}
+                                        {cfg.tag && (
+                                            <span className={`text-[9px] font-bold px-1 py-0.5 rounded-full ${isActive && !isTaken ? 'bg-white/60' : 'bg-muted-foreground/10'}`}>{cfg.tag}</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
                     </div>
                 </div>
 
@@ -452,126 +452,126 @@ function FeeStructureForm({
                         <p className="text-[11px] text-muted-foreground/70 mt-0.5">Bus Fee has no fixed amount here — its price is set separately, not as fee items.</p>
                     </div>
                 ) : (
-                <div>
-                    <div className="flex items-center justify-between mb-2">
-                        <p className="text-[11px] font-semibold text-muted-foreground">Fee Items <span className="text-red-500">*</span></p>
-                        <button onClick={() => setAddingItem(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
-                            <Plus size={11} /> Add Item
-                        </button>
-                    </div>
-                    <div className="space-y-1.5">
-                        {items.map(item => {
-                            const sub = item.subItems.reduce((n, s) => n + s.amount, 0);
-                            return (
-                                <div key={item.id} className="rounded-xl border border-border/40 overflow-hidden">
-                                    {editingItemId === item.id ? (
-                                        <div className="flex items-center gap-1.5 px-3 py-2 bg-primary/5">
-                                            <input value={editItemLabel} onChange={e => setEditItemLabel(e.target.value)}
-                                                onKeyDown={e => e.key === 'Enter' && saveEditItem(item.id)}
-                                                className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-transparent text-xs focus:outline-none" />
-                                            <input value={editItemAmount} onChange={e => setEditItemAmount(e.target.value)} type="number" placeholder="₹"
-                                                onKeyDown={e => e.key === 'Enter' && saveEditItem(item.id)}
-                                                className="w-16 h-7 px-2 rounded-lg border border-primary/50 bg-transparent text-xs focus:outline-none" />
-                                            <button onClick={() => saveEditItem(item.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0"
-                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                <Check size={10} />
-                                            </button>
-                                            <button onClick={() => { setEditingItemId(null); setEditItemLabel(''); setEditItemAmount(''); }}
-                                                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 shrink-0">
-                                                <X size={10} />
-                                            </button>
-                                        </div>
-                                    ) : (
-                                        <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
-                                            <span className="flex-1 text-xs font-medium">{item.label}</span>
-                                            <span className="text-xs font-semibold">₹{(sub > 0 ? sub : item.amount).toLocaleString()}</span>
-                                            <button onClick={() => startEditItem(item)} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-primary">
-                                                <Pencil size={9} />
-                                            </button>
-                                            <button onClick={() => setAddingSubFor(item.id)} className="text-[10px] text-muted-foreground hover:text-primary">+ sub</button>
-                                            <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
-                                                <X size={10} />
-                                            </button>
-                                        </div>
-                                    )}
-                                    {item.subItems.map(si => (
-                                        editingSubId === si.id ? (
-                                            <div key={si.id} className="flex items-center gap-1.5 px-3 py-1.5 pl-6 border-t border-border/20 bg-primary/5">
-                                                <input value={editSubLabel} onChange={e => setEditSubLabel(e.target.value)}
-                                                    onKeyDown={e => e.key === 'Enter' && saveEditSub(item.id, si.id)}
-                                                    className="flex-1 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
-                                                <input value={editSubAmount} onChange={e => setEditSubAmount(e.target.value)} type="number" placeholder="₹"
-                                                    onKeyDown={e => e.key === 'Enter' && saveEditSub(item.id, si.id)}
-                                                    className="w-16 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
-                                                <button onClick={() => saveEditSub(item.id, si.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0"
+                    <div>
+                        <div className="flex items-center justify-between mb-2">
+                            <p className="text-[11px] font-semibold text-muted-foreground">Fee Items <span className="text-red-500">*</span></p>
+                            <button onClick={() => setAddingItem(true)} className="text-[11px] text-primary font-medium hover:underline flex items-center gap-1">
+                                <Plus size={11} /> Add Item
+                            </button>
+                        </div>
+                        <div className="space-y-1.5">
+                            {items.map(item => {
+                                const sub = item.subItems.reduce((n, s) => n + s.amount, 0);
+                                return (
+                                    <div key={item.id} className="rounded-xl border border-border/40 overflow-hidden">
+                                        {editingItemId === item.id ? (
+                                            <div className="flex items-center gap-1.5 px-3 py-2 bg-primary/5">
+                                                <input value={editItemLabel} onChange={e => setEditItemLabel(e.target.value)}
+                                                    onKeyDown={e => e.key === 'Enter' && saveEditItem(item.id)}
+                                                    className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-transparent text-xs focus:outline-none" />
+                                                <input value={editItemAmount} onChange={e => setEditItemAmount(e.target.value)} type="number" placeholder="₹"
+                                                    onKeyDown={e => e.key === 'Enter' && saveEditItem(item.id)}
+                                                    className="w-16 h-7 px-2 rounded-lg border border-primary/50 bg-transparent text-xs focus:outline-none" />
+                                                <button onClick={() => saveEditItem(item.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0"
                                                     style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                                     <Check size={10} />
                                                 </button>
-                                                <button onClick={() => { setEditingSubId(null); setEditSubLabel(''); setEditSubAmount(''); }}
+                                                <button onClick={() => { setEditingItemId(null); setEditItemLabel(''); setEditItemAmount(''); }}
                                                     className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 shrink-0">
                                                     <X size={10} />
                                                 </button>
                                             </div>
                                         ) : (
-                                        <div key={si.id} className="flex items-center justify-between px-3 py-1.5 pl-6 border-t border-border/20 bg-background">
-                                            <span className="text-[11px] text-muted-foreground">{si.label}</span>
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[11px]">₹{si.amount.toLocaleString()}</span>
-                                                <button onClick={() => startEditSub(si)} className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-primary">
-                                                    <Pencil size={8} />
+                                            <div className="flex items-center gap-2 px-3 py-2 bg-muted/20">
+                                                <span className="flex-1 text-xs font-medium">{item.label}</span>
+                                                <span className="text-xs font-semibold">₹{(sub > 0 ? sub : item.amount).toLocaleString()}</span>
+                                                <button onClick={() => startEditItem(item)} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-primary">
+                                                    <Pencil size={9} />
                                                 </button>
-                                                <button onClick={() => setItems(prev => prev.map(it => it.id !== item.id ? it : { ...it, subItems: it.subItems.filter(s => s.id !== si.id) }))} className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
-                                                    <X size={9} />
+                                                <button onClick={() => setAddingSubFor(item.id)} className="text-[10px] text-muted-foreground hover:text-primary">+ sub</button>
+                                                <button onClick={() => setItems(prev => prev.filter(i => i.id !== item.id))} className="w-4 h-4 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
+                                                    <X size={10} />
                                                 </button>
                                             </div>
-                                        </div>
-                                        )
-                                    ))}
-                                    {addingSubFor === item.id && (
-                                        <div className="flex items-center gap-1.5 px-3 py-1.5 pl-6 border-t border-border/20 bg-primary/5">
-                                            <input value={newSubLabel} onChange={e => setNewSubLabel(e.target.value)} placeholder="Sub-item name"
-                                                className="flex-1 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
-                                            <input value={newSubAmount} onChange={e => setNewSubAmount(e.target.value)} type="number" placeholder="₹"
-                                                className="w-16 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
-                                            <button onClick={() => addSub(item.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white"
-                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                <Check size={10} />
-                                            </button>
-                                            <button onClick={() => { setAddingSubFor(null); setNewSubLabel(''); setNewSubAmount(''); }}
-                                                className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
-                                                <X size={10} />
-                                            </button>
-                                        </div>
-                                    )}
+                                        )}
+                                        {item.subItems.map(si => (
+                                            editingSubId === si.id ? (
+                                                <div key={si.id} className="flex items-center gap-1.5 px-3 py-1.5 pl-6 border-t border-border/20 bg-primary/5">
+                                                    <input value={editSubLabel} onChange={e => setEditSubLabel(e.target.value)}
+                                                        onKeyDown={e => e.key === 'Enter' && saveEditSub(item.id, si.id)}
+                                                        className="flex-1 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
+                                                    <input value={editSubAmount} onChange={e => setEditSubAmount(e.target.value)} type="number" placeholder="₹"
+                                                        onKeyDown={e => e.key === 'Enter' && saveEditSub(item.id, si.id)}
+                                                        className="w-16 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
+                                                    <button onClick={() => saveEditSub(item.id, si.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white shrink-0"
+                                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                        <Check size={10} />
+                                                    </button>
+                                                    <button onClick={() => { setEditingSubId(null); setEditSubLabel(''); setEditSubAmount(''); }}
+                                                        className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50 shrink-0">
+                                                        <X size={10} />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div key={si.id} className="flex items-center justify-between px-3 py-1.5 pl-6 border-t border-border/20 bg-background">
+                                                    <span className="text-[11px] text-muted-foreground">{si.label}</span>
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-[11px]">₹{si.amount.toLocaleString()}</span>
+                                                        <button onClick={() => startEditSub(si)} className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-primary">
+                                                            <Pencil size={8} />
+                                                        </button>
+                                                        <button onClick={() => setItems(prev => prev.map(it => it.id !== item.id ? it : { ...it, subItems: it.subItems.filter(s => s.id !== si.id) }))} className="w-3.5 h-3.5 flex items-center justify-center text-muted-foreground/40 hover:text-red-500">
+                                                            <X size={9} />
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            )
+                                        ))}
+                                        {addingSubFor === item.id && (
+                                            <div className="flex items-center gap-1.5 px-3 py-1.5 pl-6 border-t border-border/20 bg-primary/5">
+                                                <input value={newSubLabel} onChange={e => setNewSubLabel(e.target.value)} placeholder="Sub-item name"
+                                                    className="flex-1 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
+                                                <input value={newSubAmount} onChange={e => setNewSubAmount(e.target.value)} type="number" placeholder="₹"
+                                                    className="w-16 h-6 px-2 rounded-lg border border-primary/50 bg-transparent text-[11px] focus:outline-none" />
+                                                <button onClick={() => addSub(item.id)} className="w-6 h-6 rounded-lg flex items-center justify-center text-white"
+                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                    <Check size={10} />
+                                                </button>
+                                                <button onClick={() => { setAddingSubFor(null); setNewSubLabel(''); setNewSubAmount(''); }}
+                                                    className="w-6 h-6 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
+                                                    <X size={10} />
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                            {addingItem && (
+                                <div className="flex items-center gap-1.5">
+                                    <input value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="Item name (e.g. Tuition Fee)"
+                                        onKeyDown={e => e.key === 'Enter' && addItem()}
+                                        className="flex-1 h-8 px-3 rounded-xl border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
+                                    <input value={newItemAmount} onChange={e => setNewItemAmount(e.target.value)} type="number" placeholder="₹"
+                                        className="w-20 h-8 px-3 rounded-xl border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
+                                    <button onClick={addItem} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
+                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                        <Check size={12} />
+                                    </button>
+                                    <button onClick={() => { setAddingItem(false); setNewItemLabel(''); setNewItemAmount(''); }}
+                                        className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
+                                        <X size={12} />
+                                    </button>
                                 </div>
-                            );
-                        })}
-                        {addingItem && (
-                            <div className="flex items-center gap-1.5">
-                                <input value={newItemLabel} onChange={e => setNewItemLabel(e.target.value)} placeholder="Item name (e.g. Tuition Fee)"
-                                    onKeyDown={e => e.key === 'Enter' && addItem()}
-                                    className="flex-1 h-8 px-3 rounded-xl border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
-                                <input value={newItemAmount} onChange={e => setNewItemAmount(e.target.value)} type="number" placeholder="₹"
-                                    className="w-20 h-8 px-3 rounded-xl border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
-                                <button onClick={addItem} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
-                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                    <Check size={12} />
-                                </button>
-                                <button onClick={() => { setAddingItem(false); setNewItemLabel(''); setNewItemAmount(''); }}
-                                    className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:bg-muted border border-border/50">
-                                    <X size={12} />
-                                </button>
+                            )}
+                        </div>
+
+                        {total > 0 && (
+                            <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40">
+                                <span className="text-xs font-semibold text-muted-foreground">Total</span>
+                                <span className="text-sm font-black" style={{ color }}> ₹{total.toLocaleString()}</span>
                             </div>
                         )}
                     </div>
-
-                    {total > 0 && (
-                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40">
-                            <span className="text-xs font-semibold text-muted-foreground">Total</span>
-                            <span className="text-sm font-black" style={{ color }}> ₹{total.toLocaleString()}</span>
-                        </div>
-                    )}
-                </div>
                 )}
             </div>
 
@@ -749,7 +749,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
 
     const getPayment = useCallback((studentId: string, feeMonthId: string): FeePayment =>
         feePayments.find(p => p.studentId === studentId && p.feeMonthId === feeMonthId)
-            ?? { studentId, feeMonthId, status: 'PENDING', paidDate: null, remark: null, extraFields: null, extraStructureIds: null },
+        ?? { studentId, feeMonthId, status: 'PENDING', paidDate: null, remark: null, extraFields: null, extraStructureIds: null },
         [feePayments]);
 
     // Overall paid/pending status tracks only the CURRENT calendar month's fee status
@@ -1111,7 +1111,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
 
     if (loading) return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading fee structure...</div>;
 
-    // ── Render ───────────────────────────────────────────────────────────────
+    // ── Render ──────────────────────────────────────────────────────────────
 
     return (
         <div className="flex flex-col gap-3 h-full">
@@ -1140,459 +1140,459 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                             {/* LEFT — Fee Card Template */}
                             <div className="w-full lg:w-[55%] flex flex-col rounded-2xl shadow-sm shadow-black/5 border" style={{ perspective: '1000px', background: fc.bg, borderColor: fc.border }}>
 
-                            {/* School branding — logo + name shown at the top of the card */}
-                            <div className="px-4 py-2.5 flex items-center justify-between gap-2.5 rounded-t-2xl" style={{ borderBottom: `1px solid ${fc.border}` }}>
-                                <div className="flex items-center gap-2.5 flex-1 min-w-0">
-                                    <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}
-                                        className="w-20 h-20 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 hover:bg-white/30 transition-all"
-                                        style={{ borderColor: fc.border, background: schoolLogoUrl ? fc.bg : '#FFFFFF' }} title="Upload your school PNG logo">
-                                        {schoolLogoUrl
-                                            ? <img src={schoolLogoUrl} alt="School logo" className="w-full h-full object-contain" />
-                                            : <ImagePlus size={30} style={{ color: '#000000', opacity: 0.5 }} />}
+                                {/* School branding — logo + name shown at the top of the card */}
+                                <div className="px-4 py-2.5 flex items-center justify-between gap-2.5 rounded-t-2xl" style={{ borderBottom: `1px solid ${fc.border}` }}>
+                                    <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                        <button type="button" onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo}
+                                            className="w-20 h-20 rounded-xl border flex items-center justify-center overflow-hidden shrink-0 hover:bg-white/30 transition-all"
+                                            style={{ borderColor: fc.border, background: schoolLogoUrl ? fc.bg : '#FFFFFF' }} title="Upload your school PNG logo">
+                                            {schoolLogoUrl
+                                                ? <img src={schoolLogoUrl} alt="School logo" className="w-full h-full object-contain" />
+                                                : <ImagePlus size={30} style={{ color: '#000000', opacity: 0.5 }} />}
+                                        </button>
+                                        <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
+                                        <input value={schoolName} onChange={e => setSchoolName(e.target.value)} placeholder="School name (shown on fee card)"
+                                            className="flex-1 h-14 px-3 rounded-lg border text-2xl font-semibold focus:outline-none placeholder:text-black/40 placeholder:font-normal"
+                                            style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
+                                    </div>
+                                    <button
+                                        onClick={() => setFeeCardFlipped(v => !v)}
+                                        className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/30 shrink-0"
+                                        style={{ borderColor: fc.border, color: '#000000' }}>
+                                        <motion.span animate={{ rotate: feeCardFlipped ? 180 : 0 }} transition={{ duration: 0.4 }}>
+                                            <span style={{ fontSize: '16px', display: 'inline-block', transform: feeCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
+                                        </motion.span>
+                                        {feeCardFlipped ? 'View Front' : 'View Back'}
                                     </button>
-                                    <input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
-                                    <input value={schoolName} onChange={e => setSchoolName(e.target.value)} placeholder="School name (shown on fee card)"
-                                        className="flex-1 h-14 px-3 rounded-lg border text-2xl font-semibold focus:outline-none placeholder:text-black/40 placeholder:font-normal"
-                                        style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
                                 </div>
-                                <button
-                                    onClick={() => setFeeCardFlipped(v => !v)}
-                                    className="flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-medium border transition-all hover:bg-white/30 shrink-0"
-                                    style={{ borderColor: fc.border, color: '#000000' }}>
-                                    <motion.span animate={{ rotate: feeCardFlipped ? 180 : 0 }} transition={{ duration: 0.4 }}>
-                                        <span style={{ fontSize: '16px', display: 'inline-block', transform: feeCardFlipped ? 'scaleX(-1)' : 'none' }}>↺</span>
-                                    </motion.span>
-                                    {feeCardFlipped ? 'View Front' : 'View Back'}
-                                </button>
-                            </div>
 
-                            <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: `1px solid ${fc.border}` }}>
-                                <p className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2" style={{ color: '#000000' }}>
-                                    Fee Card Template
-                                </p>
-                                <div className="flex items-center gap-1" style={{ borderColor: fc.border }}>
-                                    {(Object.keys(FEE_CARD_THEMES) as FeeCardThemeKey[]).map(key => {
-                                        const t = FEE_CARD_THEMES[key];
-                                        const active = feeCardTheme === key;
-                                        return (
-                                            <button key={key} type="button" onClick={() => setFeeCardTheme(key)} title={t.name}
-                                                className="w-5 h-5 rounded-full transition-all"
-                                                style={{ background: t.bg, border: `1.5px solid ${t.border}`, boxShadow: active ? `0 0 0 2px ${t.border}` : 'none', transform: active ? 'scale(1.15)' : 'scale(1)' }} />
-                                        );
-                                    })}
+                                <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: `1px solid ${fc.border}` }}>
+                                    <p className="text-xs font-semibold uppercase tracking-wider flex items-center gap-2" style={{ color: '#000000' }}>
+                                        Fee Card Template
+                                    </p>
+                                    <div className="flex items-center gap-1" style={{ borderColor: fc.border }}>
+                                        {(Object.keys(FEE_CARD_THEMES) as FeeCardThemeKey[]).map(key => {
+                                            const t = FEE_CARD_THEMES[key];
+                                            const active = feeCardTheme === key;
+                                            return (
+                                                <button key={key} type="button" onClick={() => setFeeCardTheme(key)} title={t.name}
+                                                    className="w-5 h-5 rounded-full transition-all"
+                                                    style={{ background: t.bg, border: `1.5px solid ${t.border}`, boxShadow: active ? `0 0 0 2px ${t.border}` : 'none', transform: active ? 'scale(1.15)' : 'scale(1)' }} />
+                                            );
+                                        })}
+                                    </div>
                                 </div>
-                            </div>
 
-                            <motion.div
-                                animate={{ rotateY: feeCardFlipped ? 180 : 0 }}
-                                transition={{ duration: 0.5, ease: 'easeInOut' }}
-                                style={{ transformStyle: 'preserve-3d', position: 'relative', minHeight: '200px' }}>
+                                <motion.div
+                                    animate={{ rotateY: feeCardFlipped ? 180 : 0 }}
+                                    transition={{ duration: 0.5, ease: 'easeInOut' }}
+                                    style={{ transformStyle: 'preserve-3d', position: 'relative', minHeight: '200px' }}>
 
-                                {/* FRONT */}
-                                <div style={{ backfaceVisibility: 'hidden' }} className={feeCardFlipped ? 'invisible' : ''}>
-                                    <div className="px-4 py-3 space-y-4" style={{ color: '#000000' }}>
+                                    {/* FRONT */}
+                                    <div style={{ backfaceVisibility: 'hidden' }} className={feeCardFlipped ? 'invisible' : ''}>
+                                        <div className="px-4 py-3 space-y-4" style={{ color: '#000000' }}>
 
-                                        {/* 1. Student Details */}
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Student Details</p>
-                                                <button onClick={() => setAddingStudentField(true)} className="text-[11px] font-medium hover:underline flex items-center gap-1" style={{ color: '#000000' }}>
-                                                    <Plus size={11} /> Add Field
-                                                </button>
+                                            {/* 1. Student Details */}
+                                            <div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Student Details</p>
+                                                    <button onClick={() => setAddingStudentField(true)} className="text-[11px] font-medium hover:underline flex items-center gap-1" style={{ color: '#000000' }}>
+                                                        <Plus size={11} /> Add Field
+                                                    </button>
+                                                </div>
+                                                <div className="rounded-xl border p-2" style={{ borderColor: fc.border }}>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {studentFields.map((f) => {
+                                                            const previewValue = f.kind === 'default'
+                                                                ? f.defaultKey === 'name' ? 'Student Name'
+                                                                    : f.defaultKey === 'rollNo' ? 'Roll Number'
+                                                                        : f.defaultKey === 'studentId' ? 'Student ID'
+                                                                            : f.defaultKey === 'class' ? (divisionName.split('-')[0] ?? divisionName)
+                                                                                : f.defaultKey === 'bus' ? 'On/Off + Bus No.'
+                                                                                    : (divisionName.split('-')[1] ?? '')
+                                                                : f.value;
+                                                            return (
+                                                                <div key={f.id}
+                                                                    draggable
+                                                                    onDragStart={() => setDraggedFieldId(f.id)}
+                                                                    onDragOver={e => e.preventDefault()}
+                                                                    onDrop={e => {
+                                                                        e.preventDefault();
+                                                                        if (!draggedFieldId || draggedFieldId === f.id) return;
+                                                                        setStudentFields(prev => {
+                                                                            const from = prev.findIndex(x => x.id === draggedFieldId);
+                                                                            const to = prev.findIndex(x => x.id === f.id);
+                                                                            if (from === -1 || to === -1) return prev;
+                                                                            const copy = [...prev];
+                                                                            const [moved] = copy.splice(from, 1);
+                                                                            copy.splice(to, 0, moved);
+                                                                            return copy;
+                                                                        });
+                                                                        setDraggedFieldId(null);
+                                                                    }}
+                                                                    onDragEnd={() => setDraggedFieldId(null)}
+                                                                    className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg group basis-[calc(50%-4px)] grow-0 shrink-0"
+                                                                    style={{ border: `1px solid ${fc.border}`, cursor: 'grab', background: 'rgba(255,255,255,0.35)', opacity: draggedFieldId === f.id ? 0.4 : 1 }}>
+                                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                                        <GripVertical size={12} style={{ color: '#000000', opacity: 0.3 }} className="shrink-0" />
+                                                                        <span className="text-[11px] shrink-0 truncate" style={{ color: '#000000' }}>{f.label}</span>
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1.5 min-w-0">
+                                                                        <span className={`text-[11px] font-medium italic truncate ${f.kind === 'default' && f.defaultKey === 'studentId' ? 'font-mono' : ''}`} style={{ color: '#000000', opacity: 0.6 }}>{previewValue}</span>
+                                                                        {f.kind === 'custom' && (
+                                                                            <button onClick={() => setConfirmDelete({ kind: 'studentField', id: f.id, label: f.label })}
+                                                                                className="w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 shrink-0"
+                                                                                style={{ color: '#000000' }}>
+                                                                                <X size={10} />
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                    {addingStudentField && (
+                                                        <div className="flex items-center gap-2 px-1 pt-2 mt-2 border-t" style={{ borderColor: fc.border }}>
+                                                            <input value={newStudentFieldLabel} onChange={e => setNewStudentFieldLabel(e.target.value)} placeholder="Field name"
+                                                                className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
+                                                            <button onClick={() => {
+                                                                if (!newStudentFieldLabel.trim()) return;
+                                                                setStudentFields(prev => [...prev, { id: `esf-${Date.now()}`, kind: 'custom', label: newStudentFieldLabel.trim(), value: newStudentFieldLabel.trim() }]);
+                                                                setNewStudentFieldLabel(''); setAddingStudentField(false);
+                                                            }} className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0"
+                                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                                <Check size={11} />
+                                                            </button>
+                                                            <button onClick={() => setAddingStudentField(false)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-black/10 border shrink-0" style={{ color: '#000000', opacity: 0.6, borderColor: fc.border }}>
+                                                                <X size={11} />
+                                                            </button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="rounded-xl border p-2" style={{ borderColor: fc.border }}>
-                                                <div className="flex flex-wrap gap-2">
-                                                    {studentFields.map((f) => {
-                                                        const previewValue = f.kind === 'default'
-                                                            ? f.defaultKey === 'name' ? 'Student Name'
-                                                                : f.defaultKey === 'rollNo' ? 'Roll Number'
-                                                                    : f.defaultKey === 'studentId' ? 'Student ID'
-                                                                        : f.defaultKey === 'class' ? (divisionName.split('-')[0] ?? divisionName)
-                                                                            : f.defaultKey === 'bus' ? 'On/Off + Bus No.'
-                                                                                : (divisionName.split('-')[1] ?? '')
-                                                            : f.value;
-                                                        return (
-                                                            <div key={f.id}
-                                                                draggable
-                                                                onDragStart={() => setDraggedFieldId(f.id)}
-                                                                onDragOver={e => e.preventDefault()}
-                                                                onDrop={e => {
-                                                                    e.preventDefault();
-                                                                    if (!draggedFieldId || draggedFieldId === f.id) return;
-                                                                    setStudentFields(prev => {
-                                                                        const from = prev.findIndex(x => x.id === draggedFieldId);
-                                                                        const to = prev.findIndex(x => x.id === f.id);
-                                                                        if (from === -1 || to === -1) return prev;
-                                                                        const copy = [...prev];
-                                                                        const [moved] = copy.splice(from, 1);
-                                                                        copy.splice(to, 0, moved);
-                                                                        return copy;
-                                                                    });
-                                                                    setDraggedFieldId(null);
-                                                                }}
-                                                                onDragEnd={() => setDraggedFieldId(null)}
-                                                                className="flex items-center justify-between gap-2 px-2.5 py-2 rounded-lg group basis-[calc(50%-4px)] grow-0 shrink-0"
-                                                                style={{ border: `1px solid ${fc.border}`, cursor: 'grab', background: 'rgba(255,255,255,0.35)', opacity: draggedFieldId === f.id ? 0.4 : 1 }}>
-                                                                <div className="flex items-center gap-1.5 min-w-0">
-                                                                    <GripVertical size={12} style={{ color: '#000000', opacity: 0.3 }} className="shrink-0" />
-                                                                    <span className="text-[11px] shrink-0 truncate" style={{ color: '#000000' }}>{f.label}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1.5 min-w-0">
-                                                                    <span className={`text-[11px] font-medium italic truncate ${f.kind === 'default' && f.defaultKey === 'studentId' ? 'font-mono' : ''}`} style={{ color: '#000000', opacity: 0.6 }}>{previewValue}</span>
-                                                                    {f.kind === 'custom' && (
-                                                                        <button onClick={() => setConfirmDelete({ kind: 'studentField', id: f.id, label: f.label })}
-                                                                            className="w-4 h-4 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:text-red-500 shrink-0"
-                                                                            style={{ color: '#000000' }}>
-                                                                            <X size={10} />
-                                                                        </button>
+
+                                            <div style={{ borderTop: `1px dashed ${fc.border}` }} />
+
+                                            {/* 2. Fee Table Columns */}
+                                            <div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Fee Table Columns</p>
+                                                    <button onClick={() => setAddingColumn(true)} className="text-[11px] font-medium hover:underline flex items-center gap-1" style={{ color: '#000000' }}>
+                                                        <Plus size={11} /> Add Column
+                                                    </button>
+                                                </div>
+                                                <div className="rounded-xl border overflow-x-auto" style={{ borderColor: fc.border }}>
+                                                    <table className="text-xs w-full">
+                                                        <thead>
+                                                            <tr style={{ borderBottom: `1px solid ${fc.border}`, background: 'rgba(0,0,0,0.03)' }}>
+                                                                {['Month', 'Fee Structures', 'Amount', 'Due Date', 'Paid Date', 'Status', 'Remark'].map((col, i) => (
+                                                                    <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{col}</th>
+                                                                ))}
+                                                                {extraColumns.map((col, i) => (
+                                                                    <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>
+                                                                        <div className="flex items-center gap-1">
+                                                                            {col.label}
+                                                                            <button onClick={() => setConfirmDelete({ kind: 'extraColumn', id: String(i), index: i, label: col.label })}
+                                                                                className="w-3.5 h-3.5 flex items-center justify-center hover:text-red-500" style={{ color: '#000000', opacity: 0.4 }}>
+                                                                                <X size={9} />
+                                                                            </button>
+                                                                        </div>
+                                                                    </th>
+                                                                ))}
+                                                                <th className="px-2 py-2">
+                                                                    {addingColumn && (
+                                                                        <div className="flex items-center gap-1">
+                                                                            <input value={newColumnLabel} onChange={e => setNewColumnLabel(e.target.value)}
+                                                                                placeholder="Name" autoFocus
+                                                                                onKeyDown={e => { if (e.key === 'Enter' && newColumnLabel.trim()) { setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); } }}
+                                                                                className="w-20 h-6 px-2 rounded-lg border border-primary/50 bg-primary/5 text-[10px] focus:outline-none" />
+                                                                            <button onClick={() => { if (!newColumnLabel.trim()) return; setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); }}
+                                                                                className="w-5 h-5 rounded flex items-center justify-center text-white"
+                                                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                                                <Check size={9} />
+                                                                            </button>
+                                                                            <button onClick={() => setAddingColumn(false)} className="w-5 h-5 rounded flex items-center justify-center hover:bg-black/10" style={{ color: '#000000', opacity: 0.6 }}>
+                                                                                <X size={9} />
+                                                                            </button>
+                                                                        </div>
                                                                     )}
+                                                                </th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            <tr className="italic" style={{ color: '#000000', opacity: 0.4 }}>
+                                                                {['June', '—', '—', '10 Jun', '—', 'Pending', '—', ...extraColumns.map(() => '—')].map((val, i) => (
+                                                                    <td key={i} className="px-3 py-2 text-[11px]" style={{ borderRight: `1px solid ${fc.border}` }}>{val}</td>
+                                                                ))}
+                                                                <td className="px-2 py-2"></td>
+                                                            </tr>
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+
+                                            <div style={{ borderTop: `1px dashed ${fc.border}` }} />
+
+                                            {/* 3. Monthly Fee Schedule */}
+                                            <div>
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <div>
+                                                        <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Monthly Fee Schedule</p>
+                                                        <p className="text-[10px] mt-0.5" style={{ color: '#000000', opacity: 0.7 }}>Assign fee structures to each month</p>
+                                                    </div>
+                                                    <button onClick={() => setAddingMonth(true)}
+                                                        className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                        <Plus size={11} /> Add Month
+                                                    </button>
+                                                </div>
+
+                                                {feeMonths.length === 0 && !addingMonth && (
+                                                    <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                        <Calendar size={20} className="mx-auto mb-2" style={{ color: '#000000', opacity: 0.5 }} />
+                                                        <p className="text-xs" style={{ color: '#000000' }}>No months added yet</p>
+                                                    </div>
+                                                )}
+
+                                                <div className="h-[270px] overflow-y-auto space-y-1 pr-1"
+                                                    style={{ scrollbarWidth: 'thin', scrollbarColor: `${fc.border} transparent` }}>
+                                                    {feeMonths.map(m => {
+                                                        const total = monthTotal(m);
+                                                        const isExpanded = expandedMonthId === m.id;
+                                                        const isAssigning = assigningMonthId === m.id;
+                                                        const isEditing = editingMonthId === m.id;
+                                                        const assignedCount = m.assignedStructureIds.length;
+                                                        return (
+                                                            <div key={m.id} className="rounded-xl border" style={{ borderColor: fc.border }}>
+                                                                <div className="flex items-center flex-wrap gap-3 px-3 py-2.5 rounded-t-xl hover:bg-black/5 transition-colors">
+                                                                    {isEditing ? (
+                                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                                            <div ref={editMonthDropdownRef} className="relative">
+                                                                                <button type="button" onClick={() => setEditMonthDropdownOpen(v => !v)}
+                                                                                    className="flex items-center gap-1 h-7 px-2 rounded-lg border text-[11px] font-medium hover:border-primary/40 transition-all"
+                                                                                    style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }}>
+                                                                                    {editMonthName || 'Month'} <ChevronDown size={10} className={`transition-transform ${editMonthDropdownOpen ? 'rotate-180' : ''}`} />
+                                                                                </button>
+                                                                                <AnimatePresence>
+                                                                                    {editMonthDropdownOpen && (
+                                                                                        <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                                                                                            className="absolute top-8 left-0 z-50 rounded-xl shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto border"
+                                                                                            style={{ background: '#FFFFFF', borderColor: fc.border }}>
+                                                                                            {MONTHS.map(mo => (
+                                                                                                <button key={mo} type="button" onClick={() => { setEditMonthName(mo); setEditMonthDropdownOpen(false); }}
+                                                                                                    className="w-full text-left px-3 py-2 text-xs hover:bg-black/5 transition-colors"
+                                                                                                    style={{ color: editMonthName === mo ? '#DA7756' : '#000000', fontWeight: editMonthName === mo ? 600 : 400 }}>
+                                                                                                    {mo}
+                                                                                                </button>
+                                                                                            ))}
+                                                                                        </motion.div>
+                                                                                    )}
+                                                                                </AnimatePresence>
+                                                                            </div>
+                                                                            <input value={editDueDate} onChange={e => setEditDueDate(formatDateMaskLive(e.target.value))}
+                                                                                onFocus={e => setEditDueDate(displayDateToMask(e.target.value))}
+                                                                                onBlur={e => setEditDueDate(maskToDisplayDate(e.target.value))}
+                                                                                placeholder="DD-MM-YY"
+                                                                                className="w-20 h-7 px-2 rounded-lg border text-[11px] focus:outline-none"
+                                                                                style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <div className="w-20 shrink-0">
+                                                                            <p className="text-xs font-semibold" style={{ color: '#000000' }}>{m.month}</p>
+                                                                            <p className="text-[10px]" style={{ color: '#000000' }}>{m.dueDate || 'No due date'}</p>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="flex-1 flex flex-wrap gap-1 min-w-0">
+                                                                        {m.assignedStructureIds.length === 0 ? (
+                                                                            <span className="text-[11px] italic" style={{ color: '#000000', opacity: 0.55 }}>No structures assigned</span>
+                                                                        ) : (
+                                                                            feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).map(s => (
+                                                                                <span key={s.id} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                                                                                    style={{ background: s.color + '20', color: s.color }}>
+                                                                                    {s.name}
+                                                                                </span>
+                                                                            ))
+                                                                        )}
+                                                                    </div>
+                                                                    {total > 0 && <p className="text-xs font-bold shrink-0" style={{ color: '#7C3AED' }}>₹{total.toLocaleString()}</p>}
+                                                                    <div className="flex items-center gap-1 shrink-0">
+                                                                        {isEditing ? (
+                                                                            <>
+                                                                                <button onClick={() => {
+                                                                                    setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, month: editMonthName, dueDate: editDueDate } : x));
+                                                                                    setEditingMonthId(null);
+                                                                                }} className="w-6 h-6 rounded-md flex items-center justify-center text-white"
+                                                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                                                    <Check size={12} />
+                                                                                </button>
+                                                                                <button onClick={() => setEditingMonthId(null)}
+                                                                                    className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-black/10 transition-all" style={{ color: '#000000', opacity: 0.6 }}>
+                                                                                    <X size={12} />
+                                                                                </button>
+                                                                            </>
+                                                                        ) : (
+                                                                            <>
+                                                                                <button onClick={() => setAssigningMonthId(isAssigning ? null : m.id)}
+                                                                                    className={`flex items-center gap-1 h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all ${isAssigning ? 'bg-primary text-white border-primary' : 'hover:border-primary/40 hover:text-primary'}`}
+                                                                                    style={!isAssigning ? { borderColor: fc.border, color: '#000000', opacity: 0.75 } : undefined}>
+                                                                                    {assignedCount > 0 ? `${assignedCount} assigned` : 'Assign'}
+                                                                                    <ChevronDown size={10} className={`transition-transform ${isAssigning ? 'rotate-180' : ''}`} />
+                                                                                </button>
+                                                                                <button onClick={() => setExpandedMonthId(isExpanded ? null : m.id)}
+                                                                                    className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-black/10 transition-all" style={{ color: '#000000', opacity: 0.7 }}>
+                                                                                    {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                                                                                </button>
+                                                                                <button onClick={() => { setEditingMonthId(m.id); setEditMonthName(m.month); setEditDueDate(m.dueDate); }}
+                                                                                    className="w-6 h-6 rounded-md flex items-center justify-center hover:text-primary transition-all" style={{ color: '#000000', opacity: 0.45 }}>
+                                                                                    <Pencil size={11} />
+                                                                                </button>
+                                                                                <button onClick={() => setConfirmDelete({ kind: 'feeMonth', id: m.id, label: m.month })}
+                                                                                    className="w-6 h-6 rounded-md flex items-center justify-center hover:text-red-500 transition-all" style={{ color: '#000000', opacity: 0.45 }}>
+                                                                                    <X size={11} />
+                                                                                </button>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
                                                                 </div>
+
+                                                                <AnimatePresence>
+                                                                    {isAssigning && (
+                                                                        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                                                            <div className="px-3 pb-2.5 pt-2 border-t" style={{ borderColor: fc.border }}>
+                                                                                <p className="text-[10px] font-semibold mb-2" style={{ color: '#000000', opacity: 0.7 }}>Select fee structures for {m.month}</p>
+                                                                                {feeStructures.filter(s => s.type !== 'BUS' && s.type !== 'LATE_FEE').length === 0 ? (
+                                                                                    <p className="text-[11px] italic" style={{ color: '#000000', opacity: 0.55 }}>Create fee structures first</p>
+                                                                                ) : (
+                                                                                    <div className="flex flex-wrap gap-1.5">
+                                                                                        {feeStructures.filter(s => s.type !== 'BUS' && s.type !== 'LATE_FEE').map(s => {
+                                                                                            const active = m.assignedStructureIds.includes(s.id);
+                                                                                            return (
+                                                                                                <button key={s.id} onClick={() => toggleStructureForMonth(m.id, s.id)}
+                                                                                                    className="flex items-center gap-1.5 h-7 px-3 rounded-xl border-2 text-[11px] font-semibold transition-all"
+                                                                                                    style={active ? { borderColor: s.color, background: s.color + '20', color: s.color } : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}>
+                                                                                                    {active && <Check size={10} />}
+                                                                                                    {s.name}
+                                                                                                    <span className="opacity-60 text-[10px]">₹{structureTotal(s).toLocaleString()}</span>
+                                                                                                </button>
+                                                                                            );
+                                                                                        })}
+                                                                                    </div>
+                                                                                )}
+                                                                            </div>
+                                                                        </motion.div>
+                                                                    )}
+                                                                </AnimatePresence>
+
+                                                                <AnimatePresence>
+                                                                    {isExpanded && (
+                                                                        <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
+                                                                            <div className="border-t border-border/20 bg-muted/5">
+                                                                                <MonthBreakdown month={m} feeStructures={feeStructures} />
+                                                                            </div>
+                                                                        </motion.div>
+                                                                    )}
+                                                                </AnimatePresence>
                                                             </div>
                                                         );
                                                     })}
                                                 </div>
-                                                {addingStudentField && (
-                                                    <div className="flex items-center gap-2 px-1 pt-2 mt-2 border-t" style={{ borderColor: fc.border }}>
-                                                        <input value={newStudentFieldLabel} onChange={e => setNewStudentFieldLabel(e.target.value)} placeholder="Field name"
-                                                            className="flex-1 h-7 px-2 rounded-lg border border-primary/50 bg-primary/5 text-xs focus:outline-none" />
-                                                        <button onClick={() => {
-                                                            if (!newStudentFieldLabel.trim()) return;
-                                                            setStudentFields(prev => [...prev, { id: `esf-${Date.now()}`, kind: 'custom', label: newStudentFieldLabel.trim(), value: newStudentFieldLabel.trim() }]);
-                                                            setNewStudentFieldLabel(''); setAddingStudentField(false);
-                                                        }} className="w-7 h-7 rounded-lg flex items-center justify-center text-white shrink-0"
-                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                            <Check size={11} />
-                                                        </button>
-                                                        <button onClick={() => setAddingStudentField(false)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-black/10 border shrink-0" style={{ color: '#000000', opacity: 0.6, borderColor: fc.border }}>
-                                                            <X size={11} />
-                                                        </button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
 
-                                        <div style={{ borderTop: `1px dashed ${fc.border}` }} />
-
-                                        {/* 2. Fee Table Columns */}
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Fee Table Columns</p>
-                                                <button onClick={() => setAddingColumn(true)} className="text-[11px] font-medium hover:underline flex items-center gap-1" style={{ color: '#000000' }}>
-                                                    <Plus size={11} /> Add Column
-                                                </button>
-                                            </div>
-                                            <div className="rounded-xl border overflow-x-auto" style={{ borderColor: fc.border }}>
-                                                <table className="text-xs w-full">
-                                                    <thead>
-                                                        <tr style={{ borderBottom: `1px solid ${fc.border}`, background: 'rgba(0,0,0,0.03)' }}>
-                                                            {['Month', 'Fee Structures', 'Amount', 'Due Date', 'Paid Date', 'Status', 'Remark'].map((col, i) => (
-                                                                <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{col}</th>
-                                                            ))}
-                                                            {extraColumns.map((col, i) => (
-                                                                <th key={i} className="px-3 py-2 text-left text-[11px] font-semibold whitespace-nowrap" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>
-                                                                    <div className="flex items-center gap-1">
-                                                                        {col.label}
-                                                                        <button onClick={() => setConfirmDelete({ kind: 'extraColumn', id: String(i), index: i, label: col.label })}
-                                                                            className="w-3.5 h-3.5 flex items-center justify-center hover:text-red-500" style={{ color: '#000000', opacity: 0.4 }}>
-                                                                            <X size={9} />
-                                                                        </button>
-                                                                    </div>
-                                                                </th>
-                                                            ))}
-                                                            <th className="px-2 py-2">
-                                                                {addingColumn && (
-                                                                    <div className="flex items-center gap-1">
-                                                                        <input value={newColumnLabel} onChange={e => setNewColumnLabel(e.target.value)}
-                                                                            placeholder="Name" autoFocus
-                                                                            onKeyDown={e => { if (e.key === 'Enter' && newColumnLabel.trim()) { setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); } }}
-                                                                            className="w-20 h-6 px-2 rounded-lg border border-primary/50 bg-primary/5 text-[10px] focus:outline-none" />
-                                                                        <button onClick={() => { if (!newColumnLabel.trim()) return; setExtraColumns(prev => [...prev, { label: newColumnLabel.trim() }]); setNewColumnLabel(''); setAddingColumn(false); }}
-                                                                            className="w-5 h-5 rounded flex items-center justify-center text-white"
-                                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                                            <Check size={9} />
-                                                                        </button>
-                                                                        <button onClick={() => setAddingColumn(false)} className="w-5 h-5 rounded flex items-center justify-center hover:bg-black/10" style={{ color: '#000000', opacity: 0.6 }}>
-                                                                            <X size={9} />
-                                                                        </button>
-                                                                    </div>
-                                                                )}
-                                                            </th>
-                                                        </tr>
-                                                    </thead>
-                                                    <tbody>
-                                                        <tr className="italic" style={{ color: '#000000', opacity: 0.4 }}>
-                                                            {['June', '—', '—', '10 Jun', '—', 'Pending', '—', ...extraColumns.map(() => '—')].map((val, i) => (
-                                                                <td key={i} className="px-3 py-2 text-[11px]" style={{ borderRight: `1px solid ${fc.border}` }}>{val}</td>
-                                                            ))}
-                                                            <td className="px-2 py-2"></td>
-                                                        </tr>
-                                                    </tbody>
-                                                </table>
-                                            </div>
-                                        </div>
-
-                                        <div style={{ borderTop: `1px dashed ${fc.border}` }} />
-
-                                        {/* 3. Monthly Fee Schedule */}
-                                        <div>
-                                            <div className="flex items-center justify-between mb-2">
-                                                <div>
-                                                    <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Monthly Fee Schedule</p>
-                                                    <p className="text-[10px] mt-0.5" style={{ color: '#000000', opacity: 0.7 }}>Assign fee structures to each month</p>
-                                                </div>
-                                                <button onClick={() => setAddingMonth(true)}
-                                                    className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
-                                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                    <Plus size={11} /> Add Month
-                                                </button>
-                                            </div>
-
-                                            {feeMonths.length === 0 && !addingMonth && (
-                                                <div className="py-6 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
-                                                    <Calendar size={20} className="mx-auto mb-2" style={{ color: '#000000', opacity: 0.5 }} />
-                                                    <p className="text-xs" style={{ color: '#000000' }}>No months added yet</p>
-                                                </div>
-                                            )}
-
-                                            <div className="h-[270px] overflow-y-auto space-y-1 pr-1"
-                                                style={{ scrollbarWidth: 'thin', scrollbarColor: `${fc.border} transparent` }}>
-                                                {feeMonths.map(m => {
-                                                    const total = monthTotal(m);
-                                                    const isExpanded = expandedMonthId === m.id;
-                                                    const isAssigning = assigningMonthId === m.id;
-                                                    const isEditing = editingMonthId === m.id;
-                                                    const assignedCount = m.assignedStructureIds.length;
-                                                    return (
-                                                        <div key={m.id} className="rounded-xl border" style={{ borderColor: fc.border }}>
-                                                            <div className="flex items-center flex-wrap gap-3 px-3 py-2.5 rounded-t-xl hover:bg-black/5 transition-colors">
-                                                                {isEditing ? (
-                                                                    <div className="flex items-center gap-1.5 shrink-0">
-                                                                        <div ref={editMonthDropdownRef} className="relative">
-                                                                            <button type="button" onClick={() => setEditMonthDropdownOpen(v => !v)}
-                                                                                className="flex items-center gap-1 h-7 px-2 rounded-lg border text-[11px] font-medium hover:border-primary/40 transition-all"
-                                                                                style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }}>
-                                                                                {editMonthName || 'Month'} <ChevronDown size={10} className={`transition-transform ${editMonthDropdownOpen ? 'rotate-180' : ''}`} />
-                                                                            </button>
-                                                                            <AnimatePresence>
-                                                                                {editMonthDropdownOpen && (
-                                                                                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                                                                                        className="absolute top-8 left-0 z-50 rounded-xl shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto border"
-                                                                                        style={{ background: '#FFFFFF', borderColor: fc.border }}>
-                                                                                        {MONTHS.map(mo => (
-                                                                                            <button key={mo} type="button" onClick={() => { setEditMonthName(mo); setEditMonthDropdownOpen(false); }}
-                                                                                                className="w-full text-left px-3 py-2 text-xs hover:bg-black/5 transition-colors"
-                                                                                                style={{ color: editMonthName === mo ? '#DA7756' : '#000000', fontWeight: editMonthName === mo ? 600 : 400 }}>
-                                                                                                {mo}
-                                                                                            </button>
-                                                                                        ))}
-                                                                                    </motion.div>
-                                                                                )}
-                                                                            </AnimatePresence>
-                                                                        </div>
-                                                                        <input value={editDueDate} onChange={e => setEditDueDate(formatDateMaskLive(e.target.value))}
-                                                                            onFocus={e => setEditDueDate(displayDateToMask(e.target.value))}
-                                                                            onBlur={e => setEditDueDate(maskToDisplayDate(e.target.value))}
-                                                                            placeholder="DD-MM-YY"
-                                                                            className="w-20 h-7 px-2 rounded-lg border text-[11px] focus:outline-none"
-                                                                            style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
-                                                                    </div>
-                                                                ) : (
-                                                                    <div className="w-20 shrink-0">
-                                                                        <p className="text-xs font-semibold" style={{ color: '#000000' }}>{m.month}</p>
-                                                                        <p className="text-[10px]" style={{ color: '#000000' }}>{m.dueDate || 'No due date'}</p>
-                                                                    </div>
-                                                                )}
-                                                                <div className="flex-1 flex flex-wrap gap-1 min-w-0">
-                                                                    {m.assignedStructureIds.length === 0 ? (
-                                                                        <span className="text-[11px] italic" style={{ color: '#000000', opacity: 0.55 }}>No structures assigned</span>
-                                                                    ) : (
-                                                                        feeStructures.filter(s => m.assignedStructureIds.includes(s.id)).map(s => (
-                                                                            <span key={s.id} className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                                                                                style={{ background: s.color + '20', color: s.color }}>
-                                                                                {s.name}
-                                                                            </span>
-                                                                        ))
-                                                                    )}
-                                                                </div>
-                                                                {total > 0 && <p className="text-xs font-bold shrink-0" style={{ color: '#7C3AED' }}>₹{total.toLocaleString()}</p>}
-                                                                <div className="flex items-center gap-1 shrink-0">
-                                                                    {isEditing ? (
-                                                                        <>
-                                                                            <button onClick={() => {
-                                                                                setFeeMonths(prev => prev.map(x => x.id === m.id ? { ...x, month: editMonthName, dueDate: editDueDate } : x));
-                                                                                setEditingMonthId(null);
-                                                                            }} className="w-6 h-6 rounded-md flex items-center justify-center text-white"
-                                                                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                                                <Check size={12} />
-                                                                            </button>
-                                                                            <button onClick={() => setEditingMonthId(null)}
-                                                                                className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-black/10 transition-all" style={{ color: '#000000', opacity: 0.6 }}>
-                                                                                <X size={12} />
-                                                                            </button>
-                                                                        </>
-                                                                    ) : (
-                                                                        <>
-                                                                            <button onClick={() => setAssigningMonthId(isAssigning ? null : m.id)}
-                                                                                className={`flex items-center gap-1 h-6 px-2 rounded-lg text-[10px] font-semibold border transition-all ${isAssigning ? 'bg-primary text-white border-primary' : 'hover:border-primary/40 hover:text-primary'}`}
-                                                                                style={!isAssigning ? { borderColor: fc.border, color: '#000000', opacity: 0.75 } : undefined}>
-                                                                                {assignedCount > 0 ? `${assignedCount} assigned` : 'Assign'}
-                                                                                <ChevronDown size={10} className={`transition-transform ${isAssigning ? 'rotate-180' : ''}`} />
-                                                                            </button>
-                                                                            <button onClick={() => setExpandedMonthId(isExpanded ? null : m.id)}
-                                                                                className="w-6 h-6 rounded-md flex items-center justify-center hover:bg-black/10 transition-all" style={{ color: '#000000', opacity: 0.7 }}>
-                                                                                {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                                                                            </button>
-                                                                            <button onClick={() => { setEditingMonthId(m.id); setEditMonthName(m.month); setEditDueDate(m.dueDate); }}
-                                                                                className="w-6 h-6 rounded-md flex items-center justify-center hover:text-primary transition-all" style={{ color: '#000000', opacity: 0.45 }}>
-                                                                                <Pencil size={11} />
-                                                                            </button>
-                                                                            <button onClick={() => setConfirmDelete({ kind: 'feeMonth', id: m.id, label: m.month })}
-                                                                                className="w-6 h-6 rounded-md flex items-center justify-center hover:text-red-500 transition-all" style={{ color: '#000000', opacity: 0.45 }}>
-                                                                                <X size={11} />
-                                                                            </button>
-                                                                        </>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-
+                                                {addingMonth && (
+                                                    <div className="mt-2 px-3 py-2 rounded-xl border flex items-center flex-wrap gap-2" style={{ borderColor: fc.border, background: 'rgba(255,255,255,0.5)' }}>
+                                                        <div ref={monthDropdownRef} className="relative">
+                                                            <button type="button" onClick={() => setMonthDropdownOpen(v => !v)}
+                                                                className="flex items-center gap-1.5 h-8 px-3 rounded-xl border text-xs font-medium hover:border-primary/40 transition-all"
+                                                                style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }}>
+                                                                {newMonth || 'Select Month'} <ChevronDown size={11} className={`transition-transform ${monthDropdownOpen ? 'rotate-180' : ''}`} />
+                                                            </button>
                                                             <AnimatePresence>
-                                                                {isAssigning && (
-                                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                                                        <div className="px-3 pb-2.5 pt-2 border-t" style={{ borderColor: fc.border }}>
-                                                                            <p className="text-[10px] font-semibold mb-2" style={{ color: '#000000', opacity: 0.7 }}>Select fee structures for {m.month}</p>
-                                                                            {feeStructures.filter(s => s.type !== 'BUS' && s.type !== 'LATE_FEE').length === 0 ? (
-                                                                                <p className="text-[11px] italic" style={{ color: '#000000', opacity: 0.55 }}>Create fee structures first</p>
-                                                                            ) : (
-                                                                                <div className="flex flex-wrap gap-1.5">
-                                                                                    {feeStructures.filter(s => s.type !== 'BUS' && s.type !== 'LATE_FEE').map(s => {
-                                                                                        const active = m.assignedStructureIds.includes(s.id);
-                                                                                        return (
-                                                                                            <button key={s.id} onClick={() => toggleStructureForMonth(m.id, s.id)}
-                                                                                                className="flex items-center gap-1.5 h-7 px-3 rounded-xl border-2 text-[11px] font-semibold transition-all"
-                                                                                                style={active ? { borderColor: s.color, background: s.color + '20', color: s.color } : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}>
-                                                                                                {active && <Check size={10} />}
-                                                                                                {s.name}
-                                                                                                <span className="opacity-60 text-[10px]">₹{structureTotal(s).toLocaleString()}</span>
-                                                                                            </button>
-                                                                                        );
-                                                                                    })}
-                                                                                </div>
-                                                                            )}
-                                                                        </div>
-                                                                    </motion.div>
-                                                                )}
-                                                            </AnimatePresence>
-
-                                                            <AnimatePresence>
-                                                                {isExpanded && (
-                                                                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden">
-                                                                        <div className="border-t border-border/20 bg-muted/5">
-                                                                            <MonthBreakdown month={m} feeStructures={feeStructures} />
-                                                                        </div>
+                                                                {monthDropdownOpen && (
+                                                                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
+                                                                        className="absolute bottom-9 left-0 z-50 rounded-xl shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto border"
+                                                                        style={{ background: '#FFFFFF', borderColor: fc.border }}>
+                                                                        {MONTHS.map(m => (
+                                                                            <button key={m} type="button" onClick={() => { setNewMonth(m); setMonthDropdownOpen(false); }}
+                                                                                className="w-full text-left px-3 py-2 text-xs hover:bg-black/5 transition-colors"
+                                                                                style={{ color: newMonth === m ? '#DA7756' : '#000000', fontWeight: newMonth === m ? 600 : 400 }}>
+                                                                                {m}
+                                                                            </button>
+                                                                        ))}
                                                                     </motion.div>
                                                                 )}
                                                             </AnimatePresence>
                                                         </div>
-                                                    );
-                                                })}
+                                                        <input value={newDueDate} onChange={e => setNewDueDate(formatDateMaskLive(e.target.value))}
+                                                            onFocus={e => setNewDueDate(displayDateToMask(e.target.value))}
+                                                            onBlur={e => setNewDueDate(maskToDisplayDate(e.target.value))}
+                                                            placeholder="DD-MM-YY"
+                                                            className="w-36 h-8 px-3 rounded-xl border text-xs focus:outline-none focus:border-primary/50 placeholder:text-black/50"
+                                                            style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
+                                                        <button onClick={addMonth} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
+                                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                                            <Check size={13} />
+                                                        </button>
+                                                        <button onClick={() => { setAddingMonth(false); setNewMonth(''); setNewDueDate(''); }}
+                                                            className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-black/10 border"
+                                                            style={{ borderColor: fc.border, color: '#000000' }}>
+                                                            <X size={13} />
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {feeMonths.length > 0 && (
+                                                    <div className="flex items-center justify-between mt-2 px-1">
+                                                        <span className="text-[11px]" style={{ color: '#000000', opacity: 0.6 }}>{feeMonths.length} months</span>
+                                                        <span className="text-xs font-bold">
+                                                            Annual Total: <span style={{ color: '#7C3AED' }}>₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}</span>
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
 
-                                            {addingMonth && (
-                                                <div className="mt-2 px-3 py-2 rounded-xl border flex items-center flex-wrap gap-2" style={{ borderColor: fc.border, background: 'rgba(255,255,255,0.5)' }}>
-                                                    <div ref={monthDropdownRef} className="relative">
-                                                        <button type="button" onClick={() => setMonthDropdownOpen(v => !v)}
-                                                            className="flex items-center gap-1.5 h-8 px-3 rounded-xl border text-xs font-medium hover:border-primary/40 transition-all"
-                                                            style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }}>
-                                                            {newMonth || 'Select Month'} <ChevronDown size={11} className={`transition-transform ${monthDropdownOpen ? 'rotate-180' : ''}`} />
+                                        </div>
+                                    </div>
+
+                                    {/* BACK — Rules & Regulations */}
+                                    <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: fc.bg }}
+                                        className={!feeCardFlipped ? 'invisible' : ''}>
+                                        <div className="px-4 py-3 space-y-3">
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Rules & Regulations</p>
+                                                <button onClick={() => {
+                                                    setRulesAndRegs(prev => [...prev, { id: `r-${Date.now()}`, text: '' }]);
+                                                }} className="text-[11px] font-medium hover:underline flex items-center gap-1" style={{ color: '#000000' }}>
+                                                    <Plus size={11} /> Add Rule
+                                                </button>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {rulesAndRegs.map((rule, i) => (
+                                                    <div key={rule.id} className="flex items-start gap-2">
+                                                        <span className="text-[11px] font-bold mt-2 w-5 shrink-0" style={{ color: '#000000' }}>{i + 1}.</span>
+                                                        <textarea
+                                                            value={rule.text}
+                                                            onChange={e => setRulesAndRegs(prev => prev.map(r => r.id === rule.id ? { ...r, text: e.target.value } : r))}
+                                                            placeholder="Enter rule or regulation..."
+                                                            rows={2}
+                                                            className="flex-1 px-3 py-2 rounded-xl border bg-white/30 text-xs focus:outline-none transition-all resize-none"
+                                                            style={{ borderColor: fc.border, color: '#000000' }}
+                                                        />
+                                                        <button onClick={() => setConfirmDelete({ kind: 'rule', id: rule.id, label: `Rule ${i + 1}` })}
+                                                            className="w-6 h-6 mt-1.5 rounded flex items-center justify-center hover:text-red-500 shrink-0" style={{ color: '#000000', opacity: 0.4 }}>
+                                                            <X size={11} />
                                                         </button>
-                                                        <AnimatePresence>
-                                                            {monthDropdownOpen && (
-                                                                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
-                                                                    className="absolute bottom-9 left-0 z-50 rounded-xl shadow-xl py-1 min-w-[130px] max-h-48 overflow-y-auto border"
-                                                                    style={{ background: '#FFFFFF', borderColor: fc.border }}>
-                                                                    {MONTHS.map(m => (
-                                                                        <button key={m} type="button" onClick={() => { setNewMonth(m); setMonthDropdownOpen(false); }}
-                                                                            className="w-full text-left px-3 py-2 text-xs hover:bg-black/5 transition-colors"
-                                                                            style={{ color: newMonth === m ? '#DA7756' : '#000000', fontWeight: newMonth === m ? 600 : 400 }}>
-                                                                            {m}
-                                                                        </button>
-                                                                    ))}
-                                                                </motion.div>
-                                                            )}
-                                                        </AnimatePresence>
                                                     </div>
-                                                    <input value={newDueDate} onChange={e => setNewDueDate(formatDateMaskLive(e.target.value))}
-                                                        onFocus={e => setNewDueDate(displayDateToMask(e.target.value))}
-                                                        onBlur={e => setNewDueDate(maskToDisplayDate(e.target.value))}
-                                                        placeholder="DD-MM-YY"
-                                                        className="w-36 h-8 px-3 rounded-xl border text-xs focus:outline-none focus:border-primary/50 placeholder:text-black/50"
-                                                        style={{ borderColor: fc.border, background: '#FFFFFF', color: '#000000' }} />
-                                                    <button onClick={addMonth} className="w-8 h-8 rounded-xl flex items-center justify-center text-white"
-                                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                                        <Check size={13} />
-                                                    </button>
-                                                    <button onClick={() => { setAddingMonth(false); setNewMonth(''); setNewDueDate(''); }}
-                                                        className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-black/10 border"
-                                                        style={{ borderColor: fc.border, color: '#000000' }}>
-                                                        <X size={13} />
-                                                    </button>
-                                                </div>
-                                            )}
-
-                                            {feeMonths.length > 0 && (
-                                                <div className="flex items-center justify-between mt-2 px-1">
-                                                    <span className="text-[11px]" style={{ color: '#000000', opacity: 0.6 }}>{feeMonths.length} months</span>
-                                                    <span className="text-xs font-bold">
-                                                        Annual Total: <span style={{ color: '#7C3AED' }}>₹{feeMonths.reduce((n, m) => n + monthTotal(m), 0).toLocaleString()}</span>
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-
-                                    </div>
-                                </div>
-
-                                {/* BACK — Rules & Regulations */}
-                                <div style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: fc.bg }}
-                                    className={!feeCardFlipped ? 'invisible' : ''}>
-                                    <div className="px-4 py-3 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: '#000000' }}>Rules & Regulations</p>
-                                            <button onClick={() => {
-                                                setRulesAndRegs(prev => [...prev, { id: `r-${Date.now()}`, text: '' }]);
-                                            }} className="text-[11px] font-medium hover:underline flex items-center gap-1" style={{ color: '#000000' }}>
-                                                <Plus size={11} /> Add Rule
-                                            </button>
-                                        </div>
-                                        <div className="space-y-2">
-                                            {rulesAndRegs.map((rule, i) => (
-                                                <div key={rule.id} className="flex items-start gap-2">
-                                                    <span className="text-[11px] font-bold mt-2 w-5 shrink-0" style={{ color: '#000000' }}>{i + 1}.</span>
-                                                    <textarea
-                                                        value={rule.text}
-                                                        onChange={e => setRulesAndRegs(prev => prev.map(r => r.id === rule.id ? { ...r, text: e.target.value } : r))}
-                                                        placeholder="Enter rule or regulation..."
-                                                        rows={2}
-                                                        className="flex-1 px-3 py-2 rounded-xl border bg-white/30 text-xs focus:outline-none transition-all resize-none"
-                                                        style={{ borderColor: fc.border, color: '#000000' }}
-                                                    />
-                                                    <button onClick={() => setConfirmDelete({ kind: 'rule', id: rule.id, label: `Rule ${i + 1}` })}
-                                                        className="w-6 h-6 mt-1.5 rounded flex items-center justify-center hover:text-red-500 shrink-0" style={{ color: '#000000', opacity: 0.4 }}>
-                                                        <X size={11} />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                            {rulesAndRegs.length === 0 && (
-                                                <div className="py-8 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
-                                                    <p className="text-xs" style={{ color: '#000000' }}>No rules added yet</p>
-                                                    <p className="text-[11px] mt-1" style={{ color: '#000000', opacity: 0.6 }}>Add fee counter timings, late fee rules, etc.</p>
-                                                </div>
-                                            )}
+                                                ))}
+                                                {rulesAndRegs.length === 0 && (
+                                                    <div className="py-8 text-center rounded-xl border border-dashed" style={{ borderColor: fc.border }}>
+                                                        <p className="text-xs" style={{ color: '#000000' }}>No rules added yet</p>
+                                                        <p className="text-[11px] mt-1" style={{ color: '#000000', opacity: 0.6 }}>Add fee counter timings, late fee rules, etc.</p>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                            </motion.div>
+                                </motion.div>
                             </div>
 
                             {/* RIGHT — Payment Methods */}
@@ -1682,69 +1682,69 @@ export const FeesTab = forwardRef<FeesTabHandle, {
 
                         {/* ROW 2: Fee Structures */}
                         <div className="flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                                <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0 flex-wrap gap-2">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                            <Tag size={13} /> Fee Structures
-                                        </p>
-                                        <div className="flex items-center gap-1.5 flex-wrap">
-                                            {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
-                                                const cfg = FEE_TYPE_CFG[t];
-                                                return (
-                                                    <span key={t} className={`text-[10px] font-semibold flex items-center gap-1 ${cfg.text}`}>
-                                                        {cfg.emoji} {cfg.label}
-                                                    </span>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                    <div className="flex items-center gap-2">
-                                        {/* Bifurcation pill — Setup / Per-student / Default */}
-                                        <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted/50 border border-border/50">
-                                            {([
-                                                { key: 'setup' as const, label: 'Setup' },
-                                                { key: 'student' as const, label: 'Per-student' },
-                                                { key: 'default' as const, label: 'Default' },
-                                            ]).map(opt => (
-                                                <button key={opt.key} onClick={() => setStructureViewFilter(opt.key)}
-                                                    className={`h-6 px-2.5 rounded-md text-[10px] font-semibold transition-all ${structureViewFilter === opt.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                                                    {opt.label}
-                                                </button>
-                                            ))}
-                                        </div>
-                                        <button onClick={() => { setEditingStructure(undefined); setShowStructureModal(true); }}
-                                            className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
-                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                            <Plus size={11} /> Add Structure
-                                        </button>
+                            <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0 flex-wrap gap-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                                        <Tag size={13} /> Fee Structures
+                                    </p>
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        {(Object.keys(FEE_TYPE_CFG) as FeeStructureType[]).map(t => {
+                                            const cfg = FEE_TYPE_CFG[t];
+                                            return (
+                                                <span key={t} className={`text-[10px] font-semibold flex items-center gap-1 ${cfg.text}`}>
+                                                    {cfg.emoji} {cfg.label}
+                                                </span>
+                                            );
+                                        })}
                                     </div>
                                 </div>
-                                <div className="h-[260px] overflow-y-auto px-4 py-3 space-y-2"
-                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                                    {(() => {
-                                        const visibleStructures = feeStructures.filter(fs => {
-                                            if (structureViewFilter === 'default') return fs.type === 'BUS' || fs.type === 'LATE_FEE';
-                                            if (fs.type === 'BUS' || fs.type === 'LATE_FEE') return false;
-                                            return (fs.origin ?? 'setup') === structureViewFilter;
-                                        });
-                                        if (visibleStructures.length === 0) {
-                                            return (
-                                                <div className="text-center py-8">
-                                                    <Tag size={24} className="mx-auto text-muted-foreground/30 mb-2" />
-                                                    <p className="text-xs text-muted-foreground/60">
-                                                        {structureViewFilter === 'default' ? 'No default structures'
-                                                            : structureViewFilter === 'student' ? 'No per-student structures yet'
-                                                                : 'No fee structures yet'}
-                                                    </p>
-                                                    <p className="text-[11px] text-muted-foreground/40 mt-1">
-                                                        {structureViewFilter === 'student'
-                                                            ? 'These appear here once added from a student’s fee card'
-                                                            : 'Add Regular, Add-on, or Event fee structures'}
-                                                    </p>
-                                                </div>
-                                            );
-                                        }
-                                        return visibleStructures.map(fs => (
+                                <div className="flex items-center gap-2">
+                                    {/* Bifurcation pill — Setup / Per-student / Default */}
+                                    <div className="flex items-center gap-0.5 p-0.5 rounded-lg bg-muted/50 border border-border/50">
+                                        {([
+                                            { key: 'setup' as const, label: 'Setup' },
+                                            { key: 'student' as const, label: 'Per-student' },
+                                            { key: 'default' as const, label: 'Default' },
+                                        ]).map(opt => (
+                                            <button key={opt.key} onClick={() => setStructureViewFilter(opt.key)}
+                                                className={`h-6 px-2.5 rounded-md text-[10px] font-semibold transition-all ${structureViewFilter === opt.key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                                {opt.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                    <button onClick={() => { setEditingStructure(undefined); setShowStructureModal(true); }}
+                                        className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all"
+                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                        <Plus size={11} /> Add Structure
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="h-[260px] overflow-y-auto px-4 py-3 space-y-2"
+                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                {(() => {
+                                    const visibleStructures = feeStructures.filter(fs => {
+                                        if (structureViewFilter === 'default') return fs.type === 'BUS' || fs.type === 'LATE_FEE';
+                                        if (fs.type === 'BUS' || fs.type === 'LATE_FEE') return false;
+                                        return (fs.origin ?? 'setup') === structureViewFilter;
+                                    });
+                                    if (visibleStructures.length === 0) {
+                                        return (
+                                            <div className="text-center py-8">
+                                                <Tag size={24} className="mx-auto text-muted-foreground/30 mb-2" />
+                                                <p className="text-xs text-muted-foreground/60">
+                                                    {structureViewFilter === 'default' ? 'No default structures'
+                                                        : structureViewFilter === 'student' ? 'No per-student structures yet'
+                                                            : 'No fee structures yet'}
+                                                </p>
+                                                <p className="text-[11px] text-muted-foreground/40 mt-1">
+                                                    {structureViewFilter === 'student'
+                                                        ? 'These appear here once added from a student’s fee card'
+                                                        : 'Add Regular, Add-on, or Event fee structures'}
+                                                </p>
+                                            </div>
+                                        );
+                                    }
+                                    return visibleStructures.map(fs => (
                                         <div key={fs.id}
                                             onDragOver={e => e.preventDefault()}
                                             onDrop={e => {
@@ -1777,9 +1777,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                 />
                                             </div>
                                         </div>
-                                        ));
-                                    })()}
-                                </div>
+                                    ));
+                                })()}
+                            </div>
                         </div>
 
                     </motion.div>
