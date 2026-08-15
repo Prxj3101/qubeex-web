@@ -26,7 +26,22 @@ interface FeeStandard { id: string; name: string; divisions: FeeDivision[]; }
 interface AttendanceDivision { id: string; name: string; overallPct: number | null; monthPct: number | null; total: number; }
 interface AttendanceStandard { id: string; name: string; divisions: AttendanceDivision[]; }
 type AnalyticsMode = 'overall' | 'monthly';
-interface AiTeacherUsage { name: string; used: number; } // used = tokens, in millions
+interface AiFeatureBreakdown { feature: string; requests: number; successRequests: number; failedRequests: number; totalTokens: number; }
+interface AiTeacherUsage {
+    teacherId: string; name: string; used: number; // used = tokens, in millions
+    totalTokens: number; // raw, unscaled token count
+    totalRequests: number; successRequests: number; failedRequests: number;
+    byFeature: AiFeatureBreakdown[];
+    isOverSoftLimit: boolean;
+}
+
+const AI_FEATURE_LABELS: Record<string, string> = {
+    BLACKBOARD_CONTEXT: 'Document Analysis',
+    BLACKBOARD_SCAN: 'AI Scan',
+    BLACKBOARD_CHAT: 'AI Chat',
+    BLACKBOARD_QUIZ: 'Quiz Generation',
+    TASK_QUESTION_GENERATION: 'Question Bank',
+};
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, iconBg, iconColor }: {
@@ -459,8 +474,8 @@ export default function AdminAnalyticsPage() {
             if (attRes.status === 'fulfilled') setAttendanceData(attRes.value.data.data ?? []);
             if (feeRes.status === 'fulfilled') setFeeData(feeRes.value.data.data ?? []);
             if (aiRes.status === 'fulfilled') {
-                const raw: { name: string; used: number }[] = aiRes.value.data.data ?? [];
-                setAiTeachers(raw.map(t => ({ name: t.name, used: t.used / 1_000_000 })));
+                const raw: (Omit<AiTeacherUsage, 'used'> & { used: number })[] = aiRes.value.data.data ?? [];
+                setAiTeachers(raw.map(t => ({ ...t, used: t.used / 1_000_000 })));
             }
         } catch {
             setError(true);
@@ -639,7 +654,7 @@ export default function AdminAnalyticsPage() {
                         </div>
                         <div className="flex items-center justify-between">
                             <p className="text-[10px] text-muted-foreground">{tokenPct}% used</p>
-                            <p className="text-[10px] text-muted-foreground">↻ Resets 1st of next month</p>
+                            <p className="text-[10px] text-muted-foreground">Shared institution pool</p>
                         </div>
                     </div>
 
@@ -647,13 +662,11 @@ export default function AdminAnalyticsPage() {
                     <div className="space-y-2.5">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Per teacher</p>
                         {aiTeachers.length === 0 && (
-                            <p className="text-[11px] text-muted-foreground/60 italic">No AI usage yet this month</p>
+                            <p className="text-[11px] text-muted-foreground/60 italic">No AI usage recorded yet</p>
                         )}
                         {aiTeachers.map((t) => {
-                            const pct = (t.used / 10) * 100; // share of 10M pool
-                            const isCritical = pct >= 30;
                             return (
-                                <div key={t.name} className="flex items-center gap-2.5">
+                                <div key={t.teacherId} className="flex items-center gap-2.5">
                                     <div className="w-6 h-6 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
                                         <span className="text-[9px] font-bold text-violet-400">
                                             {t.name.split(' ').map(n => n[0]).join('')}
@@ -662,16 +675,29 @@ export default function AdminAnalyticsPage() {
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center justify-between mb-0.5">
                                             <span className="text-[11px] font-medium text-foreground truncate">{t.name}</span>
-                                            <span className={`text-[10px] font-semibold shrink-0 ml-2 ${isCritical ? 'text-[#DA7756]' : 'text-muted-foreground'}`}>
-                                                {t.used.toFixed(2)}M
+                                            {/* No share-of-pool bar here: this row has no
+                                                per-teacher pool limit to divide by, and the
+                                                old hardcoded 10M assumption was wrong for
+                                                Pro/trial plans and token addons. */}
+                                            <span className="text-[10px] font-semibold shrink-0 ml-2 text-muted-foreground">
+                                                {t.used.toFixed(2)}M tokens
                                             </span>
                                         </div>
-                                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full transition-all duration-500"
-                                                style={{
-                                                    width: `${Math.min(100, pct)}%`,
-                                                    background: 'linear-gradient(90deg, #7C3AED, #9D5CF6)',
-                                                }} />
+                                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                                            {t.byFeature.slice(0, 3).map((f) => (
+                                                <span key={f.feature} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
+                                                    {AI_FEATURE_LABELS[f.feature] ?? f.feature}: {f.requests}
+                                                </span>
+                                            ))}
+                                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400">{t.successRequests} ok</span>
+                                            {t.failedRequests > 0 && (
+                                                <span className="text-[10px] text-red-500">{t.failedRequests} failed</span>
+                                            )}
+                                            {t.isOverSoftLimit && (
+                                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                                    Over soft limit
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
