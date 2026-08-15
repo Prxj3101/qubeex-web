@@ -1450,7 +1450,7 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
       typeof storagePricePerGb === "number" ? storagePricePerGb : 0;
     const storageAddTotal = storageAddGb * storagePriceNum;
     const tokenBase = dashboardData?.usageMeters?.aiTokens?.total ?? (PLAN_BASE[plan as "BASIC" | "PRO"].aiTokens * 1_000_000);
-    const tokenUsed = 0;
+    const tokenUsed = dashboardData?.usageMeters?.aiTokens?.used ?? 0;
     const tokenUsedPct = Math.min(
       100,
       Math.round((tokenUsed / tokenBase) * 100),
