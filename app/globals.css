@@ -141,6 +141,25 @@
   display: none;
 }
 
+/* Opt-in visible scrollbar (right-side thin bar) for containers that need
+   one even in Chromium/WebView, where scrollbarWidth/scrollbarColor (the
+   default app-wide style) has no effect — e.g. the test-taking question
+   card's options list. */
+.visible-scrollbar::-webkit-scrollbar {
+  display: block;
+  width: 6px;
+}
+.visible-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.visible-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.25);
+  border-radius: 999px;
+}
+.visible-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(139, 92, 246, 0.4);
+}
+
 @keyframes chalkFlicker {
 
   0%,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { CheckCircle2, XCircle, MinusCircle, ShieldAlert, Timer, Layers, Calendar, ArrowLeft, Award, Download, ChevronLeft, ChevronRight } from 'lucide-react';
 import { toast } from 'sonner';
@@ -52,6 +52,41 @@ export default function TestResultPage() {
     const [loading, setLoading] = useState(true);
     const [result, setResult] = useState<AttemptResult | null>(null);
     const [downloading, setDownloading] = useState(false);
+
+    // App WebView (narrow, no sm:): `position: sticky` doesn't reliably hold
+    // inside a scrollable container on some mobile WebKit/WebView builds — it
+    // detaches and scrolls away with the content once you scroll past a
+    // section. `position: fixed` (relative to the viewport, not the scroll
+    // container) always holds, so the header uses that on mobile instead.
+    // A measured spacer of the same height keeps content from jumping under
+    // it. Desktop (sm+) is untouched — still the original sticky block.
+    const headerRef = useRef<HTMLDivElement>(null);
+    const [headerHeight, setHeaderHeight] = useState(0);
+    useEffect(() => {
+        const el = headerRef.current;
+        if (!el) return;
+        const ro = new ResizeObserver((entries) => {
+            setHeaderHeight(entries[0].contentRect.height);
+        });
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [result]);
+
+    // `fixed` pins to the viewport, not to the app shell's scroll area — so
+    // without an offset it renders at y=0 and covers the Topbar above it.
+    // Measure the actual top of the <main> scroll container (which already
+    // accounts for the Topbar's height + the layout's padding/gap) and pin
+    // the header just below it instead of at the true viewport top.
+    const [topOffset, setTopOffset] = useState(0);
+    useEffect(() => {
+        const computeOffset = () => {
+            const mainEl = headerRef.current?.closest('main');
+            if (mainEl) setTopOffset(mainEl.getBoundingClientRect().top);
+        };
+        computeOffset();
+        window.addEventListener('resize', computeOffset);
+        return () => window.removeEventListener('resize', computeOffset);
+    }, [result]);
 
     const handleDownloadPdf = async () => {
         setDownloading(true);
@@ -105,14 +140,23 @@ export default function TestResultPage() {
 
     return (
         <div className="max-w-2xl mx-auto px-2 pb-10">
-            <div className="sticky top-0 z-10 bg-background pt-2 pb-1">
+            <div className="sm:sticky sm:top-0 sm:z-10 sm:bg-background sm:pt-2 sm:pb-1">
+                {/* App WebView (narrow, no sm:): `position: sticky` doesn't
+                    reliably hold inside a scrollable container in some mobile
+                    WebViews — it detaches and scrolls away. `fixed` always
+                    holds (relative to the viewport), so the header uses that
+                    on mobile, with a measured spacer below to keep content
+                    from jumping under it. Desktop (sm+): back to normal flow
+                    so it's part of the same sticky block as the card below,
+                    unchanged from before. */}
+                <div ref={headerRef} style={{ top: topOffset - 10 }} className="fixed left-0 right-0 z-20 bg-background px-2 pt-2 pb-1 sm:static sm:!top-auto sm:z-auto sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0">
                 <div className="flex items-center gap-3 mb-2">
                     <button onClick={() => router.replace('/student/tasks')} className="w-8 h-8 rounded-xl flex items-center justify-center border border-border/50 bg-card hover:bg-muted transition-all shrink-0">
                         <ArrowLeft size={15} className="text-foreground" />
                     </button>
                     <p className="text-xl font-bold flex items-center gap-2"><Award size={21} /> Results</p>
                 </div>
-                <div className="flex items-center justify-between flex-wrap gap-1.5 mb-2">
+                <div className="flex items-center justify-between flex-wrap gap-1.5 mb-0.5 sm:mb-2">
                     <div className="flex items-center flex-wrap gap-1.5">
                         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-card border border-border/50 px-2 py-1 rounded-lg">
                             Name : {result.student.name}
@@ -152,8 +196,14 @@ export default function TestResultPage() {
                         </span>
                     )}
                 </div>
-                <div className="relative rounded-2xl border border-border bg-card p-4">
-                    <div className="absolute top-3 right-4 flex flex-col items-end gap-1">
+                </div>
+                <div style={{ height: headerHeight + 6 }} className="sm:hidden" />
+                <div className="relative flex flex-col rounded-2xl border border-border bg-card p-4">
+                    {/* App WebView (narrow, no sm:): pills move below the
+                        Correct/Incorrect/Skipped stats row, in flow.
+                        Normal web browser (sm+): unchanged — pills sit
+                        absolute top-right like before. */}
+                    <div className="order-3 flex flex-wrap items-start gap-1 mt-3 sm:mt-0 sm:absolute sm:top-3 sm:right-4 sm:flex-col sm:items-end">
                         {result.test.durationMinutes != null && (
                             <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
                                 <Timer size={10} /> {result.test.durationMinutes >= 60
@@ -184,7 +234,7 @@ export default function TestResultPage() {
                             </span>
                         )}
                     </div>
-                    <div className="flex items-center gap-4 pr-24">
+                    <div className="order-1 flex items-center gap-4 sm:pr-24">
                         <div className="w-16 h-16 rounded-full flex items-center justify-center shrink-0" style={{ background: `conic-gradient(${scoreColor(result.percentage)} ${result.percentage * 3.6}deg, ${scoreColor(result.percentage)}1f 0deg)` }}>
                             <div className="w-[52px] h-[52px] rounded-full bg-card flex items-center justify-center">
                                 <span className="text-sm font-bold">{result.percentage}%</span>
@@ -200,7 +250,7 @@ export default function TestResultPage() {
                             )}
                         </div>
                     </div>
-                    <div className="flex items-center gap-2 mt-3">
+                    <div className="order-2 flex items-center gap-2 mt-3">
                         <div className="rounded-xl bg-emerald-500/10 py-1.5 text-center w-20">
                             <div className="flex items-center justify-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-sm"><CheckCircle2 size={12} /> {correctCount}</div>
                             <p className="text-[10px] text-muted-foreground">Correct</p>

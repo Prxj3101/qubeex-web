@@ -288,10 +288,10 @@ export default function TakeTestPage() {
                 </div>
             )}
 
-            <div className="rounded-2xl border border-border bg-card p-5 mb-4 h-[370px] flex flex-col">
-                <p className="text-base font-medium leading-relaxed mb-8">{index + 1}. {q.questionText}</p>
+            <div className="rounded-2xl border border-border bg-card p-5 mb-4 h-[300px] flex flex-col">
+                <p className="text-base font-medium leading-relaxed mb-5">{index + 1}. {q.questionText}</p>
 
-                <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                <div className="flex-1 overflow-y-auto pr-2 visible-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.25) transparent' }}>
                 {(q.type === 'MCQ' || q.type === 'CONCEPTUAL' || q.type === 'NUMERICAL') && (
                     <div className="space-y-3">
                         {q.options.map((opt, oi) => {
