@@ -2964,7 +2964,7 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
         return groups;
     })() : [];
 
-    const rows: ResultRow[] = studentGroups.flatMap(g =>
+    const rows: ResultRow[] = studentGroups.flatMap((g): ResultRow[] =>
         g.attempts.length > 0
             ? g.attempts.map((a, i) => ({ student: g.student, attempt: a, isFirstOfGroup: i === 0, isLastOfGroup: i === g.attempts.length - 1 }))
             : [{ student: g.student, attempt: null, isFirstOfGroup: true, isLastOfGroup: true }]
