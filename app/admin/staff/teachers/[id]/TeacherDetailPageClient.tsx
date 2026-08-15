@@ -18,6 +18,7 @@ import api from '@/lib/api';
 import { colorForSubject } from '@/lib/subjectColors';
 import { formatDisplayName } from '@/lib/displayName';
 import { getErrorMessage } from '@/lib/error';
+import { formatTokens } from '@/lib/utils';
 
 
 // ── Mock teacher data ─────────────────────────────────────────────────────────
@@ -200,6 +201,9 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
         softLimitTokens: number | null; softLimitOverride: number | null; isOverSoftLimit: boolean;
     } | null>(null);
     const [aiUsageLoading, setAiUsageLoading] = useState(true);
+    // Slider scales to the institution's real pool (never below 10M, so small/trial
+    // pools still get a usable range) instead of a flat 10M assumption.
+    const softLimitSliderMaxM = Math.max(10, Math.ceil((aiUsage?.institutionPoolLimit ?? 0) / 1_000_000));
 
     useEffect(() => {
         if (!teacher?.id) return;
@@ -464,8 +468,8 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                             <div className="flex items-center justify-between mb-1.5">
                                 <p className="text-xs font-semibold">{formatDisplayName(teacher.name, teacher.prefix)}&apos;s usage · last 30 days</p>
                                 <span className="text-xs font-bold">
-                                    {aiUsageLoading ? '…' : `${((aiUsage?.totalTokens ?? 0) / 1_000_000).toFixed(1)}M`}
-                                    <span className="text-muted-foreground font-normal"> / {((aiUsage?.institutionPoolLimit ?? 0) / 1_000_000).toFixed(0)}M pool</span>
+                                    {aiUsageLoading ? '…' : formatTokens(aiUsage?.totalTokens ?? 0)}
+                                    <span className="text-muted-foreground font-normal"> / {formatTokens(aiUsage?.institutionPoolLimit ?? 0)} pool</span>
                                 </span>
                             </div>
                             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
@@ -477,11 +481,11 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         {/* Stats */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : `${((aiUsage?.totalTokens ?? 0) / 1_000_000).toFixed(1)}M`}</p>
+                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(aiUsage?.totalTokens ?? 0)}</p>
                                 <p className="text-[10px] text-muted-foreground">Used</p>
                             </div>
                             <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : `${Math.max(0, ((aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.totalTokens ?? 0)) / 1_000_000).toFixed(1)}M`}</p>
+                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(Math.max(0, (aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.totalTokens ?? 0)))}</p>
                                 <p className="text-[10px] text-muted-foreground">Remaining</p>
                             </div>
                             <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(124,58,237,0.08)' }}>
@@ -495,8 +499,8 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                             <div className="flex items-center justify-between mb-1.5">
                                 <p className="text-[11px] font-semibold text-muted-foreground">Institution pool</p>
                                 <span className="text-[11px] font-semibold">
-                                    {aiUsageLoading ? '…' : `${((aiUsage?.institutionPoolUsed ?? 0) / 1_000_000).toFixed(1)}M`}
-                                    <span className="font-normal text-muted-foreground"> / {((aiUsage?.institutionPoolLimit ?? 0) / 1_000_000).toFixed(0)}M used</span>
+                                    {aiUsageLoading ? '…' : formatTokens(aiUsage?.institutionPoolUsed ?? 0)}
+                                    <span className="font-normal text-muted-foreground"> / {formatTokens(aiUsage?.institutionPoolLimit ?? 0)} used</span>
                                 </span>
                             </div>
                             <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
@@ -531,7 +535,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                         <input
                                             type="range"
                                             min={0}
-                                            max={10}
+                                            max={softLimitSliderMaxM}
                                             step={0.5}
                                             value={softLimitInput}
                                             onChange={e => setSoftLimitInput(e.target.value)}
@@ -542,7 +546,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                         </span>
                                     </div>
                                     <div className="flex items-center justify-between">
-                                        <p className="text-[11px] text-muted-foreground">0M — 10M (pool limit)</p>
+                                        <p className="text-[11px] text-muted-foreground">0M — {softLimitSliderMaxM}M (pool limit)</p>
                                         <button
                                             onClick={async () => {
                                                 const tokens = Number(softLimitInput) * 1_000_000;
@@ -568,7 +572,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                             {hasSoftLimit && !showSoftLimit && (
                                 <div className="space-y-1.5">
                                     <div className="flex items-center justify-between text-[11px]">
-                                        <span className="text-muted-foreground">{((aiUsage?.totalTokens ?? 0) / 1_000_000).toFixed(1)}M used of {(softLimitOverride! / 1000000).toFixed(1)}M limit</span>
+                                        <span className="text-muted-foreground">{formatTokens(aiUsage?.totalTokens ?? 0)} used of {formatTokens(softLimitOverride!)} limit</span>
                                         <span className="font-semibold" style={{ color: (aiUsage?.totalTokens ?? 0) > softLimitOverride! * 0.8 ? '#DA7756' : '#7C3AED' }}>
                                             {Math.round(((aiUsage?.totalTokens ?? 0) / softLimitOverride!) * 100)}%
                                         </span>

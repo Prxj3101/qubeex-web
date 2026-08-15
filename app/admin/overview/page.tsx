@@ -16,6 +16,7 @@ import { BirthdayBanner } from '@/components/shared/BirthdayBanner';
 import { Sparkles, AlertCircle } from 'lucide-react';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import { formatDisplayName } from '@/lib/displayName';
+import { formatTokens } from '@/lib/utils';
 
 export default function AdminOverviewPage() {
     const { user } = useAuthStore();
@@ -148,16 +149,34 @@ export default function AdminOverviewPage() {
                     />
                 </div>
 
-                {/* AI Tokens — 2 cols (Redis integration pending) */}
+                {/* AI Tokens — 2 cols */}
                 <div className="lg:col-span-2 bg-card border border-border/50 rounded-xl p-5">
                     <div className="flex items-center gap-2 mb-3">
                         <Sparkles size={15} className="text-muted-foreground" />
                         <p className="text-sm font-medium">AI Token Usage</p>
-                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">Coming soon</span>
+                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">Institution pool</span>
                     </div>
-                    <div className="flex items-center justify-center h-28 text-muted-foreground/30 text-sm">
-                        Real-time token data will appear here
-                    </div>
+                    {(() => {
+                        const aiUsed = overview.plan.usage.aiTokens.used;
+                        const aiLimit = overview.plan.usage.aiTokens.limit || 1;
+                        const aiPct = Math.min(100, Math.round((aiUsed / aiLimit) * 100));
+                        return (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <p className="text-lg font-semibold">
+                                        {formatTokens(aiUsed)}
+                                        <span className="text-sm font-normal text-muted-foreground"> / {formatTokens(aiLimit)} tokens</span>
+                                    </p>
+                                    <p className="text-sm font-semibold text-muted-foreground">{aiPct}%</p>
+                                </div>
+                                <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                                    <div className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${aiPct}%`, background: aiPct > 85 ? '#ef4444' : aiPct > 70 ? '#f59e0b' : 'var(--primary)' }} />
+                                </div>
+                                <p className="text-[11px] text-muted-foreground/60">Shared across all teachers</p>
+                            </div>
+                        );
+                    })()}
                 </div>
 
                 {/* Plan — 1 col */}

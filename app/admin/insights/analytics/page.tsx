@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import type { AdminOverview } from '@/types';
+import { formatTokens } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, ReferenceLine } from 'recharts';
@@ -525,7 +526,7 @@ export default function AdminAnalyticsPage() {
     const instLabel = instType === 'SCHOOL' ? 'School' : instType === 'COLLEGE' ? 'College' : 'Coaching';
 
     const institutionTokensUsed = plan.usage.aiTokens.used;
-    const institutionTokensLimit = 10_000_000;
+    const institutionTokensLimit = plan.usage.aiTokens.limit || 1;
     const tokenPct = Math.min(100, Math.round((institutionTokensUsed / institutionTokensLimit) * 100));
 
     return (
@@ -634,8 +635,8 @@ export default function AdminAnalyticsPage() {
                         <div>
                             <p className="text-xs text-muted-foreground">Institution token pool</p>
                             <p className="text-lg font-semibold">
-                                {(institutionTokensUsed / 1_000_000).toFixed(1)}M
-                                <span className="text-sm font-normal text-muted-foreground"> / 10M tokens</span>
+                                {formatTokens(institutionTokensUsed)}
+                                <span className="text-sm font-normal text-muted-foreground"> / {formatTokens(institutionTokensLimit)} tokens</span>
                             </p>
                         </div>
                         <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center">
@@ -680,7 +681,7 @@ export default function AdminAnalyticsPage() {
                                                 old hardcoded 10M assumption was wrong for
                                                 Pro/trial plans and token addons. */}
                                             <span className="text-[10px] font-semibold shrink-0 ml-2 text-muted-foreground">
-                                                {t.used.toFixed(2)}M tokens
+                                                {formatTokens(t.totalTokens)} tokens
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-2 mt-0.5 flex-wrap">

@@ -11,6 +11,7 @@ import {
     Tooltip, ResponsiveContainer,
 } from 'recharts';
 import api from '@/lib/api';
+import { formatTokens } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -33,14 +34,6 @@ const AI_FEATURE_LABELS: Record<string, string> = {
 };
 
 const DATE_FILTERS = ['7D', '1M', '3M', '6M', 'YTD'];
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatTokens(n: number): string {
-    if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`;
-    if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
-    return n.toString();
-}
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 

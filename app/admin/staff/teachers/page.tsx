@@ -12,6 +12,7 @@ import type {
 import { getStructureLabels } from '@/lib/getInstitutionAccent';
 import { formatDisplayName } from '@/lib/displayName';
 import { colorForSubject } from '@/lib/subjectColors';
+import { formatTokens } from '@/lib/utils';
 import { AddTeacherModal, type TeacherFormData } from '@/components/admin/AddTeacherModal';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -143,13 +144,14 @@ type ModalState =
 
 // ── Teacher Card ──────────────────────────────────────────────────────────────
 function TeacherCard({
-    teacher, index, instType, isSubAdmin,
+    teacher, index, instType, isSubAdmin, aiTokensUsed,
     onEdit, onToggleStatus, onResendInvite, onDelete,
 }: {
     teacher: Teacher;
     index: number;
     instType: InstitutionType;
     isSubAdmin: boolean;
+    aiTokensUsed?: number;
     onEdit: (t: Teacher) => void;
     onToggleStatus: (t: Teacher) => void;
     onResendInvite: (t: Teacher) => void;
@@ -248,12 +250,14 @@ function TeacherCard({
                     </div>
                 ))}
 
-                {/* AI Token usage — coming soon */}
+                {/* AI Token usage */}
                 <div className="pt-2 border-t border-border/40">
                     <div className="flex items-center gap-1.5">
                         <Sparkles size={12} className="text-muted-foreground/60" />
                         <span className="text-[12px] text-muted-foreground">AI Tokens</span>
-                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">Coming soon</span>
+                        <span className="ml-auto text-[11px] font-semibold">
+                            {aiTokensUsed === undefined ? '—' : formatTokens(aiTokensUsed)}
+                        </span>
                     </div>
                 </div>
             </div>
@@ -378,6 +382,9 @@ export default function TeachersPage() {
     const [search, setSearch] = useState('');
     const { user: authUser } = useAuthStore();
     const isSubAdmin = authUser?.role === 'SUB_ADMIN';
+    // Keyed by teacherId — one shared institution-wide fetch instead of one
+    // request per teacher card (this endpoint is already cached server-side).
+    const [aiUsageByTeacher, setAiUsageByTeacher] = useState<Record<string, number>>({});
 
     useEffect(() => {
         let cancelled = false;
@@ -406,6 +413,12 @@ export default function TeachersPage() {
             setLoading(false);
         }
         fetchData();
+        api.get('/admin/insights/ai-usage')
+            .then(res => {
+                const rows: { teacherId: string; totalTokens: number }[] = res.data.data ?? [];
+                setAiUsageByTeacher(Object.fromEntries(rows.map(r => [r.teacherId, r.totalTokens])));
+            })
+            .catch(() => {});
         return () => { cancelled = true; };
     }, []);
 
@@ -574,6 +587,7 @@ export default function TeachersPage() {
                                 index={i}
                                 instType={instType}
                                 isSubAdmin={isSubAdmin}
+                                aiTokensUsed={aiUsageByTeacher[teacher.id]}
                                 onEdit={t => setModal({ type: 'edit', teacher: t })}
                                 onToggleStatus={t => setModal({ type: 'deactivate', teacher: t })}
                                 onResendInvite={t => setModal({ type: 'resendInvite', teacher: t })}

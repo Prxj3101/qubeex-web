@@ -12,6 +12,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { BirthdayBanner, isTodayBirthday } from '@/components/shared/BirthdayBanner';
 import { SillyStringOverlay } from '@/components/shared/SillyStringOverlay';
 import { formatDisplayName } from '@/lib/displayName';
+import { formatTokens } from '@/lib/utils';
 
 // ── Mock Data ─────────────────────────────────────────────────────────────────
 
@@ -264,6 +265,10 @@ export default function TeacherOverviewPage() {
     const [overview, setOverview] = useState<OverviewData | null>(null);
     const [overviewLoading, setOverviewLoading] = useState(true);
     const [teacherDob, setTeacherDob] = useState<string | null>(null);
+    const [aiUsage, setAiUsage] = useState<{
+        totalTokens: number; institutionPoolLimit: number; institutionPoolUsed: number; poolSharePct: number;
+    } | null>(null);
+    const [aiUsageLoading, setAiUsageLoading] = useState(true);
     const fetchedRef = useRef(false);
     useEffect(() => {
         if (fetchedRef.current) return;
@@ -279,6 +284,10 @@ export default function TeacherOverviewPage() {
                 setTeacherDob(d?.dob ?? null);
             })
             .catch(() => {});
+        api.get('/teacher/ai-usage')
+            .then(res => setAiUsage(res.data.data))
+            .catch(() => setAiUsage(null))
+            .finally(() => setAiUsageLoading(false));
     }, []);
 
     const [announcementVisible, setAnnouncementVisible] = useState(true);
@@ -451,42 +460,51 @@ export default function TeacherOverviewPage() {
                     <div className="flex items-center gap-2 mb-4">
                         <Sparkles size={15} className="text-muted-foreground" />
                         <p className="text-sm font-medium">AI Token Usage</p>
-                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">This Month</span>
+                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">Last 30 Days</span>
                     </div>
                     <div className="p-4 space-y-2">
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
-                                <p className="text-xs font-semibold">Your usage this month</p>
-                                <span className="text-xs font-bold">1.2M <span className="text-muted-foreground font-normal">/ 10M pool</span></span>
+                                <p className="text-xs font-semibold">Your usage · last 30 days</p>
+                                <span className="text-xs font-bold">
+                                    {aiUsageLoading ? '…' : formatTokens(aiUsage?.totalTokens ?? 0)}
+                                    <span className="text-muted-foreground font-normal"> / {formatTokens(aiUsage?.institutionPoolLimit ?? 0)} pool</span>
+                                </span>
                             </div>
                             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: '12%', background: 'var(--primary)' }} />
+                                <div className="h-full rounded-full" style={{ width: `${Math.min(aiUsage?.poolSharePct ?? 0, 100)}%`, background: 'var(--primary)' }} />
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-1">12% of institution pool</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">{aiUsageLoading ? '…' : aiUsage?.poolSharePct ?? 0}% of institution pool</p>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
                             <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">1.2M</p>
+                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(aiUsage?.totalTokens ?? 0)}</p>
                                 <p className="text-[10px] text-muted-foreground">Used</p>
                             </div>
                             <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">8.8M</p>
+                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(Math.max(0, (aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.totalTokens ?? 0)))}</p>
                                 <p className="text-[10px] text-muted-foreground">Remaining</p>
                             </div>
                             <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(124,58,237,0.08)' }}>
-                                <p className="text-sm font-bold" style={{ color: 'var(--primary)' }}>12%</p>
+                                <p className="text-sm font-bold" style={{ color: 'var(--primary)' }}>{aiUsageLoading ? '…' : `${aiUsage?.poolSharePct ?? 0}%`}</p>
                                 <p className="text-[10px] text-muted-foreground">Pool share</p>
                             </div>
                         </div>
                         <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
                             <div className="flex items-center justify-between mb-1.5">
                                 <p className="text-[11px] font-semibold text-muted-foreground">Institution pool</p>
-                                <span className="text-[11px] font-semibold">4.4M <span className="font-normal text-muted-foreground">/ 10M used</span></span>
+                                <span className="text-[11px] font-semibold">
+                                    {aiUsageLoading ? '…' : formatTokens(aiUsage?.institutionPoolUsed ?? 0)}
+                                    <span className="font-normal text-muted-foreground"> / {formatTokens(aiUsage?.institutionPoolLimit ?? 0)} used</span>
+                                </span>
                             </div>
                             <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: '44%', background: '#DA7756' }} />
+                                <div className="h-full rounded-full" style={{
+                                    width: `${aiUsage?.institutionPoolLimit ? Math.min(100, Math.round((aiUsage.institutionPoolUsed / aiUsage.institutionPoolLimit) * 100)) : 0}%`,
+                                    background: '#DA7756',
+                                }} />
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-1">🔄 Resets 1st of every month</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">Shared across all teachers</p>
                         </div>
                     </div>
                 </div>

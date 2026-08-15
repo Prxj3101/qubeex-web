@@ -68,6 +68,7 @@ import type {
   PlanDashboardResponse,
 } from "./institution-detail.types";
 import { PRICING, ALL_FEATURES, statusCfg, PLAN_BASE, COMMITTED_DISCOUNT } from "./institution-detail.constants";
+import { formatTokens } from "@/lib/utils";
 import { DataStorageConfig } from "./DataStorageConfig";
 import {
   toIST,
@@ -1913,8 +1914,8 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                   </span>
                 </div>
                 <span className="text-xs text-muted-foreground">
-                  {(tokenUsed / 1000000).toFixed(1)}M /{" "}
-                  {(tokenBase / 1000000).toFixed(0)}M used
+                  {formatTokens(tokenUsed)} /{" "}
+                  {formatTokens(tokenBase)} used
                 </span>
               </div>
               <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
@@ -1934,7 +1935,7 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
               <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                 <span>{tokenUsedPct}% used this month</span>
                 <span>
-                  {((tokenBase - tokenUsed) / 1000000).toFixed(1)}M remaining
+                  {formatTokens(Math.max(0, tokenBase - tokenUsed))} remaining
                 </span>
               </div>
               {aiUsageDetail && aiUsageDetail.byFeature.length > 0 && (
