@@ -17,6 +17,7 @@ import { useMockInstType } from '@/context/MockInstTypeContext';
 import api from '@/lib/api';
 import { colorForSubject } from '@/lib/subjectColors';
 import { formatDisplayName } from '@/lib/displayName';
+import { getErrorMessage } from '@/lib/error';
 
 
 // ── Mock teacher data ─────────────────────────────────────────────────────────
@@ -184,9 +185,32 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
     const isActive = teacher.status === 'ACTIVE';
     const [photoExpanded, setPhotoExpanded] = useState(false);
     const [editingSection, setEditingSection] = useState<string | null>(null);
-    const [softLimit, setSoftLimit] = useState(0);
+    // The admin's *explicit* soft limit — null means "never configured".
+    // Deliberately NOT seeded from softLimitTokens, which is always non-null
+    // (it falls back to a computed even-split default) and would otherwise make
+    // every teacher look like they have a limit set.
+    const [softLimitOverride, setSoftLimitOverride] = useState<number | null>(null);
     const [softLimitInput, setSoftLimitInput] = useState('0');
     const [showSoftLimit, setShowSoftLimit] = useState(false);
+    const hasSoftLimit = softLimitOverride !== null && softLimitOverride > 0;
+
+    const [aiUsage, setAiUsage] = useState<{
+        totalTokens: number; institutionPoolLimit: number; institutionPoolUsed: number; poolSharePct: number;
+        totalRequests: number; successRequests: number; failedRequests: number;
+        softLimitTokens: number | null; softLimitOverride: number | null; isOverSoftLimit: boolean;
+    } | null>(null);
+    const [aiUsageLoading, setAiUsageLoading] = useState(true);
+
+    useEffect(() => {
+        if (!teacher?.id) return;
+        api.get(`/admin/teachers/${teacher.id}/ai-usage`)
+            .then(res => {
+                setAiUsage(res.data.data);
+                setSoftLimitOverride(res.data.data.softLimitOverride ?? null);
+            })
+            .catch(() => {})
+            .finally(() => setAiUsageLoading(false));
+    }, [teacher?.id]);
 
     const [personalDraft, setPersonalDraft] = useState({
         name: teacher.name, dob: teacher.dob ?? '', gender: teacher.gender ?? '',
@@ -438,27 +462,30 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         {/* Teacher usage */}
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
-                                <p className="text-xs font-semibold">{formatDisplayName(teacher.name, teacher.prefix)}&apos;s usage this month</p>
-                                <span className="text-xs font-bold">1.2M <span className="text-muted-foreground font-normal">/ 10M pool</span></span>
+                                <p className="text-xs font-semibold">{formatDisplayName(teacher.name, teacher.prefix)}&apos;s usage · last 30 days</p>
+                                <span className="text-xs font-bold">
+                                    {aiUsageLoading ? '…' : `${((aiUsage?.totalTokens ?? 0) / 1_000_000).toFixed(1)}M`}
+                                    <span className="text-muted-foreground font-normal"> / {((aiUsage?.institutionPoolLimit ?? 0) / 1_000_000).toFixed(0)}M pool</span>
+                                </span>
                             </div>
                             <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: '12%', background: '#7C3AED' }} />
+                                <div className="h-full rounded-full" style={{ width: `${Math.min(aiUsage?.poolSharePct ?? 0, 100)}%`, background: '#7C3AED' }} />
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-1">12% of institution pool</p>
+                            <p className="text-[11px] text-muted-foreground mt-1">{aiUsageLoading ? '…' : aiUsage?.poolSharePct ?? 0}% of institution pool</p>
                         </div>
 
                         {/* Stats */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                             <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">1.2M</p>
+                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : `${((aiUsage?.totalTokens ?? 0) / 1_000_000).toFixed(1)}M`}</p>
                                 <p className="text-[10px] text-muted-foreground">Used</p>
                             </div>
                             <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">8.8M</p>
+                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : `${Math.max(0, ((aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.totalTokens ?? 0)) / 1_000_000).toFixed(1)}M`}</p>
                                 <p className="text-[10px] text-muted-foreground">Remaining</p>
                             </div>
                             <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(124,58,237,0.08)' }}>
-                                <p className="text-sm font-bold" style={{ color: '#7C3AED' }}>12%</p>
+                                <p className="text-sm font-bold" style={{ color: '#7C3AED' }}>{aiUsageLoading ? '…' : `${aiUsage?.poolSharePct ?? 0}%`}</p>
                                 <p className="text-[10px] text-muted-foreground">Pool share</p>
                             </div>
                         </div>
@@ -467,12 +494,20 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
                             <div className="flex items-center justify-between mb-1.5">
                                 <p className="text-[11px] font-semibold text-muted-foreground">Institution pool</p>
-                                <span className="text-[11px] font-semibold">4.4M <span className="font-normal text-muted-foreground">/ 10M used</span></span>
+                                <span className="text-[11px] font-semibold">
+                                    {aiUsageLoading ? '…' : `${((aiUsage?.institutionPoolUsed ?? 0) / 1_000_000).toFixed(1)}M`}
+                                    <span className="font-normal text-muted-foreground"> / {((aiUsage?.institutionPoolLimit ?? 0) / 1_000_000).toFixed(0)}M used</span>
+                                </span>
                             </div>
                             <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full" style={{ width: '44%', background: '#DA7756' }} />
+                                <div className="h-full rounded-full" style={{
+                                    width: `${aiUsage?.institutionPoolLimit ? Math.min(100, Math.round((aiUsage.institutionPoolUsed / aiUsage.institutionPoolLimit) * 100)) : 0}%`,
+                                    background: '#DA7756',
+                                }} />
                             </div>
-                            <p className="text-[11px] text-muted-foreground mt-1">🔄 Resets 1st of every month</p>
+                            {/* No reset-timing claim here: the pool counter is a
+                                running total and there is no monthly reset job. */}
+                            <p className="text-[11px] text-muted-foreground mt-1">Shared across all teachers</p>
                         </div>
 
                         {/* Soft Limit */}
@@ -486,7 +521,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                     onClick={() => setShowSoftLimit(v => !v)}
                                     className="text-[11px] font-semibold text-primary hover:opacity-75 transition-opacity"
                                 >
-                                    {softLimit ? 'Edit' : 'Set limit'}
+                                    {hasSoftLimit ? 'Edit' : 'Set limit'}
                                 </button>
                             </div>
 
@@ -509,10 +544,16 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                     <div className="flex items-center justify-between">
                                         <p className="text-[11px] text-muted-foreground">0M — 10M (pool limit)</p>
                                         <button
-                                            onClick={() => {
-                                                setSoftLimit(Number(softLimitInput) * 1000000);
-                                                setShowSoftLimit(false);
-                                                toast.success(`Soft limit set to ${softLimitInput}M tokens`);
+                                            onClick={async () => {
+                                                const tokens = Number(softLimitInput) * 1_000_000;
+                                                try {
+                                                    await api.patch(`/admin/teachers/${teacher.id}/ai-soft-limit`, { softLimitTokens: tokens });
+                                                    setSoftLimitOverride(tokens);
+                                                    setShowSoftLimit(false);
+                                                    toast.success(`Soft limit set to ${softLimitInput}M tokens`);
+                                                } catch (err: unknown) {
+                                                    toast.error(getErrorMessage(err, 'Failed to set soft limit'));
+                                                }
                                             }}
                                             disabled={!softLimitInput || Number(softLimitInput) === 0}
                                             className="h-7 px-3 rounded-lg text-xs font-semibold text-white disabled:opacity-40"
@@ -524,25 +565,34 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                 </div>
                             )}
 
-                            {softLimit > 0 && !showSoftLimit && (
+                            {hasSoftLimit && !showSoftLimit && (
                                 <div className="space-y-1.5">
                                     <div className="flex items-center justify-between text-[11px]">
-                                        <span className="text-muted-foreground">1.2M used of {(softLimit / 1000000).toFixed(1)}M limit</span>
-                                        <span className="font-semibold" style={{ color: 1200000 > softLimit * 0.8 ? '#DA7756' : '#7C3AED' }}>
-                                            {Math.round((1200000 / softLimit) * 100)}%
+                                        <span className="text-muted-foreground">{((aiUsage?.totalTokens ?? 0) / 1_000_000).toFixed(1)}M used of {(softLimitOverride! / 1000000).toFixed(1)}M limit</span>
+                                        <span className="font-semibold" style={{ color: (aiUsage?.totalTokens ?? 0) > softLimitOverride! * 0.8 ? '#DA7756' : '#7C3AED' }}>
+                                            {Math.round(((aiUsage?.totalTokens ?? 0) / softLimitOverride!) * 100)}%
                                         </span>
                                     </div>
                                     <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
                                         <div className="h-full rounded-full transition-all"
                                             style={{
-                                                width: `${Math.min(100, Math.round((1200000 / softLimit) * 100))}%`,
-                                                background: 1200000 > softLimit * 0.8 ? '#DA7756' : '#7C3AED'
+                                                width: `${Math.min(100, Math.round(((aiUsage?.totalTokens ?? 0) / softLimitOverride!) * 100))}%`,
+                                                background: (aiUsage?.totalTokens ?? 0) > softLimitOverride! * 0.8 ? '#DA7756' : '#7C3AED'
                                             }}
                                         />
                                     </div>
                                     <div className="flex items-center gap-1.5">
                                         <button
-                                            onClick={() => { setSoftLimit(0); setSoftLimitInput(''); }}
+                                            onClick={async () => {
+                                                try {
+                                                    await api.patch(`/admin/teachers/${teacher.id}/ai-soft-limit`, { softLimitTokens: null });
+                                                    setSoftLimitOverride(null);
+                                                    setSoftLimitInput('');
+                                                    toast.success('Soft limit removed');
+                                                } catch (err: unknown) {
+                                                    toast.error(getErrorMessage(err, 'Failed to remove soft limit'));
+                                                }
+                                            }}
                                             className="text-[10px] text-red-500 hover:opacity-75 transition-opacity"
                                         >
                                             Remove limit
@@ -551,7 +601,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                 </div>
                             )}
 
-                            {softLimit === 0 && !showSoftLimit && (
+                            {!hasSoftLimit && !showSoftLimit && (
                                 <p className="text-[11px] text-muted-foreground">No limit set — uses from shared pool freely</p>
                             )}
                         </div>

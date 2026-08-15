@@ -1139,6 +1139,19 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
   const [churning, setChurning] = useState(false);
   const [trialUsage, setTrialUsage] = useState<TrialUsage | null>(null);
   const [loadingTrialUsage, setLoadingTrialUsage] = useState(false);
+  const [aiUsageDetail, setAiUsageDetail] = useState<{
+    totalRequests: number;
+    successRequests: number;
+    failedRequests: number;
+    totalTokens: number;
+    byFeature: {
+      feature: string;
+      requests: number;
+      successRequests: number;
+      failedRequests: number;
+      totalTokens: number;
+    }[];
+  } | null>(null);
 
   const buildStrictAddonsPayload = useCallback(() => {
     const extraStorage =
@@ -1223,6 +1236,15 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
   useEffect(() => {
     if (plan === "TRIAL") void fetchTrialUsage();
   }, [plan, fetchTrialUsage]);
+  useEffect(() => {
+    if (!inst.id) return;
+    api
+      .get(`/superadmin/institutions/${inst.id}/ai-usage`, {
+        params: { range: "1M" },
+      })
+      .then((res) => setAiUsageDetail(res.data.data))
+      .catch(() => {});
+  }, [inst.id]);
   useEffect(() => {
     if (!planActive) {
       setFeatures(getDefaultFeatures(plan));
@@ -1450,7 +1472,7 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
       typeof storagePricePerGb === "number" ? storagePricePerGb : 0;
     const storageAddTotal = storageAddGb * storagePriceNum;
     const tokenBase = dashboardData?.usageMeters?.aiTokens?.total ?? (PLAN_BASE[plan as "BASIC" | "PRO"].aiTokens * 1_000_000);
-    const tokenUsed = 0;
+    const tokenUsed = dashboardData?.usageMeters?.aiTokens?.used ?? 0;
     const tokenUsedPct = Math.min(
       100,
       Math.round((tokenUsed / tokenBase) * 100),
@@ -1915,6 +1937,29 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                   {((tokenBase - tokenUsed) / 1000000).toFixed(1)}M remaining
                 </span>
               </div>
+              {aiUsageDetail && aiUsageDetail.byFeature.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/40 space-y-1.5">
+                  <p className="text-[11px] font-semibold text-muted-foreground">
+                    AI Usage by Feature (last 30 days)
+                  </p>
+                  {aiUsageDetail.byFeature.map((f) => (
+                    <div
+                      key={f.feature}
+                      className="flex items-center justify-between text-xs"
+                    >
+                      <span className="text-muted-foreground">
+                        {f.feature.replace(/_/g, " ")}
+                      </span>
+                      <span className="font-semibold">
+                        {f.requests} req · {f.successRequests} ok
+                        {f.failedRequests > 0
+                          ? ` · ${f.failedRequests} failed`
+                          : ""}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="bg-muted/40 rounded-xl p-4 space-y-3">
                 <p className="text-xs font-semibold">Add AI Tokens</p>
                 <div className="flex items-center gap-3">
