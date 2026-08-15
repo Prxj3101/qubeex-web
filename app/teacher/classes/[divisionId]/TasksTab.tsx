@@ -8,7 +8,7 @@ import {
     Loader2, BookOpen, Layers, Check, X as XIcon,
     Clock, Link2, Play, Eye, ChevronDown, ChevronUp,
     FlaskConical, Brain, Users, Copy, CheckCircle2, AlertCircle,
-    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil, ArrowDownToLine, Share2, ShieldAlert, Save, ZoomIn, ZoomOut, Square,
+    Shuffle, ArrowUp, ArrowDown, ArrowRight, Search, BookMarked, ArrowLeft, PackageOpen, ClipboardList, ClipboardCheck, BarChart2, Maximize2, Minimize2, GripVertical, Pencil, ArrowDownToLine, Share2, ShieldAlert, Save, ZoomIn, ZoomOut, Square, Trophy, TrendingDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -436,14 +436,14 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     const fetchTests = useCallback(async () => {
         setTLoading(true);
         try {
-            const res = await api.get(`/teacher/tasks/tests?divisionId=${divisionId}`);
+            const res = await api.get(`/teacher/tasks/tests?divisionId=${divisionId}${subjectId ? `&subjectId=${subjectId}` : ''}`);
             setTests(res.data.data);
         } catch {
             setTests([]);
         } finally {
             setTLoading(false);
         }
-    }, [divisionId]);
+    }, [divisionId, subjectId]);
 
     const fetchAssignments = useCallback(async () => {
         setALoading(true);
@@ -1941,9 +1941,11 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
             </div>
 
             {/* Test Results Panel */}
-            {resultsTestId && (
-                <TestResultsPanel testId={resultsTestId} onClose={() => setResultsTestId(null)} />
-            )}
+            <AnimatePresence>
+                {resultsTestId && (
+                    <TestResultsPanel testId={resultsTestId} onClose={() => setResultsTestId(null)} />
+                )}
+            </AnimatePresence>
 
             {/* Assignment Submissions Panel */}
             {submissionsAssignmentId && (
@@ -2900,6 +2902,7 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
 // ── Test Results Panel ────────────────────────────────────────────────────────
 
 interface TestAttemptResult {
+    id: string;
     studentName: string;
     rollNo: string;
     attemptNumber: number;
@@ -2907,12 +2910,20 @@ interface TestAttemptResult {
     maxScore: number;
     tabChangeCount: number;
     malpracticeFlag: boolean;
+    startTime: string | null;
+    endTime: string | null;
     student: { id: string } | null;
 }
 
+function fmtDateTime(iso: string | null): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
 interface TestResultData {
-    test: { title: string; subject: { name: string }; division: { name: string }; totalMarks: number };
+    test: { title: string; subject: { name: string }; division: { name: string }; totalMarks: number; status: string; validUntil: string | null; maxAttempts: number };
     attempts: TestAttemptResult[];
+    roster: { id: string; name: string; rollNo: string }[];
 }
 
 function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => void }) {
@@ -2925,6 +2936,63 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
             .catch(() => toast.error('Failed to load results'))
             .finally(() => setLoading(false));
     }, [testId]);
+
+    // Every roster student, grouped with ALL of their attempts (not just one) —
+    // a student who took a test twice gets two adjacent rows, one per attempt,
+    // so the teacher can see both instead of only whichever attempt happened
+    // to be picked. Students with zero attempts still get one row (attempt:
+    // null) so the teacher can see who hasn't given the test at all. Attempts
+    // from students no longer on the roster (e.g. removed after taking the
+    // test) are appended at the end as their own group, rather than dropped.
+    type ResultRow = { student: { id: string; name: string; rollNo: string }; attempt: TestAttemptResult | null; isFirstOfGroup: boolean; isLastOfGroup: boolean };
+    const studentGroups: { student: { id: string; name: string; rollNo: string }; attempts: TestAttemptResult[] }[] = data ? (() => {
+        const rosterIds = new Set(data.roster.map(s => s.id));
+        const groups = data.roster.map(s => ({
+            student: s,
+            attempts: data.attempts.filter(a => a.student?.id === s.id).sort((a, b) => a.attemptNumber - b.attemptNumber),
+        }));
+        const extraByKey = new Map<string, TestAttemptResult[]>();
+        data.attempts.filter(a => !rosterIds.has(a.student?.id ?? '')).forEach(a => {
+            const key = a.student?.id || a.studentName;
+            if (!extraByKey.has(key)) extraByKey.set(key, []);
+            extraByKey.get(key)!.push(a);
+        });
+        extraByKey.forEach((list, key) => {
+            const sorted = list.slice().sort((a, b) => a.attemptNumber - b.attemptNumber);
+            groups.push({ student: { id: sorted[0].student?.id ?? key, name: sorted[0].studentName, rollNo: sorted[0].rollNo }, attempts: sorted });
+        });
+        return groups;
+    })() : [];
+
+    const rows: ResultRow[] = studentGroups.flatMap(g =>
+        g.attempts.length > 0
+            ? g.attempts.map((a, i) => ({ student: g.student, attempt: a, isFirstOfGroup: i === 0, isLastOfGroup: i === g.attempts.length - 1 }))
+            : [{ student: g.student, attempt: null, isFirstOfGroup: true, isLastOfGroup: true }]
+    );
+    // One row per student using their best attempt — used for the
+    // not-submitted count and the highest/lowest scorer cards, so a student
+    // with 2 attempts doesn't get double-counted or show up on both ends.
+    const bestRows: ResultRow[] = studentGroups.map(g => ({
+        student: g.student,
+        attempt: g.attempts.length > 0 ? g.attempts.reduce((best, a) => (a.totalScore > best.totalScore ? a : best)) : null,
+        isFirstOfGroup: true,
+        isLastOfGroup: true,
+    }));
+    const notSubmittedCount = bestRows.filter(r => !r.attempt).length;
+
+    // Once the test window has actually closed (either explicitly marked
+    // COMPLETED, or its validUntil has passed), a student who never
+    // submitted has definitively missed it — worth calling out in red with
+    // a hard 0, instead of the more neutral "still open, might submit yet"
+    // amber/— treatment shown while the test is still live.
+    const isTestCompleted = !!data && (data.test.status === 'COMPLETED' || (!!data.test.validUntil && new Date(data.test.validUntil) < new Date()));
+
+    // Highest/lowest scorer, by percentage — only among students who actually
+    // submitted (best attempt each). Ties keep the first match (roster order / rollNo asc).
+    const scoredRows = bestRows.filter((r): r is ResultRow & { attempt: TestAttemptResult } => !!r.attempt);
+    const pct = (a: TestAttemptResult) => (a.maxScore > 0 ? (a.totalScore / a.maxScore) * 100 : 0);
+    const highestRow = scoredRows.length > 0 ? scoredRows.reduce((best, r) => (pct(r.attempt) > pct(best.attempt) ? r : best)) : null;
+    const lowestRow = scoredRows.length > 0 ? scoredRows.reduce((worst, r) => (pct(r.attempt) < pct(worst.attempt) ? r : worst)) : null;
 
     const handleDownload = () => {
         const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -2945,18 +3013,77 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
             .catch(() => toast.error('Download failed'));
     };
 
+    const [downloadingAttemptId, setDownloadingAttemptId] = useState<string | null>(null);
+    const handleDownloadAttemptPdf = async (attemptId: string, studentName: string) => {
+        setDownloadingAttemptId(attemptId);
+        try {
+            const res = await api.get(`/teacher/tasks/attempts/${attemptId}/pdf`, { responseType: 'blob' });
+            const blob = res.data as Blob;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Result_${studentName}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            toast.error('Download failed');
+        } finally {
+            setDownloadingAttemptId(null);
+        }
+    };
+
     return (
-        <div className="absolute inset-0 z-50 flex">
+        <motion.div
+            className="absolute inset-0 z-50 flex"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+        >
             <div className="absolute inset-0 bg-black/40" onClick={onClose} />
-            <div className="relative ml-auto w-full max-w-3xl h-full bg-card border-l border-border flex flex-col shadow-2xl">
+            <motion.div
+                className="relative ml-auto w-full max-w-6xl h-full bg-card border-l border-border flex flex-col shadow-2xl"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0 bg-card">
-                    <div>
-                        <h2 className="font-semibold text-sm">{data?.test.title ?? 'Results'}</h2>
+                <div className="flex items-center gap-4 px-6 py-3 border-b border-border shrink-0 bg-card">
+                    <div className="shrink-0">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
+                            <BarChart2 size={11} /> Results
+                        </p>
+                        <h2 className="font-semibold text-sm">{data?.test.title ?? '—'}</h2>
                         {data && <p className="text-xs text-muted-foreground">{data.test.subject.name} · {data.test.division.name}</p>}
                     </div>
-                    <div className="flex items-center gap-2">
+
+                    {data && rows.length > 0 && (
+                        <div className="flex items-center gap-3 flex-1 justify-center">
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                                <span className="text-base font-bold leading-none">{data.attempts.length}</span>
+                                <span className="text-xs text-muted-foreground">Submitted</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                                <span className={`text-base font-bold leading-none ${isTestCompleted ? 'text-red-500' : 'text-amber-500'}`}>{notSubmittedCount}</span>
+                                <span className="text-xs text-muted-foreground">Not Submitted</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                                <span className="text-base font-bold leading-none">
+                                    {data.attempts.length > 0 ? Math.round(data.attempts.reduce((s, a) => s + (a.maxScore > 0 ? (a.totalScore / a.maxScore) * 100 : 0), 0) / data.attempts.length) : 0}%
+                                </span>
+                                <span className="text-xs text-muted-foreground">Avg Score</span>
+                            </div>
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                                <span className="text-base font-bold leading-none text-red-500">{data.attempts.filter(a => a.malpracticeFlag).length}</span>
+                                <span className="text-xs text-muted-foreground">Malpractice</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
                         {data && data.attempts.length > 0 && (
+                            /* CSV export intentionally stays submitted-only — download button hidden only if nobody has submitted yet */
                             <button onClick={handleDownload}
                                 className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg text-white hover:opacity-90 transition-all"
                                 style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
@@ -2970,66 +3097,136 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
                 </div>
 
                 {/* Body */}
-                <div className="flex-1 overflow-y-auto p-6 bg-background">
+                <div className="flex-1 flex flex-col overflow-hidden pl-3 pr-1.5 pb-4 pt-2.5 bg-background">
                     {loading ? (
                         <div className="flex items-center justify-center h-full"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
-                    ) : !data || data.attempts.length === 0 ? (
+                    ) : !data || rows.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
                             <BarChart2 size={36} className="text-muted-foreground/30" />
-                            <p className="text-sm text-muted-foreground">No submissions yet.</p>
+                            <p className="text-sm text-muted-foreground">No students in this class yet.</p>
                         </div>
                     ) : (
-                        <>
-                            {/* Summary */}
-                            <div className="flex gap-3 mb-5">
-                                <div className="flex-1 rounded-xl border border-border bg-card p-3 text-center">
-                                    <div className="text-lg font-bold">{data.attempts.length}</div>
-                                    <div className="text-[11px] text-muted-foreground">Submitted</div>
-                                </div>
-                                <div className="flex-1 rounded-xl border border-border bg-card p-3 text-center">
-                                    <div className="text-lg font-bold">
-                                        {data.attempts.length > 0 ? Math.round(data.attempts.reduce((s, a) => s + (a.maxScore > 0 ? (a.totalScore / a.maxScore) * 100 : 0), 0) / data.attempts.length) : 0}%
+                        <div className="flex flex-col h-full min-h-0">
+                            {/* Highest / Lowest scorer */}
+                            {highestRow && lowestRow && (
+                                <div className="grid grid-cols-2 gap-3 mb-2.5 shrink-0">
+                                    <div className="flex items-center gap-3 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
+                                        <div className="shrink-0 w-9 h-9 rounded-full bg-emerald-500/15 flex items-center justify-center">
+                                            <Trophy size={16} className="text-emerald-600 dark:text-emerald-400" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Highest Score</p>
+                                            <p className="text-sm font-semibold truncate">{highestRow.student.name}</p>
+                                            <p className="text-xs text-muted-foreground">Roll {highestRow.student.rollNo}</p>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            <p className="text-2xl font-bold leading-none text-emerald-500 dark:text-emerald-300">{Math.round(pct(highestRow.attempt))}%</p>
+                                            <p className="text-xs font-semibold text-black dark:text-white mt-1">{highestRow.attempt.totalScore}/{highestRow.attempt.maxScore}</p>
+                                        </div>
                                     </div>
-                                    <div className="text-[11px] text-muted-foreground">Avg Score</div>
-                                </div>
-                                <div className="flex-1 rounded-xl border border-border bg-card p-3 text-center">
-                                    <div className="text-lg font-bold text-red-500">
-                                        {data.attempts.filter(a => a.malpracticeFlag).length}
+                                    <div className="flex items-center gap-3 rounded-xl border border-red-500/20 bg-red-500/5 px-4 py-3">
+                                        <div className="shrink-0 w-9 h-9 rounded-full bg-red-500/15 flex items-center justify-center">
+                                            <TrendingDown size={16} className="text-red-500" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wider">Lowest Score</p>
+                                            <p className="text-sm font-semibold truncate">{lowestRow.student.name}</p>
+                                            <p className="text-xs text-muted-foreground">Roll {lowestRow.student.rollNo}</p>
+                                        </div>
+                                        <div className="shrink-0 text-right">
+                                            <p className="text-2xl font-bold leading-none text-red-400 dark:text-red-300">{Math.round(pct(lowestRow.attempt))}%</p>
+                                            <p className="text-xs font-semibold text-black dark:text-white mt-1">{lowestRow.attempt.totalScore}/{lowestRow.attempt.maxScore}</p>
+                                        </div>
                                     </div>
-                                    <div className="text-[11px] text-muted-foreground">Malpractice</div>
                                 </div>
-                            </div>
+                            )}
 
                             {/* Table */}
-                            <div className="overflow-x-auto rounded-xl border border-border">
-                                <table className="w-full text-xs">
-                                    <thead>
-                                        <tr className="border-b border-border bg-muted/40">
-                                            <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground">Roll No</th>
-                                            <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground">Name</th>
-                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground">Score</th>
-                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground">%</th>
-                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground">Tab Changes</th>
-                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground">Malpractice</th>
+                            <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-card">
+                                <table className="w-full text-xs border-separate border-spacing-0">
+                                    <thead className="sticky top-0 z-10">
+                                        <tr className="bg-muted shadow-[inset_0_-1px_0_0_var(--border)]">
+                                            <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Roll No</th>
+                                            <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Name</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Status</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Attempt</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Given At</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Submitted At</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Score</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">%</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Tab Changes</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Malpractice</th>
+                                            <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Result</th>
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {data.attempts.map((a, i) => {
-                                            const pct = a.maxScore > 0 ? Math.round((a.totalScore / a.maxScore) * 100) : 0;
+                                        {rows.map((r, i) => {
+                                            const a = r.attempt;
+                                            const pct = a && a.maxScore > 0 ? Math.round((a.totalScore / a.maxScore) * 100) : 0;
+                                            // No border between a student's own attempt rows — only below the
+                                            // last attempt in the group, so consecutive attempts read as one
+                                            // visually grouped block instead of separate students.
+                                            const rowBorder = r.isLastOfGroup ? 'border-b border-black/10 dark:border-white/10' : '';
                                             return (
-                                                <tr key={i} className={`border-b border-border/60 ${a.malpracticeFlag ? 'bg-red-500/5' : 'bg-card'}`}>
-                                                    <td className="px-4 py-2.5 font-mono text-muted-foreground">{a.rollNo}</td>
-                                                    <td className="px-4 py-2.5 font-medium">{a.studentName}</td>
-                                                    <td className="px-4 py-2.5 text-center">{a.totalScore}/{a.maxScore}</td>
-                                                    <td className="px-4 py-2.5 text-center">
-                                                        <span className={`font-semibold ${pct >= 60 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{pct}%</span>
+                                                <tr key={i} className="bg-card">
+                                                    <td className={`px-4 py-2.5 font-mono text-muted-foreground ${rowBorder}`}>{r.isFirstOfGroup ? r.student.rollNo : ''}</td>
+                                                    <td className={`px-4 py-2.5 font-medium ${rowBorder} ${!a ? 'text-muted-foreground' : ''}`}>{r.student.name}</td>
+                                                    <td className={`px-4 py-2.5 text-center ${rowBorder}`}>
+                                                        {a ? (
+                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">
+                                                                Submitted
+                                                            </span>
+                                                        ) : isTestCompleted ? (
+                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full">
+                                                                Not Submitted
+                                                            </span>
+                                                        ) : (
+                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
+                                                                Not Submitted
+                                                            </span>
+                                                        )}
                                                     </td>
-                                                    <td className="px-4 py-2.5 text-center text-muted-foreground">{a.tabChangeCount}</td>
-                                                    <td className="px-4 py-2.5 text-center">
-                                                        {a.malpracticeFlag ? (
+                                                    <td className={`px-4 py-2.5 text-center text-muted-foreground whitespace-nowrap ${rowBorder}`}>
+                                                        {a ? `${a.attemptNumber}/${data?.test.maxAttempts ?? a.attemptNumber}` : <span className="text-muted-foreground/50">—</span>}
+                                                    </td>
+                                                    <td className={`px-4 py-2.5 text-center text-muted-foreground whitespace-nowrap ${rowBorder}`}>{a ? fmtDateTime(a.startTime) : <span className="text-muted-foreground/50">—</span>}</td>
+                                                    <td className={`px-4 py-2.5 text-center text-muted-foreground whitespace-nowrap ${rowBorder}`}>{a ? fmtDateTime(a.endTime) : <span className="text-muted-foreground/50">—</span>}</td>
+                                                    <td className={`px-4 py-2.5 text-center ${rowBorder}`}>
+                                                        {a ? `${a.totalScore}/${a.maxScore}` : isTestCompleted ? (
+                                                            <span className="text-red-500">{`0/${data?.test.totalMarks ?? 0}`}</span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground/50">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className={`px-4 py-2.5 text-center ${rowBorder}`}>
+                                                        {a ? (
+                                                            <span className={`font-semibold ${pct >= 60 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>{pct}%</span>
+                                                        ) : isTestCompleted ? (
+                                                            <span className="font-semibold text-red-500">0%</span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground/50">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className={`px-4 py-2.5 text-center text-muted-foreground ${rowBorder}`}>{a ? a.tabChangeCount : <span className="text-muted-foreground/50">—</span>}</td>
+                                                    <td className={`px-4 py-2.5 text-center ${rowBorder}`}>
+                                                        {a?.malpracticeFlag ? (
                                                             <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-full">
                                                                 <ShieldAlert size={10} /> Yes
                                                             </span>
+                                                        ) : (
+                                                            <span className="text-muted-foreground/50">—</span>
+                                                        )}
+                                                    </td>
+                                                    <td className={`px-4 py-2.5 text-center ${rowBorder}`}>
+                                                        {a ? (
+                                                            <button onClick={() => handleDownloadAttemptPdf(a.id, r.student.name)}
+                                                                disabled={downloadingAttemptId === a.id}
+                                                                className="inline-flex items-center justify-center w-6 h-6 rounded-lg hover:bg-muted transition-all disabled:opacity-50"
+                                                                title="Download result PDF">
+                                                                {downloadingAttemptId === a.id
+                                                                    ? <Loader2 size={12} className="animate-spin text-muted-foreground" />
+                                                                    : <Download size={12} className="text-muted-foreground" />}
+                                                            </button>
                                                         ) : (
                                                             <span className="text-muted-foreground/50">—</span>
                                                         )}
@@ -3040,11 +3237,11 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
                                     </tbody>
                                 </table>
                             </div>
-                        </>
+                        </div>
                     )}
                 </div>
-            </div>
-        </div>
+            </motion.div>
+        </motion.div>
     );
 }
 

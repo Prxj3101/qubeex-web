@@ -125,7 +125,7 @@ export default function StudentOverview() {
         { label: 'Attendance',    value: data?.attendance.pct != null ? `${data.attendance.pct}%` : '—', icon: '📊', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-950/50', href: '/student/attendance' },
         { label: data?.nextEvent?.label?.slice(0, 16) || 'Next Event', value: nextExamValue, icon: '⏰', color: 'text-red-600 dark:text-red-400', bg: 'bg-red-100 dark:bg-red-950/50', href: '/student/feed' },
         { label: 'Pending Tasks', value: String(data?.pendingTasks ?? 0),                                icon: '📝', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-100 dark:bg-violet-950/50', href: '/student/class' },
-        { label: 'Overall Score', value: data?.marks.pct != null ? `${data.marks.pct}%` : '—',          icon: '⭐', color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-100 dark:bg-amber-950/50',  href: '/student/marksheet' },
+        { label: 'Overall Score', value: data?.marks.pct != null ? `${data.marks.pct}%` : '—',          icon: '⭐', color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-100 dark:bg-amber-950/50',  href: '/student/reportcard' },
     ];
 
     // Podium layout: [2nd | 1st | 3rd] (silver | gold | bronze)
@@ -273,7 +273,7 @@ export default function StudentOverview() {
                             <span className="text-lg">🏆</span>
                             <p className="text-sm font-semibold">Class Leaderboard</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">{divisionLabel || 'Top 5'}</p>
+                        <p className="text-xs text-muted-foreground">{divisionLabel ? `${divisionLabel} · Offline` : 'Top 5'}</p>
                     </div>
 
                     {lb.length === 0 ? (

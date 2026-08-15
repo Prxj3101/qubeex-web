@@ -1500,7 +1500,8 @@ export default function DivisionDetailPage() {
                                             <BookOpen size={12} /> Subject Teachers
                                         </p>
                                     </div>
-                                    <div className="px-4 py-2 divide-y divide-border/20">
+                                    <div className="px-4 py-2 divide-y divide-border/20 overflow-y-auto"
+                                        style={{ maxHeight: 7 * 37, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
                                         {division.divisionSubjects.length === 0 && (
                                             <p className="text-xs text-muted-foreground/60 italic py-3 text-center">No subjects selected</p>
                                         )}

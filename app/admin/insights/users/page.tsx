@@ -315,7 +315,7 @@ export default function UsersInsightPage() {
                                                         {rc.label}
                                                     </span>
                                                 </td>
-                                                <td className="px-3 py-3 text-[13px] text-muted-foreground whitespace-nowrap">{u.email}</td>
+                                                <td className="px-3 py-3 text-[13px] text-muted-foreground whitespace-nowrap">{u.email || '—'}</td>
                                                 <td className="px-3 py-3 text-muted-foreground whitespace-nowrap">{u.phone ?? '—'}</td>
                                                 <td className="px-3 py-3 whitespace-nowrap">
                                                     <span className="text-[12px] text-muted-foreground">{u.addedBy ?? '—'}</span>

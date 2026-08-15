@@ -17,10 +17,13 @@ interface Classmate {
     rank: number | null; attendancePct: number | null;
     marksPct: number | null; offlinePct: number | null; onlinePct: number | null; isMe: boolean;
 }
+interface ScoreCol { name: string; scored: number | null; max: number; isAbsent: boolean }
 interface SubjectScore {
     subjectId: string; subjectName: string; subjectCode: string; subjectColor: string;
-    columns: { name: string; scored: number | null; max: number; isAbsent: boolean }[];
+    columns: ScoreCol[];
     totalScored: number; totalMax: number; pct: number | null;
+    offlineColumns: ScoreCol[]; offlineTotalScored: number; offlineTotalMax: number; offlinePct: number | null;
+    onlineColumns: ScoreCol[]; onlineTotalScored: number; onlineTotalMax: number; onlinePct: number | null;
 }
 interface LbEntry { name: string; avatarUrl?: string | null; combinedPct: number; offlinePct: number | null; onlinePct: number | null; isMe: boolean }
 interface FeedFile {
@@ -376,7 +379,12 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
     const score = myScores.find(s => s.subjectId === selectedId);
     const leaderboard = subjectLeaderboards[selectedId] ?? [];
     const materials = subjectMaterials[selectedId] ?? [];
-    const chartData = (score?.columns ?? [])
+    // Trend chart + "My Results" list follow the same offline/online/combined
+    // toggle the leaderboard uses, instead of always showing the merged list.
+    const modeColumns: ScoreCol[] = score
+        ? (lbMode === 'offline' ? score.offlineColumns : lbMode === 'online' ? score.onlineColumns : score.columns)
+        : [];
+    const chartData = modeColumns
         .filter(c => !c.isAbsent && c.scored != null)
         .map(c => ({ name: c.name, score: Math.round(((c.scored ?? 0) / c.max) * 100) }));
 
@@ -504,8 +512,8 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                             {/* Left — Performance Trend */}
                                             <div className="min-h-[260px] lg:min-h-0 flex-1 p-4 border-b lg:border-b-0 lg:border-r border-border/40 relative">
                                                 <p className="text-[12px] font-bold text-foreground absolute" style={{ top: 36, left: 16 }}>Performance Trend</p>
-                                                {chartData.length < 2
-                                                    ? <div className="h-full flex items-center justify-center"><p className="text-[11px] text-muted-foreground">Need at least 2 exams for trend chart</p></div>
+                                                {chartData.length === 0
+                                                    ? <div className="h-full flex items-center justify-center"><p className="text-[11px] text-muted-foreground">No data</p></div>
                                                     : <div className="h-full">
                                                         <ResponsiveContainer width="100%" height="100%">
                                                             <AreaChart data={chartData} margin={{ top: 55, right: 12, left: -20, bottom: 0 }}>
@@ -556,9 +564,11 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                             <div className="w-full lg:w-[220px] shrink-0 flex flex-col px-3" style={{ paddingTop: 36, paddingBottom: 16 }}>
                                                 <p className="text-[12px] font-bold text-foreground mb-3 shrink-0">My Results</p>
                                                 <div className="overflow-y-auto space-y-2.5 border-b border-border/30" style={{ height: 308, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                                                    {!score || score.columns.length === 0
-                                                        ? <p className="text-[10px] text-muted-foreground text-center pt-8">No marks published yet</p>
-                                                        : score.columns.map((c, i) => {
+                                                    {modeColumns.length === 0
+                                                        ? <p className="text-[10px] text-muted-foreground text-center pt-8">
+                                                            {lbMode === 'online' ? 'No completed tests yet' : lbMode === 'offline' ? 'No offline marks yet' : 'No marks published yet'}
+                                                        </p>
+                                                        : modeColumns.map((c, i) => {
                                                             const pct = !c.isAbsent && c.scored != null ? Math.round((c.scored / c.max) * 100) : null;
                                                             const barColor = pct == null ? '#64748B' : pct >= 75 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
                                                             return (

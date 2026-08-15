@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { CheckCircle2, XCircle, MinusCircle, ShieldAlert, Timer, Layers, Calendar, ArrowLeft, Award } from 'lucide-react';
+import { CheckCircle2, XCircle, MinusCircle, ShieldAlert, Timer, Layers, Calendar, ArrowLeft, Award, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { toast } from 'sonner';
 import api from '@/lib/api';
 
 // Same thresholds/colors as the marksheet's scoreColor() (student report card),
@@ -36,17 +37,39 @@ interface AttemptResult {
     attemptNumber?: number;
     startTime?: string;
     endTime?: string | null;
-    test: { title: string; totalMarks: number; durationMinutes?: number; maxAttempts?: number };
+    student: { name: string; rollNo: string; studentId: string; className: string };
+    test: { title: string; totalMarks: number; durationMinutes?: number; maxAttempts?: number; subjectName: string };
+    attempts: { id: string; attemptNumber: number; totalScore: number; maxScore: number; percentage: number }[];
     answers: AttemptAnswer[];
 }
 
 export default function TestResultPage() {
     const router = useRouter();
     const params = useParams();
+    const testId = params.testId as string;
     const attemptId = params.attemptId as string;
 
     const [loading, setLoading] = useState(true);
     const [result, setResult] = useState<AttemptResult | null>(null);
+    const [downloading, setDownloading] = useState(false);
+
+    const handleDownloadPdf = async () => {
+        setDownloading(true);
+        try {
+            const res = await api.get(`/student/tasks/attempts/${attemptId}/pdf`, { responseType: 'blob' });
+            const blob = res.data as Blob;
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Result_${result?.test.title ?? 'test'}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            toast.error('Download failed');
+        } finally {
+            setDownloading(false);
+        }
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -72,6 +95,14 @@ export default function TestResultPage() {
     const unansweredCount = result.answers.filter((a) => !a.studentAnswer).length;
     const incorrectCount = result.answers.length - correctCount - unansweredCount;
 
+    // When a test allows multiple attempts, this same page is reachable once per
+    // attempt (attempt 1's result, attempt 2's result, ...) — these let the
+    // student flip between them instead of only ever seeing the one they landed on.
+    const attemptIndex = result.attempts.findIndex((a) => a.id === attemptId);
+    const prevAttempt = attemptIndex > 0 ? result.attempts[attemptIndex - 1] : null;
+    const nextAttempt = attemptIndex >= 0 && attemptIndex < result.attempts.length - 1 ? result.attempts[attemptIndex + 1] : null;
+    const goToAttempt = (id: string) => router.replace(`/student/tasks/tests/${testId}/result/${id}`);
+
     return (
         <div className="max-w-2xl mx-auto px-2 pb-10">
             <div className="sticky top-0 z-10 bg-background pt-2 pb-1">
@@ -80,6 +111,46 @@ export default function TestResultPage() {
                         <ArrowLeft size={15} className="text-foreground" />
                     </button>
                     <p className="text-xl font-bold flex items-center gap-2"><Award size={21} /> Results</p>
+                </div>
+                <div className="flex items-center justify-between flex-wrap gap-1.5 mb-2">
+                    <div className="flex items-center flex-wrap gap-1.5">
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-card border border-border/50 px-2 py-1 rounded-lg">
+                            Name : {result.student.name}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-card border border-border/50 px-2 py-1 rounded-lg">
+                            Roll No. {result.student.rollNo.padStart(2, '0')}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-card border border-border/50 px-2 py-1 rounded-lg">
+                            {result.student.className}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-muted-foreground bg-card border border-border/50 px-2 py-1 rounded-lg">
+                            {result.test.subjectName}
+                        </span>
+                        <span className="inline-flex items-center gap-1 text-[11px] font-mono font-semibold bg-card border border-border/50 px-2 py-1 rounded-lg" style={{ color: '#DA7756' }}>
+                            {result.student.studentId}
+                        </span>
+                    </div>
+                    {result.attempts.length > 1 && (
+                        <span className="inline-flex items-center gap-1 text-sm font-semibold text-foreground shrink-0">
+                            <button
+                                onClick={() => prevAttempt && goToAttempt(prevAttempt.id)}
+                                disabled={!prevAttempt}
+                                className="p-1 disabled:opacity-30 hover:opacity-70 enabled:cursor-pointer"
+                                aria-label="Previous attempt"
+                            >
+                                <ChevronLeft size={18} />
+                            </button>
+                            <span className="px-1">{attemptIndex + 1}/{result.attempts.length}</span>
+                            <button
+                                onClick={() => nextAttempt && goToAttempt(nextAttempt.id)}
+                                disabled={!nextAttempt}
+                                className="p-1 disabled:opacity-30 hover:opacity-70 enabled:cursor-pointer"
+                                aria-label="Next attempt"
+                            >
+                                <ChevronRight size={18} />
+                            </button>
+                        </span>
+                    )}
                 </div>
                 <div className="relative rounded-2xl border border-border bg-card p-4">
                     <div className="absolute top-3 right-4 flex flex-col items-end gap-1">
@@ -98,10 +169,17 @@ export default function TestResultPage() {
                                 Attempt {result.attemptNumber}{result.test.maxAttempts != null ? `/${result.test.maxAttempts}` : ''}
                             </span>
                         )}
-                        {result.endTime && (
+                        {result.startTime && (
                             <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-lg whitespace-nowrap" style={{ background: 'rgba(192,96,64,0.12)' }}>
                                 <Calendar size={10} />
                                 <span className="font-semibold text-foreground/70">Given at :</span>
+                                {new Date(result.startTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, {new Date(result.startTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                            </span>
+                        )}
+                        {result.endTime && (
+                            <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-lg whitespace-nowrap" style={{ background: 'rgba(192,96,64,0.12)' }}>
+                                <Calendar size={10} />
+                                <span className="font-semibold text-foreground/70">Submitted at :</span>
                                 {new Date(result.endTime).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}, {new Date(result.endTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
                             </span>
                         )}
@@ -170,10 +248,17 @@ export default function TestResultPage() {
                 ))}
             </div>
 
-            <button onClick={() => router.replace('/student/tasks')}
-                className="w-full mt-5 py-2.5 rounded-xl text-sm font-semibold border border-border">
-                Back to Tests
-            </button>
+            <div className="flex items-center gap-2 mt-5">
+                <button onClick={() => router.replace('/student/tasks')}
+                    className="w-1/2 py-2.5 rounded-xl text-sm font-semibold border border-border">
+                    Back to Tests
+                </button>
+                <button onClick={handleDownloadPdf} disabled={downloading}
+                    className="w-1/2 py-2.5 rounded-xl text-sm font-semibold text-white flex items-center justify-center gap-1.5 disabled:opacity-60"
+                    style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
+                    <Download size={14} /> {downloading ? 'Downloading…' : 'Download Result PDF'}
+                </button>
+            </div>
         </div>
     );
 }

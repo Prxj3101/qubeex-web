@@ -20,12 +20,16 @@ type MarksMode = 'offline' | 'online' | 'combined';
 export interface ProfileViewMarksheetSubject {
     id: string; name: string; code: string; color: string | null;
     total: { scored: number; max: number }; pct: number | null; grade: string;
+    onlineTotal?: { scored: number; max: number }; onlinePct?: number | null;
 }
 
 export interface ProfileViewMarksheet {
     subjects: ProfileViewMarksheetSubject[];
     grandPct: number | null;
     classRank: number | null;
+    offlineClassRank?: number | null;
+    onlineClassRank?: number | null;
+    combinedClassRank?: number | null;
     classSize: number | null;
 }
 
@@ -143,15 +147,41 @@ export default function StudentProfileView({
 
     const chartData = (marksheetData?.subjects ?? []).map((s) => {
         const offline = s.pct ?? 0;
-        const online = 0;
-        const combinedPct = online > 0 ? Math.round((offline + online) / 2) : offline;
+        const online = s.onlinePct ?? 0;
+        const offMax = s.total?.max ?? 0;
+        const onMax = s.onlineTotal?.max ?? 0;
+        const combMax = offMax + onMax;
+        const combinedPct = combMax > 0
+            ? Math.round((((s.total?.scored ?? 0) + (s.onlineTotal?.scored ?? 0)) / combMax) * 100)
+            : offline;
         const pct = marksMode === 'offline' ? offline : marksMode === 'online' ? online : combinedPct;
         return { name: s.name, code: s.code, color: colorForSubject(s), pct };
     });
-    const avg = chartData.length > 0
-        ? Math.round(chartData.reduce((a, b) => a + b.pct, 0) / chartData.length)
-        : 0;
-    const overallRank: number | null = marksheetData?.classRank ?? null;
+    // "Overall Score" — pooled scored/max across every subject for the active
+    // mode, not a naive average of each subject's own %. A plain average
+    // weighs a subject with 1 recorded mark the same as one with a full
+    // published set, which skews it badly (e.g. mostly-empty subjects
+    // dragging a real ~75% down to something like 7%).
+    const avg = (() => {
+        const subjects = marksheetData?.subjects ?? [];
+        let scored = 0, max = 0;
+        for (const s of subjects) {
+            if (marksMode === 'offline' || marksMode === 'combined') {
+                scored += s.total?.scored ?? 0;
+                max += s.total?.max ?? 0;
+            }
+            if (marksMode === 'online' || marksMode === 'combined') {
+                scored += s.onlineTotal?.scored ?? 0;
+                max += s.onlineTotal?.max ?? 0;
+            }
+        }
+        return max > 0 ? Math.round((scored / max) * 100) : 0;
+    })();
+    const overallRank: number | null = marksMode === 'offline'
+        ? (marksheetData?.offlineClassRank ?? marksheetData?.classRank ?? null)
+        : marksMode === 'online'
+            ? (marksheetData?.onlineClassRank ?? null)
+            : (marksheetData?.combinedClassRank ?? null);
 
     const yellowFlags = flags.filter(f => f.type === 'yellow');
     const redFlags = flags.filter(f => f.type === 'red');
@@ -250,7 +280,7 @@ export default function StudentProfileView({
                                 <InfoRow label="Division" value={division.split('-').pop() ?? division} />
                                 <InfoRow label="Admission Year" value={admissionYear ?? '—'} />
                                 <InfoRow label="Date of Birth" value={dobDisplay ? `${dobDisplay}${age !== null ? ` (${age} yrs)` : ''}` : '—'} />
-                                <InfoRow label="Email" value={email} />
+                                <InfoRow label="Email" value={email || '—'} />
                             </div>
                         </div>
                     </div>

@@ -291,7 +291,14 @@ export default function TeacherOverviewPage() {
         return () => clearInterval(id);
     }, []);
 
-    const teacherName = formatDisplayName(
+    // Waiting for overviewLoading (not just checking user?.name) matters here:
+    // user.name is already available instantly from the auth store, so
+    // rendering it right away shows the name WITHOUT its prefix for a beat,
+    // then a second render adds "Prof." once /teacher/overview resolves —
+    // that's the flash. Holding off until overview has actually loaded means
+    // the skeleton shows instead, and the name only ever appears once, already
+    // correct with its prefix.
+    const teacherName = overviewLoading ? '' : formatDisplayName(
         user?.name ?? user?.email?.split('@')[0] ?? '',
         overview?.teacher.prefix
     );

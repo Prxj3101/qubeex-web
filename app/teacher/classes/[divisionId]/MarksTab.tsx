@@ -8,7 +8,7 @@ import {
 import * as XLSX from 'xlsx';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
-import { useMarksheet, UseMarksheetResult } from '@/lib/useMarksheet';
+import { useMarksheet, UseMarksheetResult, useOnlineMarksheet, UseOnlineMarksheetResult } from '@/lib/useMarksheet';
 import { downloadMarksheetPdf, resolveGrade, type MarksheetMeta, type GradeScaleEntry } from '@/lib/marksheetApi';
 import NextImage from 'next/image';
 import { colorForSubject, assignSubjectColor } from '@/lib/subjectColors';
@@ -89,21 +89,6 @@ const OFFLINE_EXAMS: Exam[] = [
     { id: 'oe6', name: 'Final Exam', maxMarks: 70, type: 'offline' },
 ];
 
-// ── Online exams (auto from QubeEx, subject-specific) ────────────────────────
-// Placeholder entries — real data will come from API later
-const ONLINE_EXAM_TEMPLATE: Exam[] = [
-    { id: 'ot1', name: 'Weekly Test 1', maxMarks: 20, type: 'online', date: '10 Jul 2026' },
-    { id: 'ot2', name: 'Ch 1–3 Test', maxMarks: 25, type: 'online', date: '28 Jul 2026' },
-    { id: 'ot3', name: 'Weekly Test 2', maxMarks: 20, type: 'online', date: '18 Aug 2026' },
-    { id: 'ot4', name: 'Ch 4–6 Test', maxMarks: 30, type: 'online', date: '05 Sep 2026' },
-];
-const ONLINE_EXAMS: Record<string, Exam[]> = Object.fromEntries(
-    MOCK_SUBJECTS.map(sub => [
-        sub.id,
-        ONLINE_EXAM_TEMPLATE.map(ex => ({ ...ex, id: `${ex.id}-${sub.id}` })),
-    ])
-);
-
 // ── Mock Scores — offline ─────────────────────────────────────────────────────
 // scores[subjectId][studentId][examId] = marks
 function genOfflineScores(): Record<string, Record<string, Record<string, number | null>>> {
@@ -121,21 +106,6 @@ function genOfflineScores(): Record<string, Record<string, Record<string, number
     return base;
 }
 
-function genOnlineScores(): Record<string, Record<string, Record<string, number | null>>> {
-    const base: Record<string, Record<string, Record<string, number | null>>> = {};
-    MOCK_SUBJECTS.forEach(sub => {
-        base[sub.id] = {};
-        MOCK_STUDENTS.forEach(st => {
-            base[sub.id][st.id] = {};
-            (ONLINE_EXAMS[sub.id] ?? []).forEach(ex => {
-                const max = ex.maxMarks;
-                base[sub.id][st.id][ex.id] = Math.floor(Math.random() * (max * 0.4) + max * 0.5);
-            });
-        });
-    });
-    return base;
-}
-
 // Per-subject exam lists (each subject starts with OFFLINE_EXAMS, then diverges)
 function initSubjectExams(subjects: Subject[]): Record<string, Exam[]> {
     const r: Record<string, Exam[]> = {};
@@ -145,7 +115,6 @@ function initSubjectExams(subjects: Subject[]): Record<string, Exam[]> {
 
 // Stable initial data (outside component to avoid re-gen on render)
 const INITIAL_OFFLINE = genOfflineScores();
-const INITIAL_ONLINE = genOnlineScores();
 const INITIAL_SUBJECT_EXAMS = initSubjectExams(MOCK_SUBJECTS);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -526,7 +495,7 @@ function GradeScaleEditor({
 // ── Mark Sheet (Right Panel) — ALL subjects in one sheet ─────────────────────
 function MarkSheet({
     students, subjects, mode, divisionName, isActive, onStatsChange, restrictToSubjectId, readOnly,
-    marksheetHook, showPublishControl,
+    marksheetHook, showPublishControl, onlineMarksheetHook,
 }: {
     students: Student[];
     subjects: Subject[];
@@ -538,6 +507,7 @@ function MarkSheet({
     readOnly?: boolean;
     marksheetHook?: UseMarksheetResult;
     showPublishControl?: boolean;
+    onlineMarksheetHook?: UseOnlineMarksheetResult;
 }) {
     const now = new Date();
     const yr = now.getFullYear();
@@ -564,7 +534,6 @@ function MarkSheet({
         subHdrText: (color: string) => color,
     };
 
-    const [onlineScores, setOnlineScores] = useState<Record<string, Record<string, Record<string, number | null>>>>(INITIAL_ONLINE);
     const [editExamCtx, setEditExamCtx] = useState<{ exam: { id: string; name: string; maxMarks: number }; subId: string } | null>(null);
     const [addExamSubId, setAddExamSubId] = useState<string | null>(null);
     const [dragExam, setDragExam] = useState<{ subId: string; examId: string } | null>(null);
@@ -612,8 +581,12 @@ function MarkSheet({
     const [showExportMenu, setShowExportMenu] = useState(false);
     const exportMenuRef = useRef<HTMLDivElement>(null);
 
-    // Offline data comes from hook; online data uses local mock state
-    const displayStudents = (mode === 'offline' && marksheetHook) ? marksheetHook.students : students;
+    // Offline data comes from the offline hook (editable); online data comes
+    // from the online hook — auto-computed server-side from completed tests,
+    // read-only, no save status to show.
+    const displayStudents = (mode === 'offline' && marksheetHook)
+        ? marksheetHook.students
+        : (mode === 'online' && onlineMarksheetHook) ? onlineMarksheetHook.students : students;
     const saveStatus = (mode === 'offline' && marksheetHook) ? marksheetHook.saveStatus : 'idle';
 
     const effectiveGradedSubjects = (mode === 'offline' && marksheetHook) ? marksheetHook.gradedSubjects : [];
@@ -623,7 +596,10 @@ function MarkSheet({
     // Exam marks are filled by subject teachers only. The class teacher owns the
     // structure (and the graded section) but does not enter exam marks, so their
     // exam-score cells are read-only.
-    const examMarksReadOnly = readOnly || !restrictToSubjectId;
+    // Online marks are auto-computed from real test results (best attempt per
+    // student) — never editable, regardless of role, unlike offline marks
+    // which the assigned subject teacher can type in directly.
+    const examMarksReadOnly = mode === 'online' || readOnly || !restrictToSubjectId;
 
     // Keep local editing state for title
     const [editingGradedTitle, setEditingGradedTitle] = useState(false);
@@ -647,7 +623,7 @@ function MarkSheet({
             pill2Color: scoreColor(low),
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [onlineScores, isActive, marksheetHook?.scores]);
+    }, [onlineMarksheetHook?.scores, isActive, marksheetHook?.scores]);
 
     useEffect(() => {
         const h = (e: MouseEvent) => {
@@ -658,29 +634,44 @@ function MarkSheet({
         return () => document.removeEventListener('mousedown', h);
     }, []);
 
-    const getSubjectExams = (subId: string): Array<{ id: string; name: string; maxMarks: number }> => {
+    const getSubjectExams = (subId: string): Array<{ id: string; name: string; maxMarks: number; date?: string }> => {
         if (mode === 'offline' && marksheetHook) {
             return marksheetHook.examColumns[subId] ?? [];
         }
-        return ONLINE_EXAMS[subId] ?? ONLINE_EXAM_TEMPLATE.map(ex => ({ ...ex, id: `${ex.id}-${subId}` }));
+        if (mode === 'online' && onlineMarksheetHook) {
+            return (onlineMarksheetHook.examColumns[subId] ?? []).map(ex => ({
+                id: ex.id,
+                name: ex.name,
+                maxMarks: ex.maxMarks,
+                date: ex.examDate
+                    ? new Date(ex.examDate).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : undefined,
+            }));
+        }
+        return [];
     };
 
     const getScore = (subId: string, stId: string, examId: string): number | null => {
         if (mode === 'offline' && marksheetHook) {
             return marksheetHook.scores[examId]?.[stId]?.score ?? null;
         }
-        return onlineScores[subId]?.[stId]?.[examId] ?? null;
+        if (mode === 'online' && onlineMarksheetHook) {
+            // Unlike offline (where a blank cell means "not entered yet" and
+            // stays a dash), an online test that's already completed means
+            // every student had their shot — no recorded attempt is a missed
+            // test, which counts as a hard 0, not an unknown/blank value.
+            return onlineMarksheetHook.scores[examId]?.[stId]?.score ?? 0;
+        }
+        return null;
     };
 
+    // Online cells are auto-computed from real test results — there's nothing
+    // to write back, so this is a no-op for mode === 'online' (the click-to-edit
+    // UI is also gated off further down via onlineReadOnly).
     const setScore = (subId: string, stId: string, examId: string, val: number | null) => {
         if (mode === 'offline' && marksheetHook) {
             marksheetHook.handleScoreChange(examId, stId, subId, { score: val, isAbsent: false });
-            return;
         }
-        setOnlineScores(prev => ({
-            ...prev,
-            [subId]: { ...prev[subId], [stId]: { ...prev[subId]?.[stId], [examId]: val } },
-        }));
     };
 
     const handleExamDrop = (targetSubId: string, targetExamId: string) => {
@@ -922,7 +913,7 @@ function MarkSheet({
                                 </th>
                             )}
                             {mode === 'offline' && effectiveGradedSubjects.length === 0 && !readOnly && !restrictToSubjectId && (
-                                <th className="px-1 py-1.5 text-center cursor-pointer group/gadd"
+                                <th rowSpan={2} className="px-1 py-1.5 text-center cursor-pointer group/gadd"
                                     onClick={() => setAddGradedOpen(true)}
                                     style={{ background: 'linear-gradient(color-mix(in srgb, var(--primary), transparent 94%), color-mix(in srgb, var(--primary), transparent 94%)), #EDE4D6', border: `0.5px dashed ${msColors.hdrBorder}`, minWidth: 28 }}>
                                     <span className="opacity-40 group-hover/gadd:opacity-100 transition-opacity flex items-center justify-center">
@@ -1073,15 +1064,15 @@ function MarkSheet({
                             )}
                             {/* Grand sticky cols */}
                             <th className="sticky z-20 px-2 py-1.5 text-center whitespace-nowrap"
-                                style={{ right: PCT_W + GRADE_W, minWidth: TOTAL_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
+                                style={{ right: PCT_W + GRADE_W, width: TOTAL_W, minWidth: TOTAL_W, maxWidth: TOTAL_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
                                 Grand
                             </th>
                             <th className="sticky z-20 px-2 py-1.5 text-center whitespace-nowrap"
-                                style={{ right: GRADE_W, minWidth: PCT_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
+                                style={{ right: GRADE_W, width: PCT_W, minWidth: PCT_W, maxWidth: PCT_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
                                 %
                             </th>
                             <th className="sticky right-0 z-20 px-2 py-1.5 text-center whitespace-nowrap"
-                                style={{ minWidth: GRADE_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
+                                style={{ width: GRADE_W, minWidth: GRADE_W, maxWidth: GRADE_W, background: msColors.summaryBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10', fontWeight: 700 }}>
                                 Grade
                             </th>
                         </tr>
@@ -1194,6 +1185,13 @@ function MarkSheet({
                                     {/* Spacer 1 + Graded cells — offline only */}
                                     {mode === 'offline' && <><td style={{ background: 'transparent', border: 'none', width: 12 }} />
                                         <td style={{ background: 'transparent', border: 'none', width: 12 }} /></>}
+                                    {/* Matches the rowSpan=2 "+" header cell that exists only when there are
+                                        zero graded subjects — without this placeholder, tbody rows have one
+                                        fewer column than the header for that slot, which shifts every column
+                                        after it (including the sticky Grand/%/Grade cells) one slot to the left. */}
+                                    {mode === 'offline' && effectiveGradedSubjects.length === 0 && !readOnly && !restrictToSubjectId && (
+                                        <td style={{ background: rowBg, border: `0.5px dashed ${msColors.cellBorder}`, width: 28 }} />
+                                    )}
                                     {mode === 'offline' && effectiveGradedSubjects.map(gs => {
                                         if (restrictToSubjectId) {
                                             return (
@@ -1287,15 +1285,15 @@ function MarkSheet({
                                         <td style={{ background: 'transparent', border: 'none', width: 12 }} /></>}
                                     {/* Grand sticky summary */}
                                     <td className="sticky z-10 px-2 py-2 text-center"
-                                        style={{ right: PCT_W + GRADE_W, minWidth: TOTAL_W, background: rowBg, border: `1px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : msColors.hdrText, fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                        style={{ right: PCT_W + GRADE_W, width: TOTAL_W, minWidth: TOTAL_W, maxWidth: TOTAL_W, background: rowBg, border: `1px solid ${msColors.cellBorder}`, borderLeft: `2px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : msColors.hdrText, fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                         {restrictToSubjectId ? '—' : `${grand.scored}/${grand.total}`}
                                     </td>
                                     <td className="sticky z-10 px-2 py-2 text-center"
-                                        style={{ right: GRADE_W, minWidth: PCT_W, background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                        style={{ right: GRADE_W, width: PCT_W, minWidth: PCT_W, maxWidth: PCT_W, background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                         {restrictToSubjectId ? '—' : (grand.pct !== null ? `${grand.pct}%` : '—')}
                                     </td>
                                     <td className="sticky right-0 z-10 px-2 py-2 text-center"
-                                        style={{ minWidth: GRADE_W, background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                        style={{ width: GRADE_W, minWidth: GRADE_W, maxWidth: GRADE_W, background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: restrictToSubjectId ? msColors.cellBorder : (grand.pct !== null ? scoreColor(grand.pct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                         {restrictToSubjectId ? '—' : (grand.pct !== null ? gradeLabel(grand.pct) : '—')}
                                     </td>
                                 </tr>
@@ -1318,7 +1316,7 @@ function MarkSheet({
                     </div>
                 ))}
                 <span className="text-[10px] text-muted-foreground/40 italic ml-auto">
-                    {mode === 'online' ? 'Auto-populated \xb7 Click any cell to override' : 'Click any cell to enter / edit marks'}
+                    {mode === 'online' ? 'Auto-filled from completed test results \xb7 best attempt counts' : 'Click any cell to enter / edit marks'}
                 </span>
             </div>
 
@@ -1498,11 +1496,13 @@ function StudentSummaryPanel({
 }
 
 // ── Overall View ──────────────────────────────────────────────────────────────
-function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
+function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onlineMarksheetHook, isClassTeacher }: {
     divisionName: string;
     subjects: Subject[];
     onStatsChange?: (stats: MarksStats) => void;
     marksheetHook: UseMarksheetResult;
+    onlineMarksheetHook: UseOnlineMarksheetResult;
+    isClassTeacher?: boolean;
 }) {
     const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
@@ -1525,41 +1525,59 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
             setTrendSubjectId(subjects[0].id);
     }, [subjects, trendSubjectId]);
 
-    // Per-student offline totals across all subjects (online = 0 until implemented)
+    // Per-student totals across all subjects — offline from marksheetHook,
+    // online from onlineMarksheetHook (auto-computed from completed tests),
+    // combined = both pooled together into one scored/max ratio.
     const studentStats = useMemo(() => {
         return marksheetHook.students.map(st => {
-            let offScored = 0, offMax = 0;
+            let offScored = 0, offMax = 0, onScored = 0, onMax = 0;
             subjects.forEach(sub => {
-                const cols = marksheetHook.examColumns[sub.id] ?? [];
-                cols.forEach(col => {
+                const offCols = marksheetHook.examColumns[sub.id] ?? [];
+                offCols.forEach(col => {
                     const e = marksheetHook.scores[col.id]?.[st.id];
                     if (e?.isAbsent) return;
                     offMax += col.maxMarks;
                     if (e?.score != null) offScored += e.score;
                 });
+                const onCols = onlineMarksheetHook.examColumns[sub.id] ?? [];
+                onCols.forEach(col => {
+                    const e = onlineMarksheetHook.scores[col.id]?.[st.id];
+                    if (e?.isAbsent) return;
+                    onMax += col.maxMarks;
+                    if (e?.score != null) onScored += e.score;
+                });
             });
             const offPct = offMax > 0 ? Math.round((offScored / offMax) * 100) : null;
-            const onPct: number | null = null; // online not yet implemented
-            const combPct = offPct ?? 0;
+            const onPct = onMax > 0 ? Math.round((onScored / onMax) * 100) : null;
+            const combMax = offMax + onMax;
+            const combPct = combMax > 0 ? Math.round(((offScored + onScored) / combMax) * 100) : 0;
             return { student: st, offPct, onPct, combPct };
         });
-    }, [marksheetHook.students, marksheetHook.examColumns, marksheetHook.scores, subjects]);
+    }, [marksheetHook.students, marksheetHook.examColumns, marksheetHook.scores, onlineMarksheetHook.examColumns, onlineMarksheetHook.scores, subjects]);
 
     // Per-subject top-3 students
     const subjectToppers = useMemo(() => {
         return subjects.map(sub => {
-            const cols = marksheetHook.examColumns[sub.id] ?? [];
-            const offMax = cols.reduce((s, c) => s + c.maxMarks, 0);
+            const offCols = marksheetHook.examColumns[sub.id] ?? [];
+            const offMax = offCols.reduce((s, c) => s + c.maxMarks, 0);
+            const onCols = onlineMarksheetHook.examColumns[sub.id] ?? [];
+            const onMax = onCols.reduce((s, c) => s + c.maxMarks, 0);
             const rows = marksheetHook.students.map(st => {
-                let offScored = 0;
-                cols.forEach(col => {
+                let offScored = 0, onScored = 0;
+                offCols.forEach(col => {
                     const e = marksheetHook.scores[col.id]?.[st.id];
                     if (e?.isAbsent) return;
                     if (e?.score != null) offScored += e.score;
                 });
+                onCols.forEach(col => {
+                    const e = onlineMarksheetHook.scores[col.id]?.[st.id];
+                    if (e?.isAbsent) return;
+                    if (e?.score != null) onScored += e.score;
+                });
                 const offPct = offMax > 0 ? Math.round((offScored / offMax) * 100) : null;
-                const onPct: number | null = null;
-                const combPct = offPct ?? 0;
+                const onPct = onMax > 0 ? Math.round((onScored / onMax) * 100) : null;
+                const combMax = offMax + onMax;
+                const combPct = combMax > 0 ? Math.round(((offScored + onScored) / combMax) * 100) : 0;
                 return { student: st, offPct, onPct, combPct };
             });
             const getPct = (r: typeof rows[0]) =>
@@ -1569,7 +1587,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
             const sorted = [...rows].sort((a, b) => getPct(b) - getPct(a));
             return { sub, top5: sorted.slice(0, 3), getPct };
         });
-    }, [subjects, marksheetHook.students, marksheetHook.examColumns, marksheetHook.scores, subjectTopperTab]);
+    }, [subjects, marksheetHook.students, marksheetHook.examColumns, marksheetHook.scores, onlineMarksheetHook.examColumns, onlineMarksheetHook.scores, subjectTopperTab]);
 
     const rankMap = useMemo(() => {
         const sorted = [...studentStats].sort((a, b) => b.combPct - a.combPct);
@@ -1586,7 +1604,8 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
         if (!onStatsChangeRef.current) return;
         const offPcts = studentStats.map(s => s.offPct).filter((p): p is number => typeof p === 'number');
         const highOff: number | null = offPcts.length > 0 ? Math.max(...offPcts) : null;
-        const highOn: number | null = null; // online not yet implemented
+        const onPcts = studentStats.map(s => s.onPct).filter((p): p is number => typeof p === 'number');
+        const highOn: number | null = onPcts.length > 0 ? Math.max(...onPcts) : null;
         const key = `${highOff}-${highOn}`;
         if (key === prevOverallKey.current) return;
         prevOverallKey.current = key;
@@ -1819,6 +1838,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                         const trendSub = subjects.find(s => s.id === trendSubjectId) ?? subjects[0];
                         const trendColor = trendSub ? colorForSubject(trendSub) : assignSubjectColor(0);
                         const offCols = trendSub ? (marksheetHook.examColumns[trendSub.id] ?? []) : [];
+                        const onCols = trendSub ? (onlineMarksheetHook.examColumns[trendSub.id] ?? []) : [];
                         const trendData = (() => {
                             if (!trendSub) return [];
                             const offRows = offCols.map(col => {
@@ -1826,8 +1846,14 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                 const sc = e?.isAbsent ? 0 : (e?.score ?? 0);
                                 return { name: col.name, score: col.maxMarks > 0 ? Math.round((sc / col.maxMarks) * 100) : 0 };
                             });
-                            if (trendMode === 'online') return []; // online not yet available
-                            return offRows; // offline & combined both use offline for now
+                            const onRows = onCols.map(col => {
+                                const e = onlineMarksheetHook.scores[col.id]?.[sel.student.id];
+                                const sc = e?.isAbsent ? 0 : (e?.score ?? 0);
+                                return { name: col.name, score: col.maxMarks > 0 ? Math.round((sc / col.maxMarks) * 100) : 0 };
+                            });
+                            if (trendMode === 'online') return onRows;
+                            if (trendMode === 'offline') return offRows;
+                            return [...offRows, ...onRows]; // combined — offline exams first, then online tests
                         })();
 
                         return (
@@ -1952,19 +1978,26 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                         </div>
                                     </div>
                                     {(() => {
-                                        // All subjects share the same exam column structure (offline)
-                                        const headerExams = marksheetHook.examColumns[subjects[0]?.id ?? ''] ?? [];
                                         const isOffline = reportCardTab === 'offline';
-                                        const gradedSubs = marksheetHook.gradedSubjects;
+                                        const hook = isOffline ? marksheetHook : onlineMarksheetHook;
+                                        // Each subject has its own exam/test list (online especially — different
+                                        // subjects complete different numbers of tests), so unlike the header row
+                                        // this only picks a representative one for the shared table header;
+                                        // per-row cells below always look up each subject's own column list.
+                                        const headerExams = hook.examColumns[subjects[0]?.id ?? ''] ?? [];
+                                        const gradedSubs = isOffline ? marksheetHook.gradedSubjects : [];
 
                                         // Compute per-subject data + running grand total
                                         let grandScored = 0, grandMax = 0;
                                         const subjectData = subjects.map(sub => {
-                                            const examList = marksheetHook.examColumns[sub.id] ?? [];
+                                            const examList = hook.examColumns[sub.id] ?? [];
                                             let scored = 0, maxTotal = 0;
                                             const cells = examList.map(col => {
-                                                const e = marksheetHook.scores[col.id]?.[sel.student.id];
-                                                const val = e?.isAbsent ? null : (e?.score ?? null);
+                                                const e = hook.scores[col.id]?.[sel.student.id];
+                                                // Offline: no entry yet = unknown, shown as a dash. Online: the test
+                                                // is already completed, so no recorded attempt means the student
+                                                // missed it — a hard 0, not a blank.
+                                                const val = e?.isAbsent ? null : (e?.score ?? (isOffline ? null : 0));
                                                 const pct = val !== null && col.maxMarks > 0 ? Math.round((val / col.maxMarks) * 100) : null;
                                                 if (!e?.isAbsent) maxTotal += col.maxMarks;
                                                 if (val !== null) scored += val;
@@ -2038,12 +2071,53 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                                         {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{gradeLabel(grandPct)}</span> : '—'}
                                                                     </td>
                                                                 </tr>
-                                                                {/* Conduct & Remarks row - offline only */}
+                                                                {/* Conduct row - offline only, per student, class-teacher writable */}
                                                                 <tr>
-                                                                    <td className="sticky left-0 z-20 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-bold text-[#2A1F10] whitespace-nowrap">Conduct</td>
-                                                                    <td className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-[#2A1F10] whitespace-nowrap">Excellent</td>
-                                                                    <td className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-bold text-[#2A1F10] whitespace-nowrap">Remarks</td>
-                                                                    <td colSpan={headerExams.length + 1} className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-[#2A1F10] italic text-[11px]">Good keep it up</td>
+                                                                    <td className="sticky left-0 z-20 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-bold text-[#2A1F10] whitespace-nowrap align-top">Conduct</td>
+                                                                    <td colSpan={headerExams.length + 3} className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-[#2A1F10] align-top">
+                                                                        {isClassTeacher ? (
+                                                                            <textarea
+                                                                                key={`conduct-${sel.student.id}`}
+                                                                                defaultValue={marksheetHook.remarks[sel.student.id]?.conduct ?? ''}
+                                                                                placeholder="—"
+                                                                                rows={1}
+                                                                                ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                                                                                onInput={(e) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }}
+                                                                                onChange={(e) => marksheetHook.handleRemarkChange(sel.student.id, {
+                                                                                    conduct: e.target.value || null,
+                                                                                    remarks: marksheetHook.remarks[sel.student.id]?.remarks ?? null,
+                                                                                })}
+                                                                                className="bg-transparent outline-none resize-none text-[#2A1F10] placeholder:text-[#C8B89A] block leading-snug"
+                                                                                style={{ width: '1px', minWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}
+                                                                            />
+                                                                        ) : (
+                                                                            <span className="block whitespace-pre-wrap break-words" style={{ width: '1px', minWidth: '100%' }}>{marksheetHook.remarks[sel.student.id]?.conduct || '—'}</span>
+                                                                        )}
+                                                                    </td>
+                                                                </tr>
+                                                                {/* Remarks row - offline only, per student, class-teacher writable */}
+                                                                <tr>
+                                                                    <td className="sticky left-0 z-20 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-bold text-[#2A1F10] whitespace-nowrap align-top">Remarks</td>
+                                                                    <td colSpan={headerExams.length + 3} className="border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-[#2A1F10] italic text-[11px] align-top">
+                                                                        {isClassTeacher ? (
+                                                                            <textarea
+                                                                                key={`remarks-${sel.student.id}`}
+                                                                                defaultValue={marksheetHook.remarks[sel.student.id]?.remarks ?? ''}
+                                                                                placeholder="—"
+                                                                                rows={1}
+                                                                                ref={(el) => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                                                                                onInput={(e) => { const el = e.currentTarget; el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; }}
+                                                                                onChange={(e) => marksheetHook.handleRemarkChange(sel.student.id, {
+                                                                                    conduct: marksheetHook.remarks[sel.student.id]?.conduct ?? null,
+                                                                                    remarks: e.target.value || null,
+                                                                                })}
+                                                                                className="bg-transparent outline-none resize-none text-[#2A1F10] placeholder:text-[#C8B89A] italic block leading-snug"
+                                                                                style={{ width: '1px', minWidth: '100%', boxSizing: 'border-box', overflow: 'hidden' }}
+                                                                            />
+                                                                        ) : (
+                                                                            <span className="block whitespace-pre-wrap break-words" style={{ width: '1px', minWidth: '100%' }}>{marksheetHook.remarks[sel.student.id]?.remarks || '—'}</span>
+                                                                        )}
+                                                                    </td>
                                                                 </tr>
                                                             </tbody>
                                                         </table>
@@ -2079,11 +2153,64 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                         )}
                                                     </div>
                                                 ) : (
-                                                    /* Online exams not yet implemented */
-                                                    <div className="flex flex-col items-center justify-center h-full text-center p-8" style={{ background: '#F8F3EC' }}>
-                                                        <p className="text-sm font-semibold" style={{ color: '#2A1F10' }}>Online results not yet available</p>
-                                                        <p className="text-xs mt-1" style={{ color: '#7A6A55' }}>Online exam integration is coming soon</p>
-                                                    </div>
+                                                    /* Online: each subject can have a different number of completed
+                                                       tests, so unlike offline this doesn't share one exam-column
+                                                       header across subjects — just subject-wise totals. */
+                                                    subjectData.some(s => s.maxTotal > 0) ? (
+                                                        <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: "#2A1F10" }}>
+                                                            <thead className="sticky top-0 z-30">
+                                                                <tr>
+                                                                    <th className="sticky left-0 z-40 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-left font-bold text-[#2A1F10] whitespace-nowrap min-w-[110px]">Subjects</th>
+                                                                    <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[70px]">Tests</th>
+                                                                    <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[56px]" style={{ fontWeight: 700 }}>Total</th>
+                                                                    <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[52px]" style={{ fontWeight: 700 }}>%</th>
+                                                                    <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[48px]" style={{ fontWeight: 700 }}>Grade</th>
+                                                                </tr>
+                                                            </thead>
+                                                            <tbody>
+                                                                {subjectData.map(({ sub, cells, scored, maxTotal, totalPct }) => (
+                                                                    <tr key={sub.id}>
+                                                                        <td className="sticky left-0 z-20 bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-semibold text-[#2A1F10] whitespace-nowrap">
+                                                                            <div className="flex items-center gap-1.5">
+                                                                                <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: sub.color }} />
+                                                                                {sub.name}
+                                                                            </div>
+                                                                        </td>
+                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap text-[#7A6A55]">
+                                                                            {cells.length}
+                                                                        </td>
+                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE]">
+                                                                            {maxTotal > 0 ? `${scored}/${maxTotal}` : '—'}
+                                                                        </td>
+                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap">
+                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct), fontWeight: 700 }}>{totalPct}%</span> : '—'}
+                                                                        </td>
+                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold">
+                                                                            {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{gradeLabel(totalPct)}</span> : '—'}
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
+                                                                <tr>
+                                                                    <td className="sticky left-0 z-20 bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-bold text-[#2A1F10] whitespace-nowrap">Grand Total</td>
+                                                                    <td className="bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0]" />
+                                                                    <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#E8DDD0]">
+                                                                        {grandMax > 0 ? `${grandScored}/${grandMax}` : '—'}
+                                                                    </td>
+                                                                    <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap bg-[#E8DDD0]">
+                                                                        {grandPct !== null ? <span style={{ color: scoreColor(grandPct), fontWeight: 700 }}>{grandPct}%</span> : '—'}
+                                                                    </td>
+                                                                    <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
+                                                                        {grandPct !== null ? <span style={{ color: scoreColor(grandPct) }}>{gradeLabel(grandPct)}</span> : '—'}
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center justify-center h-full text-center p-8" style={{ background: '#F8F3EC' }}>
+                                                            <p className="text-sm font-semibold" style={{ color: '#2A1F10' }}>No completed tests yet</p>
+                                                            <p className="text-xs mt-1" style={{ color: '#7A6A55' }}>Online results appear here once a test is completed</p>
+                                                        </div>
+                                                    )
                                                 )}
                                             </div>
                                         );
@@ -2153,6 +2280,7 @@ function CompactPublishButton({
     const [publishing, setPublishing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showPublishedBadge, setShowPublishedBadge] = useState(true);
+    const [showConfirm, setShowConfirm] = useState(false);
 
     const doPublish = async () => {
         setPublishing(true);
@@ -2197,7 +2325,7 @@ function CompactPublishButton({
         <div className="flex items-center gap-1.5 shrink-0">
             {error && <span className="text-[10px] text-red-500">{error}</span>}
             <button
-                onClick={doPublish}
+                onClick={() => setShowConfirm(true)}
                 disabled={publishing}
                 title={isPublished ? 'Structure changed — re-publish to update student results.' : 'Marksheet is a draft — publish to share results with students.'}
                 className="flex items-center gap-1 h-7 px-2.5 rounded-lg text-[11px] font-semibold text-white disabled:opacity-50 transition-all"
@@ -2205,6 +2333,35 @@ function CompactPublishButton({
                 <Megaphone size={12} />
                 {publishing ? '…' : isPublished ? 'Re-publish' : 'Publish'}
             </button>
+            <AnimatePresence>
+                {showConfirm && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+                        <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                            className="bg-card border border-border rounded-2xl p-5 max-w-xs w-full mx-4 shadow-2xl">
+                            <p className="text-sm font-bold mb-1.5 flex items-center gap-1.5">
+                                <Megaphone size={14} /> {isPublished ? 'Re-publish marksheet?' : 'Publish marksheet?'}
+                            </p>
+                            <p className="text-xs text-muted-foreground mb-4">
+                                {isPublished
+                                    ? 'This updates the results students and parents currently see, right away.'
+                                    : 'Students and parents will be able to see these results immediately.'}
+                            </p>
+                            <div className="flex gap-2">
+                                <button onClick={() => setShowConfirm(false)}
+                                    className="flex-1 h-9 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all">
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={() => { setShowConfirm(false); doPublish(); }}
+                                    className="flex-1 h-9 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                    {isPublished ? 'Re-publish' : 'Publish'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }
@@ -2235,6 +2392,7 @@ export default function MarksTab({
     isAdmin?: boolean;
 }) {
     const marksheetHook = useMarksheet(divisionId, isAdmin);
+    const onlineMarksheetHook = useOnlineMarksheet(divisionId, isAdmin);
     const mappedSubjects: Subject[] = subjects.map(s => ({
         id: s.id, name: s.name, code: s.code, color: s.color,
     }));
@@ -2262,20 +2420,27 @@ export default function MarksTab({
                 )}
             </div>
             <div className={subTab === "online" ? "flex-1 min-h-0 flex flex-col pt-3 pb-3 px-1" : "hidden"}>
-                <MarkSheet
-                    students={MOCK_STUDENTS}
-                    subjects={mappedSubjects}
-                    mode="online"
-                    divisionName={divisionName}
-                    isActive={subTab === "online"}
-                    onStatsChange={onStatsChange}
-                    restrictToSubjectId={restrictToSubjectId}
-                    readOnly={readOnly}
-                />
+                {onlineMarksheetHook.loading ? (
+                    <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                        Loading marksheet…
+                    </div>
+                ) : (
+                    <MarkSheet
+                        students={onlineMarksheetHook.students}
+                        subjects={mappedSubjects}
+                        mode="online"
+                        divisionName={divisionName}
+                        isActive={subTab === "online"}
+                        onStatsChange={onStatsChange}
+                        restrictToSubjectId={restrictToSubjectId}
+                        readOnly={readOnly}
+                        onlineMarksheetHook={onlineMarksheetHook}
+                    />
+                )}
             </div>
             {subTab === "overall" && (
                 <div className="flex-1 min-h-0 flex flex-col">
-                    {marksheetHook.loading ? (
+                    {marksheetHook.loading || onlineMarksheetHook.loading ? (
                         <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
                             Loading marksheet…
                         </div>
@@ -2285,6 +2450,8 @@ export default function MarksTab({
                             subjects={mappedSubjects}
                             onStatsChange={onStatsChange}
                             marksheetHook={marksheetHook}
+                            onlineMarksheetHook={onlineMarksheetHook}
+                            isClassTeacher={isClassTeacher}
                         />
                     )}
                 </div>

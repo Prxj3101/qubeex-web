@@ -14,6 +14,9 @@ interface MarksheetSubject {
     columns: ExamCol[];
     total: { scored: number; max: number };
     pct: number | null; grade: string;
+    onlineColumns: ExamCol[];
+    onlineTotal: { scored: number; max: number };
+    onlinePct: number | null; onlineGrade: string;
 }
 interface GradedSubject { id: string; name: string; term1Grade: string | null; term2Grade: string | null; }
 interface GradeScaleEntry { grade: string; minPct: number }
@@ -25,9 +28,14 @@ interface MarksheetData {
     grandTotal: { scored: number; max: number };
     grandPct: number | null;
     grade: string;
+    onlineGrandTotal: { scored: number; max: number };
+    onlineGrandPct: number | null;
+    onlineGrade: string;
     classRank: number | null;
     classSize: number | null;
     gradedSubjects: GradedSubject[];
+    conduct: string | null;
+    remarks: string | null;
 }
 
 const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
@@ -90,6 +98,7 @@ export default function ReportCardPage() {
         }
         return cols;
     }, [data]);
+
 
     if (loading) {
         return (
@@ -257,6 +266,24 @@ export default function ReportCardPage() {
                                                 <span style={{ color: scoreColor(data.grandPct) }}>{data.grade}</span>
                                             </td>
                                         </tr>
+                                        {/* Conduct row - set by the class teacher */}
+                                        {data.conduct && (
+                                            <tr>
+                                                <td className="sticky left-0 z-20 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap align-top">Conduct</td>
+                                                <td colSpan={uniqueColNames.length + 3} className="border border-[#D8C4A0] px-3 py-1.5 align-top">
+                                                    <span className="block whitespace-pre-wrap break-words" style={{ width: '1px', minWidth: '100%' }}>{data.conduct}</span>
+                                                </td>
+                                            </tr>
+                                        )}
+                                        {/* Remarks row - set by the class teacher */}
+                                        {data.remarks && (
+                                            <tr>
+                                                <td className="sticky left-0 z-20 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap align-top">Remarks</td>
+                                                <td colSpan={uniqueColNames.length + 3} className="border border-[#D8C4A0] px-3 py-1.5 italic text-[11px] align-top">
+                                                    <span className="block whitespace-pre-wrap break-words" style={{ width: '1px', minWidth: '100%' }}>{data.remarks}</span>
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
 
@@ -290,11 +317,62 @@ export default function ReportCardPage() {
                                     </table>
                                 )}
                             </div>
+                        ) : data.subjects.some(s => s.onlineTotal.max > 0) ? (
+                            /* Online: subject-wise totals, not a per-test grid — different
+                               subjects can have very different numbers of completed tests,
+                               so there's no single shared column structure like offline has. */
+                            <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: '#2A1F10' }}>
+                                <thead className="sticky top-0 z-30">
+                                    <tr>
+                                        <th className="sticky left-0 z-40 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-bold whitespace-nowrap min-w-[130px]">Subjects</th>
+                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-semibold whitespace-nowrap min-w-[70px]">Tests</th>
+                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[60px]">Total</th>
+                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[52px]">%</th>
+                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[48px]">Grade</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.subjects.map(sub => (
+                                        <tr key={sub.id}>
+                                            <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
+                                                    {sub.name}
+                                                </div>
+                                            </td>
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap text-[#7A6A55]">
+                                                {sub.onlineColumns.length}
+                                            </td>
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE]">
+                                                {sub.onlineTotal.max > 0 ? `${sub.onlineTotal.scored}/${sub.onlineTotal.max}` : '—'}
+                                            </td>
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap">
+                                                {sub.onlinePct !== null && <span style={{ color: scoreColor(sub.onlinePct), fontWeight: 700 }}>{sub.onlinePct}%</span>}
+                                            </td>
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold">
+                                                <span style={{ color: scoreColor(sub.onlinePct) }}>{sub.onlineGrade}</span>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    <tr>
+                                        <td className="sticky left-0 z-20 bg-[#E8DDD0] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap">Grand Total</td>
+                                        <td className="bg-[#E8DDD0] border border-[#D8C4A0]" />
+                                        <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#E8DDD0]">
+                                            {data.onlineGrandTotal.max > 0 ? `${data.onlineGrandTotal.scored}/${data.onlineGrandTotal.max}` : '—'}
+                                        </td>
+                                        <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap bg-[#E8DDD0]">
+                                            {data.onlineGrandPct !== null && <span style={{ color: scoreColor(data.onlineGrandPct), fontWeight: 700 }}>{data.onlineGrandPct}%</span>}
+                                        </td>
+                                        <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
+                                            <span style={{ color: scoreColor(data.onlineGrandPct) }}>{data.onlineGrade}</span>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         ) : (
-                            /* Online: placeholder */
                             <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-2 text-muted-foreground p-8">
-                                <p className="text-sm font-medium">Online results not yet available</p>
-                                <p className="text-[11px] opacity-60">Online exam module is coming soon</p>
+                                <p className="text-sm font-medium">No completed tests yet</p>
+                                <p className="text-[11px] opacity-60">Online results appear here once a test is completed</p>
                             </div>
                         )}
                     </div>

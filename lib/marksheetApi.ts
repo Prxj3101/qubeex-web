@@ -45,6 +45,11 @@ export interface GradeScaleEntry {
   minPct: number;
 }
 
+export interface RemarkEntry {
+  conduct: string | null;
+  remarks: string | null;
+}
+
 export interface MarksheetData {
   marksheet: MarksheetMeta;
   gradeScale: GradeScaleEntry[];
@@ -52,6 +57,7 @@ export interface MarksheetData {
   scores: Record<string, Record<string, ScoreEntry>>;
   gradedSubjects: GradedSubjectItem[];
   gradedScores: Record<string, Record<string, GradedScoreEntry>>;
+  remarks: Record<string, RemarkEntry>;
   students: MarksheetStudent[];
 }
 
@@ -160,6 +166,17 @@ export async function saveGradedScores(
   await api.put(`/teacher/marksheet/${marksheetId}/graded-scores`, { scores });
 }
 
+// Conduct/Remarks — class teacher only (write), read-only to subject teachers
+// and to the student themselves (via /student/marksheet).
+export async function saveMarksheetRemark(
+  marksheetId: string,
+  studentId: string,
+  payload: { conduct?: string | null; remarks?: string | null }
+): Promise<RemarkEntry> {
+  const res = await api.put(`/teacher/marksheet/${marksheetId}/remarks/${studentId}`, payload);
+  return res.data.data as RemarkEntry;
+}
+
 export async function publishMarksheet(marksheetId: string): Promise<void> {
   await api.post(`/teacher/marksheet/${marksheetId}/publish`);
 }
@@ -174,6 +191,20 @@ export async function downloadMarksheetPdf(
     responseType: 'blob',
   });
   return res.data as Blob;
+}
+
+export interface OnlineMarksheetData {
+  examColumns: Record<string, ExamColumn[]>;
+  scores: Record<string, Record<string, ScoreEntry>>;
+}
+
+// Auto-computed from completed tests + attempts — no init step, always live,
+// so unlike the offline sheet there's no "not initialised yet" 404 case.
+export async function getOnlineMarksheet(divisionId: string, isAdmin?: boolean): Promise<OnlineMarksheetData> {
+  const res = await api.get(
+    isAdmin ? `/admin/marksheet/division/${divisionId}/online` : `/teacher/marksheet/division/${divisionId}/online`
+  );
+  return res.data.data as OnlineMarksheetData;
 }
 
 export async function getClassStudents(divisionId: string, isAdmin?: boolean): Promise<MarksheetStudent[]> {

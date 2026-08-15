@@ -4,8 +4,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-    FileText, ChevronDown, ChevronUp, Calendar, Timer, BarChart2, Layers,
-    Upload, CheckCircle2, AlertCircle, RefreshCw, BookOpen, ClipboardList, Radio,
+    FileText, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Calendar, Timer, BarChart2, Layers,
+    Upload, CheckCircle2, AlertCircle, RefreshCw, BookOpen, ClipboardList, Radio, ShieldAlert,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -33,7 +33,10 @@ interface StudentTest {
     bestScore: number | null;
     bestPercentage: number | null;
     lastAttemptId: string | null;
+    lastAttemptStartTime: string | null;
     lastAttemptEndTime: string | null;
+    lastAttemptMalpracticeFlag: boolean;
+    attempts: { id: string; attemptNumber: number; totalScore: number; maxScore: number; percentage: number; startTime: string | null; endTime: string | null; malpracticeFlag: boolean }[];
 }
 
 interface StudentAssignment {
@@ -112,6 +115,18 @@ function DaysLeftBadge({ daysLeft }: { daysLeft: number }) {
 
 function TestCard({ test }: { test: StudentTest }) {
     const [expanded, setExpanded] = useState(false);
+    // Which attempt's result the View Result button currently points to —
+    // defaults to the best-scoring attempt (matches the "highest counts"
+    // scoring rule), but the chevrons let the student flip to any other
+    // attempt's result right from the card.
+    const [viewedIdx, setViewedIdx] = useState(() => {
+        if (test.attempts.length === 0) return -1;
+        let bestI = 0;
+        for (let i = 1; i < test.attempts.length; i++) {
+            if (test.attempts[i].totalScore > test.attempts[bestI].totalScore) bestI = i;
+        }
+        return bestI;
+    });
     const router = useRouter();
     const missed = test.studentStatus === 'DONE' && test.attemptsUsed === 0;
     const meta = missed
@@ -129,11 +144,21 @@ function TestCard({ test }: { test: StudentTest }) {
         ? `${Math.floor(test.durationMinutes / 60)}hr${test.durationMinutes % 60 ? ` ${test.durationMinutes % 60}mins` : ''}`
         : `${test.durationMinutes}mins`;
 
-    function handleAction() {
-        if (test.studentStatus === 'LIVE') router.push(`/student/tasks/tests/${test.id}`);
-        else if (test.studentStatus === 'DONE' && test.lastAttemptId)
-            router.push(`/student/tasks/tests/${test.id}/result/${test.lastAttemptId}`);
+    function handleStart() {
+        router.push(`/student/tasks/tests/${test.id}`);
     }
+    const viewedAttempt = test.attempts[viewedIdx] ?? test.attempts[test.attempts.length - 1] ?? null;
+    function handleViewResult() {
+        const id = viewedAttempt?.id ?? test.lastAttemptId;
+        if (id) router.push(`/student/tasks/tests/${test.id}/result/${id}`);
+    }
+    // A test can be LIVE with attempts already used up to (but not reaching)
+    // maxAttempts — e.g. attempt 1/2 done, attempt 2 still available. Previously
+    // that state only ever showed "Start Test Now" and the already-taken
+    // attempt's result was unreachable from the card. Now both buttons can
+    // show together: View Result for whatever's been attempted so far, and
+    // Start Test Now for the next attempt if one remains.
+    const canStartAnother = test.studentStatus === 'LIVE' && test.attemptsUsed < test.maxAttempts;
 
     return (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
@@ -151,7 +176,11 @@ function TestCard({ test }: { test: StudentTest }) {
                         <span className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full ${meta.bgColor} ${meta.textColor}`}>
                             {meta.emoji} {meta.label}
                         </span>
-                        {test.studentStatus === 'DONE' && test.bestScore !== null && (
+                        {viewedAttempt ? (
+                            <span className="text-xs font-semibold text-foreground">
+                                Score: {viewedAttempt.totalScore}/{test.totalMarks} ({viewedAttempt.percentage}%)
+                            </span>
+                        ) : test.bestScore !== null && (
                             <span className="text-xs font-semibold text-foreground">
                                 Score: {test.bestScore}/{test.totalMarks}
                                 {test.bestPercentage !== null && ` (${test.bestPercentage}%)`}
@@ -190,13 +219,25 @@ function TestCard({ test }: { test: StudentTest }) {
                         <Layers size={10} /> {test.numberOfQuestions} Ques
                     </span>
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
-                        Attempt {test.attemptsUsed}/{test.maxAttempts}
+                        Attempt {viewedAttempt?.attemptNumber ?? test.attemptsUsed}/{test.maxAttempts}
                     </span>
-                    {test.studentStatus === 'DONE' && test.lastAttemptEndTime && (
+                    {(viewedAttempt?.startTime ?? test.lastAttemptStartTime) && (
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-lg whitespace-nowrap" style={{ background: 'rgba(192,96,64,0.12)' }}>
                             <Calendar size={10} />
                             <span className="font-semibold text-foreground/70">Given at :</span>
-                            {formatDate(test.lastAttemptEndTime)}, {formatTime(test.lastAttemptEndTime)}
+                            {formatDate((viewedAttempt?.startTime ?? test.lastAttemptStartTime)!)}, {formatTime((viewedAttempt?.startTime ?? test.lastAttemptStartTime)!)}
+                        </span>
+                    )}
+                    {(viewedAttempt?.endTime ?? test.lastAttemptEndTime) && (
+                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-lg whitespace-nowrap" style={{ background: 'rgba(192,96,64,0.12)' }}>
+                            <Calendar size={10} />
+                            <span className="font-semibold text-foreground/70">Submitted at :</span>
+                            {formatDate((viewedAttempt?.endTime ?? test.lastAttemptEndTime)!)}, {formatTime((viewedAttempt?.endTime ?? test.lastAttemptEndTime)!)}
+                        </span>
+                    )}
+                    {(viewedAttempt ? viewedAttempt.malpracticeFlag : test.lastAttemptMalpracticeFlag) && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-lg bg-red-500/10 text-red-600 dark:text-red-400">
+                            <ShieldAlert size={10} /> Flagged for malpractice
                         </span>
                     )}
                 </div>
@@ -215,17 +256,40 @@ function TestCard({ test }: { test: StudentTest }) {
                     </div>
                 )}
 
-                {test.studentStatus === 'LIVE' && (
-                    <button onClick={handleAction}
-                        className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2">
+                {test.lastAttemptId && (
+                    <div className="mt-3 flex items-center gap-1.5">
+                        {test.attempts.length > 1 && (
+                            <button
+                                onClick={() => setViewedIdx((i) => Math.max(0, i - 1))}
+                                disabled={viewedIdx <= 0}
+                                className="w-9 h-9 shrink-0 rounded-xl border border-border flex items-center justify-center disabled:opacity-30 hover:bg-muted/50 active:scale-[0.98] transition-all"
+                                aria-label="Previous attempt"
+                            >
+                                <ChevronLeft size={15} />
+                            </button>
+                        )}
+                        <button onClick={handleViewResult}
+                            className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-border text-foreground hover:bg-muted/50 active:scale-[0.98] transition-all">
+                            View Result{test.attempts.length > 1 && viewedAttempt ? ` (Attempt ${viewedAttempt.attemptNumber}/${test.maxAttempts})` : ''}
+                        </button>
+                        {test.attempts.length > 1 && (
+                            <button
+                                onClick={() => setViewedIdx((i) => Math.min(test.attempts.length - 1, i + 1))}
+                                disabled={viewedIdx >= test.attempts.length - 1}
+                                className="w-9 h-9 shrink-0 rounded-xl border border-border flex items-center justify-center disabled:opacity-30 hover:bg-muted/50 active:scale-[0.98] transition-all"
+                                aria-label="Next attempt"
+                            >
+                                <ChevronRight size={15} />
+                            </button>
+                        )}
+                    </div>
+                )}
+                {canStartAnother && (
+                    <button onClick={handleStart}
+                        className={`${test.lastAttemptId ? 'mt-2' : 'mt-3'} w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2`}>
                         <Radio size={15} />
                         Start Test Now
-                    </button>
-                )}
-                {test.studentStatus === 'DONE' && test.lastAttemptId && (
-                    <button onClick={handleAction}
-                        className="mt-3 w-full py-2.5 rounded-xl text-sm font-semibold border border-border text-foreground hover:bg-muted/50 active:scale-[0.98] transition-all">
-                        View Result
+                        {test.attemptsUsed > 0 && ` (Attempt ${test.attemptsUsed + 1}/${test.maxAttempts})`}
                     </button>
                 )}
             </div>
