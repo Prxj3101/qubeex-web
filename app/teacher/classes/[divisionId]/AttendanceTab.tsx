@@ -1192,17 +1192,32 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [loadingDate, setLoadingDate] = useState(false);
 
-    // Initialize attendance state when students load
+    // Initialize attendance state when the student ROSTER changes (division
+    // switch, first load). Deliberately keyed on the joined id list, not on
+    // `students` itself — after every save, the parent's refreshSummary()
+    // rebuilds the students array (new cumulative %s) which is a brand-new
+    // array reference even though the actual roster is unchanged. Depending
+    // on `students` directly re-ran this effect on every save and wiped the
+    // just-saved marks back to blank until you left the date and came back
+    // (which re-fetched from /daily and showed the real saved data again).
+    const studentIdsKey = students.map(s => s.id).join(',');
     useEffect(() => {
         if (students.length === 0) return;
         setAttendance(Object.fromEntries(students.map(s => [s.id, { status: null, remark: '' }])));
-    }, [students]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [studentIdsKey]);
 
     // Fetch attendance when date or students change
     const currentDk = dateKey(selectedDate);
     useEffect(() => {
         if (students.length === 0) return;
         setLoadingDate(true);
+        // Clear the previous date's marks immediately instead of leaving them
+        // on screen until the new date's fetch resolves — otherwise the old
+        // date's P/A/L flashes for a moment on top of the new (still-loading)
+        // date, which reads as if it belongs to the date you just switched to.
+        setAttendance(Object.fromEntries(students.map(s => [s.id, { status: null as AttendanceStatus, remark: '' }])));
+        setGlobalRemark('');
         api.get(`${attBase}/daily?date=${currentDk}`)
             .then(res => {
                 const { records, dateNote } = res.data.data;
@@ -1364,6 +1379,15 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                                                     <button key={i}
                                                         onClick={() => {
                                                             if (isFuture) return;
+                                                            // Clear the previous date's marks in the SAME event handler as
+                                                            // the date change (React batches these into one render), not
+                                                            // in a separate effect that fires a render later — otherwise
+                                                            // there's one paint where selectedDate has already moved to
+                                                            // the new date but `attendance` still holds the old date's
+                                                            // marks, which the sheet's currentKey-highlighted column
+                                                            // renders as a one-frame flash of the wrong date's data.
+                                                            setAttendance(Object.fromEntries(students.map(s => [s.id, { status: null as AttendanceStatus, remark: '' }])));
+                                                            setGlobalRemark('');
                                                             setSelectedDate(new Date(calYear, calMonth, d));
                                                             setShowDatePicker(false);
                                                         }}

@@ -259,7 +259,7 @@ export default function TeacherOverviewPage() {
         teacher: { name: string; prefix: string | null; institutionName: string; classTeacherDivisionName: string | null };
         stats: { classesAssigned: number; subjectsTeaching: number; testsConducted: number; avgAttendancePct: number | null };
         attendanceTrend: { month: string; attendance: number; students: number }[];
-        shortAttendance: { name: string; rollNo: string; pct: number }[];
+        shortAttendance: { name: string; rollNo: string; pct: number; avatarUrl: string | null }[];
         auditLogs: { id: string; action: string; category: string; severity: string; details: string | null; ip: string | null; createdAt: string }[];
     };
     const [overview, setOverview] = useState<OverviewData | null>(null);
@@ -523,9 +523,11 @@ export default function TeacherOverviewPage() {
                         {(overview?.shortAttendance ?? []).map((s, i) => (
                             <motion.div key={s.rollNo} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
                                 className="flex items-center gap-2 p-2 rounded-xl border border-border/50 bg-muted/20">
-                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
-                                    style={{ background: s.pct >= 65 ? '#D97706' : '#DC2626' }}>
-                                    {s.name.split(' ').map(n => n[0]).join('')}
+                                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 overflow-hidden"
+                                    style={{ background: s.avatarUrl ? 'transparent' : (s.pct >= 65 ? '#D97706' : '#DC2626') }}>
+                                    {s.avatarUrl
+                                        ? <img src={s.avatarUrl} alt={s.name} className="w-full h-full object-cover" />
+                                        : s.name.split(' ').map(n => n[0]).join('')}
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-[10px] font-semibold truncate">{s.name}</p>
