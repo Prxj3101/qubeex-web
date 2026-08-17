@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
 // rendering React component" for that pattern, and removing it brought the
 // flash straight back (client-only class toggles are never fast enough for
 // the very first paint on a hard refresh).
-//
+
 // Real fix: MockInstTypeContext now also mirrors the institution type into a
 // cookie whenever it resolves it. Cookies travel with the request, so this
 // Server Component can read it here and render 'theme-college' on <html>
