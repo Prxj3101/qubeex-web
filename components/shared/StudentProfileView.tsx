@@ -129,10 +129,15 @@ export default function StudentProfileView({
     const age = dobDate ? new Date().getFullYear() - dobDate.getFullYear() : null;
     const dobDisplay = dobDate ? dobDate.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : null;
 
+    // All 12 months always stay on the x-axis (same layout as before) — but a
+    // month with no attendance marked yet comes back as pct: null from the
+    // backend, and we keep it null here (not 0) so the line/area simply stops
+    // after the last real month instead of dropping to a fake 0% and running
+    // flat across every unmarked future month.
     const attendanceTrendData = useMemo(() =>
         MONTHS_ORDER.map(m => {
             const found = attendanceApiData?.monthly.find(x => x.month === m);
-            return { month: m, value: found?.pct ?? 0 };
+            return { month: m, value: found?.pct ?? null };
         }),
     [attendanceApiData]);
 
@@ -456,10 +461,12 @@ export default function StudentProfileView({
                                 stroke="#10B981"
                                 strokeWidth={2}
                                 fill="url(#staffAttendTrendGrad)"
+                                connectNulls={false}
                                 dot={(dotProps: unknown) => {
-                                    const { cx, cy, payload } = dotProps as { cx: number; cy: number; payload: { value: number } };
+                                    const { cx, cy, payload } = dotProps as { cx: number; cy: number; payload: { value: number | null } };
                                     const value = payload.value;
-                                    const vals = attendanceTrendData.map((d) => d.value);
+                                    if (value == null) return <g key={`${cx}-${cy}`} />;
+                                    const vals = attendanceTrendData.map((d) => d.value).filter((v): v is number => v != null);
                                     const isMax = value === Math.max(...vals);
                                     const isMin = value === Math.min(...vals);
                                     const labelColor = isMin ? '#EF4444' : '#10B981';

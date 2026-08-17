@@ -121,6 +121,10 @@ export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarkshee
           setRemarks(data.remarks ?? {});
           setGradedSectionTitle(data.marksheet.gradedSectionTitle);
           setGradeScale(data.gradeScale ?? []);
+          // Server-persisted, not derived client-side — otherwise this always
+          // reset to false on reload/navigation even with real unpublished
+          // edits (e.g. a subject teacher entering marks in another tab).
+          setHasUnpublishedChanges(data.marksheet.hasUnpublishedChanges ?? false);
         }
       } catch {
         // unexpected errors (5xx, network) — leave UI empty
@@ -284,6 +288,7 @@ export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarkshee
       ...prev,
       [examColumnId]: { ...(prev[examColumnId] ?? {}), [studentId]: value },
     }));
+    setHasUnpublishedChanges(true);
     dirtySubjectsRef.current.add(subjectId);
     if (scoreDebounceRef.current) clearTimeout(scoreDebounceRef.current);
     scoreDebounceRef.current = setTimeout(() => { flushScoresRef.current(); }, 1500);
@@ -363,6 +368,7 @@ export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarkshee
       ...prev,
       [gradedSubjectId]: { ...(prev[gradedSubjectId] ?? {}), [studentId]: value },
     }));
+    setHasUnpublishedChanges(true);
     gradedDirtyRef.current = true;
     if (gradedDebounceRef.current) clearTimeout(gradedDebounceRef.current);
     gradedDebounceRef.current = setTimeout(() => { flushGradedScoresRef.current(); }, 1500);
@@ -370,6 +376,7 @@ export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarkshee
 
   const handleRemarkChange = useCallback((studentId: string, value: RemarkEntry) => {
     setRemarks(prev => ({ ...prev, [studentId]: value }));
+    setHasUnpublishedChanges(true);
     const existing = remarkDebounceRef.current[studentId];
     if (existing) clearTimeout(existing);
     remarkDebounceRef.current[studentId] = setTimeout(async () => {

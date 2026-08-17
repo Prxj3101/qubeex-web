@@ -1465,14 +1465,15 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
     // Per-student offline totals across all subjects (online = 0 until implemented)
     const studentStats = useMemo(() => {
         return marksheetHook.students.map(st => {
+            // Matches getSubjectTotal's enteredTotal rule: a column only
+            // counts toward max if this student has a real (non-null) score
+            // in it — blank AND absent both mean "not entered".
             let offScored = 0, offMax = 0;
             subjects.forEach(sub => {
                 const cols = marksheetHook.examColumns[sub.id] ?? [];
                 cols.forEach(col => {
-                    const e = marksheetHook.scores[col.id]?.[st.id];
-                    if (e?.isAbsent) return;
-                    offMax += col.maxMarks;
-                    if (e?.score != null) offScored += e.score;
+                    const sc = marksheetHook.scores[col.id]?.[st.id]?.score;
+                    if (sc != null) { offScored += sc; offMax += col.maxMarks; }
                 });
             });
             const offPct = offMax > 0 ? Math.round((offScored / offMax) * 100) : null;
@@ -1486,13 +1487,13 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
     const subjectToppers = useMemo(() => {
         return subjects.map(sub => {
             const cols = marksheetHook.examColumns[sub.id] ?? [];
-            const offMax = cols.reduce((s, c) => s + c.maxMarks, 0);
             const rows = marksheetHook.students.map(st => {
-                let offScored = 0;
+                // Per-student entered max — not a subject-wide constant, same
+                // reason as above.
+                let offScored = 0, offMax = 0;
                 cols.forEach(col => {
-                    const e = marksheetHook.scores[col.id]?.[st.id];
-                    if (e?.isAbsent) return;
-                    if (e?.score != null) offScored += e.score;
+                    const sc = marksheetHook.scores[col.id]?.[st.id]?.score;
+                    if (sc != null) { offScored += sc; offMax += col.maxMarks; }
                 });
                 const offPct = offMax > 0 ? Math.round((offScored / offMax) * 100) : null;
                 const onPct: number | null = null;
@@ -1750,11 +1751,15 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                         const offCols = trendSub ? (marksheetHook.examColumns[trendSub.id] ?? []) : [];
                         const trendData = (() => {
                             if (!trendSub) return [];
-                            const offRows = offCols.map(col => {
-                                const e = marksheetHook.scores[col.id]?.[sel.student.id];
-                                const sc = e?.isAbsent ? 0 : (e?.score ?? 0);
-                                return { name: col.name, score: col.maxMarks > 0 ? Math.round((sc / col.maxMarks) * 100) : 0 };
-                            });
+                            // A column with no marks entered yet isn't a real data point —
+                            // it must not appear on the graph at all (not even as a 0%).
+                            const offRows = offCols
+                                .filter(col => marksheetHook.scores[col.id]?.[sel.student.id]?.score != null)
+                                .map(col => {
+                                    const e = marksheetHook.scores[col.id]?.[sel.student.id];
+                                    const sc = e?.isAbsent ? 0 : (e?.score ?? 0);
+                                    return { name: col.name, score: col.maxMarks > 0 ? Math.round((sc / col.maxMarks) * 100) : 0 };
+                                });
                             if (trendMode === 'online') return []; // online not yet available
                             return offRows; // offline & combined both use offline for now
                         })();
@@ -1892,8 +1897,10 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                 const e = marksheetHook.scores[col.id]?.[sel.student.id];
                                                 const val = e?.isAbsent ? null : (e?.score ?? null);
                                                 const pct = val !== null && col.maxMarks > 0 ? Math.round((val / col.maxMarks) * 100) : null;
-                                                if (!e?.isAbsent) maxTotal += col.maxMarks;
-                                                if (val !== null) scored += val;
+                                                // Blank/never-entered must not count toward max either — matches
+                                                // getSubjectTotal's enteredTotal rule (only a real, non-null value
+                                                // pulls a column into the denominator).
+                                                if (val !== null) { maxTotal += col.maxMarks; scored += val; }
                                                 return { ex: col, val, maxMarks: col.maxMarks, pct };
                                             });
                                             const totalPct = maxTotal > 0 ? Math.round((scored / maxTotal) * 100) : null;

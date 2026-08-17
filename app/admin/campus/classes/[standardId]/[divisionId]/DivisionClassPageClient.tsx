@@ -1958,9 +1958,10 @@ export default function DivisionDetailPage() {
                                                                     label: 'Score %',
                                                                     value: loadingStats ? '…' : (studentStats?.score.pct != null ? `${studentStats.score.pct}%` : '—'),
                                                                     sub: 'overall',
+                                                                    // Same thresholds/colors as the marksheet's own scoreColor().
                                                                     color: studentStats?.score.pct == null ? undefined :
-                                                                        studentStats.score.pct >= 75 ? '#10B981' :
-                                                                            studentStats.score.pct >= 65 ? '#F59E0B' : '#EF4444',
+                                                                        studentStats.score.pct >= 75 ? '#059669' :
+                                                                            studentStats.score.pct >= 35 ? '#F59E0B' : '#DC2626',
                                                                 },
                                                                 {
                                                                     label: 'Attendance',

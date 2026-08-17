@@ -6,6 +6,10 @@ export interface MarksheetMeta {
   status: 'DRAFT' | 'PUBLISHED';
   shareToken: string | null;
   gradedSectionTitle: string;
+  // Persisted server-side (not just client state) so it survives page
+  // reload/navigation — true from the moment any edit happens after the
+  // last publish, reset to false by publish/re-publish.
+  hasUnpublishedChanges?: boolean;
 }
 
 export interface ExamColumn {

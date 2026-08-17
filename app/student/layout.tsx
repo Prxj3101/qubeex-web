@@ -8,7 +8,32 @@ import { LayoutDashboard, Rss, ClipboardList, BookOpen, User } from 'lucide-reac
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+// Bridges the app's login token into localStorage when a page is opened
+// inside the app's in-app WebView (test-taking / result screens) instead of
+// a real browser. Runs synchronously during render — deliberately NOT inside
+// a useEffect — so it lands before this layout's own fetchProfile() effect
+// and before the actual test/result page (a child of this layout) even
+// mounts and fires its own data-fetching effects. The previous approach
+// relied solely on the WebView's injectedJavaScriptBeforeContentLoaded,
+// which isn't consistently honored across RN WebView versions/platforms —
+// this is a same-origin, code-level fallback that doesn't depend on native
+// JS injection timing at all.
+function bridgeWebViewToken() {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const wvToken = params.get('wvToken');
+    if (!wvToken) return;
+    try {
+        localStorage.setItem('token', decodeURIComponent(wvToken));
+    } catch { /* localStorage unavailable — nothing more we can do here */ }
+    // Strip it from the URL so it doesn't linger in history/back-stack.
+    params.delete('wvToken');
+    const newSearch = params.toString();
+    window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+}
+
 function StudentLayoutInner({ children }: { children: React.ReactNode }) {
+    bridgeWebViewToken();
     const pathname = usePathname();
     const [loading, setLoading] = useState(true);
     const { feedHasNew, clearFeedBadge } = useFeedBadge();

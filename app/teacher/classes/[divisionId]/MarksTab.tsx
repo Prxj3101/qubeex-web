@@ -1532,19 +1532,23 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
         return marksheetHook.students.map(st => {
             let offScored = 0, offMax = 0, onScored = 0, onMax = 0;
             subjects.forEach(sub => {
+                // Offline: matches getSubjectTotal's enteredTotal rule exactly —
+                // a column only counts toward max if this student has a real
+                // (non-null) score in it. Blank AND absent both mean "not
+                // entered" here (getScore doesn't special-case isAbsent), so
+                // neither should shrink or inflate the denominator.
                 const offCols = marksheetHook.examColumns[sub.id] ?? [];
                 offCols.forEach(col => {
-                    const e = marksheetHook.scores[col.id]?.[st.id];
-                    if (e?.isAbsent) return;
-                    offMax += col.maxMarks;
-                    if (e?.score != null) offScored += e.score;
+                    const sc = marksheetHook.scores[col.id]?.[st.id]?.score;
+                    if (sc != null) { offScored += sc; offMax += col.maxMarks; }
                 });
+                // Online: tests are already completed, so every column always
+                // counts in full — a missed test is a real 0, not an exclusion.
                 const onCols = onlineMarksheetHook.examColumns[sub.id] ?? [];
                 onCols.forEach(col => {
-                    const e = onlineMarksheetHook.scores[col.id]?.[st.id];
-                    if (e?.isAbsent) return;
                     onMax += col.maxMarks;
-                    if (e?.score != null) onScored += e.score;
+                    const e = onlineMarksheetHook.scores[col.id]?.[st.id];
+                    onScored += e?.isAbsent ? 0 : (e?.score ?? 0);
                 });
             });
             const offPct = offMax > 0 ? Math.round((offScored / offMax) * 100) : null;
@@ -1559,20 +1563,21 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
     const subjectToppers = useMemo(() => {
         return subjects.map(sub => {
             const offCols = marksheetHook.examColumns[sub.id] ?? [];
-            const offMax = offCols.reduce((s, c) => s + c.maxMarks, 0);
             const onCols = onlineMarksheetHook.examColumns[sub.id] ?? [];
             const onMax = onCols.reduce((s, c) => s + c.maxMarks, 0);
             const rows = marksheetHook.students.map(st => {
-                let offScored = 0, onScored = 0;
+                // Per-student entered max — not a subject-wide constant. A
+                // freshly added column with no marks yet must not drag down
+                // everyone's subject %, only columns THIS student actually
+                // has a score for count toward their own denominator.
+                let offScored = 0, offMax = 0, onScored = 0;
                 offCols.forEach(col => {
-                    const e = marksheetHook.scores[col.id]?.[st.id];
-                    if (e?.isAbsent) return;
-                    if (e?.score != null) offScored += e.score;
+                    const sc = marksheetHook.scores[col.id]?.[st.id]?.score;
+                    if (sc != null) { offScored += sc; offMax += col.maxMarks; }
                 });
                 onCols.forEach(col => {
                     const e = onlineMarksheetHook.scores[col.id]?.[st.id];
-                    if (e?.isAbsent) return;
-                    if (e?.score != null) onScored += e.score;
+                    onScored += e?.isAbsent ? 0 : (e?.score ?? 0);
                 });
                 const offPct = offMax > 0 ? Math.round((offScored / offMax) * 100) : null;
                 const onPct = onMax > 0 ? Math.round((onScored / onMax) * 100) : null;
@@ -1841,11 +1846,18 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                         const onCols = trendSub ? (onlineMarksheetHook.examColumns[trendSub.id] ?? []) : [];
                         const trendData = (() => {
                             if (!trendSub) return [];
-                            const offRows = offCols.map(col => {
-                                const e = marksheetHook.scores[col.id]?.[sel.student.id];
-                                const sc = e?.isAbsent ? 0 : (e?.score ?? 0);
-                                return { name: col.name, score: col.maxMarks > 0 ? Math.round((sc / col.maxMarks) * 100) : 0 };
-                            });
+                            // Offline: a column with no marks entered yet isn't a real
+                            // data point — it must not appear on the graph at all (not
+                            // even as a 0%), or the trend line reads as if the student
+                            // scored zero on an ungraded exam. Online stays as-is: a
+                            // completed test with no attempt is a real 0, not a blank.
+                            const offRows = offCols
+                                .filter(col => marksheetHook.scores[col.id]?.[sel.student.id]?.score != null)
+                                .map(col => {
+                                    const e = marksheetHook.scores[col.id]?.[sel.student.id];
+                                    const sc = e?.isAbsent ? 0 : (e?.score ?? 0);
+                                    return { name: col.name, score: col.maxMarks > 0 ? Math.round((sc / col.maxMarks) * 100) : 0 };
+                                });
                             const onRows = onCols.map(col => {
                                 const e = onlineMarksheetHook.scores[col.id]?.[sel.student.id];
                                 const sc = e?.isAbsent ? 0 : (e?.score ?? 0);
@@ -1999,8 +2011,10 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                                                 // missed it — a hard 0, not a blank.
                                                 const val = e?.isAbsent ? null : (e?.score ?? (isOffline ? null : 0));
                                                 const pct = val !== null && col.maxMarks > 0 ? Math.round((val / col.maxMarks) * 100) : null;
-                                                if (!e?.isAbsent) maxTotal += col.maxMarks;
-                                                if (val !== null) scored += val;
+                                                // A blank/never-entered offline column must not count toward the
+                                                // denominator either — matches getSubjectTotal's enteredTotal rule
+                                                // (only a real, non-null value pulls a column into the max).
+                                                if (val !== null) { maxTotal += col.maxMarks; scored += val; }
                                                 return { ex: col, val, maxMarks: col.maxMarks, pct };
                                             });
                                             const totalPct = maxTotal > 0 ? Math.round((scored / maxTotal) * 100) : null;

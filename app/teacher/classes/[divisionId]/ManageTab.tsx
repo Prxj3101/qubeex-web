@@ -812,9 +812,12 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     label: 'Score %',
                                                     value: loadingStats ? '…' : (studentStats?.score.pct != null ? `${studentStats.score.pct}%` : '—'),
                                                     sub: 'overall',
+                                                    // Same thresholds/colors as the marksheet's own scoreColor() —
+                                                    // ≥75 green, 35–74 amber, <35 red (not the 75/65 split used for
+                                                    // attendance elsewhere).
                                                     color: studentStats?.score.pct == null ? undefined :
-                                                        studentStats.score.pct >= 75 ? '#10B981' :
-                                                            studentStats.score.pct >= 65 ? '#F59E0B' : '#EF4444',
+                                                        studentStats.score.pct >= 75 ? '#059669' :
+                                                            studentStats.score.pct >= 35 ? '#F59E0B' : '#DC2626',
                                                 },
                                                 {
                                                     label: 'Attendance',

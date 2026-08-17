@@ -39,6 +39,12 @@ export default function AttendanceDetailsPage() {
     const router = useRouter();
     const [data, setData] = useState<AttendanceApiData | null>(null);
     const [loading, setLoading] = useState(true);
+    // Two states so hover shows the tooltip transiently while click "pins"
+    // it open (stays visible after the mouse leaves, toggles off on a
+    // second click) — matches the app's tap-to-pin behaviour.
+    const [hoverHoliday, setHoverHoliday] = useState<{ month: string; day: number; name: string } | null>(null);
+    const [pinnedHoliday, setPinnedHoliday] = useState<{ month: string; day: number; name: string } | null>(null);
+    const activeHoliday = pinnedHoliday ?? hoverHoliday;
 
     useEffect(() => {
         api.get('/student/attendance')
@@ -255,10 +261,17 @@ export default function AttendanceDetailsPage() {
                                                 const holName = dateStr ? holidayMap[dateStr] : undefined;
                                                 const isHol = !isSunday && !!holName;
                                                 const status = dateStr && data ? (data.daily[dateStr] ?? null) : null;
+                                                const isActive = isHol && activeHoliday?.month === m.month && activeHoliday?.day === d;
                                                 return (
                                                     <td key={d}
-                                                        title={holName ?? undefined}
-                                                        className={`border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center relative ${isOutOfMonth ? 'bg-[#ECF3D0]/40' : isSunday ? 'bg-[#FFF0F0]' : isHol ? 'bg-[#FEF2F2]' : ''}`}>
+                                                        onMouseEnter={isHol ? () => setHoverHoliday({ month: m.month, day: d, name: holName ?? 'Holiday' }) : undefined}
+                                                        onMouseLeave={isHol ? () => setHoverHoliday(null) : undefined}
+                                                        onClick={isHol ? () => setPinnedHoliday(prev =>
+                                                            prev?.month === m.month && prev?.day === d
+                                                                ? null
+                                                                : { month: m.month, day: d, name: holName ?? 'Holiday' }
+                                                        ) : undefined}
+                                                        className={`border-[0.1px] border-[#BACE85]/50 px-1 py-1.5 text-center relative ${isOutOfMonth ? 'bg-[#ECF3D0]/40' : isSunday ? 'bg-[#FFF0F0]' : isHol ? 'bg-[#FEF2F2] cursor-pointer' : ''}`}>
                                                         {isOutOfMonth ? (
                                                             <span className="text-[#BACE85]/30">·</span>
                                                         ) : isHol ? (
@@ -267,6 +280,19 @@ export default function AttendanceDetailsPage() {
                                                             <span style={{ fontFamily: "'Patrick Hand', cursive", fontSize: '14px', fontWeight: 700, color: status === 'P' ? '#16a34a' : status === 'A' ? '#dc2626' : '#d97706', lineHeight: 1, display: 'block' }}>{status}</span>
                                                         ) : (
                                                             <span className="text-[#BACE85]">—</span>
+                                                        )}
+                                                        {isActive && (
+                                                            <div
+                                                                className="absolute z-50 left-1/2 -translate-x-1/2 px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-lg pointer-events-none"
+                                                                style={{
+                                                                    background: '#1A1030',
+                                                                    border: '1px solid rgba(148,163,184,0.2)',
+                                                                    ...(m === monthData[0] ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' }),
+                                                                }}
+                                                            >
+                                                                <p className="text-[10.5px] font-semibold text-white leading-tight">{activeHoliday!.name}</p>
+                                                                <p className="text-[9px] text-white/70 leading-tight mt-0.5">{m.month} {d}</p>
+                                                            </div>
                                                         )}
                                                     </td>
                                                 );
