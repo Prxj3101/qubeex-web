@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 // Next/Vercel ever manages to cache this shell (e.g. from a build-time
 // prerender where no cookie exists), every single visitor would get stuck
 // with whatever institution type was baked in at build time, which is
-// exactly the "still flashing on every load" symptom.
+// exactly the "still flashing on every load" symptom
 export const dynamic = 'force-dynamic';
 
 // We used to inject a `beforeInteractive` next/script to flip the
