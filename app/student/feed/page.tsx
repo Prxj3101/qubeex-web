@@ -307,7 +307,9 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
             <div>
                 <p className="text-sm font-bold mb-1">{post.title}</p>
                 {post.body && (
-                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded && isLongBody ? 'line-clamp-2' : ''}`}>
+                    <p
+                        onClick={isLongBody ? () => setExpanded(v => !v) : undefined}
+                        className={`text-xs text-muted-foreground leading-relaxed ${!expanded && isLongBody ? 'line-clamp-2' : ''} ${isLongBody ? 'cursor-pointer' : ''}`}>
                         <LinkifiedText text={post.body} />
                     </p>
                 )}

@@ -121,6 +121,8 @@ interface TestBase {
     maxAttempts: number;
     startDate: string | null;
     validUntil: string | null;
+    dueDate?: string | null; // assignments only — the builder's "due date" (replaces the test-only Duration/Time concept)
+    submissionType?: 'OFFLINE' | 'ONLINE'; // assignments only
     paperType: string;
     isRandomized: boolean;
     answerSpace: boolean;
@@ -377,14 +379,19 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     const [aLoading, setALoading] = useState(false);
     const [createAssignmentOpen, setCreateAssignmentOpen] = useState(false);
     const [newAssignment, setNewAssignment] = useState({ title: '', description: '', totalMarks: 10, dueDate: '', submissionType: 'OFFLINE' as 'OFFLINE' | 'ONLINE' });
+    // Same free-typing-buffer fix as the paper builder's marks/duration boxes.
+    const [newAssignmentMarksDraft, setNewAssignmentMarksDraft] = useState<string | null>(null);
     const [savingAssignment, setSavingAssignment] = useState(false);
 
     // ── Report stats to parent ────────────────────────────────────────────────
     const onStatsChangeRef = useRef(onStatsChange);
     useEffect(() => { onStatsChangeRef.current = onStatsChange; });
     useEffect(() => {
-        onStatsChangeRef.current?.({ tests: tests.length, assignments: assignments.length });
-    }, [tests.length, assignments.length]);
+        onStatsChangeRef.current?.({
+            tests: tests.filter(t => t.status === 'ACTIVE').length,
+            assignments: assignments.filter(a => a.status === 'ACTIVE').length,
+        });
+    }, [tests, assignments]);
 
     // ── Modules ───────────────────────────────────────────────────────────────
     const [modules, setModules] = useState<TaskModule[]>([]);
@@ -771,6 +778,16 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
             const res = await api.patch(`/teacher/tasks/assignments/${id}`, { status });
             setAssignments(prev => prev.map(a => a.id === id ? { ...a, ...res.data.data } : a));
             toast.success(status === 'ACTIVE' ? 'Assignment activated' : 'Assignment completed');
+        } catch (err) { toast.error(apiError(err)); }
+    };
+
+    // Ends an ACTIVE assignment immediately instead of waiting for its Due Date —
+    // pulls Due Date to right now so "Due was" reflects the real stop moment.
+    const stopAssignmentNow = async (id: string) => {
+        try {
+            const res = await api.patch(`/teacher/tasks/assignments/${id}`, { status: 'COMPLETED', dueDate: new Date().toISOString() });
+            setAssignments(prev => prev.map(a => a.id === id ? { ...a, ...res.data.data } : a));
+            toast.success('Assignment stopped — now shows as completed');
         } catch (err) { toast.error(apiError(err)); }
     };
 
@@ -1557,7 +1574,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                             <p className="text-xs text-muted-foreground pl-1">No active or draft assignments</p>
                                         ) : (
                                             <div className="grid grid-cols-1 gap-3 px-1">
-                                                {liveAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => updateAssignmentStatus(a.id, 'COMPLETED')} onSubmissions={() => setSubmissionsAssignmentId(a.id)} />)}
+                                                {liveAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => stopAssignmentNow(a.id)} onSubmissions={() => setSubmissionsAssignmentId(a.id)} />)}
                                             </div>
                                         )}
                                     </div>
@@ -1574,7 +1591,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                                 <div className="flex-1 h-px bg-border/60" />
                                             </div>
                                             <div className="grid grid-cols-1 gap-3 px-1">
-                                                {historyAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => updateAssignmentStatus(a.id, 'COMPLETED')} onSubmissions={() => setSubmissionsAssignmentId(a.id)} />)}
+                                                {historyAssignments.map(a => <AssignmentCard key={a.id} assignment={a} onOpen={() => openBuilder(a.id, 'ASSIGNMENT')} onDelete={() => deleteAssignment(a.id)} onActivate={() => updateAssignmentStatus(a.id, 'ACTIVE')} onComplete={() => stopAssignmentNow(a.id)} onSubmissions={() => setSubmissionsAssignmentId(a.id)} />)}
                                             </div>
                                         </div>
                                     )}
@@ -2147,7 +2164,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                 <div className="col-span-2">
                                     <label className="text-xs text-muted-foreground">Title *</label>
                                     <input value={newAssignment.title} onChange={e => setNewAssignment(p => ({ ...p, title: e.target.value }))}
-                                        placeholder="e.g. Chapter 3 Assignment"
+                                        placeholder="e.g. Assignment 1"
                                         className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
                                 </div>
                                 <div className="col-span-2">
@@ -2158,9 +2175,20 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                 </div>
                                 <div>
                                     <label className="text-xs text-muted-foreground">Total Marks</label>
-                                    <input type="number" min={1} max={500}
-                                        value={newAssignment.totalMarks}
-                                        onChange={e => setNewAssignment(p => ({ ...p, totalMarks: Number(e.target.value) }))}
+                                    <input type="text" inputMode="numeric"
+                                        value={newAssignmentMarksDraft !== null ? newAssignmentMarksDraft : String(newAssignment.totalMarks)}
+                                        onFocus={e => { setNewAssignmentMarksDraft(String(newAssignment.totalMarks)); e.currentTarget.select(); }}
+                                        onChange={e => {
+                                            const digits = e.target.value.replace(/[^0-9]/g, '');
+                                            setNewAssignmentMarksDraft(digits);
+                                            if (digits !== '') setNewAssignment(p => ({ ...p, totalMarks: Number(digits) }));
+                                        }}
+                                        onBlur={() => {
+                                            const n = parseInt(newAssignmentMarksDraft ?? '', 10);
+                                            setNewAssignment(p => ({ ...p, totalMarks: !isNaN(n) ? Math.min(500, Math.max(1, n)) : p.totalMarks }));
+                                            setNewAssignmentMarksDraft(null);
+                                        }}
+                                        onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                                         className="w-full mt-1 text-sm rounded-lg border border-border bg-background px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/40" />
                                 </div>
                                 <div>
@@ -2779,6 +2807,7 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
 }) {
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [activateConfirm, setActivateConfirm] = useState(false);
+    const [completeConfirm, setCompleteConfirm] = useState(false);
     const effectiveStatus: AssignmentStatus = (assignment.dueDate && new Date(assignment.dueDate) < new Date()) ? 'COMPLETED' : assignment.status;
     const statusColor = {
         DRAFT: 'text-muted-foreground bg-muted',
@@ -2787,7 +2816,7 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
     }[effectiveStatus];
 
     return (
-        <div className="rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]">
+        <div className="group rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]">
             {/* Top row */}
             <div className="flex gap-4">
                 <div className="flex-1 min-w-0">
@@ -2813,6 +2842,9 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
                 </div>
                 {/* Top-right icons */}
                 <div className="flex items-start gap-1 shrink-0">
+                    <span className="text-[11px] text-muted-foreground whitespace-nowrap self-start mt-1 mr-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <span className="text-foreground/50">Created at:</span> {assignment.createdAt ? `${new Date(assignment.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}
+                    </span>
                     <div className="relative">
                         <button onClick={() => setDeleteConfirm(v => !v)} className="text-muted-foreground hover:text-red-500 p-1 rounded transition-all">
                             <Trash2 size={15} />
@@ -2847,14 +2879,16 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
             {/* Bottom row */}
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                    <span><span className="text-foreground/50">Created at:</span> {assignment.createdAt ? `${new Date(assignment.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
+                    <span><span className="text-foreground/50">Started at:</span> {assignment.createdAt ? `${new Date(assignment.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
                     <span className="opacity-40">·</span>
                     <span><span className="text-foreground/50">{effectiveStatus === 'COMPLETED' ? 'Due was:' : 'Due:'}</span> {assignment.dueDate ? `${new Date(assignment.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.dueDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                     {effectiveStatus === 'DRAFT' && (
                         <div className="relative">
-                            <button onClick={() => setActivateConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
+                            <button onClick={() => setActivateConfirm(true)} disabled={assignment.numberOfQuestions === 0 || !assignment.dueDate}
+                                title={assignment.numberOfQuestions === 0 ? 'Add at least one question before activating' : !assignment.dueDate ? 'Set a Due Date before activating' : undefined}
+                                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/10">
                                 <Play size={12} /> Activate
                             </button>
                             <AnimatePresence>
@@ -2883,9 +2917,36 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
                         </div>
                     )}
                     {effectiveStatus === 'ACTIVE' && (
-                        <button onClick={onComplete} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all">
-                            <CheckCircle2 size={12} /> Complete
-                        </button>
+                        <div className="relative">
+                            <button onClick={() => setCompleteConfirm(true)} className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-red-500/10 text-red-600 hover:bg-red-500/20 transition-all">
+                                <Square size={11} /> Stop Now
+                            </button>
+                            <AnimatePresence>
+                                {completeConfirm && (
+                                    <motion.div
+                                        initial={{ opacity: 0, scale: 0.9, y: 4 }}
+                                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.9, y: 4 }}
+                                        transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                                        className="absolute right-0 bottom-9 z-30 bg-card border border-border rounded-xl shadow-xl p-3 w-64 flex flex-col gap-2">
+                                        <p className="text-xs font-semibold text-foreground">Stop this assignment now?</p>
+                                        <p className="text-[11px] text-muted-foreground">
+                                            The assignment will end immediately. This can't be undone.
+                                        </p>
+                                        <div className="flex gap-1.5 justify-end">
+                                            <button onClick={() => setCompleteConfirm(false)}
+                                                className="px-2.5 py-1 text-xs rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                                Cancel
+                                            </button>
+                                            <button onClick={() => { setCompleteConfirm(false); onComplete(); }}
+                                                className="px-2.5 py-1 text-xs rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                                Stop Now
+                                            </button>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </div>
                     )}
                     <button onClick={onOpen} className="text-xs px-3 py-1.5 rounded-lg border border-border hover:bg-muted transition-all flex items-center gap-1.5">
                         <Eye size={12} /> Open & Edit
@@ -3556,8 +3617,9 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, onStopNow, o
                 <div className="flex items-center gap-2">
                     {effectiveStatus === 'DRAFT' && (
                         <div className="relative">
-                            <button onClick={() => setActivateMenuOpen(true)}
-                                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all">
+                            <button onClick={() => setActivateMenuOpen(true)} disabled={test.numberOfQuestions === 0 || !test.validUntil}
+                                title={test.numberOfQuestions === 0 ? 'Add at least one question before activating' : !test.validUntil ? 'Set a Valid Until date before activating' : undefined}
+                                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-emerald-500/10">
                                 <Play size={12} /> Activate
                             </button>
                             <AnimatePresence>
@@ -3712,9 +3774,25 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     // editing instead of snapping to "0" (which used to leave a stuck leading zero,
     // e.g. typing "45" over a cleared box became "045").
     const [durationDraft, setDurationDraft] = useState<string | null>(null);
+    // Same free-typing-buffer trick as durationDraft, but keyed per question —
+    // assignment marks boxes had the same "stuck leading zero" bug (typing over
+    // a cleared "0" box became "05" etc since value was bound straight to the number).
+    const [marksDraft, setMarksDraft] = useState<Record<string, string>>({});
+    // Same fix, for TEST sections' "m each" (marksPerQuestion) box — keyed per section.
+    const [mpqDraft, setMpqDraft] = useState<Record<string, string>>({});
     const [maxAttempts, setMaxAttempts] = useState(1);
     const [startDate, setStartDate] = useState('');
     const [validUntil, setValidUntil] = useState('');
+    const [dueDate, setDueDate] = useState(''); // assignments only
+    const [submissionType, setSubmissionType] = useState<'OFFLINE' | 'ONLINE'>('OFFLINE'); // assignments only
+    // Letterhead — printed on every page of an assignment paper, pulled from
+    // the institution's own logo/address (set once in Admin > Settings), not
+    // anything the teacher configures per-assignment.
+    const [letterhead, setLetterhead] = useState<{ name: string; logoUrl: string | null; address: string | null; city: string | null; state: string | null; pincode: string | null } | null>(null);
+    useEffect(() => {
+        if (entityType !== 'assignment') return;
+        api.get('/teacher/institution/letterhead').then(res => setLetterhead(res.data.data)).catch(() => {});
+    }, [entityType]);
     const [isRandomized, setIsRandomized] = useState(false);
     const [answerSpace, setAnswerSpace] = useState(true);
 
@@ -3758,6 +3836,8 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 setMaxAttempts(t.maxAttempts);
                 setStartDate(t.startDate ? toLocalDatetimeInput(t.startDate) : '');
                 setValidUntil(t.validUntil ? toLocalDatetimeInput(t.validUntil) : '');
+                setDueDate(t.dueDate ? toLocalDatetimeInput(t.dueDate) : '');
+                setSubmissionType(t.submissionType ?? 'OFFLINE');
                 setIsActivated(t.status === 'ACTIVE' || t.status === 'COMPLETED');
                 setIsCompleted(t.status === 'COMPLETED');
                 setIsRandomized(t.isRandomized ?? false);
@@ -3840,12 +3920,15 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
             toast.info('Already in paper');
             return;
         }
-        const sectionId = paperType === 'TEST' ? (activeSectionId ?? null) : null;
+        const sectionId = activeSectionId ?? null;
         const section = sections.find(s => s.id === sectionId);
         setBuilderQs(prev => [...prev, {
             questionId: question.id,
             sectionId,
-            marks: section ? section.marksPerQuestion : 1,
+            // ASSIGNMENT questions keep their own per-question marks even inside a
+            // section (assignments don't have the TEST-only "marks per question"
+            // concept) — only TEST questions inherit the section's marksPerQuestion.
+            marks: paperType === 'TEST' && section ? section.marksPerQuestion : 1,
             order: prev.length,
             // TEST questions default to Optional so "Show N" works out of the box
             // (only questions explicitly marked Compulsory always survive the trim).
@@ -3899,7 +3982,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     // goes live immediately); false leaves whatever Start Date is already set untouched,
     // so the test stays "Upcoming" for students until that scheduled moment arrives.
     const savePaper = async (activate = false, silent = false, startNow = true) => {
-        if (isLocked && !activate) { if (!silent) toast.error('Test is live or completed - it can no longer be edited'); return; }
+        if (isCompleted && !activate) { if (!silent) toast.error('Test is completed - it can no longer be edited'); return; }
         if (!title.trim()) { if (!silent) toast.error('Title is required'); return; }
         if (startDate && validUntil && new Date(validUntil) <= new Date(startDate)) {
             if (!silent) toast.error('Valid Until must be after the Start Date');
@@ -3924,6 +4007,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                     sections,
                     questions: questionPayload,
                     totalMarks,
+                    dueDate: dueDate ? new Date(dueDate).toISOString() : null,
                 });
                 if (activate) {
                     await api.patch(`/teacher/tasks/assignments/${testId}`, { status: 'ACTIVE' });
@@ -3980,7 +4064,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
         draftAutoSaveTimer.current = setTimeout(() => { savePaper(false, true); }, 2000);
         return () => { if (draftAutoSaveTimer.current) clearTimeout(draftAutoSaveTimer.current); };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [title, description, durationMinutes, maxAttempts, startDate, validUntil, isRandomized, answerSpace, sections, builderQs]);
+    }, [title, description, durationMinutes, maxAttempts, startDate, validUntil, dueDate, isRandomized, answerSpace, sections, builderQs]);
 
     const addedIds = new Set(builderQs.map(q => q.questionId));
     const totalMarks = paperType === 'TEST'
@@ -4085,7 +4169,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
         topBar1:   '#1A2F4A', topBar2: '#2563EB',
         headingColor: '#4A7AAA', titleColor: '#0D1B2A',
         metaColor: '#1E3A5F', accentColor: '#2563EB',
-        sectionActiveBg: '#DDEAFB', sectionBg: '#EEF4FD', sectionBorder: '#2563EB', sectionBorderInactive: '#A8C0DC',
+        sectionActiveBg: '#F0F0F0', sectionBg: '#F8FBFF', sectionBorder: '#4A5568', sectionBorderInactive: '#CBD5E0',
         sectionText: '#0D1B2A', sectionMeta: '#4A7AAA',
         inputBg: '#F0F6FE', inputBorder: '#A8C0DC', inputText: '#0D1B2A',
         rowBorder: '#DDEAFB', marksBadgeBg: '#DDEAFB', marksBadgeText: '#1E3A5F', marksBadgeBorder: '#A8C0DC',
@@ -4112,13 +4196,43 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 });
             }
         });
-    } else {
+    } else if (sections.length === 0) {
         testFlowBlocks.push({ key: 'assign-qh', kind: 'assignmentQuestionsHeader' });
         if (builderQs.length === 0) {
             testFlowBlocks.push({ key: 'assign-empty', kind: 'assignmentEmpty' });
         } else {
             builderQs.forEach((bq, qi) => {
                 testFlowBlocks.push({ key: `aq-${bq.questionId}`, kind: 'assignmentQuestion', bq, num: qi + 1 });
+            });
+        }
+    } else {
+        // ASSIGNMENT with sections — same sectionHeader/sectionEmpty blocks as
+        // TEST, but questions render via 'assignmentQuestion' (no C/O toggle,
+        // no Show/marksPerQuestion — marks stay per-question).
+        let qNum = 0;
+        sections.forEach((section, si) => {
+            if (si > 0) testFlowBlocks.push({ key: `spacer-${section.id}`, kind: 'spacer', height: 24 });
+            testFlowBlocks.push({ key: `sh-${section.id}`, kind: 'sectionHeader', section });
+            const sectionQs = builderQs.filter(q => q.sectionId === section.id);
+            if (sectionQs.length === 0) {
+                testFlowBlocks.push({ key: `se-${section.id}`, kind: 'sectionEmpty', section });
+            } else {
+                sectionQs.forEach(bq => {
+                    qNum++;
+                    testFlowBlocks.push({ key: `aq-${bq.questionId}`, kind: 'assignmentQuestion', bq, num: qNum });
+                });
+            }
+        });
+        // Questions not (yet) placed in any section — shown under a plain
+        // "Questions" header so nothing added before the first section was
+        // created silently disappears from the paper.
+        const unsectioned = builderQs.filter(q => !q.sectionId || !sections.some(s => s.id === q.sectionId));
+        if (unsectioned.length > 0) {
+            testFlowBlocks.push({ key: 'spacer-unsectioned', kind: 'spacer', height: 24 });
+            testFlowBlocks.push({ key: 'assign-qh', kind: 'assignmentQuestionsHeader' });
+            unsectioned.forEach(bq => {
+                qNum++;
+                testFlowBlocks.push({ key: `aq-${bq.questionId}`, kind: 'assignmentQuestion', bq, num: qNum });
             });
         }
     }
@@ -4131,8 +4245,8 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
         switch (block.kind) {
             case 'header':
                 return (
-                    <div style={{ borderBottom: `1.5px solid ${theme.paperBorder}`, paddingBottom: 16, marginBottom: 16 }}>
-                        <div className="text-center mb-4">
+                    <div style={{ borderBottom: `1.5px solid ${theme.paperBorder}`, paddingBottom: 6, marginBottom: 8 }}>
+                        <div className="text-center mb-1">
                             <input value={title} onChange={e => setTitle(e.target.value)} placeholder={entityType === 'assignment' ? 'Assignment Title' : 'Paper Title'}
                                 className="text-center text-xl font-bold w-full focus:outline-none bg-transparent"
                                 style={{ color: theme.titleColor, borderBottom: `1px dashed ${theme.paperBorder}`, paddingBottom: 2 }} />
@@ -4140,10 +4254,16 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 rows={2} className="w-full text-center text-xs mt-2 resize-none focus:outline-none bg-transparent"
                                 style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}` }} />
                         </div>
-                        <div className="flex items-center justify-between text-[13px] mt-3" style={{ color: theme.metaColor }}>
+                        <div className="flex items-center justify-between text-[13px] mt-1" style={{ color: theme.metaColor }}>
                             <div className="flex items-center gap-6">
-                                <span><span className="font-semibold">Time:</span> {durationMinutes} min</span>
-                                <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
+                                {entityType === 'assignment' ? (
+                                    <span><span className="font-semibold">Due:</span> {dueDate ? new Date(dueDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not set'}</span>
+                                ) : (
+                                    <>
+                                        <span><span className="font-semibold">Time:</span> {durationMinutes} min</span>
+                                        <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
+                                    </>
+                                )}
                             </div>
                             <div className="flex items-center gap-4">
                                 <span><span className="font-semibold">Total Questions:</span> {effectiveTotalQuestions}</span>
@@ -4168,46 +4288,71 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 const compulsoryCount = sectionQs.filter(q => q.isCompulsory).length;
                 return (
                     <div>
-                        <div className="flex items-center gap-3 px-3 py-2 cursor-pointer -mx-3 mb-3 group transition-all"
-                            style={{ background: isActive ? theme.sectionActiveBg : theme.sectionBg, borderLeft: `3px solid ${isActive ? theme.sectionBorder : theme.sectionBorderInactive}`, borderBottom: `1px solid ${theme.paperBorder}` }}
+                        <div className={`flex items-center gap-3 py-2 cursor-pointer mb-3 group transition-all ${paperType === 'TEST' ? '-mx-3 px-3' : ''}`}
+                            style={paperType === 'TEST'
+                                ? { background: isActive ? theme.sectionActiveBg : theme.sectionBg, borderLeft: `3px solid ${isActive ? theme.sectionBorder : theme.sectionBorderInactive}`, borderBottom: `1px solid ${theme.paperBorder}` }
+                                : { borderBottom: `1px solid ${theme.paperBorder}` }}
                             onClick={() => setActiveSectionId(section.id)}>
                             <div className="flex-1 flex items-center gap-3">
                                 <input value={section.title} onClick={e => e.stopPropagation()}
                                     onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, title: e.target.value } : s))}
                                     className="text-sm font-bold uppercase tracking-wider bg-transparent focus:outline-none"
                                     style={{ color: theme.sectionText, borderBottom: `1px dashed ${theme.sectionBorderInactive}`, paddingBottom: 1 }} />
-                                {sectionQs.length > 0 && (
+                                {sectionQs.length > 0 && paperType === 'TEST' && (
                                     <span className="text-[10px]" style={{ color: theme.sectionMeta }}>
-                                        ({effectiveAttempt}/{sectionQs.length} × {section.marksPerQuestion}m = {sectionTotal} marks)
+                                        {`(${effectiveAttempt}/${sectionQs.length} × ${section.marksPerQuestion}m = ${sectionTotal} marks)`}
                                     </span>
                                 )}
                             </div>
                             <div className="flex items-center gap-2 shrink-0" onClick={e => e.stopPropagation()}>
-                                <span className="text-[12px]" style={{ color: theme.sectionMeta }}
-                                    title="Randomly picks this many questions from the section for each student - leave empty to show all questions in this section">Show</span>
-                                <input type="number" min={compulsoryCount} max={sectionQs.length || 99}
-                                    value={section.attemptCount === 0 ? '' : section.attemptCount}
-                                    placeholder="all"
-                                    onChange={e => {
-                                        const val = Number(e.target.value) || 0;
-                                        if (val > 0 && val < compulsoryCount) {
-                                            toast.error(`${compulsoryCount} question(s) in this section are marked Compulsory - Show can't be set below that`);
-                                            return;
-                                        }
-                                        setSections(prev => prev.map(s => s.id === section.id ? { ...s, attemptCount: val } : s));
-                                    }}
-                                    className="w-10 text-xs text-center rounded focus:outline-none"
-                                    style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
-                                <span className="text-[10px]" style={{ color: theme.sectionMeta }}>·</span>
-                                <input type="number" min={0} max={100} value={section.marksPerQuestion}
-                                    onChange={e => {
-                                        const mpq = Number(e.target.value);
-                                        setSections(prev => prev.map(s => s.id === section.id ? { ...s, marksPerQuestion: mpq } : s));
-                                        setBuilderQs(prev => prev.map(q => q.sectionId === section.id ? { ...q, marks: mpq } : q));
-                                    }}
-                                    className="w-10 text-xs text-center rounded focus:outline-none"
-                                    style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
-                                <span className="text-[12px]" style={{ color: theme.sectionMeta }}>m each</span>
+                                {sectionQs.length > 0 && paperType !== 'TEST' && (
+                                    <span className="text-[11.5px] font-semibold mr-1" style={{ color: theme.sectionMeta }}>
+                                        {sectionQs.length} Q. {sectionQs.reduce((s, q) => s + q.marks, 0)} mks
+                                    </span>
+                                )}
+                                {paperType === 'TEST' && (
+                                    <>
+                                        <span className="text-[12px]" style={{ color: theme.sectionMeta }}
+                                            title="Randomly picks this many questions from the section for each student - leave empty to show all questions in this section">Show</span>
+                                        <input type="number" min={compulsoryCount} max={sectionQs.length || 99}
+                                            value={section.attemptCount === 0 ? '' : section.attemptCount}
+                                            placeholder="all"
+                                            onChange={e => {
+                                                const val = Number(e.target.value) || 0;
+                                                if (val > 0 && val < compulsoryCount) {
+                                                    toast.error(`${compulsoryCount} question(s) in this section are marked Compulsory - Show can't be set below that`);
+                                                    return;
+                                                }
+                                                setSections(prev => prev.map(s => s.id === section.id ? { ...s, attemptCount: val } : s));
+                                            }}
+                                            className="w-10 text-xs text-center rounded focus:outline-none"
+                                            style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
+                                        <span className="text-[10px]" style={{ color: theme.sectionMeta }}>·</span>
+                                        <input type="text" inputMode="numeric"
+                                            value={mpqDraft[section.id] !== undefined ? mpqDraft[section.id] : String(section.marksPerQuestion)}
+                                            onFocus={e => { setMpqDraft(prev => ({ ...prev, [section.id]: String(section.marksPerQuestion) })); e.currentTarget.select(); }}
+                                            onChange={e => {
+                                                const digits = e.target.value.replace(/[^0-9]/g, '');
+                                                setMpqDraft(prev => ({ ...prev, [section.id]: digits }));
+                                                if (digits !== '') {
+                                                    const mpq = Number(digits);
+                                                    setSections(prev => prev.map(s => s.id === section.id ? { ...s, marksPerQuestion: mpq } : s));
+                                                    setBuilderQs(prev => prev.map(q => q.sectionId === section.id ? { ...q, marks: mpq } : q));
+                                                }
+                                            }}
+                                            onBlur={() => {
+                                                const n = parseInt(mpqDraft[section.id] ?? '', 10);
+                                                const mpq = !isNaN(n) ? Math.min(100, Math.max(0, n)) : section.marksPerQuestion;
+                                                setSections(prev => prev.map(s => s.id === section.id ? { ...s, marksPerQuestion: mpq } : s));
+                                                setBuilderQs(prev => prev.map(q => q.sectionId === section.id ? { ...q, marks: mpq } : q));
+                                                setMpqDraft(prev => { const next = { ...prev }; delete next[section.id]; return next; });
+                                            }}
+                                            onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+                                            className="w-10 text-xs text-center rounded focus:outline-none"
+                                            style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 4px' }} />
+                                        <span className="text-[12px]" style={{ color: theme.sectionMeta }}>m each</span>
+                                    </>
+                                )}
                                 {sections.length > 1 && (
                                     <div className="flex flex-col gap-0 opacity-0 group-hover:opacity-100 transition-all">
                                         <button onClick={() => moveSection(section.id, 'up')} disabled={sections.findIndex(s => s.id === section.id) === 0}
@@ -4229,11 +4374,13 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                 )}
                             </div>
                         </div>
-                        <input value={section.instruction}
-                            onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, instruction: e.target.value } : s))}
-                            placeholder="Section instruction (e.g. MCQs, True or False, Numerical, etc.)"
-                            className="w-full text-sm italic mb-3 focus:outline-none bg-transparent"
-                            style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}`, paddingBottom: 2 }} />
+                        {paperType === 'TEST' && (
+                            <input value={section.instruction}
+                                onChange={e => setSections(prev => prev.map(s => s.id === section.id ? { ...s, instruction: e.target.value } : s))}
+                                placeholder="Section instruction (e.g. MCQs, True or False, Numerical, etc.)"
+                                className="w-full text-sm italic mb-3 focus:outline-none bg-transparent"
+                                style={{ color: theme.sectionMeta, borderBottom: `1px dashed ${theme.rowBorder}`, paddingBottom: 2 }} />
+                        )}
                     </div>
                 );
             }
@@ -4338,20 +4485,26 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 );
             case 'assignmentQuestion': {
                 const { bq, num } = block;
-                const qi = num - 1;
                 return (
-                    <div className="flex items-start gap-3 py-2.5 group transition-all" style={{ borderBottom: `0.5px solid ${theme.rowBorder}` }}>
-                        <div className="flex flex-col gap-0 pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0">
-                            <button onClick={() => moveQuestion(bq.questionId, 'up', null)} disabled={qi === 0}
-                                className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowUp size={9} /></button>
-                            <button onClick={() => moveQuestion(bq.questionId, 'down', null)} disabled={qi === builderQs.length - 1}
-                                className="disabled:opacity-20 p-0.5" style={{ color: theme.sectionMeta }}><ArrowDown size={9} /></button>
+                    <div
+                        onDragOver={e => handleQDragOver(e, bq.questionId)}
+                        onDrop={() => handleQDrop(bq.questionId, bq.sectionId)}
+                        className={`flex items-start gap-3 py-2.5 group transition-all ${dragOverQId === bq.questionId ? 'bg-black/5 dark:bg-white/10' : ''} ${dragQId === bq.questionId ? 'opacity-40' : ''}`}
+                        style={{ borderBottom: `0.5px solid ${theme.rowBorder}` }}>
+                        <div draggable
+                            onDragStart={e => {
+                                handleQDragStart(bq.questionId);
+                                const row = e.currentTarget.parentElement as HTMLElement | null;
+                                if (row) e.dataTransfer.setDragImage(row, 20, 20);
+                            }}
+                            onDragEnd={handleQDragEnd}
+                            className="pt-0.5 opacity-0 group-hover:opacity-100 transition-all shrink-0 cursor-grab active:cursor-grabbing" style={{ color: theme.sectionMeta }}>
+                            <GripVertical size={13} />
                         </div>
                         <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{num}.</span>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-start gap-1.5">
                                 <span className="flex-1 text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
-                                {!bq.isCompulsory && <span className="shrink-0 text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: '#FEF3C7', color: '#92400E', border: '0.5px solid #F59E0B' }}>Optional</span>}
                             </div>
                             {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
                                 const opts = bq.question.type === 'MCQ'
@@ -4382,14 +4535,20 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                                <button onClick={() => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, isCompulsory: !q.isCompulsory } : q))}
-                                    title={bq.isCompulsory ? 'Mark as optional' : 'Mark as compulsory'}
-                                    className="text-[9px] font-bold px-1.5 py-0.5 rounded transition-all"
-                                    style={{ background: bq.isCompulsory ? theme.marksBadgeBg : '#FEF3C7', color: bq.isCompulsory ? theme.marksBadgeText : '#92400E', border: `0.5px solid ${bq.isCompulsory ? theme.marksBadgeBorder : '#F59E0B'}` }}>
-                                    {bq.isCompulsory ? 'C' : 'O'}
-                                </button>
-                                <input type="number" min={0} value={bq.marks}
-                                    onChange={e => setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: Number(e.target.value) } : q))}
+                                <input type="text" inputMode="numeric"
+                                    value={marksDraft[bq.questionId] !== undefined ? marksDraft[bq.questionId] : String(bq.marks)}
+                                    onFocus={e => { setMarksDraft(prev => ({ ...prev, [bq.questionId]: String(bq.marks) })); e.currentTarget.select(); }}
+                                    onChange={e => {
+                                        const digits = e.target.value.replace(/[^0-9]/g, '');
+                                        setMarksDraft(prev => ({ ...prev, [bq.questionId]: digits }));
+                                        if (digits !== '') setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: Number(digits) } : q));
+                                    }}
+                                    onBlur={() => {
+                                        const n = parseInt(marksDraft[bq.questionId] ?? '', 10);
+                                        setBuilderQs(prev => prev.map(q => q.questionId === bq.questionId ? { ...q, marks: !isNaN(n) ? n : q.marks } : q));
+                                        setMarksDraft(prev => { const next = { ...prev }; delete next[bq.questionId]; return next; });
+                                    }}
+                                    onKeyDown={e => { if (e.key === 'Enter') e.currentTarget.blur(); }}
                                     className="w-9 text-xs text-center rounded focus:outline-none"
                                     style={{ background: theme.inputBg, color: theme.inputText, border: `1px solid ${theme.inputBorder}`, padding: '1px 2px' }} />
                                 <button onClick={() => setRemoveQConfirm({ questionId: bq.questionId, questionText: bq.question.question })} className="p-0.5" style={{ color: '#C05050' }}><X size={12} /></button>
@@ -4472,7 +4631,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                     </div>
                                 </div>
                                 <div className="flex flex-col gap-1.5 ml-auto">
-                                    <div className="flex items-center gap-1.5">
+                                    <div className="flex items-center gap-1.5 self-end">
                                         <label className="text-[11px] text-muted-foreground">Start date</label>
                                         <input type="datetime-local" value={startDate} disabled={startDateLocked}
                                             min={toLocalDatetimeInput(new Date().toISOString())}
@@ -4494,11 +4653,15 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                             className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" />
                                     </div>
                                     <div className="flex items-center gap-1.5">
-                                        <label className="text-[11px] text-muted-foreground">Valid until</label>
+                                        <label className="text-[11px] text-muted-foreground">Valid until <span className="text-red-500 text-sm">*</span></label>
                                         <input type="datetime-local" value={validUntil} min={startDate || undefined} disabled={isCompleted}
                                             title={isCompleted ? 'Test has ended - Valid Until can no longer be changed' : undefined}
                                             onChange={e => {
                                                 const v = e.target.value;
+                                                if (v && new Date(v) <= new Date()) {
+                                                    toast.error('Valid Until must be after the current time');
+                                                    return;
+                                                }
                                                 if (startDate && v && new Date(v) <= new Date(startDate)) {
                                                     toast.error('Valid Until must be after the Start Date');
                                                     return;
@@ -4511,7 +4674,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                             </div>
                         )}
                         {entityType !== 'test' && (
-                            <div className="flex items-center gap-12 flex-wrap">
+                            <div className="flex items-center gap-10 flex-wrap">
                                 <label className={`flex items-center gap-1.5 text-xs select-none ${isLocked ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`}>
                                     <div onClick={() => { if (!isLocked) setAnswerSpace(v => !v); }}
                                         className={`relative w-8 h-4 rounded-full transition-colors ${isLocked ? '' : 'cursor-pointer'} ${answerSpace ? 'bg-primary' : 'bg-muted-foreground/30'}`}>
@@ -4527,10 +4690,47 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                     <Shuffle size={12} className="text-muted-foreground" />
                                     <span className="text-muted-foreground">Randomize</span>
                                 </label>
+                                <div className="flex items-center gap-1.5 ml-auto">
+                                    <label className="text-[11px] text-muted-foreground">Due date <span className="text-red-500 text-sm">*</span></label>
+                                    <input type="datetime-local" value={dueDate} disabled={isCompleted}
+                                        title={isCompleted ? 'Assignment has ended - Due Date can no longer be changed' : undefined}
+                                        onChange={e => {
+                                            const v = e.target.value;
+                                            if (v && new Date(v) <= new Date()) {
+                                                toast.error('Due Date must be after the current time');
+                                                return;
+                                            }
+                                            setDueDate(v);
+                                        }}
+                                        className="text-xs rounded-md border border-border bg-background px-2 py-1 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed" />
+                                </div>
+                            </div>
+                        )}
+                        {entityType !== 'test' && (
+                            <div className="flex items-center gap-2 mt-2">
+                                <label className="text-[11px] text-muted-foreground shrink-0">Submission</label>
+                                <div className="flex gap-1.5">
+                                    {(['OFFLINE', 'ONLINE'] as const).map(type => (
+                                        <button key={type} type="button" disabled={isLocked}
+                                            onClick={() => {
+                                                if (isLocked || submissionType === type) return;
+                                                setSubmissionType(type);
+                                                api.patch(`/teacher/tasks/assignments/${testId}`, { submissionType: type })
+                                                    .catch(() => { toast.error('Failed to update submission type'); setSubmissionType(prev => prev === type ? (type === 'OFFLINE' ? 'ONLINE' : 'OFFLINE') : prev); });
+                                            }}
+                                            className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                                                submissionType === type
+                                                    ? 'bg-primary text-primary-foreground border-primary'
+                                                    : 'border-border text-muted-foreground hover:bg-muted'
+                                            }`}>
+                                            {type === 'OFFLINE' ? '📝 Offline' : '📤 Online'}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
                         )}
                         <div className="flex items-center justify-end gap-2 mt-3">
-                            <button onClick={() => savePaper(false)} disabled={saving || draftSaveStatus === 'saving' || isLocked}
+                            <button onClick={() => savePaper(false)} disabled={saving || draftSaveStatus === 'saving' || isCompleted}
                                 className="flex items-center gap-1.5 text-sm px-4 py-1.5 rounded-lg border border-border hover:bg-muted transition-all disabled:opacity-50">
                                 {(saving || draftSaveStatus === 'saving')
                                     ? <span className="w-3 h-3 border-2 border-current/30 border-t-current rounded-full animate-spin" />
@@ -4549,7 +4749,8 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                             if (entityType === 'test') setActivateMenuOpen(true);
                                             else { setActivateStartNow(true); setActivateConfirm(true); }
                                         }}
-                                        disabled={saving || builderQs.length === 0}
+                                        disabled={saving || builderQs.length === 0 || (entityType === 'assignment' && !dueDate) || (entityType === 'test' && !validUntil)}
+                                        title={entityType === 'assignment' && !dueDate ? 'Set a Due Date before activating' : (entityType === 'test' && !validUntil) ? 'Set a Valid Until date before activating' : undefined}
                                         className="text-sm font-medium px-4 py-1.5 rounded-lg text-white disabled:opacity-50"
                                         style={{ background: 'linear-gradient(135deg,#10b981,#059669)' }}>
                                         Save & Activate
@@ -4595,13 +4796,6 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                             {effectiveTotalQuestions} Q · {totalMarks} marks
                         </span>
                     </div>
-                    {isLocked && (
-                        <div className="shrink-0 px-4 py-1.5 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-1.5">
-                            <span className="text-[10px] font-medium text-amber-600 dark:text-amber-400">
-                                {isCompleted ? 'Test has ended - read only' : 'Test is live - questions can no longer be changed'}
-                            </span>
-                        </div>
-                    )}
                     <div className={`flex-1 overflow-y-auto px-3 py-2 space-y-1 ${isLocked ? 'pointer-events-none opacity-50' : ''}`}>
                         {modules.length === 0 ? (
                             <p className="text-xs text-muted-foreground text-center py-8">No modules yet. Create modules and assign questions first.</p>
@@ -4751,13 +4945,35 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                             }}>
                                 <div style={{ height: 6, background: theme.topBar1, flexShrink: 0 }} />
                                 <div style={{ height: 2, background: theme.topBar2, marginTop: 3, flexShrink: 0 }} />
+                                {entityType === 'assignment' && letterhead && (
+                                    <div style={{
+                                        display: 'flex', alignItems: 'center', gap: 18,
+                                        padding: '20px 40px 16px',
+                                        borderBottom: `3px double ${theme.paperBorder}`, flexShrink: 0,
+                                    }}>
+                                        {letterhead.logoUrl && (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img src={letterhead.logoUrl} alt="" style={{ width: 72, height: 72, objectFit: 'contain', flexShrink: 0 }} />
+                                        )}
+                                        <div style={{ textAlign: 'center', flex: 1 }}>
+                                            <p style={{ fontSize: 26, fontWeight: 800, color: theme.titleColor, letterSpacing: 0.6, textTransform: 'uppercase', lineHeight: 1.15 }}>{letterhead.name}</p>
+                                            {(letterhead.address || letterhead.city || letterhead.state || letterhead.pincode) && (
+                                                <p style={{ fontSize: 12.5, color: theme.sectionMeta, marginTop: 5 }}>
+                                                    {[letterhead.address, letterhead.city, letterhead.state, letterhead.pincode].filter(Boolean).join(', ')}
+                                                </p>
+                                            )}
+                                        </div>
+                                        {/* Spacer to balance the logo so the name/address stay visually centered */}
+                                        {letterhead.logoUrl && <div style={{ width: 72, flexShrink: 0 }} />}
+                                    </div>
+                                )}
                                 <div style={{ padding: '24px 40px', flex: 1 }}>
                                     {group.map(key => {
                                         const block = testBlocksByKey.get(key);
                                         if (!block) return null;
                                         return (
                                             <div key={key}>
-                                                {paperType === 'TEST' && pi === effectiveTestPageGroups.length - 1 && block.kind === 'footer' && (
+                                                {pi === effectiveTestPageGroups.length - 1 && block.kind === 'footer' && (
                                                     <button onClick={addSection}
                                                         className="w-full mb-4 py-2.5 text-xs font-medium transition-all flex items-center justify-center gap-1.5"
                                                         style={{ border: `1.5px dashed ${theme.addSectionBorder}`, color: theme.addSectionText, borderRadius: 4, background: 'transparent' }}
@@ -4772,7 +4988,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                             </div>
                                         );
                                     })}
-                                    {paperType === 'TEST' && pi === effectiveTestPageGroups.length - 1 && !testFlowBlocksRef.current.some(b => b.kind === 'footer') && (
+                                    {pi === effectiveTestPageGroups.length - 1 && !testFlowBlocksRef.current.some(b => b.kind === 'footer') && (
                                         <button onClick={addSection}
                                             className="w-full mt-4 py-2.5 text-xs font-medium transition-all flex items-center justify-center gap-1.5"
                                             style={{ border: `1.5px dashed ${theme.addSectionBorder}`, color: theme.addSectionText, borderRadius: 4, background: 'transparent' }}

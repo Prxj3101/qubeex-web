@@ -331,7 +331,7 @@ export default function DivisionClassPageClient() {
                                             className={`relative flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all
                                             ${tasksSubTab === key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
                                             {label}
-                                            {count !== null && (
+                                            {count !== null && count > 0 && (
                                                 <span className={`text-[10px] font-bold px-1.5 py-0 rounded-full leading-5 ${tasksSubTab === key ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
                                                     {count}
                                                 </span>
