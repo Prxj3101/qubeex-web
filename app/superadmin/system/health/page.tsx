@@ -232,10 +232,10 @@ export default function SystemHealthPage() {
                     </div>
                     <ResponsiveContainer width="100%" height={160}>
                         <LineChart data={data.responseTime}>
-                            <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                            <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} unit="ms" />
-                            <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 11 }} />
+                            <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
+                            <XAxis dataKey="time" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} unit="ms" />
+                            <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--foreground)' }} />
                             <Line type="monotone" dataKey="api" stroke="#7C3AED" strokeWidth={2} dot={false} connectNulls />
                             <Line type="monotone" dataKey="db" stroke="#10B981" strokeWidth={2} dot={false} connectNulls />
                             <Line type="monotone" dataKey="ai" stroke="#F59E0B" strokeWidth={2} dot={false} connectNulls />
@@ -260,10 +260,10 @@ export default function SystemHealthPage() {
                                     <stop offset="95%" stopColor="#EF4444" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
-                            <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
-                            <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} unit="%" />
-                            <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 11 }} />
+                            <CartesianGrid vertical={false} stroke="var(--border)" strokeOpacity={0.5} />
+                            <XAxis dataKey="time" tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} />
+                            <YAxis tick={{ fontSize: 10, fill: '#94A3B8' }} axisLine={false} tickLine={false} unit="%" />
+                            <Tooltip contentStyle={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 11, color: 'var(--foreground)' }} />
                             <Area type="monotone" dataKey="rate" stroke="#EF4444" strokeWidth={2} fill="url(#errorGrad)" dot={false} connectNulls />
                         </AreaChart>
                     </ResponsiveContainer>
