@@ -1,99 +1,137 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
     Activity, Server, Database, Layers, HardDrive,
-    AlertTriangle, CheckCircle2, XCircle, Clock,
-    RefreshCw, TrendingUp, Zap, Wifi,
+    AlertTriangle, XCircle, Clock,
+    RefreshCw, TrendingUp, Zap, Wifi, CheckCircle2, MinusCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 import {
     LineChart, Line, XAxis, YAxis, CartesianGrid,
     Tooltip, ResponsiveContainer, AreaChart, Area,
 } from 'recharts';
 
-// ─── Mock Data ────────────────────────────────────────────────────────────────
+// ─── Types (mirrors GET /superadmin/system/health) ─────────────────────────────
 
-const SERVICES = [
-    { name: 'API Server', icon: Server, status: 'operational', uptime: '99.98%', latency: '142ms', region: 'Mumbai' },
-    { name: 'Database', icon: Database, status: 'operational', uptime: '99.99%', latency: '8ms', region: 'Mumbai' },
-    { name: 'Queue (Redis)', icon: Layers, status: 'degraded', uptime: '98.20%', latency: '340ms', region: 'Mumbai' },
-    { name: 'Storage (S3)', icon: HardDrive, status: 'operational', uptime: '99.95%', latency: '210ms', region: 'Global' },
-    { name: 'AI (Claude)', icon: Zap, status: 'operational', uptime: '99.90%', latency: '890ms', region: 'Global' },
-    { name: 'Email (Resend)', icon: Wifi, status: 'operational', uptime: '99.85%', latency: '320ms', region: 'Global' },
-];
+type ServiceStatus = 'operational' | 'degraded' | 'down' | 'unconfigured';
 
-const ERRORS = [
-    { id: 'e1', severity: 'error', endpoint: 'POST /admin/tests/submit', message: 'Timeout after 30s — queue backlog', time: '2 min ago', count: 12 },
-    { id: 'e2', severity: 'warning', endpoint: 'GET /student/results', message: 'Slow query detected — 4.2s response', time: '15 min ago', count: 3 },
-    { id: 'e3', severity: 'error', endpoint: 'POST /auth/login', message: 'Rate limit exceeded — 429 Too Many Requests', time: '32 min ago', count: 47 },
-    { id: 'e4', severity: 'info', endpoint: 'GET /admin/structure', message: 'Cache miss — fallback to DB', time: '1 hr ago', count: 8 },
-    { id: 'e5', severity: 'warning', endpoint: 'POST /superadmin/institutions', message: 'Email delivery delayed — Resend queue lag', time: '2 hr ago', count: 2 },
-];
+interface ServiceRow {
+    key: string;
+    name: string;
+    status: ServiceStatus;
+    uptimePct: number | null;
+    latencyMs: number | null;
+    avgLatencyMs: number | null;
+    detail: string | null;
+}
 
-const QUEUE = [
-    { name: 'Email Queue', pending: 24, processing: 3, failed: 1, color: '#7C3AED' },
-    { name: 'Test Evaluation', pending: 142, processing: 8, failed: 5, color: '#F59E0B' },
-    { name: 'Report Generation', pending: 7, processing: 2, failed: 0, color: '#10B981' },
-    { name: 'AI Processing', pending: 38, processing: 4, failed: 2, color: '#2563EB' },
-];
+interface ResponseTimePoint { time: string; api: number | null; db: number | null; ai: number | null }
+interface ErrorRatePoint { time: string; rate: number | null }
+interface RecentError { id: string; endpoint: string; message: string; time: string }
+interface BackgroundJob { name: string; lastRunAt: string; ok: boolean; error?: string }
 
-const RESPONSE_DATA = [
-    { time: '12:00', api: 138, db: 7, ai: 820 },
-    { time: '12:10', api: 145, db: 8, ai: 910 },
-    { time: '12:20', api: 132, db: 6, ai: 870 },
-    { time: '12:30', api: 189, db: 12, ai: 950 },
-    { time: '12:40', api: 142, db: 8, ai: 890 },
-    { time: '12:50', api: 156, db: 9, ai: 920 },
-    { time: '13:00', api: 141, db: 7, ai: 880 },
-    { time: '13:10', api: 168, db: 11, ai: 1020 },
-    { time: '13:20', api: 143, db: 8, ai: 895 },
-];
+interface HealthData {
+    services: ServiceRow[];
+    responseTime: ResponseTimePoint[];
+    errorRate: ErrorRatePoint[];
+    recentErrors: RecentError[];
+    backgroundJobs: BackgroundJob[];
+    storageQueue: { pending: number };
+}
 
-const ERROR_RATE_DATA = [
-    { time: '12:00', rate: 0.2 },
-    { time: '12:10', rate: 0.4 },
-    { time: '12:20', rate: 0.1 },
-    { time: '12:30', rate: 1.8 },
-    { time: '12:40', rate: 0.3 },
-    { time: '12:50', rate: 0.2 },
-    { time: '13:00', rate: 0.1 },
-    { time: '13:10', rate: 0.5 },
-    { time: '13:20', rate: 0.2 },
-];
+// ─── Presentation config ────────────────────────────────────────────────────────
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+const SERVICE_ICONS: Record<string, typeof Server> = {
+    api: Server, database: Database, redis: Layers, storage: HardDrive, ai: Zap, email: Wifi,
+};
 
-const STATUS_CFG = {
+const STATUS_CFG: Record<ServiceStatus, { label: string; bg: string; text: string; dot: string }> = {
     operational: { label: 'Operational', bg: 'bg-emerald-100 dark:bg-emerald-950', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' },
     degraded: { label: 'Degraded', bg: 'bg-amber-100 dark:bg-amber-950', text: 'text-amber-700 dark:text-amber-400', dot: 'bg-amber-500' },
     down: { label: 'Down', bg: 'bg-red-100 dark:bg-red-950', text: 'text-red-700 dark:text-red-400', dot: 'bg-red-500' },
+    unconfigured: { label: 'Not Configured', bg: 'bg-muted', text: 'text-muted-foreground', dot: 'bg-muted-foreground/50' },
 };
 
-const SEVERITY_CFG = {
-    error: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-950/30', border: 'border-red-200 dark:border-red-900/50', label: 'Error' },
-    warning: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-amber-200 dark:border-amber-900/50', label: 'Warning' },
-    info: { icon: CheckCircle2, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/30', border: 'border-blue-200 dark:border-blue-900/50', label: 'Info' },
+const JOB_LABELS: Record<string, string> = {
+    'billing-monthly-bills': 'Monthly Bill Generation',
+    'billing-overdue-deactivation': 'Overdue Auto-Deactivation',
+    'billing-payment-reminder': 'Payment Reminder',
+    'trial-daily-notifications': 'Trial Notifications',
+    'trial-auto-lock': 'Trial Auto-Lock',
+    'addon-smartboard-expiry': 'Smart Board Free-Expiry Alerts',
+    'audit-retention': 'Audit Log Retention',
+    'storage-cleanup': 'Storage Cleanup (R2)',
+    'health-monitor': 'Health Monitor',
 };
+
+function relativeTime(iso: string): string {
+    if (!iso) return 'Never run';
+    const diffMs = Date.now() - new Date(iso).getTime();
+    const mins = Math.floor(diffMs / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins} min ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} hr ago`;
+    const days = Math.floor(hrs / 24);
+    return `${days} day${days === 1 ? '' : 's'} ago`;
+}
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function SystemHealthPage() {
-    const [lastUpdated, setLastUpdated] = useState(new Date());
+    const [data, setData] = useState<HealthData | null>(null);
+    const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
+    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-    const handleRefresh = () => {
-        setRefreshing(true);
-        setTimeout(() => { setLastUpdated(new Date()); setRefreshing(false); }, 1000);
-    };
-
-    useEffect(() => {
-        const interval = setInterval(() => setLastUpdated(new Date()), 30000);
-        return () => clearInterval(interval);
+    const fetchHealth = useCallback(async (isRefresh: boolean) => {
+        if (isRefresh) setRefreshing(true);
+        try {
+            const res = await api.get('/superadmin/system/health');
+            setData(res.data.data);
+            setLastUpdated(new Date());
+        } catch {
+            toast.error('Failed to load system health');
+        } finally {
+            setLoading(false);
+            setRefreshing(false);
+        }
     }, []);
 
-    const allOperational = SERVICES.every(s => s.status === 'operational');
+    useEffect(() => {
+        fetchHealth(false);
+        const interval = setInterval(() => fetchHealth(false), 30000);
+        return () => clearInterval(interval);
+    }, [fetchHealth]);
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+                Loading system health…
+            </div>
+        );
+    }
+
+    if (!data) {
+        return (
+            <div className="flex items-center justify-center h-64 text-muted-foreground text-sm">
+                Unable to load system health.
+            </div>
+        );
+    }
+
+    const monitoredServices = data.services.filter(s => s.status !== 'unconfigured');
+    const allOperational = monitoredServices.every(s => s.status === 'operational');
+    const degradedCount = monitoredServices.filter(s => s.status !== 'operational').length;
+    const errorCount = data.recentErrors.length;
+    const avgErrorRate = data.errorRate.filter(e => e.rate !== null);
+    const avgErrorRatePct = avgErrorRate.length > 0
+        ? (avgErrorRate.reduce((s, e) => s + (e.rate ?? 0), 0) / avgErrorRate.length).toFixed(2)
+        : null;
 
     return (
         <div className="space-y-2">
@@ -107,10 +145,10 @@ export default function SystemHealthPage() {
                             System Health
                         </h1>
                         <p className="text-muted-foreground text-[13px]">
-                            Last updated: {lastUpdated.toLocaleTimeString('en-IN')} · Auto-refreshes every 30s
+                            {lastUpdated ? `Last updated: ${lastUpdated.toLocaleTimeString('en-IN')} · Auto-refreshes every 30s` : ''}
                         </p>
                     </div>
-                    <Button variant="outline" size="sm" onClick={handleRefresh} disabled={refreshing} className="flex items-center gap-2">
+                    <Button variant="outline" size="sm" onClick={() => fetchHealth(true)} disabled={refreshing} className="flex items-center gap-2">
                         <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
                         Refresh
                     </Button>
@@ -132,10 +170,7 @@ export default function SystemHealthPage() {
                         {allOperational ? '✅ All Systems Operational' : '⚠️ Some Systems Degraded'}
                     </p>
                     <p className={`text-xs mt-0.5 ${allOperational ? 'text-emerald-600/70 dark:text-emerald-500/70' : 'text-amber-600/70 dark:text-amber-500/70'}`}>
-                        {allOperational
-                            ? 'All services are running normally.'
-                            : `${SERVICES.filter(s => s.status !== 'operational').length} service(s) experiencing issues.`
-                        }
+                        {allOperational ? 'All monitored services are running normally.' : `${degradedCount} service(s) experiencing issues.`}
                     </p>
                 </div>
             </motion.div>
@@ -145,15 +180,15 @@ export default function SystemHealthPage() {
                 <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border/50 bg-muted/20">
                     <Server size={14} className="text-violet-500" />
                     <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Services</p>
-                    <span className="ml-auto text-[11px] text-muted-foreground">{SERVICES.length} services monitored</span>
+                    <span className="ml-auto text-[11px] text-muted-foreground">{data.services.length} services monitored</span>
                 </div>
                 <div className="divide-y divide-border/40">
-                    {SERVICES.map((svc, i) => {
-                        const cfg = STATUS_CFG[svc.status as keyof typeof STATUS_CFG];
-                        const Icon = svc.icon;
+                    {data.services.map((svc, i) => {
+                        const cfg = STATUS_CFG[svc.status];
+                        const Icon = SERVICE_ICONS[svc.key] ?? Server;
                         return (
                             <motion.div
-                                key={svc.name}
+                                key={svc.key}
                                 initial={{ opacity: 0, x: -8 }}
                                 animate={{ opacity: 1, x: 0 }}
                                 transition={{ delay: i * 0.05 }}
@@ -164,14 +199,18 @@ export default function SystemHealthPage() {
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <p className="text-sm font-semibold">{svc.name}</p>
-                                    <p className="text-[11px] text-muted-foreground">{svc.region}</p>
+                                    {svc.detail && <p className="text-[11px] text-muted-foreground">{svc.detail}</p>}
                                 </div>
                                 <div className="flex items-center gap-4 text-xs text-muted-foreground shrink-0">
-                                    <span className="flex items-center gap-1"><Clock size={11} />{svc.latency}</span>
-                                    <span className="flex items-center gap-1"><TrendingUp size={11} />{svc.uptime}</span>
+                                    {svc.latencyMs !== null && (
+                                        <span className="flex items-center gap-1"><Clock size={11} />{svc.latencyMs}ms</span>
+                                    )}
+                                    {svc.uptimePct !== null && (
+                                        <span className="flex items-center gap-1"><TrendingUp size={11} />{svc.uptimePct}% (24h)</span>
+                                    )}
                                 </div>
                                 <span className={`flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded-full ${cfg.bg} ${cfg.text}`}>
-                                    <span className={`w-1.5 h-1.5 rounded-full animate-pulse ${cfg.dot}`} />
+                                    <span className={`w-1.5 h-1.5 rounded-full ${svc.status !== 'unconfigured' ? 'animate-pulse' : ''} ${cfg.dot}`} />
                                     {cfg.label}
                                 </span>
                             </motion.div>
@@ -184,7 +223,7 @@ export default function SystemHealthPage() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div className="bg-card border border-border/50 rounded-2xl p-5">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm font-semibold">Response Time</p>
+                        <p className="text-sm font-semibold">Response Time <span className="text-[10px] text-muted-foreground font-normal">(last 12h)</span></p>
                         <div className="flex gap-3 text-[10px] text-muted-foreground">
                             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-violet-500 inline-block" />API</span>
                             <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />DB</span>
@@ -192,27 +231,29 @@ export default function SystemHealthPage() {
                         </div>
                     </div>
                     <ResponsiveContainer width="100%" height={160}>
-                        <LineChart data={RESPONSE_DATA}>
+                        <LineChart data={data.responseTime}>
                             <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.5} />
                             <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} unit="ms" />
                             <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 11 }} />
-                            <Line type="monotone" dataKey="api" stroke="#7C3AED" strokeWidth={2} dot={false} />
-                            <Line type="monotone" dataKey="db" stroke="#10B981" strokeWidth={2} dot={false} />
-                            <Line type="monotone" dataKey="ai" stroke="#F59E0B" strokeWidth={2} dot={false} />
+                            <Line type="monotone" dataKey="api" stroke="#7C3AED" strokeWidth={2} dot={false} connectNulls />
+                            <Line type="monotone" dataKey="db" stroke="#10B981" strokeWidth={2} dot={false} connectNulls />
+                            <Line type="monotone" dataKey="ai" stroke="#F59E0B" strokeWidth={2} dot={false} connectNulls />
                         </LineChart>
                     </ResponsiveContainer>
                 </div>
 
                 <div className="bg-card border border-border/50 rounded-2xl p-5">
                     <div className="flex items-center justify-between mb-4">
-                        <p className="text-sm font-semibold">Error Rate</p>
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 font-medium">
-                            Avg 0.3%
-                        </span>
+                        <p className="text-sm font-semibold">Error Rate <span className="text-[10px] text-muted-foreground font-normal">(last 12h)</span></p>
+                        {avgErrorRatePct !== null && (
+                            <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 font-medium">
+                                Avg {avgErrorRatePct}%
+                            </span>
+                        )}
                     </div>
                     <ResponsiveContainer width="100%" height={160}>
-                        <AreaChart data={ERROR_RATE_DATA}>
+                        <AreaChart data={data.errorRate}>
                             <defs>
                                 <linearGradient id="errorGrad" x1="0" y1="0" x2="0" y2="1">
                                     <stop offset="5%" stopColor="#EF4444" stopOpacity={0.3} />
@@ -223,100 +264,83 @@ export default function SystemHealthPage() {
                             <XAxis dataKey="time" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} />
                             <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} unit="%" />
                             <Tooltip contentStyle={{ background: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: 8, fontSize: 11 }} />
-                            <Area type="monotone" dataKey="rate" stroke="#EF4444" strokeWidth={2} fill="url(#errorGrad)" dot={false} />
+                            <Area type="monotone" dataKey="rate" stroke="#EF4444" strokeWidth={2} fill="url(#errorGrad)" dot={false} connectNulls />
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>
             </div>
 
-            {/* ── Queue Status ── */}
+            {/* ── Background Jobs ── */}
             <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
                 <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border/50 bg-muted/20">
                     <Layers size={14} className="text-amber-500" />
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Queue Status</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Background Jobs</p>
                     <span className="ml-auto text-[11px] text-muted-foreground">
-                        {QUEUE.reduce((s, q) => s + q.pending, 0)} total pending
+                        {data.storageQueue.pending} file(s) pending cleanup
                     </span>
                 </div>
-                <div className="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {QUEUE.map((q, i) => (
-                        <motion.div
-                            key={q.name}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: i * 0.07 }}
-                            className="p-4 bg-muted/30 rounded-xl space-y-3 border border-border/40"
-                        >
-                            <div className="flex items-center justify-between">
-                                <p className="text-xs font-semibold">{q.name}</p>
-                                <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: q.color }} />
-                            </div>
-                            <div className="flex gap-2">
-                                <div className="flex-1 text-center p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg">
-                                    <p className="text-lg font-bold text-amber-600 dark:text-amber-400">{q.pending}</p>
-                                    <p className="text-[10px] text-amber-600/70 dark:text-amber-500/70">Pending</p>
+                <div className="divide-y divide-border/40">
+                    {data.backgroundJobs.map((job, i) => {
+                        const neverRun = !job.lastRunAt;
+                        const Icon = neverRun ? MinusCircle : job.ok ? CheckCircle2 : XCircle;
+                        const color = neverRun ? 'text-muted-foreground' : job.ok ? 'text-emerald-500' : 'text-red-500';
+                        return (
+                            <motion.div
+                                key={job.name}
+                                initial={{ opacity: 0, y: 6 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: i * 0.04 }}
+                                className="flex items-center gap-3 px-5 py-3"
+                            >
+                                <Icon size={15} className={`${color} shrink-0`} />
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-semibold">{JOB_LABELS[job.name] ?? job.name}</p>
+                                    {job.error && <p className="text-[11px] text-red-500/80 truncate">{job.error}</p>}
                                 </div>
-                                <div className="flex-1 text-center p-2 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
-                                    <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{q.processing}</p>
-                                    <p className="text-[10px] text-blue-600/70 dark:text-blue-500/70">Processing</p>
-                                </div>
-                                <div className="flex-1 text-center p-2 bg-red-50 dark:bg-red-950/30 rounded-lg">
-                                    <p className="text-lg font-bold text-red-600 dark:text-red-400">{q.failed}</p>
-                                    <p className="text-[10px] text-red-600/70 dark:text-red-500/70">Failed</p>
-                                </div>
-                            </div>
-                            <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                                <div className="h-full rounded-full transition-all"
-                                    style={{ width: `${Math.round((q.processing / (q.pending + q.processing)) * 100)}%`, backgroundColor: q.color }} />
-                            </div>
-                        </motion.div>
-                    ))}
+                                <span className="text-[11px] text-muted-foreground shrink-0">{relativeTime(job.lastRunAt)}</span>
+                            </motion.div>
+                        );
+                    })}
                 </div>
             </div>
 
-            {/* ── Error Logs ── */}
+            {/* ── Recent Errors ── */}
             <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
                 <div className="flex items-center gap-2 px-5 py-3.5 border-b border-border/50 bg-muted/20">
                     <AlertTriangle size={14} className="text-red-500" />
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recent Errors & Warnings</p>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Recent Errors</p>
                     <div className="ml-auto flex gap-2">
                         <span className="text-[11px] px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400 font-medium">
-                            {ERRORS.filter(e => e.severity === 'error').length} errors
-                        </span>
-                        <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 font-medium">
-                            {ERRORS.filter(e => e.severity === 'warning').length} warnings
+                            {errorCount} in log
                         </span>
                     </div>
                 </div>
-                <div className="divide-y divide-border/40">
-                    {ERRORS.map((err, i) => {
-                        const cfg = SEVERITY_CFG[err.severity as keyof typeof SEVERITY_CFG];
-                        const Icon = cfg.icon;
-                        return (
+                {data.recentErrors.length === 0 ? (
+                    <div className="px-5 py-8 text-center text-xs text-muted-foreground">No server errors recorded 🎉</div>
+                ) : (
+                    <div className="divide-y divide-border/40">
+                        {data.recentErrors.map((err, i) => (
                             <motion.div
                                 key={err.id}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 transition={{ delay: i * 0.05 }}
-                                className={`flex items-start gap-3 px-5 py-3.5 ${cfg.bg}`}
+                                className="flex items-start gap-3 px-5 py-3.5 bg-red-50 dark:bg-red-950/30"
                             >
-                                <Icon size={14} className={`${cfg.color} mt-0.5 shrink-0`} />
+                                <XCircle size={14} className="text-red-500 mt-0.5 shrink-0" />
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                                         <code className="text-[11px] font-mono font-semibold text-foreground bg-muted/50 px-1.5 py-0.5 rounded">
                                             {err.endpoint}
                                         </code>
-                                        <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${cfg.bg} ${cfg.color} ${cfg.border}`}>
-                                            {cfg.label}
-                                        </span>
                                     </div>
                                     <p className="text-xs text-foreground/80">{err.message}</p>
-                                    <p className="text-[11px] text-muted-foreground mt-0.5">{err.time} · {err.count}× occurrences</p>
+                                    <p className="text-[11px] text-muted-foreground mt-0.5">{relativeTime(err.time)}</p>
                                 </div>
                             </motion.div>
-                        );
-                    })}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
         </div>
