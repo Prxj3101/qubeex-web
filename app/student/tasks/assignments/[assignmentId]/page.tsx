@@ -321,7 +321,7 @@ export default function AssignmentPaperPage() {
     };
 
     return (
-        <div className="pb-10">
+        <div>
             {/* Header — back button, title, Download PDF, all in one row. Full-width
                 sticky strip (fixed on mobile WebView, see comment above) so the whole
                 line stays pinned edge-to-edge while the paper scrolls underneath. */}

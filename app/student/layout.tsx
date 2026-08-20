@@ -25,11 +25,28 @@ function bridgeWebViewToken() {
     if (!wvToken) return;
     try {
         localStorage.setItem('token', decodeURIComponent(wvToken));
-    } catch { /* localStorage unavailable — nothing more we can do here */ }
+        // Remembers that this tab was opened from the app's WebView (the
+        // wvToken param itself gets stripped from the URL right after this),
+        // so later renders on the same tab can still tell "this is the app's
+        // WebView" apart from a normal browser tab — used to hide the shared
+        // student nav Topbar only inside the app's assignment-paper WebView,
+        // where the app's own native header (with its own back button)
+        // already sits above the page, making a second nav bar redundant.
+        sessionStorage.setItem('isAppWebView', '1');
+    } catch { /* storage unavailable — nothing more we can do here */ }
     // Strip it from the URL so it doesn't linger in history/back-stack.
     params.delete('wvToken');
     const newSearch = params.toString();
     window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
+}
+
+function isInAppWebView() {
+    if (typeof window === 'undefined') return false;
+    try {
+        return sessionStorage.getItem('isAppWebView') === '1';
+    } catch {
+        return false;
+    }
 }
 
 function StudentLayoutInner({ children }: { children: React.ReactNode }) {
@@ -77,9 +94,19 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
         ? 'Set your password to continue'
         : 'Finish or submit the test to navigate away';
 
-    const effectiveNavItems = isLocked
-        ? navItems.map(item => ({ ...item, locked: true, lockToastMessage: lockMessage }))
-        : navItems;
+    // Assignment paper view opened inside the app's WebView — the app's own
+    // native header (back button) already sits above this page, so the row
+    // of nav icons (Overview/Feed/Tasks/Class/Profile) under the brand strip
+    // is redundant here. Drop just that row (navItems undefined) in that one
+    // case; the brand/logo/theme-toggle/avatar strip itself stays. A normal
+    // browser tab on this same route keeps the nav row exactly as before.
+    const isAppWebViewPaper = /^\/student\/tasks\/assignments\/[^/]+$/.test(pathname ?? '') && isInAppWebView();
+
+    const effectiveNavItems = isAppWebViewPaper
+        ? undefined
+        : isLocked
+            ? navItems.map(item => ({ ...item, locked: true, lockToastMessage: lockMessage }))
+            : navItems;
 
     return (
         <div className="flex flex-col h-screen bg-background px-0 pt-3 gap-3">
