@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
     FileText, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, Calendar, Timer, BarChart2, Layers,
-    Upload, CheckCircle2, AlertCircle, RefreshCw, BookOpen, ClipboardList, Radio, ShieldAlert,
+    Upload, FileEdit, Eye, ClipboardList, Radio, ShieldAlert, CheckCircle2,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -39,6 +40,16 @@ interface StudentTest {
     attempts: { id: string; attemptNumber: number; totalScore: number; maxScore: number; percentage: number; startTime: string | null; endTime: string | null; malpracticeFlag: boolean }[];
 }
 
+interface StudentAssignmentAttempt {
+    id: string;
+    attemptNumber: number;
+    fileUrl: string | null;
+    submittedAt: string;
+    reviewStatus: string | null;
+    reviewNote: string | null;
+    reviewedAt: string | null;
+}
+
 interface StudentAssignment {
     id: string;
     title: string;
@@ -49,6 +60,7 @@ interface StudentAssignment {
     daysLeft: number | null;
     submissionType: 'OFFLINE' | 'ONLINE';
     studentStatus: AssignmentStatus;
+    lateSubmission: boolean;
     submission: {
         id: string;
         fileUrl: string | null;
@@ -58,7 +70,10 @@ interface StudentAssignment {
         reviewNote: string | null;
         reviewedAt: string | null;
         offlineSubmittedAt: string | null;
+        offlineMarkedLate: boolean;
     } | null;
+    // Newest first — attempts[0] mirrors `submission` above.
+    attempts: StudentAssignmentAttempt[];
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -70,12 +85,12 @@ const TEST_STATUS_META: Record<StudentStatus, { label: string; emoji: string; te
 };
 
 const ASSIGNMENT_STATUS_META: Record<AssignmentStatus, { label: string; textColor: string; bgColor: string }> = {
-    PENDING:    { label: 'Pending',     textColor: 'text-orange-500',  bgColor: 'bg-orange-500/10' },
-    SUBMITTED:  { label: 'Submitted',   textColor: 'text-blue-500',    bgColor: 'bg-blue-500/10' },
-    WRITE_AGAIN:{ label: 'Write Again', textColor: 'text-red-500',     bgColor: 'bg-red-500/10' },
-    CORRECT:    { label: 'Correct ✓',   textColor: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
-    MISSED:     { label: 'Missed',      textColor: 'text-red-400',     bgColor: 'bg-red-400/10' },
-    OVERDUE:    { label: 'Overdue',     textColor: 'text-red-500',     bgColor: 'bg-red-500/10' },
+    PENDING:    { label: '⏳ Pending',     textColor: 'text-amber-500',   bgColor: 'bg-amber-500/10' },
+    SUBMITTED:  { label: '👀 In Review',   textColor: 'text-amber-500',   bgColor: 'bg-amber-500/10' },
+    WRITE_AGAIN:{ label: '✍️ Write Again', textColor: 'text-red-500',     bgColor: 'bg-red-500/10' },
+    CORRECT:    { label: '✅ Submitted',   textColor: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+    MISSED:     { label: '❌ Missed',      textColor: 'text-red-400',     bgColor: 'bg-red-400/10' },
+    OVERDUE:    { label: '⚠️ Overdue',     textColor: 'text-red-500',     bgColor: 'bg-red-500/10' },
 };
 
 const TEST_FILTERS: { key: 'ALL' | StudentStatus | 'MISSED'; label: string }[] = [
@@ -86,13 +101,16 @@ const TEST_FILTERS: { key: 'ALL' | StudentStatus | 'MISSED'; label: string }[] =
     { key: 'MISSED', label: '❌ Missed' },
 ];
 
-const ASSIGNMENT_FILTERS: { key: 'ALL' | AssignmentStatus; label: string }[] = [
+const ASSIGNMENT_FILTERS: { key: 'ALL' | AssignmentStatus | 'OFFLINE_TYPE' | 'ONLINE_TYPE'; label: string }[] = [
     { key: 'ALL', label: 'All' },
-    { key: 'PENDING', label: 'Pending' },
-    { key: 'SUBMITTED', label: 'Submitted' },
-    { key: 'WRITE_AGAIN', label: 'Write Again' },
-    { key: 'CORRECT', label: 'Correct' },
-    { key: 'MISSED', label: 'Missed' },
+    { key: 'PENDING', label: '⏳ Pending' },
+    { key: 'SUBMITTED', label: '👀 In Review' },
+    { key: 'WRITE_AGAIN', label: '✍️ Write Again' },
+    { key: 'CORRECT', label: '✅ Submitted' },
+    { key: 'OVERDUE', label: '⚠️ Late' },
+    { key: 'MISSED', label: '❌ Missed' },
+    { key: 'OFFLINE_TYPE', label: '📝 Offline' },
+    { key: 'ONLINE_TYPE', label: '📤 Online' },
 ];
 
 function formatDate(iso: string) {
@@ -102,11 +120,20 @@ function formatTime(iso: string) {
     return new Date(iso).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
-function DaysLeftBadge({ daysLeft }: { daysLeft: number }) {
-    const isOverdue = daysLeft < 0;
+function DaysLeftBadge({ dueDate }: { dueDate: string }) {
+    const diffMs = new Date(dueDate).getTime() - Date.now();
+    let label: string;
+    if (diffMs <= 0) {
+        label = 'Overdue';
+    } else {
+        const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+        const days = Math.floor(totalHours / 24);
+        const hours = totalHours % 24;
+        label = days > 0 ? `${days}d ${hours}h left` : `${hours}h left`;
+    }
     return (
-        <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${isOverdue ? 'bg-red-500/20 text-red-500' : 'bg-muted text-muted-foreground'}`}>
-            {isOverdue ? `${Math.abs(daysLeft)}d overdue` : `${daysLeft}d left`}
+        <span className="flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-500/20 text-red-500">
+            <Timer size={10} /> {label}
         </span>
     );
 }
@@ -194,6 +221,7 @@ function TestCard({ test }: { test: StudentTest }) {
                     </div>
                 </div>
 
+                {(test.studentStatus !== 'DONE' || expanded) && (
                 <div className="flex flex-wrap gap-2 mt-3">
                     {test.startDate && (
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
@@ -241,6 +269,7 @@ function TestCard({ test }: { test: StudentTest }) {
                         </span>
                     )}
                 </div>
+                )}
 
                 {expanded && syllabusLines.length > 0 && (
                     <div className="mt-3">
@@ -293,10 +322,12 @@ function TestCard({ test }: { test: StudentTest }) {
                     </button>
                 )}
             </div>
-            {syllabusLines.length > 0 && (
+            {(test.studentStatus === 'DONE' || syllabusLines.length > 0) && (
                 <button onClick={() => setExpanded(!expanded)}
                     className="w-full flex items-center justify-center gap-1 py-2 border-t border-border text-[11px] text-muted-foreground hover:bg-muted/30 transition-colors">
-                    {expanded ? <><ChevronUp size={12} /> Hide syllabus/instructions</> : <><ChevronDown size={12} /> View syllabus/instructions</>}
+                    {test.studentStatus === 'DONE'
+                        ? (expanded ? <><ChevronUp size={12} /> Hide details</> : <><ChevronDown size={12} /> View details</>)
+                        : (expanded ? <><ChevronUp size={12} /> Hide syllabus/instructions</> : <><ChevronDown size={12} /> View syllabus/instructions</>)}
                 </button>
             )}
         </div>
@@ -308,8 +339,16 @@ function TestCard({ test }: { test: StudentTest }) {
 function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssignment; onSubmitted: () => void }) {
     const [expanded, setExpanded] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [historyOpen, setHistoryOpen] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
-    const meta = ASSIGNMENT_STATUS_META[assignment.studentStatus];
+    // SUBMITTED means "awaiting teacher action" for both types, but only ONLINE
+    // submissions actually go through a review workflow — OFFLINE ones are just
+    // marked received by the teacher, so they read as "Submitted", not "In Review".
+    const meta = assignment.studentStatus === 'SUBMITTED' && assignment.submissionType === 'OFFLINE'
+        ? ASSIGNMENT_STATUS_META.CORRECT
+        : assignment.studentStatus === 'CORRECT' && assignment.lateSubmission
+            ? { label: '⚠️ Late', textColor: 'text-red-500', bgColor: 'bg-red-500/10' }
+            : ASSIGNMENT_STATUS_META[assignment.studentStatus];
 
     const descLines = (assignment.description ?? '').split('\n').map((l) => l.trim()).filter(Boolean);
 
@@ -346,22 +385,13 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
     const canSubmitOnline = assignment.submissionType === 'ONLINE' &&
         ['PENDING', 'WRITE_AGAIN'].includes(assignment.studentStatus);
 
-    const statusIcon = {
-        CORRECT: <CheckCircle2 size={14} className="text-emerald-500" />,
-        SUBMITTED: <CheckCircle2 size={14} className="text-blue-500" />,
-        WRITE_AGAIN: <RefreshCw size={14} className="text-red-500" />,
-        MISSED: <AlertCircle size={14} className="text-red-400" />,
-        OVERDUE: <AlertCircle size={14} className="text-red-500" />,
-        PENDING: null,
-    }[assignment.studentStatus];
-
     return (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
             <div className="p-4">
                 <div className="flex items-start gap-3">
                     {/* Icon */}
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-violet-500/10">
-                        <BookOpen size={20} className="text-violet-500" />
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${meta.bgColor}`}>
+                        <FileEdit size={20} className={meta.textColor} />
                     </div>
 
                     {/* Title + subject */}
@@ -371,10 +401,17 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
                     </div>
 
                     {/* Status badge */}
-                    <span className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full shrink-0 ${meta.bgColor} ${meta.textColor}`}>
-                        {statusIcon}
-                        {meta.label}
-                    </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full ${meta.bgColor} ${meta.textColor}`}>
+                            {meta.label}
+                        </span>
+                        {/* Manual "Mark Late" toggle (offline only) — only shown alongside Submitted, never on its own */}
+                        {assignment.studentStatus === 'SUBMITTED' && assignment.submissionType === 'OFFLINE' && assignment.submission?.offlineMarkedLate && (
+                            <span className="flex items-center gap-1 text-[11px] font-semibold px-2 py-1 rounded-full bg-red-500/10 text-red-500">
+                                ⚠️ Late
+                            </span>
+                        )}
+                    </div>
                 </div>
 
                 {/* Chips row */}
@@ -386,14 +423,23 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
                     </span>
                     {assignment.dueDate && (
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
-                            <Calendar size={10} /> Due {formatDate(assignment.dueDate)}
+                            <Calendar size={10} />
+                            <span className="font-semibold text-foreground/70">Due:</span>
+                            {formatDate(assignment.dueDate)}, {formatTime(assignment.dueDate)}
                         </span>
                     )}
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
                         <BarChart2 size={10} /> {assignment.totalMarks} marks
                     </span>
-                    {assignment.daysLeft !== null && !['CORRECT', 'SUBMITTED', 'MISSED'].includes(assignment.studentStatus) && (
-                        <DaysLeftBadge daysLeft={assignment.daysLeft} />
+                    {assignment.dueDate && !['CORRECT', 'SUBMITTED', 'MISSED'].includes(assignment.studentStatus) && (
+                        <DaysLeftBadge dueDate={assignment.dueDate} />
+                    )}
+                    {assignment.submission?.submittedAt && (
+                        <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-lg whitespace-nowrap" style={{ background: 'rgba(192,96,64,0.12)' }}>
+                            <Calendar size={10} />
+                            <span className="font-semibold text-foreground/70">Submitted at :</span>
+                            {formatDate(assignment.submission.submittedAt)}, {formatTime(assignment.submission.submittedAt)}
+                        </span>
                     )}
                 </div>
 
@@ -414,41 +460,114 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
                             </div>
                         )}
 
-                        {/* Write Again note */}
-                        {assignment.studentStatus === 'WRITE_AGAIN' && assignment.submission?.reviewNote && (
-                            <div className="rounded-xl bg-red-500/10 border border-red-500/20 p-3">
-                                <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wide mb-1">Teacher Feedback</p>
-                                <p className="text-xs text-foreground">{assignment.submission.reviewNote}</p>
-                            </div>
-                        )}
-
                         {/* Submission info */}
                         {assignment.submission?.submittedAt && (
                             <div className="rounded-xl bg-muted/40 p-3">
-                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Online Submission</p>
-                                <p className="text-xs text-foreground">
-                                    Submitted {new Date(assignment.submission.submittedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                                    {assignment.submission.resubmitCount > 0 && ` · Resubmission #${assignment.submission.resubmitCount}`}
-                                </p>
-                                {assignment.submission.fileUrl && (
-                                    <a href={assignment.submission.fileUrl} target="_blank" rel="noopener noreferrer"
-                                        className="text-xs text-primary underline underline-offset-2 mt-1 inline-block">
-                                        View submitted PDF
-                                    </a>
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Online Submission</p>
+                                <div className="flex items-center justify-between gap-2">
+                                    <p className="text-xs text-foreground truncate">
+                                        {(() => {
+                                            const attemptNo = assignment.attempts[0]?.attemptNumber ?? 1;
+                                            return attemptNo > 1 ? `Submission #${attemptNo} · ` : `Submission · `;
+                                        })()}
+                                        {new Date(assignment.submission.submittedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                    </p>
+                                    {assignment.submission.fileUrl && (
+                                        <a href={assignment.submission.fileUrl} target="_blank" rel="noopener noreferrer"
+                                            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-lg transition-all whitespace-nowrap">
+                                            <FileText size={11} /> View PDF
+                                        </a>
+                                    )}
+                                </div>
+
+                                {/* Feedback for the latest/current submission — tied to this specific
+                                    attempt's own review, not a global note that would vanish on resubmit. */}
+                                {(assignment.attempts[0]?.reviewStatus === 'CORRECT' || assignment.attempts[0]?.reviewStatus === 'WRITE_AGAIN') && (
+                                    <div>
+                                        <span className={`inline-block mb-1 text-[9px] font-bold px-1 py-0.5 rounded ${assignment.attempts[0].reviewStatus === 'CORRECT' ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' : 'text-red-600 dark:text-red-400 bg-red-500/10'}`}>
+                                            {assignment.attempts[0].reviewStatus === 'CORRECT' ? 'Approved' : 'Write Again'}
+                                        </span>
+                                        {assignment.attempts[0].reviewNote && (
+                                            <p className="text-xs text-foreground italic">{assignment.attempts[0].reviewNote}</p>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Earlier submissions — collapsed by default so the card stays tidy;
+                                    resubmitting never erases the previous upload, it just moves it in here. */}
+                                {assignment.attempts.length > 1 && (
+                                    <div className="pt-2 mt-2 border-t border-border/60">
+                                        <button
+                                            onClick={() => setHistoryOpen(v => !v)}
+                                            className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-all">
+                                            {historyOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                                            {assignment.attempts.length - 1} earlier submission{assignment.attempts.length - 1 > 1 ? 's' : ''}
+                                        </button>
+                                        {historyOpen && (
+                                            <div className="mt-1.5 space-y-1.5">
+                                                {assignment.attempts.slice(1).map(at => (
+                                                    <div key={at.id} className="rounded-lg bg-background/60 px-2 py-1.5">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div className="min-w-0">
+                                                                <p className="text-[11px] text-muted-foreground whitespace-nowrap">
+                                                                    #{at.attemptNumber} · {new Date(at.submittedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                </p>
+                                                                {at.reviewStatus === 'CORRECT' && (
+                                                                    <span className="inline-block mt-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded">Approved</span>
+                                                                )}
+                                                                {at.reviewStatus === 'WRITE_AGAIN' && (
+                                                                    <span className="inline-block mt-0.5 text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-1 py-0.5 rounded">Write Again</span>
+                                                                )}
+                                                            </div>
+                                                            {at.fileUrl && (
+                                                                <a href={at.fileUrl} target="_blank" rel="noopener noreferrer"
+                                                                    className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-lg transition-all whitespace-nowrap">
+                                                                    <FileText size={11} /> View PDF
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                        {at.reviewNote && (
+                                                            <p className="mt-1 text-[11px] text-foreground/80 italic">{at.reviewNote}</p>
+                                                        )}
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                         )}
 
-                        {assignment.submission?.offlineSubmittedAt && (
-                            <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3">
-                                <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wide mb-1">Offline Copy</p>
-                                <p className="text-xs text-foreground">
-                                    Marked received on {formatDate(assignment.submission.offlineSubmittedAt)}
+                        {assignment.submissionType === 'ONLINE' && assignment.submission?.submittedAt ? (
+                            <div className="rounded-xl bg-muted/40 p-3">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Offline Copy</p>
+                                <p className="text-xs text-foreground flex items-center gap-1">
+                                    {assignment.submission.offlineSubmittedAt ? (
+                                        <>
+                                            {`Marked received on ${formatDate(assignment.submission.offlineSubmittedAt)}, ${formatTime(assignment.submission.offlineSubmittedAt)}`}
+                                            <CheckCircle2 size={13} className="text-emerald-500 shrink-0 mt-0.5" />
+                                        </>
+                                    ) : 'Not received'}
                                 </p>
                             </div>
+                        ) : (
+                            assignment.submission?.offlineSubmittedAt && (
+                                <div className="rounded-xl bg-muted/40 p-3">
+                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Offline Copy</p>
+                                    <p className="text-xs text-foreground flex items-center gap-1">
+                                        Marked received on {formatDate(assignment.submission.offlineSubmittedAt)}, {formatTime(assignment.submission.offlineSubmittedAt)}
+                                        <CheckCircle2 size={13} className="text-emerald-500 shrink-0" />
+                                    </p>
+                                </div>
+                            )
                         )}
                     </div>
                 )}
+
+                <Link href={`/student/tasks/assignments/${assignment.id}`}
+                    className="mt-3 w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold border border-border text-foreground hover:bg-muted/50 transition-all">
+                    <Eye size={13} /> View
+                </Link>
 
                 {/* Action: submit PDF */}
                 {canSubmitOnline && (
@@ -473,13 +592,6 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
                         <p className="text-[10px] text-muted-foreground text-center mt-1">PDF only · max 25 MB</p>
                     </>
                 )}
-
-                {assignment.studentStatus === 'CORRECT' && (
-                    <div className="mt-3 flex items-center justify-center gap-2 py-2 rounded-xl bg-emerald-500/10">
-                        <CheckCircle2 size={14} className="text-emerald-500" />
-                        <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Assignment marked correct</span>
-                    </div>
-                )}
             </div>
 
             <button onClick={() => setExpanded(!expanded)}
@@ -493,13 +605,18 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function StudentTasksPage() {
-    const [tab, setTab] = useState<Tab>('tests');
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    // Persist the selected tab (tests/assignments) in the URL so a page
+    // refresh — or a shared/bookmarked link — lands back on the same tab
+    // instead of always resetting to "tests".
+    const [tab, setTab] = useState<Tab>(() => (searchParams.get('tab') === 'assignments' ? 'assignments' : 'tests'));
     const [testsLoading, setTestsLoading] = useState(true);
     const [assignmentsLoading, setAssignmentsLoading] = useState(false);
     const [tests, setTests] = useState<StudentTest[]>([]);
     const [assignments, setAssignments] = useState<StudentAssignment[]>([]);
     const [testFilter, setTestFilter] = useState<'ALL' | StudentStatus | 'MISSED'>('ALL');
-    const [aFilter, setAFilter] = useState<'ALL' | AssignmentStatus>('ALL');
+    const [aFilter, setAFilter] = useState<'ALL' | AssignmentStatus | 'OFFLINE_TYPE' | 'ONLINE_TYPE'>('ALL');
     const assignmentsFetched = useRef(false);
 
     useEffect(() => {
@@ -532,17 +649,31 @@ export default function StudentTasksPage() {
 
     function handleTabChange(t: Tab) {
         setTab(t);
+        router.replace(t === 'assignments' ? '?tab=assignments' : '?tab=tests', { scroll: false });
         if (t === 'assignments' && !assignmentsFetched.current) {
             loadAssignments();
         }
     }
+
+    // If the page loaded straight into the assignments tab (e.g. a refresh
+    // while on it, or a shared link), fetch assignments up front too — the
+    // lazy fetch above only fires on an explicit tab click.
+    useEffect(() => {
+        if (tab === 'assignments' && !assignmentsFetched.current) {
+            loadAssignments();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const filteredTests = testFilter === 'ALL'
         ? tests
         : testFilter === 'MISSED'
             ? tests.filter((t) => t.studentStatus === 'DONE' && t.attemptsUsed === 0)
             : tests.filter((t) => t.studentStatus === testFilter);
-    const filteredAssignments = aFilter === 'ALL' ? assignments : assignments.filter((a) => a.studentStatus === aFilter);
+    const filteredAssignments = aFilter === 'ALL' ? assignments
+        : aFilter === 'OFFLINE_TYPE' ? assignments.filter((a) => a.submissionType === 'OFFLINE')
+        : aFilter === 'ONLINE_TYPE' ? assignments.filter((a) => a.submissionType === 'ONLINE')
+        : assignments.filter((a) => a.studentStatus === aFilter);
 
     const testCounts = {
         LIVE: tests.filter((t) => t.studentStatus === 'LIVE').length,
@@ -550,6 +681,11 @@ export default function StudentTasksPage() {
         DONE: tests.filter((t) => t.studentStatus === 'DONE').length,
     };
     const pendingCount = assignments.filter((a) => a.studentStatus === 'PENDING' || a.studentStatus === 'WRITE_AGAIN').length;
+    const assignmentCounts = {
+        PENDING: assignments.filter((a) => a.studentStatus === 'PENDING').length,
+        WRITE_AGAIN: assignments.filter((a) => a.studentStatus === 'WRITE_AGAIN').length,
+        SUBMITTED: assignments.filter((a) => a.studentStatus === 'CORRECT' || (a.studentStatus === 'SUBMITTED' && a.submissionType === 'OFFLINE')).length,
+    };
 
     return (
         <div className="max-w-2xl mx-auto px-3 pb-10">
@@ -574,6 +710,23 @@ export default function StudentTasksPage() {
                         <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
                             <span className="text-xl font-bold text-emerald-500">{testCounts.DONE}</span>
                             <span className="text-[10px] text-muted-foreground font-medium">Done</span>
+                        </div>
+                    </div>
+                )}
+
+                {tab === 'assignments' && (
+                    <div className="flex gap-2 mb-3 overflow-x-auto">
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                            <span className="text-xl font-bold text-amber-500">{assignmentCounts.PENDING}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">Pending</span>
+                        </div>
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                            <span className="text-xl font-bold text-red-500">{assignmentCounts.WRITE_AGAIN}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">Write Again</span>
+                        </div>
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                            <span className="text-xl font-bold text-emerald-500">{assignmentCounts.SUBMITTED}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">Submitted</span>
                         </div>
                     </div>
                 )}
@@ -628,7 +781,7 @@ export default function StudentTasksPage() {
                         ))}
                     </div>
                 ) : (
-                    <div className="flex gap-2 overflow-x-auto pb-1">
+                    <div className="flex flex-wrap gap-2 pb-1">
                         {ASSIGNMENT_FILTERS.map((f) => (
                             <button key={f.key} onClick={() => setAFilter(f.key)}
                                 className={`px-3 py-1.5 rounded-full text-xs font-semibold border shrink-0 transition-all ${

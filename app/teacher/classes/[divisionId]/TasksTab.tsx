@@ -113,6 +113,7 @@ interface TestBase {
     id: string;
     title: string;
     description: string | null;
+    subject?: { name: string };
     testLink: string;
     status: TestStatus;
     durationMinutes: number;
@@ -187,6 +188,7 @@ interface Assignment {
     totalMarks: number;
     numberOfQuestions: number;
     dueDate: string | null;
+    completedAt?: string | null;
     submissionType: 'OFFLINE' | 'ONLINE';
     createdAt?: string;
     _count: { submissions: number; totalStudents?: number };
@@ -781,11 +783,12 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
         } catch (err) { toast.error(apiError(err)); }
     };
 
-    // Ends an ACTIVE assignment immediately instead of waiting for its Due Date —
-    // pulls Due Date to right now so "Due was" reflects the real stop moment.
+    // Ends an ACTIVE assignment immediately — the original Due Date is left
+    // untouched; the backend stamps `completedAt` with the real stop moment,
+    // which the card shows as "Ended at:" instead of overwriting "Due:".
     const stopAssignmentNow = async (id: string) => {
         try {
-            const res = await api.patch(`/teacher/tasks/assignments/${id}`, { status: 'COMPLETED', dueDate: new Date().toISOString() });
+            const res = await api.patch(`/teacher/tasks/assignments/${id}`, { status: 'COMPLETED' });
             setAssignments(prev => prev.map(a => a.id === id ? { ...a, ...res.data.data } : a));
             toast.success('Assignment stopped — now shows as completed');
         } catch (err) { toast.error(apiError(err)); }
@@ -1554,8 +1557,10 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                 <p className="text-xs mt-1 opacity-60">Create an assignment to get started</p>
                             </div>
                         ) : (() => {
-                            const now = new Date();
-                            const isExpiredA = (a: Assignment) => a.status === 'COMPLETED' || (!!a.dueDate && new Date(a.dueDate) < now);
+                            // The submit link stays open past the due date now, so an assignment only
+                            // moves to History once the teacher explicitly marks it COMPLETED — passing
+                            // the due date on its own just adds an "Overdue" tag on the card (see below).
+                            const isExpiredA = (a: Assignment) => a.status === 'COMPLETED';
                             const liveAssignments = assignments.filter(a => !isExpiredA(a));
                             const historyAssignments = assignments.filter(a => isExpiredA(a));
                             return (
@@ -2808,7 +2813,12 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
     const [deleteConfirm, setDeleteConfirm] = useState(false);
     const [activateConfirm, setActivateConfirm] = useState(false);
     const [completeConfirm, setCompleteConfirm] = useState(false);
-    const effectiveStatus: AssignmentStatus = (assignment.dueDate && new Date(assignment.dueDate) < new Date()) ? 'COMPLETED' : assignment.status;
+    // Submissions stay open past the due date now, so status no longer
+    // auto-flips to COMPLETED when the due date passes — only the teacher's
+    // explicit Stop Now action does that. An overdue-but-still-active
+    // assignment instead gets a separate "Overdue" tag next to the status badge.
+    const effectiveStatus: AssignmentStatus = assignment.status;
+    const isOverdue = assignment.status === 'ACTIVE' && !!assignment.dueDate && new Date(assignment.dueDate) < new Date();
     const statusColor = {
         DRAFT: 'text-muted-foreground bg-muted',
         ACTIVE: 'text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950',
@@ -2822,6 +2832,9 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 mb-2 flex-wrap">
                         <span className={`text-xs font-bold px-2 py-0.5 rounded-md shrink-0 ${statusColor}`}>{effectiveStatus}</span>
+                        {isOverdue && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-md shrink-0 text-red-700 dark:text-red-300 bg-red-100 dark:bg-red-950">⚠️ Overdue</span>
+                        )}
                         <span className={`text-xs font-semibold px-2 py-0.5 rounded-md shrink-0 ${assignment.submissionType === 'ONLINE' ? 'text-blue-600 bg-blue-100 dark:text-blue-300 dark:bg-blue-950' : 'text-muted-foreground bg-muted'}`}>
                             {assignment.submissionType === 'ONLINE' ? '📤 Online' : '📝 Offline'}
                         </span>
@@ -2881,7 +2894,13 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
                     <span><span className="text-foreground/50">Started at:</span> {assignment.createdAt ? `${new Date(assignment.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.createdAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
                     <span className="opacity-40">·</span>
-                    <span><span className="text-foreground/50">{effectiveStatus === 'COMPLETED' ? 'Due was:' : 'Due:'}</span> {assignment.dueDate ? `${new Date(assignment.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.dueDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
+                    <span><span className="text-foreground/50">Due:</span> {assignment.dueDate ? `${new Date(assignment.dueDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} ${new Date(assignment.dueDate).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}` : '—'}</span>
+                    {effectiveStatus === 'COMPLETED' && assignment.completedAt && (
+                        <>
+                            <span className="opacity-40">·</span>
+                            <span><span className="text-foreground/50">Ended at:</span> {new Date(assignment.completedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} {new Date(assignment.completedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                        </>
+                    )}
                 </div>
                 <div className="flex items-center gap-2">
                     {effectiveStatus === 'DRAFT' && (
@@ -3308,6 +3327,16 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
 
 // ── Assignment Submissions Panel ──────────────────────────────────────────────
 
+interface AssignmentSubmissionAttempt {
+    id: string;
+    attemptNumber: number;
+    fileUrl: string | null;
+    submittedAt: string;
+    reviewStatus: string | null;
+    reviewNote: string | null;
+    reviewedAt: string | null;
+}
+
 interface AssignmentSubmission {
     student: { id: string; name: string | null; rollNo: string | null };
     submission: {
@@ -3319,11 +3348,14 @@ interface AssignmentSubmission {
         reviewNote: string | null;
         reviewedAt: string | null;
         offlineSubmittedAt: string | null;
+        offlineMarkedLate: boolean;
     } | null;
+    // Newest first — attempts[0] mirrors `submission` above.
+    attempts: AssignmentSubmissionAttempt[];
 }
 
 interface AssignmentSubmissionsData {
-    assignment: { id: string; title: string; submissionType: 'OFFLINE' | 'ONLINE'; dueDate: string | null; totalMarks: number };
+    assignment: { id: string; title: string; submissionType: 'OFFLINE' | 'ONLINE'; dueDate: string | null; totalMarks: number; status: 'DRAFT' | 'ACTIVE' | 'COMPLETED'; completedAt: string | null };
     students: AssignmentSubmission[];
 }
 
@@ -3333,6 +3365,8 @@ function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: s
     const [reviewing, setReviewing] = useState<string | null>(null);
     const [reviewNote, setReviewNote] = useState('');
     const [toggling, setToggling] = useState<string | null>(null);
+    const [confirmReview, setConfirmReview] = useState<{ studentId: string; status: 'CORRECT' | 'WRITE_AGAIN' } | null>(null);
+    const [historyOpenFor, setHistoryOpenFor] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         api.get(`/teacher/tasks/assignments/${assignmentId}/submissions`)
@@ -3342,10 +3376,11 @@ function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: s
     }, [assignmentId]);
 
     async function handleReview(studentId: string, reviewStatus: 'CORRECT' | 'WRITE_AGAIN') {
+        setConfirmReview(null);
         setReviewing(studentId + reviewStatus);
         try {
             await api.patch(`/teacher/tasks/assignments/${assignmentId}/submissions/${studentId}/review`, { reviewStatus, reviewNote: reviewNote || null });
-            toast.success(reviewStatus === 'CORRECT' ? 'Marked as Correct' : 'Sent back for revision');
+            toast.success(reviewStatus === 'CORRECT' ? 'Approved' : 'Sent back for revision');
             const res = await api.get(`/teacher/tasks/assignments/${assignmentId}/submissions`);
             setData(res.data.data as AssignmentSubmissionsData);
             setReviewNote('');
@@ -3364,136 +3399,327 @@ function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: s
         finally { setToggling(null); }
     }
 
+    // Independent manual "late" toggle for offline copies — doesn't touch
+    // received status at all, just flags whether it should show a Late tag
+    // alongside Submitted once received.
+    async function handleToggleLate(studentId: string, currentlyLate: boolean) {
+        setToggling(studentId);
+        try {
+            await api.patch(`/teacher/tasks/assignments/${assignmentId}/submissions/${studentId}/offline-late`, { late: !currentlyLate });
+            toast.success(!currentlyLate ? 'Marked as late' : 'Late mark removed');
+            const res = await api.get(`/teacher/tasks/assignments/${assignmentId}/submissions`);
+            setData(res.data.data as AssignmentSubmissionsData);
+        } catch { toast.error('Failed to update late status'); }
+        finally { setToggling(null); }
+    }
+
     const submittedOnline = data?.students.filter(s => s.submission?.submittedAt).length ?? 0;
     const submittedOffline = data?.students.filter(s => s.submission?.offlineSubmittedAt).length ?? 0;
     const total = data?.students.length ?? 0;
+    const isOnline = data?.assignment.submissionType === 'ONLINE';
+    const submittedCount = isOnline ? submittedOnline : submittedOffline;
+    const pendingCount = total - submittedCount;
+    const correctCount = data?.students.filter(s => s.submission?.reviewStatus === 'CORRECT').length ?? 0;
+    const isAssignmentOverdue = !!data && !!data.assignment.dueDate && new Date(data.assignment.dueDate) < new Date();
 
     return (
-        <div className="absolute inset-0 z-50 flex">
-            <div className="flex-1 bg-black/40" onClick={onClose} />
-            <div className="w-full max-w-xl bg-background border-l border-border flex flex-col overflow-hidden">
+        <motion.div
+            className="absolute inset-0 z-50 flex"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+        >
+            <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+            <motion.div
+                className="relative ml-auto w-full max-w-6xl h-full bg-card border-l border-border flex flex-col shadow-2xl"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'tween', duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            >
                 {/* Header */}
-                <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-                    <div>
-                        <h2 className="font-bold text-base">{data?.assignment.title ?? 'Submissions'}</h2>
-                        {data && (
-                            <p className="text-xs text-muted-foreground">
-                                {data.assignment.submissionType === 'ONLINE' ? `${submittedOnline}/${total} submitted online` : `${submittedOffline}/${total} received offline`}
-                            </p>
-                        )}
+                <div className="flex items-center gap-4 px-6 py-3 border-b border-border shrink-0 bg-card">
+                    <div className="shrink-0">
+                        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-2">
+                            <FileText size={11} /> Submissions
+                        </p>
+                        <h2 className="font-semibold text-sm">{data?.assignment.title ?? '—'}</h2>
+                        {data && <p className="text-xs text-muted-foreground">{data.assignment.submissionType === 'ONLINE' ? '📤 Online' : '📝 Offline'} · {data.assignment.totalMarks} marks</p>}
                     </div>
-                    <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1 rounded">
-                        <X size={18} />
-                    </button>
-                </div>
 
-                {/* Student list */}
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
-                    {loading ? (
-                        <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">Loading…</div>
-                    ) : !data || data.students.length === 0 ? (
-                        <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">No students found.</div>
-                    ) : data.students.map(({ student, submission }) => {
-                        const isOnline = data.assignment.submissionType === 'ONLINE';
-                        const hasOnline = !!submission?.submittedAt;
-                        const hasOffline = !!submission?.offlineSubmittedAt;
-                        const reviewStatus = submission?.reviewStatus;
-
-                        return (
-                            <div key={student.id} className="rounded-xl border border-border bg-card p-4">
-                                {/* Student info */}
-                                <div className="flex items-center gap-3 mb-3">
-                                    <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-xs font-bold">
-                                        {student.name?.charAt(0) ?? '?'}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-semibold truncate">{student.name ?? '—'}</p>
-                                        <p className="text-xs text-muted-foreground">Roll: {student.rollNo ?? '—'}</p>
-                                    </div>
-                                    {/* Status chip */}
-                                    {reviewStatus === 'CORRECT' && (
-                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600">Correct</span>
-                                    )}
-                                    {reviewStatus === 'WRITE_AGAIN' && (
-                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-red-500/10 text-red-500">Write Again</span>
-                                    )}
-                                    {!reviewStatus && hasOnline && (
-                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-500">Submitted</span>
-                                    )}
-                                    {!hasOnline && !hasOffline && (
-                                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-muted text-muted-foreground">Pending</span>
-                                    )}
-                                </div>
-
-                                {/* Online submission details */}
-                                {isOnline && hasOnline && (
-                                    <div className="mb-3 rounded-lg bg-muted/50 p-3 space-y-2">
-                                        <p className="text-xs text-muted-foreground">
-                                            Submitted: {new Date(submission!.submittedAt!).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
-                                            {submission!.resubmitCount > 0 && ` · Resubmission #${submission!.resubmitCount}`}
-                                        </p>
-                                        {submission?.fileUrl && (
-                                            <a href={submission.fileUrl} target="_blank" rel="noopener noreferrer"
-                                                className="text-xs text-primary underline underline-offset-2">
-                                                View PDF
-                                            </a>
-                                        )}
-                                        {reviewStatus === 'WRITE_AGAIN' && submission?.reviewNote && (
-                                            <p className="text-xs text-red-500 italic">&quot;{submission.reviewNote}&quot;</p>
-                                        )}
-
-                                        {/* Review actions */}
-                                        {reviewStatus !== 'CORRECT' && (
-                                            <div className="space-y-2 pt-1">
-                                                <input
-                                                    value={reviewNote}
-                                                    onChange={e => setReviewNote(e.target.value)}
-                                                    placeholder="Optional feedback note…"
-                                                    className="w-full text-xs rounded-lg border border-border bg-background px-3 py-1.5 focus:outline-none focus:ring-1 focus:ring-primary/40"
-                                                />
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => handleReview(student.id, 'CORRECT')}
-                                                        disabled={!!reviewing}
-                                                        className="flex-1 text-xs py-1.5 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-all">
-                                                        {reviewing === student.id + 'CORRECT' ? 'Saving…' : '✓ Correct'}
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleReview(student.id, 'WRITE_AGAIN')}
-                                                        disabled={!!reviewing}
-                                                        className="flex-1 text-xs py-1.5 rounded-lg bg-red-500/10 text-red-500 border border-red-500/30 font-semibold hover:bg-red-500/20 disabled:opacity-50 transition-all">
-                                                        {reviewing === student.id + 'WRITE_AGAIN' ? 'Saving…' : '↩ Write Again'}
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-
-                                {/* Offline toggle */}
-                                <div className="flex items-center justify-between">
-                                    <span className="text-xs text-muted-foreground">
-                                        {hasOffline
-                                            ? `Offline copy received ${new Date(submission!.offlineSubmittedAt!).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`
-                                            : 'Offline copy not received'}
-                                    </span>
-                                    <button
-                                        onClick={() => handleToggleOffline(student.id, hasOffline)}
-                                        disabled={toggling === student.id}
-                                        className={`text-xs px-3 py-1.5 rounded-lg font-semibold transition-all disabled:opacity-50 ${
-                                            hasOffline
-                                                ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30 hover:bg-emerald-500/20'
-                                                : 'bg-muted text-muted-foreground hover:bg-muted/80 border border-border'
-                                        }`}>
-                                        {toggling === student.id ? '…' : hasOffline ? '✓ Received' : 'Mark Received'}
-                                    </button>
-                                </div>
+                    {data && total > 0 && (
+                        <div className="flex items-center gap-3 flex-1 justify-center">
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                                <span className="text-base font-bold leading-none">{submittedCount}</span>
+                                <span className="text-xs text-muted-foreground">Submitted</span>
                             </div>
-                        );
-                    })}
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                                <span className={`text-base font-bold leading-none ${isAssignmentOverdue && isOnline ? 'text-red-500' : 'text-amber-500'}`}>{pendingCount}</span>
+                                <span className="text-xs text-muted-foreground">Pending</span>
+                            </div>
+                            {isOnline && (
+                                <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                                    <span className="text-base font-bold leading-none text-emerald-500">{correctCount}</span>
+                                    <span className="text-xs text-muted-foreground">Reviewed</span>
+                                </div>
+                            )}
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                                <span className="text-base font-bold leading-none">{total}</span>
+                                <span className="text-xs text-muted-foreground">Total</span>
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="flex items-center gap-2 shrink-0 ml-auto">
+                        <button onClick={onClose} className="text-muted-foreground hover:text-foreground p-1">
+                            <X size={18} />
+                        </button>
+                    </div>
                 </div>
-            </div>
-        </div>
+
+                {/* Body */}
+                <div className="flex-1 flex flex-col overflow-hidden pl-3 pr-1.5 pb-4 pt-2.5 bg-background">
+                    {loading ? (
+                        <div className="flex items-center justify-center h-full"><Loader2 size={20} className="animate-spin text-muted-foreground" /></div>
+                    ) : !data || data.students.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-full gap-2 text-center">
+                            <FileText size={36} className="text-muted-foreground/30" />
+                            <p className="text-sm text-muted-foreground">No students in this class yet.</p>
+                        </div>
+                    ) : (
+                        <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-card">
+                            <table className="w-full text-xs border-separate border-spacing-0">
+                                <thead className="sticky top-0 z-10">
+                                    <tr className="bg-muted shadow-[inset_0_-1px_0_0_var(--border)]">
+                                        <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Roll No</th>
+                                        <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Name</th>
+                                        <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Status</th>
+                                        {isOnline && <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Online Submission</th>}
+                                        <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Offline Copy</th>
+                                        <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Late</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {data.students.map(({ student, submission, attempts }) => {
+                                        const isOnlineAssignment = data.assignment.submissionType === 'ONLINE';
+                                        const hasOnline = !!submission?.submittedAt;
+                                        const hasOffline = !!submission?.offlineSubmittedAt;
+                                        const reviewStatus = submission?.reviewStatus;
+                                        const rowBorder = 'border-b border-black/10 dark:border-white/10';
+                                        // Submissions stay open past the due date, so a CORRECT (approved) review
+                                        // whose submittedAt landed after dueDate is flagged Late instead of Submitted.
+                                        const lateSubmission = isOnlineAssignment && !!(attempts[0]?.submittedAt ?? submission?.submittedAt) && !!data.assignment.dueDate &&
+                                            new Date(attempts[0]?.submittedAt ?? submission!.submittedAt!) > new Date(data.assignment.dueDate);
+
+                                        return (
+                                            <tr key={student.id} className="bg-card align-top">
+                                                <td className={`px-4 py-2.5 font-mono text-muted-foreground ${rowBorder}`}>{student.rollNo ?? '—'}</td>
+                                                <td className={`px-4 py-2.5 font-medium ${rowBorder}`}>{student.name ?? '—'}</td>
+                                                <td className={`px-4 py-2.5 text-center ${rowBorder}`}>
+                                                    {reviewStatus === 'CORRECT' && lateSubmission ? (
+                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full">⚠️ Late</span>
+                                                    ) : reviewStatus === 'CORRECT' || (!isOnlineAssignment && hasOffline) ? (
+                                                        <div className="flex items-center justify-center gap-1 flex-wrap">
+                                                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded-full">✅ Submitted</span>
+                                                            {!isOnlineAssignment && submission?.offlineMarkedLate && (
+                                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full">⚠️ Late</span>
+                                                            )}
+                                                        </div>
+                                                    ) : reviewStatus === 'WRITE_AGAIN' ? (
+                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full">✍️ Write Again</span>
+                                                    ) : hasOnline ? (
+                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">👀 In Review</span>
+                                                    ) : isOnlineAssignment && data.assignment.status !== 'ACTIVE' ? (
+                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-1.5 py-0.5 rounded-full">❌ Missed</span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-amber-600 dark:text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">⏳ Pending</span>
+                                                    )}
+                                                </td>
+
+                                                {isOnline && (
+                                                    <td className={`px-4 py-3 ${rowBorder}`}>
+                                                        {isOnlineAssignment && hasOnline ? (
+                                                            <div className="min-w-[220px] max-w-[300px] space-y-2">
+                                                                {/* Latest submission */}
+                                                                <div className="flex items-center justify-between gap-2 w-full">
+                                                                    <div className="min-w-0 flex-1 truncate">
+                                                                        <p className="text-muted-foreground truncate">
+                                                                            {(() => {
+                                                                                const attemptNo = attempts[0]?.attemptNumber ?? 1;
+                                                                                return attemptNo > 1 ? `Submission #${attemptNo} · ` : `Submission · `;
+                                                                            })()}
+                                                                            {new Date(submission!.submittedAt!).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
+                                                                        </p>
+                                                                    </div>
+                                                                    {submission?.fileUrl && (
+                                                                        <a href={submission.fileUrl} target="_blank" rel="noopener noreferrer"
+                                                                            className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-lg transition-all whitespace-nowrap">
+                                                                            <FileText size={11} /> View PDF
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+
+                                                                {(attempts[0]?.reviewStatus === 'CORRECT' || attempts[0]?.reviewStatus === 'WRITE_AGAIN') && (
+                                                                    <div className="-mt-1.5">
+                                                                        <span className={`inline-block mb-1 text-[9px] font-bold px-1 py-0.5 rounded ${attempts[0].reviewStatus === 'CORRECT' ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10' : 'text-red-600 dark:text-red-400 bg-red-500/10'}`}>
+                                                                            {attempts[0].reviewStatus === 'CORRECT' ? 'Approved' : 'Write Again'}
+                                                                        </span>
+                                                                        {attempts[0].reviewNote && (
+                                                                            <p className="text-foreground/80 italic">{attempts[0].reviewNote}</p>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Review actions — only while awaiting a first review; once the
+                                                                    teacher has approved or sent it back, this stays hidden until
+                                                                    the student resubmits (resets reviewStatus to null). */}
+                                                                {!reviewStatus && (
+                                                                    <div className="space-y-1.5 rounded-lg bg-muted/40 p-2">
+                                                                        {confirmReview?.studentId === student.id ? (
+                                                                            <div className="space-y-1.5">
+                                                                                <p className="text-[10px] text-muted-foreground">
+                                                                                    {confirmReview.status === 'CORRECT' ? 'Approve this submission?' : 'Ask the student to write again?'}
+                                                                                </p>
+                                                                                <div className="flex gap-1.5">
+                                                                                    <button
+                                                                                        onClick={() => setConfirmReview(null)}
+                                                                                        className="flex-1 text-[11px] py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                                                                        Cancel
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => handleReview(student.id, confirmReview.status)}
+                                                                                        disabled={!!reviewing}
+                                                                                        className={`flex-1 text-[11px] py-1 rounded-lg font-semibold disabled:opacity-50 transition-all ${
+                                                                                            confirmReview.status === 'CORRECT'
+                                                                                                ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                                                                                                : 'bg-red-500 text-white hover:bg-red-600'
+                                                                                        }`}>
+                                                                                        {reviewing === student.id + confirmReview.status ? '…' : 'Confirm'}
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        ) : (
+                                                                            <>
+                                                                                <input
+                                                                                    value={reviewNote}
+                                                                                    onChange={e => setReviewNote(e.target.value)}
+                                                                                    placeholder="Optional feedback note…"
+                                                                                    className="w-full text-xs rounded-lg border border-border bg-background px-2 py-1 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                                                                                />
+                                                                                <div className="flex gap-1.5">
+                                                                                    <button
+                                                                                        onClick={() => setConfirmReview({ studentId: student.id, status: 'CORRECT' })}
+                                                                                        disabled={!!reviewing}
+                                                                                        className="flex-1 text-[11px] py-1 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600 disabled:opacity-50 transition-all">
+                                                                                        ✓ Approve
+                                                                                    </button>
+                                                                                    <button
+                                                                                        onClick={() => setConfirmReview({ studentId: student.id, status: 'WRITE_AGAIN' })}
+                                                                                        disabled={!!reviewing}
+                                                                                        className="flex-1 text-[11px] py-1 rounded-lg bg-red-500/10 text-red-500 border border-red-500/30 font-semibold hover:bg-red-500/20 disabled:opacity-50 transition-all">
+                                                                                        ↩ Write Again
+                                                                                    </button>
+                                                                                </div>
+                                                                            </>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Earlier submissions — collapsed by default so the row stays
+                                                                    tidy; resubmitting never erases the previous upload, it just
+                                                                    moves it in here. */}
+                                                                {attempts.length > 1 && (
+                                                                    <div className="pt-1 border-t border-border/60">
+                                                                        <button
+                                                                            onClick={() => setHistoryOpenFor(prev => {
+                                                                                const next = new Set(prev);
+                                                                                if (next.has(student.id)) next.delete(student.id); else next.add(student.id);
+                                                                                return next;
+                                                                            })}
+                                                                            className="flex items-center gap-1 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-all pt-1">
+                                                                            {historyOpenFor.has(student.id) ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                                                                            {attempts.length - 1} earlier submission{attempts.length - 1 > 1 ? 's' : ''}
+                                                                        </button>
+                                                                        {historyOpenFor.has(student.id) && (
+                                                                            <div className="mt-1.5 space-y-1.5 w-full">
+                                                                                {attempts.slice(1).map(at => (
+                                                                                    <div key={at.id} className="rounded-lg bg-muted/30 px-2 py-1.5 w-full">
+                                                                                        <div className="flex items-center justify-between gap-2">
+                                                                                            <div className="min-w-0 flex-1 truncate">
+                                                                                                <p className="text-muted-foreground truncate">#{at.attemptNumber} · {new Date(at.submittedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}</p>
+                                                                                                {at.reviewStatus === 'CORRECT' && (
+                                                                                                    <span className="inline-block mt-0.5 text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-1 py-0.5 rounded">Approved</span>
+                                                                                                )}
+                                                                                                {at.reviewStatus === 'WRITE_AGAIN' && (
+                                                                                                    <span className="inline-block mt-0.5 text-[9px] font-bold text-red-600 dark:text-red-400 bg-red-500/10 px-1 py-0.5 rounded">Write Again</span>
+                                                                                                )}
+                                                                                            </div>
+                                                                                            {at.fileUrl && (
+                                                                                                <a href={at.fileUrl} target="_blank" rel="noopener noreferrer"
+                                                                                                    className="shrink-0 inline-flex items-center gap-1 text-[11px] font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-2 py-1 rounded-lg transition-all whitespace-nowrap">
+                                                                                                    <FileText size={11} /> View PDF
+                                                                                                </a>
+                                                                                            )}
+                                                                                        </div>
+                                                                                        {at.reviewNote && (
+                                                                                            <p className="mt-1 text-foreground/80 italic">{at.reviewNote}</p>
+                                                                                        )}
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-muted-foreground/50">—</span>
+                                                        )}
+                                                    </td>
+                                                )}
+
+                                                <td className={`px-4 py-2.5 ${rowBorder}`}>
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <span className="text-muted-foreground whitespace-nowrap">
+                                                            {hasOffline
+                                                                ? `Received ${new Date(submission!.offlineSubmittedAt!).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
+                                                                : 'Not received'}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => handleToggleOffline(student.id, hasOffline)}
+                                                            disabled={toggling === student.id}
+                                                            className={`text-[11px] px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap transition-all disabled:opacity-50 ${
+                                                                hasOffline
+                                                                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
+                                                                    : 'bg-primary/10 text-primary border border-primary/30 hover:bg-primary/20'
+                                                            }`}>
+                                                            {toggling === student.id ? '…' : hasOffline ? '✓ Received' : 'Mark Received'}
+                                                        </button>
+                                                    </div>
+                                                </td>
+
+                                                <td className={`px-4 py-2.5 text-center ${rowBorder}`}>
+                                                    <button
+                                                        onClick={() => handleToggleLate(student.id, !!submission?.offlineMarkedLate)}
+                                                        disabled={toggling === student.id}
+                                                        className={`text-[11px] px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap transition-all disabled:opacity-50 ${
+                                                            submission?.offlineMarkedLate
+                                                                ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20'
+                                                                : 'bg-transparent text-muted-foreground border border-border hover:bg-muted'
+                                                        }`}>
+                                                        {toggling === student.id ? '…' : submission?.offlineMarkedLate ? '⚠️ Late' : 'Mark Late'}
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </motion.div>
+        </motion.div>
     );
 }
 
@@ -3768,6 +3994,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     // Metadata
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [subjectName, setSubjectName] = useState('');
     const [paperType, setPaperType] = useState<'TEST' | 'ASSIGNMENT'>(lockedPaperType);
     const [durationMinutes, setDurationMinutes] = useState(60);
     // Free-typing buffer for the duration input — lets the box go fully empty while
@@ -3831,6 +4058,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                 const t: TestDetail = res.data.data;
                 setTitle(t.title);
                 setDescription(t.description ?? '');
+                setSubjectName(t.subject?.name ?? '');
                 setPaperType((t.paperType ?? 'TEST') as 'TEST' | 'ASSIGNMENT');
                 setDurationMinutes(t.durationMinutes);
                 setMaxAttempts(t.maxAttempts);
@@ -4257,9 +4485,13 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                         <div className="flex items-center justify-between text-[13px] mt-1" style={{ color: theme.metaColor }}>
                             <div className="flex items-center gap-6">
                                 {entityType === 'assignment' ? (
-                                    <span><span className="font-semibold">Due:</span> {dueDate ? new Date(dueDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not set'}</span>
+                                    <span>
+                                        {subjectName && <><span className="font-semibold">Subject:</span> {subjectName}&nbsp;&nbsp;&nbsp;&nbsp;</>}
+                                        <span className="font-semibold">Due:</span> {dueDate ? new Date(dueDate).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: true }) : 'Not set'}
+                                    </span>
                                 ) : (
                                     <>
+                                        {subjectName && <span><span className="font-semibold">Subject:</span> {subjectName}</span>}
                                         <span><span className="font-semibold">Time:</span> {durationMinutes} min</span>
                                         <span><span className="font-semibold">Max Attempts:</span> {maxAttempts}</span>
                                     </>
