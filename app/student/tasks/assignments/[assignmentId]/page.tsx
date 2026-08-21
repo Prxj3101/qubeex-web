@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { ArrowLeft, Download } from 'lucide-react';
+import { ArrowLeft, Download, ZoomIn, ZoomOut } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 
@@ -97,6 +97,14 @@ export default function AssignmentPaperPage() {
 
     const [loading, setLoading] = useState(true);
     const [paper, setPaper] = useState<AssignmentPaper | null>(null);
+    // Manual zoom for the laptop/browser view — the paper is a fixed A4
+    // width, so this just scales it up/down for readability, independent of
+    // the browser's own page zoom. Uses CSS `zoom` (not `transform: scale`)
+    // so the layout box actually shrinks/grows with it instead of leaving
+    // dead space or getting clipped.
+    const [zoom, setZoom] = useState(1);
+    const zoomIn = () => setZoom(z => Math.min(2, Math.round((z + 0.1) * 10) / 10));
+    const zoomOut = () => setZoom(z => Math.max(0.5, Math.round((z - 0.1) * 10) / 10));
     const [downloading, setDownloading] = useState(false);
     const [pageGroups, setPageGroups] = useState<string[][] | null>(null);
     const blockElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -129,27 +137,11 @@ export default function AssignmentPaperPage() {
         return () => window.removeEventListener('resize', computeOffset);
     }, [paper]);
 
-    // On a phone-width screen the fixed 210mm-wide A4 sheet is much wider than
-    // the viewport, so the default `width=device-width, initial-scale=1` meta
-    // tag leaves it zoomed in with only horizontal scrolling to see the rest.
-    // Widen the viewport to match the actual paper width and dial initial-scale
-    // down to fit, so the whole page is visible on first load — pinch-zoom
-    // still works normally from there (user-scalable stays on). Restores the
-    // original tag on unmount so other pages aren't affected. No-op on wide
-    // (desktop) screens where the paper already fits.
-    useEffect(() => {
-        if (!paper) return;
-        const meta = document.querySelector('meta[name="viewport"]');
-        if (!meta) return;
-        const originalContent = meta.getAttribute('content');
-        if (window.innerWidth < PAGE_WIDTH_PX) {
-            const scale = window.innerWidth / PAGE_WIDTH_PX;
-            meta.setAttribute('content', `width=${Math.round(PAGE_WIDTH_PX)}, initial-scale=${scale}, minimum-scale=${scale / 2}, maximum-scale=5, user-scalable=yes`);
-        }
-        return () => {
-            if (originalContent) meta.setAttribute('content', originalContent);
-        };
-    }, [paper]);
+    // NOTE: mobile viewport fit-to-width for the A4 sheet is handled by this
+    // route's own `layout.tsx` (a static Next.js `viewport` export baked into
+    // the server-rendered HTML) — setting the viewport meta via JS after the
+    // page has already loaded doesn't reliably rescale things on mobile, so
+    // that approach was dropped in favor of the static one.
 
     useEffect(() => {
         let cancelled = false;
@@ -371,6 +363,17 @@ export default function AssignmentPaperPage() {
                         </button>
                     )}
                     <h1 className="flex-1 min-w-0 text-lg font-bold truncate">{paper.assignment.title}</h1>
+                    <div className="hidden sm:flex items-center gap-0.5 shrink-0 border border-border/50 rounded-xl bg-card p-0.5">
+                        <button onClick={zoomOut} disabled={zoom <= 0.5}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-all disabled:opacity-40">
+                            <ZoomOut size={14} className="text-foreground" />
+                        </button>
+                        <span className="text-[11px] font-semibold text-muted-foreground w-9 text-center select-none">{Math.round(zoom * 100)}%</span>
+                        <button onClick={zoomIn} disabled={zoom >= 2}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-all disabled:opacity-40">
+                            <ZoomIn size={14} className="text-foreground" />
+                        </button>
+                    </div>
                     <button onClick={handleDownloadPdf} disabled={downloading}
                         className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-2 rounded-xl disabled:opacity-60"
                         style={{ background: 'linear-gradient(135deg,#E8876A,#C06040)' }}>
@@ -384,7 +387,7 @@ export default function AssignmentPaperPage() {
                 paginates into separate A4 sheets, one below the other, exactly
                 like the teacher's builder does. */}
             <div className="overflow-x-auto pt-3 pb-8 px-3 sm:px-6" style={{ background: theme.outerBg }}>
-                <div className="mx-auto" style={{ width: 'fit-content' }}>
+                <div className="mx-auto" style={{ width: 'fit-content', zoom }}>
                     {paper.questions.length === 0 ? (
                         <div style={{
                             width: '210mm', maxWidth: '100%', minHeight: `${PAGE_HEIGHT_PX}px`,
