@@ -64,7 +64,6 @@ function formatDateTime(iso: string) {
 // PAGE_HEIGHT_PX/PAGE_CHROME_PX/PAGE_PADDING_Y_PX/PAGE_CONTENT_CAPACITY_PX):
 // CSS spec fixes 1in = 96px, so mm→px is an exact conversion, not an approximation.
 const MM_TO_PX = 96 / 25.4;
-const PAGE_WIDTH_PX = 210 * MM_TO_PX;
 const PAGE_HEIGHT_PX = 297 * MM_TO_PX;
 const PAGE_CHROME_PX = 11 + 11; // top decorative bars (6+3+2) + bottom bars (2+3+6)
 const PAGE_PADDING_Y_PX = 48; // content wrapper padding: 24px top + 24px bottom
@@ -100,32 +99,29 @@ export default function AssignmentPaperPage() {
     const [downloading, setDownloading] = useState(false);
     const [pageGroups, setPageGroups] = useState<string[][] | null>(null);
     const blockElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-    // Manual zoom for the laptop/browser view and the app's pinch gesture —
-    // scales the whole scrollable section below the header (paper, grey
-    // backdrop, all of it) as one flat image via `transform: scale`, not
-    // CSS `zoom`. `zoom` is a layout property — the browser actually
-    // re-lays-out text/content at each zoom level, which shows up as content
-    // visibly shifting/reflowing mid-pinch. `transform` is purely a visual
-    // scale (like zooming a photo), so nothing inside moves relative to
-    // everything else.
+    // Fully custom pan + zoom for the section below the header — no native
+    // browser/WebView scrolling or pinch-zoom involved at all anymore. Every
+    // earlier attempt that mixed native scroll/zoom with our own JS state
+    // (CSS `zoom`, then native pinch, then native scroll + JS zoom) kept
+    // fighting itself in some platform-specific way (reflow jitter, the
+    // whole page incl. header scaling, drifting off-center during pinch on
+    // Android). Taking over both gestures entirely removes that ambiguity:
+    // `zoom` is the scale factor, `panX`/`panY` is the translate offset (in
+    // *unscaled* content px) — applied together as
+    // `translate(panX, panY) scale(zoom)` with `transformOrigin: '0 0'` on
+    // the content, inside a `backdropRef` viewport with `overflow: hidden`
+    // and `touchAction: 'none'` so nothing native ever intercepts a touch.
     const [zoom, setZoom] = useState(1);
-    const zoomIn = () => setZoom(z => Math.min(2, Math.round((z + 0.1) * 10) / 10));
-    const zoomOut = () => setZoom(z => Math.max(0.5, Math.round((z - 0.1) * 10) / 10));
-    // Read inside the pinch handler via ref instead of depending on `zoom`
-    // directly — keeps the listeners attached once (see effect below) instead
-    // of being torn down and re-attached on every zoom change, which was
-    // otherwise why the *first* pinch after opening the page silently did
-    // nothing until the +/- button had fired at least once.
-    const zoomRef = useRef(zoom);
-    useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+    const [panX, setPanX] = useState(0);
+    const [panY, setPanY] = useState(0);
+    const MIN_ZOOM = 0.3;
+    const MAX_ZOOM = 2.5;
 
-    // `transform: scale` doesn't change the element's own layout box, so the
-    // backdrop's scroll container has no idea the content now looks bigger —
-    // without this, you can't scroll to see the parts that grew off-screen.
-    // This sizer wraps the (unscaled) content, and its width/height are set
-    // to the content's natural size × zoom, so the scrollable ancestor's
-    // scrollWidth/scrollHeight correctly account for the zoomed-in size.
+    const backdropRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
+    // Natural (unscaled) content size, measured via `offsetWidth/Height` —
+    // pure layout properties, unaffected by the `transform` applied to this
+    // same element, so they stay correct at any zoom level.
     const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
     useEffect(() => {
         const el = contentRef.current;
@@ -137,17 +133,57 @@ export default function AssignmentPaperPage() {
         return () => ro.disconnect();
     }, [paper, pageGroups]);
 
-    // Custom pinch-to-zoom for the section below the header. The
-    // browser's/WebView's own native pinch-zoom scales the *entire* rendered
-    // page — including the fixed header strip above — which is exactly what
-    // we don't want (the header must stay put; only this section should
-    // grow/shrink). So native zoom gets turned off (see the viewport-meta
-    // effect below, and `setBuiltInZoomControls={false}` on the app's
-    // WebView side) and this two-finger gesture drives the same `zoom` state
-    // as the desktop +/- buttons instead — panning is just the normal scroll
-    // of the backdrop container underneath, so it needs no special handling.
-    const backdropRef = useRef<HTMLDivElement>(null);
-    const pinchRef = useRef<{ startDistance: number; startZoom: number } | null>(null);
+    // Live values for use inside native event listeners below, which close
+    // over stale state otherwise since they're only attached once.
+    const liveRef = useRef({ zoom, panX, panY });
+    useEffect(() => { liveRef.current = { zoom, panX, panY }; }, [zoom, panX, panY]);
+
+    // Re-centers the content on first load, once both the backdrop's visible
+    // size and the content's natural size are known — fits the whole paper
+    // to the viewport width (never upscaling past 100% on a screen that's
+    // already wide enough, e.g. desktop) and centers it horizontally, top
+    // edge flush. Only runs once per paper load (`initializedRef`), so it
+    // doesn't fight the user's own zoom/pan afterwards.
+    const initializedRef = useRef(false);
+    useEffect(() => { initializedRef.current = false; }, [paper]);
+    useEffect(() => {
+        const backdropEl = backdropRef.current;
+        if (!backdropEl || !naturalSize.width || initializedRef.current) return;
+        initializedRef.current = true;
+        const vw = backdropEl.clientWidth;
+        const fitZoom = Math.min(1, vw / naturalSize.width);
+        setZoom(fitZoom);
+        setPanX((vw - naturalSize.width * fitZoom) / 2);
+        setPanY(0);
+    }, [naturalSize]);
+
+    // Zooms the same way a pinch or the +/- buttons do — anchored on the
+    // backdrop's own visible center, so whatever's currently in the middle
+    // of the view stays there as the scale changes (instead of re-centering
+    // on the *content's* center, which would jump the view if the user had
+    // panned anywhere away from center first).
+    const zoomAroundViewportCenter = (newZoomRaw: number) => {
+        const backdropEl = backdropRef.current;
+        if (!backdropEl) return;
+        const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, newZoomRaw));
+        const vw = backdropEl.clientWidth;
+        const vh = backdropEl.clientHeight;
+        const { zoom: curZoom, panX: curPanX, panY: curPanY } = liveRef.current;
+        const contentCenterX = (vw / 2 - curPanX) / curZoom;
+        const contentCenterY = (vh / 2 - curPanY) / curZoom;
+        setZoom(newZoom);
+        setPanX(vw / 2 - contentCenterX * newZoom);
+        setPanY(vh / 2 - contentCenterY * newZoom);
+    };
+    const zoomIn = () => zoomAroundViewportCenter(Math.round((liveRef.current.zoom + 0.1) * 10) / 10);
+    const zoomOut = () => zoomAroundViewportCenter(Math.round((liveRef.current.zoom - 0.1) * 10) / 10);
+
+    // Touch handling — attached once (deps: `[]`) and always reads the
+    // latest zoom/pan via `liveRef`, so it works correctly from the very
+    // first touch (no more needing to tap a button once before pinch would
+    // "wake up"). `touchAction: 'none'` on the backdrop means nothing native
+    // ever competes with this: one finger drags to pan, two fingers pinch to
+    // zoom (around the viewport's own center, same math as the buttons).
     useEffect(() => {
         const el = backdropRef.current;
         if (!el) return;
@@ -156,24 +192,50 @@ export default function AssignmentPaperPage() {
             const dy = touches[0].clientY - touches[1].clientY;
             return Math.hypot(dx, dy);
         };
+        let dragLast: { x: number; y: number } | null = null;
+        let pinchStart: { distance: number; zoom: number; panX: number; panY: number } | null = null;
+
         const onTouchStart = (e: TouchEvent) => {
             if (e.touches.length === 2) {
-                pinchRef.current = { startDistance: distance(e.touches), startZoom: zoomRef.current };
+                dragLast = null;
+                pinchStart = { distance: distance(e.touches), ...liveRef.current };
+            } else if (e.touches.length === 1) {
+                pinchStart = null;
+                dragLast = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             }
         };
         const onTouchMove = (e: TouchEvent) => {
-            if (e.touches.length === 2 && pinchRef.current) {
-                e.preventDefault();
-                const factor = distance(e.touches) / pinchRef.current.startDistance;
-                const next = Math.min(2.5, Math.max(0.5, pinchRef.current.startZoom * factor));
-                setZoom(Math.round(next * 100) / 100);
+            e.preventDefault();
+            if (e.touches.length === 2 && pinchStart) {
+                const factor = distance(e.touches) / pinchStart.distance;
+                const newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, pinchStart.zoom * factor));
+                const rect = el.getBoundingClientRect();
+                const vw = rect.width;
+                const vh = rect.height;
+                const contentCenterX = (vw / 2 - pinchStart.panX) / pinchStart.zoom;
+                const contentCenterY = (vh / 2 - pinchStart.panY) / pinchStart.zoom;
+                setZoom(newZoom);
+                setPanX(vw / 2 - contentCenterX * newZoom);
+                setPanY(vh / 2 - contentCenterY * newZoom);
+            } else if (e.touches.length === 1 && dragLast) {
+                const dx = e.touches[0].clientX - dragLast.x;
+                const dy = e.touches[0].clientY - dragLast.y;
+                setPanX(x => x + dx);
+                setPanY(y => y + dy);
+                dragLast = { x: e.touches[0].clientX, y: e.touches[0].clientY };
             }
         };
         const onTouchEnd = (e: TouchEvent) => {
-            if (e.touches.length < 2) pinchRef.current = null;
+            if (e.touches.length === 1) {
+                pinchStart = null;
+                dragLast = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            } else {
+                pinchStart = null;
+                dragLast = null;
+            }
         };
-        // `passive: false` is required so preventDefault() during the pinch
-        // actually stops the browser's own zoom/scroll from also kicking in.
+        // `passive: false` on touchmove is required so preventDefault()
+        // actually stops any native handling from also kicking in.
         el.addEventListener('touchstart', onTouchStart, { passive: true });
         el.addEventListener('touchmove', onTouchMove, { passive: false });
         el.addEventListener('touchend', onTouchEnd, { passive: true });
@@ -182,73 +244,18 @@ export default function AssignmentPaperPage() {
             el.removeEventListener('touchmove', onTouchMove);
             el.removeEventListener('touchend', onTouchEnd);
         };
-    }, [paper]);
+    }, []);
 
-    // App WebView (narrow, no sm:): `position: sticky` doesn't reliably hold
-    // inside a scrollable container on some mobile WebKit/WebView builds — it
-    // detaches and scrolls away with the content instead of staying pinned.
-    // `position: fixed` (relative to the viewport, not the scroll container)
-    // always holds, so the header uses that on mobile, with a measured
-    // spacer below to keep content from jumping under it. Desktop (sm+) uses
-    // normal sticky — same pattern as the test result page.
-    const headerRef = useRef<HTMLDivElement>(null);
-    const [headerHeight, setHeaderHeight] = useState(0);
-    useEffect(() => {
-        const el = headerRef.current;
-        if (!el) return;
-        const ro = new ResizeObserver((entries) => setHeaderHeight(entries[0].contentRect.height));
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, [paper]);
-
-    const [topOffset, setTopOffset] = useState(0);
-    useEffect(() => {
-        const mainEl = headerRef.current?.closest('main');
-        const computeOffset = () => {
-            if (mainEl) setTopOffset(mainEl.getBoundingClientRect().top);
-        };
-        computeOffset();
-        window.addEventListener('resize', computeOffset);
-        // Window resize alone isn't enough — in the app's WebView, the
-        // shared Topbar above `main` shrinks slightly *after* this first
-        // measurement (its nav-icons row hides itself in its own effect,
-        // asynchronously, post-mount). That shrinks the Topbar without ever
-        // resizing the window, so `main` grows to fill the freed space
-        // (flex-1) but the stale, larger `topOffset` from before is never
-        // recomputed — this fixed header (using that offset) then sits too
-        // low, leaving a gap above it where the scrolling paper peeks
-        // through. A ResizeObserver on `main` itself catches that flex-driven
-        // height change and re-measures right away.
-        let ro: ResizeObserver | null = null;
-        if (mainEl) {
-            ro = new ResizeObserver(computeOffset);
-            ro.observe(mainEl);
-        }
-        return () => {
-            window.removeEventListener('resize', computeOffset);
-            ro?.disconnect();
-        };
-    }, [paper]);
-
-    // On a phone-width screen the fixed 210mm-wide A4 sheet is much wider than
-    // the viewport, so the default `width=device-width, initial-scale=1` meta
-    // tag leaves it zoomed in with only horizontal scrolling to see the rest.
-    // Widen the viewport to match the actual paper width and dial initial-scale
-    // down to fit, so the whole page is visible on first load. `user-scalable`
-    // is off here because native pinch-zoom would scale the whole page
-    // (header included) — the custom pinch handler above drives zoom of just
-    // the paper instead. Restores the original tag on unmount so other pages
-    // aren't affected. No-op on wide (desktop) screens where the paper
-    // already fits (those get the +/- buttons instead, no pinch needed).
+    // The fit-to-width and zoom/pan are now entirely our own JS (see above),
+    // so the native browser/WebView viewport doesn't need to compute any
+    // scaling itself anymore — just make sure its own pinch-zoom stays off
+    // so it never competes with our custom gesture handling.
     useEffect(() => {
         if (!paper) return;
         const meta = document.querySelector('meta[name="viewport"]');
         if (!meta) return;
         const originalContent = meta.getAttribute('content');
-        if (window.innerWidth < PAGE_WIDTH_PX) {
-            const scale = window.innerWidth / PAGE_WIDTH_PX;
-            meta.setAttribute('content', `width=${Math.round(PAGE_WIDTH_PX)}, initial-scale=${scale}, maximum-scale=${scale}, user-scalable=no`);
-        }
+        meta.setAttribute('content', 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no');
         return () => {
             if (originalContent) meta.setAttribute('content', originalContent);
         };
@@ -327,9 +334,13 @@ export default function AssignmentPaperPage() {
     // real page breaks and triggers one more render with the true grouping.
     useLayoutEffect(() => {
         if (!paper) return;
+        // `offsetHeight` (not `getBoundingClientRect().height`) — it's a pure
+        // layout measurement, unaffected by the `transform: scale` zoom
+        // applied further up the tree, so page-break math always uses real
+        // A4-scale pixel heights no matter what zoom level is showing.
         const heights = flowBlocks.map(b => {
             const el = blockElRefs.current.get(b.key);
-            return { key: b.key, height: el ? el.getBoundingClientRect().height : 0 };
+            return { key: b.key, height: el ? el.offsetHeight : 0 };
         });
         const groups: string[][] = [];
         let current: string[] = [];
@@ -461,11 +472,17 @@ export default function AssignmentPaperPage() {
     };
 
     return (
-        <div>
-            {/* Header — back button, title, Download PDF, all in one row. Full-width
-                sticky strip (fixed on mobile WebView, see comment above) so the whole
-                line stays pinned edge-to-edge while the paper scrolls underneath. */}
-            <div ref={headerRef} style={{ top: topOffset }} className="fixed left-0 right-0 z-20 bg-background sm:sticky sm:!top-0 sm:z-20">
+        // A fixed-height flex column filling `main`'s box exactly — the
+        // header is just a normal flex item now (no more position:fixed /
+        // sticky / measured-offset juggling), and the backdrop below it is a
+        // clipped viewport with no native scrolling at all, so our own
+        // pan+zoom is the only thing moving the paper around. That removes
+        // the whole earlier class of bugs (header/paper gap appearing on
+        // Android, sticky header detaching in some WebViews, pinch drifting
+        // because native scroll was fighting our transform).
+        <div className="flex flex-col h-full">
+            {/* Header — back button, title, Download PDF, all in one row. */}
+            <div className="shrink-0 bg-background">
                 <div className="flex items-center gap-3 max-w-3xl mx-auto px-3 pt-1 pb-3">
                     {!hideBackButton && (
                         <button onClick={() => router.back()}
@@ -475,12 +492,12 @@ export default function AssignmentPaperPage() {
                     )}
                     <h1 className="flex-1 min-w-0 text-lg font-bold truncate">{paper.assignment.title}</h1>
                     <div className="hidden sm:flex items-center gap-0.5 shrink-0 border border-border/50 rounded-xl bg-card p-0.5">
-                        <button onClick={zoomOut} disabled={zoom <= 0.5}
+                        <button onClick={zoomOut} disabled={zoom <= MIN_ZOOM}
                             className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-all disabled:opacity-40">
                             <ZoomOut size={14} className="text-foreground" />
                         </button>
                         <span className="text-[11px] font-semibold text-muted-foreground w-9 text-center select-none">{Math.round(zoom * 100)}%</span>
-                        <button onClick={zoomIn} disabled={zoom >= 2}
+                        <button onClick={zoomIn} disabled={zoom >= MAX_ZOOM}
                             className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-all disabled:opacity-40">
                             <ZoomIn size={14} className="text-foreground" />
                         </button>
@@ -492,19 +509,12 @@ export default function AssignmentPaperPage() {
                     </button>
                 </div>
             </div>
-            <div style={{ height: headerHeight }} className="sm:hidden" />
 
-            {/* Outer grey/blue backdrop, same as the paper builder's scroll area —
-                paginates into separate A4 sheets, one below the other, exactly
-                like the teacher's builder does. */}
-            <div ref={backdropRef} className="overflow-x-auto pt-3 pb-8 px-3 sm:px-6" style={{ background: theme.outerBg, touchAction: 'pan-x pan-y' }}>
-                <div
-                    className="mx-auto"
-                    style={naturalSize.width
-                        ? { width: naturalSize.width * zoom, height: naturalSize.height * zoom }
-                        : { width: 'fit-content' }}
-                >
-                <div ref={contentRef} className="mx-auto" style={{ width: 'fit-content', transform: `scale(${zoom})`, transformOrigin: 'center top' }}>
+            {/* Backdrop — the clipped, pannable/zoomable viewport. Same grey/blue
+                backdrop colour as the paper builder; paginates into separate A4
+                sheets, one below the other, exactly like the teacher's builder. */}
+            <div ref={backdropRef} className="relative flex-1 min-h-0 overflow-hidden" style={{ background: theme.outerBg, touchAction: 'none' }}>
+                <div ref={contentRef} style={{ width: 'fit-content', transform: `translate(${panX}px, ${panY}px) scale(${zoom})`, transformOrigin: '0 0' }}>
                     {paper.questions.length === 0 ? (
                         <div style={{
                             width: '210mm', maxWidth: '100%', minHeight: `${PAGE_HEIGHT_PX}px`,
@@ -573,7 +583,6 @@ export default function AssignmentPaperPage() {
                             </div>
                         ))
                     )}
-                </div>
                 </div>
             </div>
         </div>
