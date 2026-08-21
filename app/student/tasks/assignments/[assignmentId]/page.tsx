@@ -137,6 +137,28 @@ export default function AssignmentPaperPage() {
         return () => window.removeEventListener('resize', computeOffset);
     }, [paper]);
 
+    // On a phone-width screen the fixed 210mm-wide A4 sheet is much wider than
+    // the viewport, so the default `width=device-width, initial-scale=1` meta
+    // tag leaves it zoomed in with only horizontal scrolling to see the rest.
+    // Widen the viewport to match the actual paper width and dial initial-scale
+    // down to fit, so the whole page is visible on first load — pinch-zoom
+    // still works normally from there (user-scalable stays on). Restores the
+    // original tag on unmount so other pages aren't affected. No-op on wide
+    // (desktop) screens where the paper already fits.
+    useEffect(() => {
+        if (!paper) return;
+        const meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) return;
+        const originalContent = meta.getAttribute('content');
+        if (window.innerWidth < PAGE_WIDTH_PX) {
+            const scale = window.innerWidth / PAGE_WIDTH_PX;
+            meta.setAttribute('content', `width=${Math.round(PAGE_WIDTH_PX)}, initial-scale=${scale}, minimum-scale=${scale / 2}, maximum-scale=5, user-scalable=yes`);
+        }
+        return () => {
+            if (originalContent) meta.setAttribute('content', originalContent);
+        };
+    }, [paper]);
+
     useEffect(() => {
         let cancelled = false;
         (async () => {
