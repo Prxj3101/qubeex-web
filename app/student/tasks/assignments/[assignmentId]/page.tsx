@@ -105,6 +105,53 @@ export default function AssignmentPaperPage() {
     const [zoom, setZoom] = useState(1);
     const zoomIn = () => setZoom(z => Math.min(2, Math.round((z + 0.1) * 10) / 10));
     const zoomOut = () => setZoom(z => Math.max(0.5, Math.round((z - 0.1) * 10) / 10));
+
+    // Custom pinch-to-zoom for the paper only. The browser's/WebView's own
+    // native pinch-zoom scales the *entire* rendered page — including the
+    // fixed header strip above — which is exactly what we don't want (the
+    // header must stay put; only the paper below it should grow/shrink).
+    // So native zoom gets turned off (see the viewport-meta effect below,
+    // and `setBuiltInZoomControls={false}` on the app's WebView side) and
+    // this two-finger gesture drives the same `zoom` state as the desktop
+    // +/- buttons instead — panning is just the normal scroll of the
+    // backdrop container underneath, so it needs no special handling.
+    const backdropRef = useRef<HTMLDivElement>(null);
+    const pinchRef = useRef<{ startDistance: number; startZoom: number } | null>(null);
+    useEffect(() => {
+        const el = backdropRef.current;
+        if (!el) return;
+        const distance = (touches: TouchList) => {
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.hypot(dx, dy);
+        };
+        const onTouchStart = (e: TouchEvent) => {
+            if (e.touches.length === 2) {
+                pinchRef.current = { startDistance: distance(e.touches), startZoom: zoom };
+            }
+        };
+        const onTouchMove = (e: TouchEvent) => {
+            if (e.touches.length === 2 && pinchRef.current) {
+                e.preventDefault();
+                const factor = distance(e.touches) / pinchRef.current.startDistance;
+                const next = Math.min(2.5, Math.max(0.5, pinchRef.current.startZoom * factor));
+                setZoom(Math.round(next * 100) / 100);
+            }
+        };
+        const onTouchEnd = (e: TouchEvent) => {
+            if (e.touches.length < 2) pinchRef.current = null;
+        };
+        // `passive: false` is required so preventDefault() during the pinch
+        // actually stops the browser's own zoom/scroll from also kicking in.
+        el.addEventListener('touchstart', onTouchStart, { passive: true });
+        el.addEventListener('touchmove', onTouchMove, { passive: false });
+        el.addEventListener('touchend', onTouchEnd, { passive: true });
+        return () => {
+            el.removeEventListener('touchstart', onTouchStart);
+            el.removeEventListener('touchmove', onTouchMove);
+            el.removeEventListener('touchend', onTouchEnd);
+        };
+    }, [zoom]);
     const [downloading, setDownloading] = useState(false);
     const [pageGroups, setPageGroups] = useState<string[][] | null>(null);
     const blockElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -141,10 +188,12 @@ export default function AssignmentPaperPage() {
     // the viewport, so the default `width=device-width, initial-scale=1` meta
     // tag leaves it zoomed in with only horizontal scrolling to see the rest.
     // Widen the viewport to match the actual paper width and dial initial-scale
-    // down to fit, so the whole page is visible on first load — pinch-zoom
-    // still works normally from there (user-scalable stays on). Restores the
-    // original tag on unmount so other pages aren't affected. No-op on wide
-    // (desktop) screens where the paper already fits.
+    // down to fit, so the whole page is visible on first load. `user-scalable`
+    // is off here because native pinch-zoom would scale the whole page
+    // (header included) — the custom pinch handler above drives zoom of just
+    // the paper instead. Restores the original tag on unmount so other pages
+    // aren't affected. No-op on wide (desktop) screens where the paper
+    // already fits (those get the +/- buttons instead, no pinch needed).
     useEffect(() => {
         if (!paper) return;
         const meta = document.querySelector('meta[name="viewport"]');
@@ -152,7 +201,7 @@ export default function AssignmentPaperPage() {
         const originalContent = meta.getAttribute('content');
         if (window.innerWidth < PAGE_WIDTH_PX) {
             const scale = window.innerWidth / PAGE_WIDTH_PX;
-            meta.setAttribute('content', `width=${Math.round(PAGE_WIDTH_PX)}, initial-scale=${scale}, minimum-scale=${scale / 2}, maximum-scale=5, user-scalable=yes`);
+            meta.setAttribute('content', `width=${Math.round(PAGE_WIDTH_PX)}, initial-scale=${scale}, maximum-scale=${scale}, user-scalable=no`);
         }
         return () => {
             if (originalContent) meta.setAttribute('content', originalContent);
@@ -402,7 +451,7 @@ export default function AssignmentPaperPage() {
             {/* Outer grey/blue backdrop, same as the paper builder's scroll area —
                 paginates into separate A4 sheets, one below the other, exactly
                 like the teacher's builder does. */}
-            <div className="overflow-x-auto pt-3 pb-8 px-3 sm:px-6" style={{ background: theme.outerBg }}>
+            <div ref={backdropRef} className="overflow-x-auto pt-3 pb-8 px-3 sm:px-6" style={{ background: theme.outerBg, touchAction: 'pan-x pan-y' }}>
                 <div className="mx-auto" style={{ width: 'fit-content', zoom }}>
                     {paper.questions.length === 0 ? (
                         <div style={{
