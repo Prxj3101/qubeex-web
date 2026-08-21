@@ -203,13 +203,31 @@ export default function AssignmentPaperPage() {
 
     const [topOffset, setTopOffset] = useState(0);
     useEffect(() => {
+        const mainEl = headerRef.current?.closest('main');
         const computeOffset = () => {
-            const mainEl = headerRef.current?.closest('main');
             if (mainEl) setTopOffset(mainEl.getBoundingClientRect().top);
         };
         computeOffset();
         window.addEventListener('resize', computeOffset);
-        return () => window.removeEventListener('resize', computeOffset);
+        // Window resize alone isn't enough — in the app's WebView, the
+        // shared Topbar above `main` shrinks slightly *after* this first
+        // measurement (its nav-icons row hides itself in its own effect,
+        // asynchronously, post-mount). That shrinks the Topbar without ever
+        // resizing the window, so `main` grows to fill the freed space
+        // (flex-1) but the stale, larger `topOffset` from before is never
+        // recomputed — this fixed header (using that offset) then sits too
+        // low, leaving a gap above it where the scrolling paper peeks
+        // through. A ResizeObserver on `main` itself catches that flex-driven
+        // height change and re-measures right away.
+        let ro: ResizeObserver | null = null;
+        if (mainEl) {
+            ro = new ResizeObserver(computeOffset);
+            ro.observe(mainEl);
+        }
+        return () => {
+            window.removeEventListener('resize', computeOffset);
+            ro?.disconnect();
+        };
     }, [paper]);
 
     // On a phone-width screen the fixed 210mm-wide A4 sheet is much wider than
@@ -486,7 +504,7 @@ export default function AssignmentPaperPage() {
                         ? { width: naturalSize.width * zoom, height: naturalSize.height * zoom }
                         : { width: 'fit-content' }}
                 >
-                <div ref={contentRef} className="mx-auto" style={{ width: 'fit-content', transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
+                <div ref={contentRef} className="mx-auto" style={{ width: 'fit-content', transform: `scale(${zoom})`, transformOrigin: 'center top' }}>
                     {paper.questions.length === 0 ? (
                         <div style={{
                             width: '210mm', maxWidth: '100%', minHeight: `${PAGE_HEIGHT_PX}px`,
