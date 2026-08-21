@@ -139,7 +139,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
             : navItems;
 
     return (
-        <div className="flex flex-col h-screen bg-background px-0 pt-3 gap-3">
+        <div className={`flex flex-col h-screen bg-background px-0 pt-3 ${isAppWebViewPaper ? 'gap-0' : 'gap-3'}`}>
             <Topbar navItems={effectiveNavItems} restrictNav={isLocked} lockMessage={lockMessage} />
             <main className={`flex-1 min-h-0 overflow-y-auto px-2 ${isAppWebViewPaper ? 'overscroll-none' : ''}`}>
                 {loading ? (
