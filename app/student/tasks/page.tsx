@@ -717,12 +717,12 @@ export default function StudentTasksPage() {
                 {tab === 'assignments' && (
                     <div className="flex gap-2 mb-3 overflow-x-auto">
                         <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
-                            <span className="text-xl font-bold text-amber-500">{assignmentCounts.PENDING}</span>
-                            <span className="text-[10px] text-muted-foreground font-medium">Pending</span>
-                        </div>
-                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
                             <span className="text-xl font-bold text-red-500">{assignmentCounts.WRITE_AGAIN}</span>
                             <span className="text-[10px] text-muted-foreground font-medium">Write Again</span>
+                        </div>
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                            <span className="text-xl font-bold text-amber-500">{assignmentCounts.PENDING}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium">Pending</span>
                         </div>
                         <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
                             <span className="text-xl font-bold text-emerald-500">{assignmentCounts.SUBMITTED}</span>

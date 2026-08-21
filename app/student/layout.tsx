@@ -34,7 +34,23 @@ function bridgeWebViewToken() {
         // already sits above the page, making a second nav bar redundant.
         sessionStorage.setItem('isAppWebView', '1');
     } catch { /* storage unavailable — nothing more we can do here */ }
-    // Strip it from the URL so it doesn't linger in history/back-stack.
+    // NOTE: stripping wvToken from the URL is handled separately, in an
+    // effect (see stripWvTokenFromUrl) — calling history.replaceState here,
+    // synchronously during render, triggers React's "Cannot update a
+    // component while rendering a different component" warning because
+    // Next's router listens for history changes. The token itself still
+    // lands in localStorage synchronously above, which is the part that
+    // actually needs to beat the child page's data-fetching effect.
+}
+
+// Removes the now-consumed wvToken param from the URL so it doesn't linger
+// in history/back-stack. Safe to run slightly after render (unlike the
+// localStorage write above) since nothing downstream depends on the URL
+// being clean before it fetches data.
+function stripWvTokenFromUrl() {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (!params.has('wvToken')) return;
     params.delete('wvToken');
     const newSearch = params.toString();
     window.history.replaceState({}, '', window.location.pathname + (newSearch ? `?${newSearch}` : ''));
@@ -55,6 +71,20 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
     const [loading, setLoading] = useState(true);
     const { feedHasNew, clearFeedBadge } = useFeedBadge();
     const { fetchProfile, studentId } = useStudentStore();
+
+    // Whether to hide the nav-icons row for the app WebView's assignment
+    // paper view. Read from sessionStorage inside an effect (post-mount)
+    // rather than during render — the server has no window/sessionStorage
+    // at all, so checking it synchronously in the render body would make
+    // the very first client render disagree with the server-rendered HTML
+    // (nav row present vs. absent) and trip a hydration-mismatch error.
+    // Starting both server and the first client render the same way (nav
+    // shown), then flipping this true right after mount, avoids that.
+    const [hideNavForAppWebView, setHideNavForAppWebView] = useState(false);
+    useEffect(() => {
+        if (isInAppWebView()) setHideNavForAppWebView(true);
+        stripWvTokenFromUrl();
+    }, []);
 
     // Populate store once so division name etc. are available on all student pages
     useEffect(() => {
@@ -100,7 +130,7 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
     // is redundant here. Drop just that row (navItems undefined) in that one
     // case; the brand/logo/theme-toggle/avatar strip itself stays. A normal
     // browser tab on this same route keeps the nav row exactly as before.
-    const isAppWebViewPaper = /^\/student\/tasks\/assignments\/[^/]+$/.test(pathname ?? '') && isInAppWebView();
+    const isAppWebViewPaper = /^\/student\/tasks\/assignments\/[^/]+$/.test(pathname ?? '') && hideNavForAppWebView;
 
     const effectiveNavItems = isAppWebViewPaper
         ? undefined

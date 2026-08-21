@@ -64,6 +64,7 @@ function formatDateTime(iso: string) {
 // PAGE_HEIGHT_PX/PAGE_CHROME_PX/PAGE_PADDING_Y_PX/PAGE_CONTENT_CAPACITY_PX):
 // CSS spec fixes 1in = 96px, so mm→px is an exact conversion, not an approximation.
 const MM_TO_PX = 96 / 25.4;
+const PAGE_WIDTH_PX = 210 * MM_TO_PX;
 const PAGE_HEIGHT_PX = 297 * MM_TO_PX;
 const PAGE_CHROME_PX = 11 + 11; // top decorative bars (6+3+2) + bottom bars (2+3+6)
 const PAGE_PADDING_Y_PX = 48; // content wrapper padding: 24px top + 24px bottom
@@ -79,6 +80,20 @@ export default function AssignmentPaperPage() {
     const router = useRouter();
     const params = useParams();
     const assignmentId = params.assignmentId as string;
+
+    // The app's native WebView header already has its own back button above
+    // this page, so this page's own back button is redundant there — hide it
+    // only inside the app's WebView (set by student/layout.tsx's token
+    // bridging into sessionStorage), never on a normal browser tab. Read
+    // this in an effect (not during render) so the first client render
+    // still matches the server-rendered HTML (server has no sessionStorage
+    // at all) and doesn't trip a hydration mismatch.
+    const [hideBackButton, setHideBackButton] = useState(false);
+    useEffect(() => {
+        try {
+            if (sessionStorage.getItem('isAppWebView') === '1') setHideBackButton(true);
+        } catch { /* storage unavailable */ }
+    }, []);
 
     const [loading, setLoading] = useState(true);
     const [paper, setPaper] = useState<AssignmentPaper | null>(null);
@@ -112,6 +127,28 @@ export default function AssignmentPaperPage() {
         computeOffset();
         window.addEventListener('resize', computeOffset);
         return () => window.removeEventListener('resize', computeOffset);
+    }, [paper]);
+
+    // On a phone-width screen the fixed 210mm-wide A4 sheet is much wider than
+    // the viewport, so the default `width=device-width, initial-scale=1` meta
+    // tag leaves it zoomed in with only horizontal scrolling to see the rest.
+    // Widen the viewport to match the actual paper width and dial initial-scale
+    // down to fit, so the whole page is visible on first load — pinch-zoom
+    // still works normally from there (user-scalable stays on). Restores the
+    // original tag on unmount so other pages aren't affected. No-op on wide
+    // (desktop) screens where the paper already fits.
+    useEffect(() => {
+        if (!paper) return;
+        const meta = document.querySelector('meta[name="viewport"]');
+        if (!meta) return;
+        const originalContent = meta.getAttribute('content');
+        if (window.innerWidth < PAGE_WIDTH_PX) {
+            const scale = window.innerWidth / PAGE_WIDTH_PX;
+            meta.setAttribute('content', `width=${Math.round(PAGE_WIDTH_PX)}, initial-scale=${scale}, minimum-scale=${scale / 2}, maximum-scale=5, user-scalable=yes`);
+        }
+        return () => {
+            if (originalContent) meta.setAttribute('content', originalContent);
+        };
     }, [paper]);
 
     useEffect(() => {
@@ -327,10 +364,12 @@ export default function AssignmentPaperPage() {
                 line stays pinned edge-to-edge while the paper scrolls underneath. */}
             <div ref={headerRef} style={{ top: topOffset }} className="fixed left-0 right-0 z-20 bg-background sm:sticky sm:!top-0 sm:z-20">
                 <div className="flex items-center gap-3 max-w-3xl mx-auto px-3 pt-1 pb-3">
-                    <button onClick={() => router.back()}
-                        className="w-8 h-8 rounded-xl flex items-center justify-center border border-border/50 bg-card hover:bg-muted transition-all shrink-0">
-                        <ArrowLeft size={15} className="text-foreground" />
-                    </button>
+                    {!hideBackButton && (
+                        <button onClick={() => router.back()}
+                            className="w-8 h-8 rounded-xl flex items-center justify-center border border-border/50 bg-card hover:bg-muted transition-all shrink-0">
+                            <ArrowLeft size={15} className="text-foreground" />
+                        </button>
+                    )}
                     <h1 className="flex-1 min-w-0 text-lg font-bold truncate">{paper.assignment.title}</h1>
                     <button onClick={handleDownloadPdf} disabled={downloading}
                         className="shrink-0 flex items-center gap-1.5 text-xs font-semibold text-white px-3 py-2 rounded-xl disabled:opacity-60"
