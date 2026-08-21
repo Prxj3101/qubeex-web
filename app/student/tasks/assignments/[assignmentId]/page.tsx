@@ -137,12 +137,6 @@ export default function AssignmentPaperPage() {
         return () => window.removeEventListener('resize', computeOffset);
     }, [paper]);
 
-    // NOTE: mobile viewport fit-to-width for the A4 sheet is handled by this
-    // route's own `layout.tsx` (a static Next.js `viewport` export baked into
-    // the server-rendered HTML) — setting the viewport meta via JS after the
-    // page has already loaded doesn't reliably rescale things on mobile, so
-    // that approach was dropped in favor of the static one.
-
     useEffect(() => {
         let cancelled = false;
         (async () => {
