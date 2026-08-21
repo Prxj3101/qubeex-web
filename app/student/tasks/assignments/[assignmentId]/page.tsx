@@ -97,24 +97,55 @@ export default function AssignmentPaperPage() {
 
     const [loading, setLoading] = useState(true);
     const [paper, setPaper] = useState<AssignmentPaper | null>(null);
-    // Manual zoom for the laptop/browser view — the paper is a fixed A4
-    // width, so this just scales it up/down for readability, independent of
-    // the browser's own page zoom. Uses CSS `zoom` (not `transform: scale`)
-    // so the layout box actually shrinks/grows with it instead of leaving
-    // dead space or getting clipped.
+    const [downloading, setDownloading] = useState(false);
+    const [pageGroups, setPageGroups] = useState<string[][] | null>(null);
+    const blockElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+    // Manual zoom for the laptop/browser view and the app's pinch gesture —
+    // scales the whole scrollable section below the header (paper, grey
+    // backdrop, all of it) as one flat image via `transform: scale`, not
+    // CSS `zoom`. `zoom` is a layout property — the browser actually
+    // re-lays-out text/content at each zoom level, which shows up as content
+    // visibly shifting/reflowing mid-pinch. `transform` is purely a visual
+    // scale (like zooming a photo), so nothing inside moves relative to
+    // everything else.
     const [zoom, setZoom] = useState(1);
     const zoomIn = () => setZoom(z => Math.min(2, Math.round((z + 0.1) * 10) / 10));
     const zoomOut = () => setZoom(z => Math.max(0.5, Math.round((z - 0.1) * 10) / 10));
+    // Read inside the pinch handler via ref instead of depending on `zoom`
+    // directly — keeps the listeners attached once (see effect below) instead
+    // of being torn down and re-attached on every zoom change, which was
+    // otherwise why the *first* pinch after opening the page silently did
+    // nothing until the +/- button had fired at least once.
+    const zoomRef = useRef(zoom);
+    useEffect(() => { zoomRef.current = zoom; }, [zoom]);
 
-    // Custom pinch-to-zoom for the paper only. The browser's/WebView's own
-    // native pinch-zoom scales the *entire* rendered page — including the
-    // fixed header strip above — which is exactly what we don't want (the
-    // header must stay put; only the paper below it should grow/shrink).
-    // So native zoom gets turned off (see the viewport-meta effect below,
-    // and `setBuiltInZoomControls={false}` on the app's WebView side) and
-    // this two-finger gesture drives the same `zoom` state as the desktop
-    // +/- buttons instead — panning is just the normal scroll of the
-    // backdrop container underneath, so it needs no special handling.
+    // `transform: scale` doesn't change the element's own layout box, so the
+    // backdrop's scroll container has no idea the content now looks bigger —
+    // without this, you can't scroll to see the parts that grew off-screen.
+    // This sizer wraps the (unscaled) content, and its width/height are set
+    // to the content's natural size × zoom, so the scrollable ancestor's
+    // scrollWidth/scrollHeight correctly account for the zoomed-in size.
+    const contentRef = useRef<HTMLDivElement>(null);
+    const [naturalSize, setNaturalSize] = useState({ width: 0, height: 0 });
+    useEffect(() => {
+        const el = contentRef.current;
+        if (!el) return;
+        const measure = () => setNaturalSize({ width: el.offsetWidth, height: el.offsetHeight });
+        measure();
+        const ro = new ResizeObserver(measure);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [paper, pageGroups]);
+
+    // Custom pinch-to-zoom for the section below the header. The
+    // browser's/WebView's own native pinch-zoom scales the *entire* rendered
+    // page — including the fixed header strip above — which is exactly what
+    // we don't want (the header must stay put; only this section should
+    // grow/shrink). So native zoom gets turned off (see the viewport-meta
+    // effect below, and `setBuiltInZoomControls={false}` on the app's
+    // WebView side) and this two-finger gesture drives the same `zoom` state
+    // as the desktop +/- buttons instead — panning is just the normal scroll
+    // of the backdrop container underneath, so it needs no special handling.
     const backdropRef = useRef<HTMLDivElement>(null);
     const pinchRef = useRef<{ startDistance: number; startZoom: number } | null>(null);
     useEffect(() => {
@@ -127,7 +158,7 @@ export default function AssignmentPaperPage() {
         };
         const onTouchStart = (e: TouchEvent) => {
             if (e.touches.length === 2) {
-                pinchRef.current = { startDistance: distance(e.touches), startZoom: zoom };
+                pinchRef.current = { startDistance: distance(e.touches), startZoom: zoomRef.current };
             }
         };
         const onTouchMove = (e: TouchEvent) => {
@@ -151,10 +182,7 @@ export default function AssignmentPaperPage() {
             el.removeEventListener('touchmove', onTouchMove);
             el.removeEventListener('touchend', onTouchEnd);
         };
-    }, [zoom]);
-    const [downloading, setDownloading] = useState(false);
-    const [pageGroups, setPageGroups] = useState<string[][] | null>(null);
-    const blockElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+    }, [paper]);
 
     // App WebView (narrow, no sm:): `position: sticky` doesn't reliably hold
     // inside a scrollable container on some mobile WebKit/WebView builds — it
@@ -452,7 +480,13 @@ export default function AssignmentPaperPage() {
                 paginates into separate A4 sheets, one below the other, exactly
                 like the teacher's builder does. */}
             <div ref={backdropRef} className="overflow-x-auto pt-3 pb-8 px-3 sm:px-6" style={{ background: theme.outerBg, touchAction: 'pan-x pan-y' }}>
-                <div className="mx-auto" style={{ width: 'fit-content', zoom }}>
+                <div
+                    className="mx-auto"
+                    style={naturalSize.width
+                        ? { width: naturalSize.width * zoom, height: naturalSize.height * zoom }
+                        : { width: 'fit-content' }}
+                >
+                <div ref={contentRef} className="mx-auto" style={{ width: 'fit-content', transform: `scale(${zoom})`, transformOrigin: 'top left' }}>
                     {paper.questions.length === 0 ? (
                         <div style={{
                             width: '210mm', maxWidth: '100%', minHeight: `${PAGE_HEIGHT_PX}px`,
@@ -521,6 +555,7 @@ export default function AssignmentPaperPage() {
                             </div>
                         ))
                     )}
+                </div>
                 </div>
             </div>
         </div>
