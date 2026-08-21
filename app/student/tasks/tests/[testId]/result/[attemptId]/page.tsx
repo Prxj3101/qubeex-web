@@ -53,6 +53,15 @@ export default function TestResultPage() {
     const [result, setResult] = useState<AttemptResult | null>(null);
     const [downloading, setDownloading] = useState(false);
 
+    // App WebView: its own native header (with its own back button) already
+    // sits above this page — same pattern as the assignment paper view.
+    const [hideBackButton, setHideBackButton] = useState(false);
+    useEffect(() => {
+        try {
+            if (sessionStorage.getItem('isAppWebView') === '1') setHideBackButton(true);
+        } catch { /* storage unavailable */ }
+    }, []);
+
     // App WebView (narrow, no sm:): `position: sticky` doesn't reliably hold
     // inside a scrollable container on some mobile WebKit/WebView builds — it
     // detaches and scrolls away with the content once you scroll past a
@@ -151,9 +160,11 @@ export default function TestResultPage() {
                     unchanged from before. */}
                 <div ref={headerRef} style={{ top: topOffset - 10 }} className="fixed left-0 right-0 z-20 bg-background px-2 pt-2 pb-1 sm:static sm:!top-auto sm:z-auto sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0">
                 <div className="flex items-center gap-3 mb-2">
-                    <button onClick={() => router.replace('/student/tasks')} className="w-8 h-8 rounded-xl flex items-center justify-center border border-border/50 bg-card hover:bg-muted transition-all shrink-0">
-                        <ArrowLeft size={15} className="text-foreground" />
-                    </button>
+                    {!hideBackButton && (
+                        <button onClick={() => router.replace('/student/tasks')} className="w-8 h-8 rounded-xl flex items-center justify-center border border-border/50 bg-card hover:bg-muted transition-all shrink-0">
+                            <ArrowLeft size={15} className="text-foreground" />
+                        </button>
+                    )}
                     <p className="text-xl font-bold flex items-center gap-2"><Award size={21} /> Results</p>
                 </div>
                 <div className="flex items-center justify-between flex-wrap gap-1.5 mb-0.5 sm:mb-2">

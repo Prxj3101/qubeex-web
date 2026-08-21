@@ -133,7 +133,8 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
     // row exactly as before (hideNavForAppWebView only ever flips true when
     // opened via the app's wvToken bridge).
     const isAssignmentPaperRoute = /^\/student\/tasks\/assignments\/[^/]+$/.test(pathname ?? '');
-    const isAppWebViewPaper = (isAssignmentPaperRoute || isTakingTest) && hideNavForAppWebView;
+    const isTestResultRoute = /^\/student\/tasks\/tests\/[^/]+\/result\/[^/]+$/.test(pathname ?? '');
+    const isAppWebViewPaper = (isAssignmentPaperRoute || isTakingTest || isTestResultRoute) && hideNavForAppWebView;
 
     const effectiveNavItems = isAppWebViewPaper
         ? undefined
