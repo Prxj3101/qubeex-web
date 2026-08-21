@@ -227,13 +227,33 @@ export default function AssignmentPaperPage() {
 
     const [topOffset, setTopOffset] = useState(0);
     useEffect(() => {
-        const computeOffset = () => {
-            const mainEl = headerRef.current?.closest('main');
-            if (mainEl) setTopOffset(mainEl.getBoundingClientRect().top);
-        };
+        const mainEl = headerRef.current?.closest('main');
+        if (!mainEl) return;
+        const computeOffset = () => setTopOffset(mainEl.getBoundingClientRect().top);
         computeOffset();
         window.addEventListener('resize', computeOffset);
-        return () => window.removeEventListener('resize', computeOffset);
+        // Android's in-app WebView collapses/reveals its own chrome (the
+        // native title bar area) while the user scrolls, which resizes the
+        // visual viewport WITHOUT firing a plain 'resize' event on `window`
+        // — that's why the header (position:fixed, positioned once at
+        // `topOffset`) used to drift out of sync with `main`'s real on-screen
+        // position mid-scroll, opening a gap that the scrolling paper peeked
+        // through underneath. iOS doesn't collapse its chrome like this,
+        // which is why this only showed up on Android. `visualViewport`'s
+        // own resize/scroll events, plus a ResizeObserver on `main` itself,
+        // catch that case and keep topOffset in sync. Both are harmless,
+        // idempotent recomputes on desktop/iOS where nothing actually shifts.
+        const vv = window.visualViewport;
+        vv?.addEventListener('resize', computeOffset);
+        vv?.addEventListener('scroll', computeOffset);
+        const ro = new ResizeObserver(computeOffset);
+        ro.observe(mainEl);
+        return () => {
+            window.removeEventListener('resize', computeOffset);
+            vv?.removeEventListener('resize', computeOffset);
+            vv?.removeEventListener('scroll', computeOffset);
+            ro.disconnect();
+        };
     }, [paper]);
 
     // On a phone-width screen the fixed 210mm-wide A4 sheet is much wider than
