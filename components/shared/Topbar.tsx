@@ -39,6 +39,10 @@ interface TopbarProps {
     navItems?: NavItem[];
     restrictNav?: boolean;
     lockMessage?: string;
+    // Only the theme toggle should be interactive on this topbar — used for
+    // the app WebView's assignment paper view, where bell/profile have
+    // nowhere useful to navigate to mid-paper-view.
+    disableProfileActions?: boolean;
 }
 
 type RoleKey = 'SUPER_ADMIN' | 'ADMIN' | 'SUB_ADMIN' | 'TEACHER' | 'STUDENT';
@@ -106,7 +110,7 @@ function RoleBadge() {
     );
 }
 
-function AvatarMenu({ restrictNav, lockMessage }: { restrictNav?: boolean; lockMessage: string }) {
+function AvatarMenu({ restrictNav, lockMessage, disabled }: { restrictNav?: boolean; lockMessage: string; disabled?: boolean }) {
     const { user, clearAuth } = useAuthStore();
     const [expandedPhoto, setExpandedPhoto] = useState(false);
     const [menuOpen, setMenuOpen] = useState(false);
@@ -141,6 +145,25 @@ function AvatarMenu({ restrictNav, lockMessage }: { restrictNav?: boolean; lockM
         clearAuth();
         router.replace('/login');
     };
+
+    // App WebView's assignment paper view: only the theme toggle should do
+    // anything on this topbar — the profile circle stays visible (it's part
+    // of the same brand strip) but opening its dropdown here has nowhere
+    // useful to go (settings/logout mid-paper-view), so it's just inert.
+    if (disabled) {
+        return (
+            <button className="outline-none rounded-full opacity-60 cursor-default">
+                <Avatar className="h-8 w-8 ring-2 ring-border">
+                    {photoUrl && <AvatarImage src={photoUrl} alt={displayName} className="object-cover" />}
+                    <AvatarFallback className="text-[11px] font-semibold bg-muted text-primary">
+                        {isStudent && studentName
+                            ? studentName.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+                            : initialMap[role]}
+                    </AvatarFallback>
+                </Avatar>
+            </button>
+        );
+    }
 
     return (
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
@@ -245,7 +268,7 @@ function AvatarMenu({ restrictNav, lockMessage }: { restrictNav?: boolean; lockM
     );
 }
 
-export function Topbar({ navItems, restrictNav, lockMessage }: TopbarProps) {
+export function Topbar({ navItems, restrictNav, lockMessage, disableProfileActions }: TopbarProps) {
     const pathname = usePathname();
     const effectiveLockMessage = lockMessage ?? 'Set your password to continue';
 
@@ -272,9 +295,9 @@ export function Topbar({ navItems, restrictNav, lockMessage }: TopbarProps) {
                 </div>
 
                 <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-                    <NotificationsBell restrictNav={restrictNav} lockMessage={effectiveLockMessage} />
+                    <NotificationsBell restrictNav={restrictNav} lockMessage={effectiveLockMessage} disabled={disableProfileActions} />
                     <ThemeToggle />
-                    <AvatarMenu restrictNav={restrictNav} lockMessage={effectiveLockMessage} />
+                    <AvatarMenu restrictNav={restrictNav} lockMessage={effectiveLockMessage} disabled={disableProfileActions} />
                 </div>
             </header>
 

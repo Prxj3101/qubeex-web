@@ -98,7 +98,7 @@ const SA_LAST_SEEN_KEY = 'sa-notifs-last-seen';
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function NotificationsBell({ restrictNav, lockMessage }: { restrictNav?: boolean; lockMessage?: string } = {}) {
+export function NotificationsBell({ restrictNav, lockMessage, disabled }: { restrictNav?: boolean; lockMessage?: string; disabled?: boolean } = {}) {
     const pathname = usePathname();
     const router = useRouter();
     const [open, setOpen] = useState(false);
@@ -236,6 +236,17 @@ export function NotificationsBell({ restrictNav, lockMessage }: { restrictNav?: 
 
     // Teachers have no notifications — don't render the bell at all.
     if (isTeacher) return null;
+
+    // App WebView's assignment paper view: the topbar shows purely as a
+    // brand strip there, only the theme toggle should still do anything —
+    // bell/profile are inert (no toast, no dropdown), so this just no-ops.
+    if (disabled) {
+        return (
+            <button className="relative h-9 w-9 flex items-center justify-center rounded-xl opacity-40 cursor-not-allowed">
+                <Bell size={18} className="text-muted-foreground" />
+            </button>
+        );
+    }
 
     return (
         <div className="relative">
