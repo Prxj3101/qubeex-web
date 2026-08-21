@@ -124,13 +124,16 @@ function StudentLayoutInner({ children }: { children: React.ReactNode }) {
         ? 'Set your password to continue'
         : 'Finish or submit the test to navigate away';
 
-    // Assignment paper view opened inside the app's WebView — the app's own
-    // native header (back button) already sits above this page, so the row
-    // of nav icons (Overview/Feed/Tasks/Class/Profile) under the brand strip
-    // is redundant here. Drop just that row (navItems undefined) in that one
-    // case; the brand/logo/theme-toggle/avatar strip itself stays. A normal
-    // browser tab on this same route keeps the nav row exactly as before.
-    const isAppWebViewPaper = /^\/student\/tasks\/assignments\/[^/]+$/.test(pathname ?? '') && hideNavForAppWebView;
+    // Assignment paper / live test view opened inside the app's WebView —
+    // the app's own native header (back button) already sits above this
+    // page, so the row of nav icons (Overview/Feed/Tasks/Class/Profile)
+    // under the brand strip is redundant here. Drop just that row (navItems
+    // undefined) in these cases; the brand/logo/theme-toggle/avatar strip
+    // itself stays. A normal browser tab on the same routes keeps the nav
+    // row exactly as before (hideNavForAppWebView only ever flips true when
+    // opened via the app's wvToken bridge).
+    const isAssignmentPaperRoute = /^\/student\/tasks\/assignments\/[^/]+$/.test(pathname ?? '');
+    const isAppWebViewPaper = (isAssignmentPaperRoute || isTakingTest) && hideNavForAppWebView;
 
     const effectiveNavItems = isAppWebViewPaper
         ? undefined

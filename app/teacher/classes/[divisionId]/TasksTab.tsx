@@ -3497,7 +3497,11 @@ function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: s
                                         <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Status</th>
                                         {isOnline && <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Online Submission</th>}
                                         <th className="text-left px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Offline Copy</th>
-                                        <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Late</th>
+                                        {/* Manual "Mark Late" only makes sense for offline copies — an online
+                                            assignment already derives its own Late status automatically from
+                                            dueDate vs submittedAt (see lateSubmission below), so this column
+                                            doesn't apply there. */}
+                                        {!isOnline && <th className="text-center px-4 py-2.5 font-semibold text-muted-foreground bg-muted">Late</th>}
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -3698,18 +3702,20 @@ function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: s
                                                     </div>
                                                 </td>
 
-                                                <td className={`px-4 py-2.5 text-center ${rowBorder}`}>
-                                                    <button
-                                                        onClick={() => handleToggleLate(student.id, !!submission?.offlineMarkedLate)}
-                                                        disabled={toggling === student.id}
-                                                        className={`text-[11px] px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap transition-all disabled:opacity-50 ${
-                                                            submission?.offlineMarkedLate
-                                                                ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20'
-                                                                : 'bg-transparent text-muted-foreground border border-border hover:bg-muted'
-                                                        }`}>
-                                                        {toggling === student.id ? '…' : submission?.offlineMarkedLate ? '⚠️ Late' : 'Mark Late'}
-                                                    </button>
-                                                </td>
+                                                {!isOnlineAssignment && (
+                                                    <td className={`px-4 py-2.5 text-center ${rowBorder}`}>
+                                                        <button
+                                                            onClick={() => handleToggleLate(student.id, !!submission?.offlineMarkedLate)}
+                                                            disabled={toggling === student.id}
+                                                            className={`text-[11px] px-2.5 py-1 rounded-lg font-semibold whitespace-nowrap transition-all disabled:opacity-50 ${
+                                                                submission?.offlineMarkedLate
+                                                                    ? 'bg-red-500/10 text-red-600 dark:text-red-400 border border-red-500/30 hover:bg-red-500/20'
+                                                                    : 'bg-transparent text-muted-foreground border border-border hover:bg-muted'
+                                                            }`}>
+                                                            {toggling === student.id ? '…' : submission?.offlineMarkedLate ? '⚠️ Late' : 'Mark Late'}
+                                                        </button>
+                                                    </td>
+                                                )}
                                             </tr>
                                         );
                                     })}

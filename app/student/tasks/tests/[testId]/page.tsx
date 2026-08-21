@@ -187,6 +187,20 @@ export default function TakeTestPage() {
         return () => window.removeEventListener('popstate', onPopState);
     }, [session, doSubmit]);
 
+    // Bridge for the app's in-WebView back button. The RN shell's hardware
+    // BackHandler intercepts the phone's back press before it ever becomes a
+    // browser `popstate` event, so the guard above never fires when backing
+    // out via the app — this exposes a callable hook the native side invokes
+    // directly (via injectJavaScript) after the user confirms the "leave and
+    // auto-submit" warning. Uses the keepalive submit path (same as
+    // beforeunload) since the native screen tears down the WebView's JS
+    // context right after calling this, same reasoning as a hard unload.
+    useEffect(() => {
+        if (!session) return;
+        (window as unknown as { __qubeexAppExitSubmit?: () => void }).__qubeexAppExitSubmit = () => { doSubmit(true); };
+        return () => { delete (window as unknown as { __qubeexAppExitSubmit?: () => void }).__qubeexAppExitSubmit; };
+    }, [session, doSubmit]);
+
     if (loading) {
         return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading test…</div>;
     }
