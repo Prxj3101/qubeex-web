@@ -287,7 +287,7 @@ export default function TakeTestPage() {
             </div>
 
             {/* Progress bar */}
-            <div className={`relative w-full h-1 bg-muted rounded-full ${isAppWebView ? 'mb-1' : 'mb-3'}`}>
+            <div className={`relative w-full h-1 bg-muted rounded-full ${isAppWebView ? 'mb-3' : 'mb-3'}`}>
                 <div className="h-1 rounded-full transition-all" style={{ width: `${progressPct}%`, background: 'linear-gradient(135deg,#E8876A,#C06040)' }} />
                 {sectionBoundaries.map((pct, i) => (
                     <div key={i} className="absolute top-1/2 -translate-y-1/2 w-[4px] h-2.5 rounded-full bg-background"
