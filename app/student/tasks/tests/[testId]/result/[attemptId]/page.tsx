@@ -300,7 +300,13 @@ export default function TestResultPage() {
                             {(a.images ?? []).length > 0 && (
                                 <div className="pl-6 mb-2 flex flex-wrap gap-2">
                                     {(a.images ?? []).map((url, ii) => (
-                                        <img key={ii} src={url} alt="" className="max-w-[340px] max-h-[340px] w-auto h-auto rounded-lg object-contain border border-border" />
+                                        // Inside the app's WebView the question card is much narrower than on
+                                        // a normal browser tab, so the fixed 340px cap could overflow past the
+                                        // card's right edge — there it's capped to the card's own content width
+                                        // instead (max-width: 100%) so it always sits flush inside. A normal
+                                        // browser tab (hideBackButton stays false there) keeps the exact 340px
+                                        // sizing, untouched.
+                                        <img key={ii} src={url} alt="" className={hideBackButton ? 'max-w-full max-h-[340px] w-auto h-auto rounded-lg object-contain border border-border' : 'max-w-[340px] max-h-[340px] w-auto h-auto rounded-lg object-contain border border-border'} />
                                     ))}
                                 </div>
                             )}
