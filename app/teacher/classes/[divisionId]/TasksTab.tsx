@@ -47,6 +47,7 @@ interface Question {
     answer: string;
     details: NumericalDetails | ConceptualDetails | null;
     category: string | null;
+    images: string[] | null;
     createdAt: string;
     moduleAssignment: { moduleId: string; module: { name: string } } | null;
 }
@@ -59,6 +60,7 @@ interface ModuleQuestion {
         id: string; type: QuestionType; status: QuestionStatus;
         question: string; options: string[] | null; answer: string;
         createdAt: string; details: NumericalDetails | ConceptualDetails | null; category: string | null;
+        images: string[] | null;
     };
 }
 
@@ -415,6 +417,10 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
     const [dragOverModuleId, setDragOverModuleId] = useState<string | null>(null);
     const [deleteModuleConfirmId, setDeleteModuleConfirmId] = useState<string | null>(null);
     const [removeMQConfirm, setRemoveMQConfirm] = useState<{ moduleId: string; questionId: string; questionText: string } | null>(null);
+    const [removeImageConfirm, setRemoveImageConfirm] = useState<{ moduleId: string; questionId: string; url: string } | null>(null);
+    // Full-screen preview when a question image is clicked — same treatment
+    // as the profile photo zoom in Topbar.tsx's AvatarMenu.
+    const [expandedImage, setExpandedImage] = useState<string | null>(null);
     const [editingModuleId, setEditingModuleId] = useState<string | null>(null);
     const [editModName, setEditModName] = useState('');
     const [editModDesc, setEditModDesc] = useState('');
@@ -425,6 +431,14 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
         options: [string, string, string, string]; formula: string;
     }>({ type: 'MCQ', question: '', answer: '', options: ['', '', '', ''], formula: '' });
     const [savingCustomQ, setSavingCustomQ] = useState(false);
+    // Images picked while building a custom question — held in memory and
+    // only actually uploaded once the question itself is created (it needs a
+    // real questionId to attach to). Cleared on save/cancel.
+    const [customQImages, setCustomQImages] = useState<File[]>([]);
+    // Tracks which question (by id) currently has an image add/remove
+    // in flight, so its own control can show a spinner without needing a
+    // per-row boolean map.
+    const [uploadingImagesFor, setUploadingImagesFor] = useState<string | null>(null);
 
     // ── Fetch ──────────────────────────────────────────────────────────────────
 
@@ -838,6 +852,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                         createdAt: theQ.createdAt,
                         details: theQ.details as ModuleQuestion['question']['details'],
                         category: theQ.category,
+                        images: theQ.images,
                     },
                 };
                 setModules(prev => prev.map(m => m.id === moduleId ? { ...m, questions: [...m.questions, newMQ] } : m));
@@ -969,13 +984,66 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
             if (customQ.type === 'MCQ') payload.options = customQ.options;
             if (customQ.type === 'NUMERICAL') payload.formula = customQ.formula.trim() || undefined;
             const res = await api.post(`/teacher/tasks/modules/${moduleId}/questions/manual`, payload);
-            const newMQ: ModuleQuestion = res.data.data;
+            let newMQ: ModuleQuestion = res.data.data;
+
+            // The question needs a real id before images can attach to it,
+            // so any images picked while filling out this form only actually
+            // upload now, right after creation succeeds.
+            if (customQImages.length > 0) {
+                try {
+                    const images = await uploadQuestionImages(newMQ.questionId, customQImages);
+                    newMQ = { ...newMQ, question: { ...newMQ.question, images } };
+                } catch (err) {
+                    toast.error(apiError(err) || 'Question saved, but images failed to upload');
+                }
+            }
+
             setModules(prev => prev.map(m => m.id === moduleId ? { ...m, questions: [...m.questions, newMQ] } : m));
             toast.success('Question added');
             setAddQModuleId(null);
             setCustomQ({ type: 'MCQ', question: '', answer: '', options: ['', '', '', ''], formula: '' });
+            setCustomQImages([]);
         } catch (err) { toast.error(apiError(err)); }
         finally { setSavingCustomQ(false); }
+    };
+
+    // Shared by both the custom-question form (upload right after creation)
+    // and the "add images" control on an already-assigned question. Returns
+    // the question's full, updated images array (existing multer route
+    // appends server-side, but the response is the full array either way).
+    const uploadQuestionImages = async (questionId: string, files: File[]): Promise<string[]> => {
+        const form = new FormData();
+        files.forEach(f => form.append('images', f));
+        const res = await api.post(`/teacher/tasks/questions/${questionId}/images`, form, {
+            headers: { 'Content-Type': 'multipart/form-data' },
+        });
+        return (res.data.data.images as string[] | null) ?? [];
+    };
+
+    const addImagesToMQ = async (moduleId: string, questionId: string, files: FileList | null) => {
+        if (!files || files.length === 0) return;
+        setUploadingImagesFor(questionId);
+        try {
+            const images = await uploadQuestionImages(questionId, Array.from(files));
+            setModules(prev => prev.map(m => m.id !== moduleId ? m : {
+                ...m,
+                questions: m.questions.map(mq => mq.questionId === questionId ? { ...mq, question: { ...mq.question, images } } : mq),
+            }));
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setUploadingImagesFor(null); }
+    };
+
+    const removeImageFromMQ = async (moduleId: string, questionId: string, url: string) => {
+        setUploadingImagesFor(questionId);
+        try {
+            const res = await api.delete(`/teacher/tasks/questions/${questionId}/images`, { data: { url } });
+            const images = (res.data.data.images as string[] | null) ?? [];
+            setModules(prev => prev.map(m => m.id !== moduleId ? m : {
+                ...m,
+                questions: m.questions.map(mq => mq.questionId === questionId ? { ...mq, question: { ...mq.question, images } } : mq),
+            }));
+        } catch (err) { toast.error(apiError(err)); }
+        finally { setUploadingImagesFor(null); }
     };
 
     // ── Filtered questions ─────────────────────────────────────────────────────
@@ -1698,11 +1766,15 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                                 </div>
                                                 {selectedModuleId === m.id && (
                                                     <div className="border-t border-border/50">
-                                                        {/* description + question list */}
-                                                        <div className="px-4 pt-2 pb-1 space-y-1.5">
+                                                        {/* description + question list — the list itself scrolls
+                                                            internally (capped height) instead of growing the whole
+                                                            module panel taller with every question. */}
+                                                        <div className="px-4 pt-2 pb-1">
                                                             {(m as any).description && (
                                                                 <p className="text-xs text-muted-foreground pt-1 pb-0.5 italic">{(m as any).description}</p>
                                                             )}
+                                                        </div>
+                                                        <div className="px-4 pb-1 space-y-1.5 max-h-[420px] overflow-y-auto">
                                                             {m.questions.length === 0 ? (
                                                                 <p className="text-xs text-muted-foreground py-2">No questions in this module</p>
                                                             ) : m.questions.map(mq => {
@@ -1722,6 +1794,27 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                                                                 <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Question</label>
                                                                                 <textarea value={editMQText} onChange={e => setEditMQText(e.target.value)} rows={2}
                                                                                     className="w-full text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 resize-none focus:outline-none focus:ring-2 focus:ring-primary/40" />
+                                                                            </div>
+                                                                            {/* Images — same add/remove control as the collapsed row's
+                                                                                right-end button, just also surfaced here since this panel
+                                                                                is the other place a teacher is actively editing the question. */}
+                                                                            <div className="flex flex-wrap gap-2">
+                                                                                {(mq.question.images ?? []).map((url, ii) => (
+                                                                                    <div key={ii} className="relative group/img shrink-0">
+                                                                                        <img src={url} alt="" onClick={e => { e.stopPropagation(); setExpandedImage(url); }}
+                                                                                            className="max-w-[160px] max-h-[160px] w-auto h-auto rounded-lg object-contain border border-border bg-muted/40 cursor-pointer" />
+                                                                                        <button onClick={() => setRemoveImageConfirm({ moduleId: m.id, questionId: mq.questionId, url })}
+                                                                                            className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-all">
+                                                                                            <X size={11} />
+                                                                                        </button>
+                                                                                    </div>
+                                                                                ))}
+                                                                                <label className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-1 rounded-md border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-all cursor-pointer shrink-0 ${uploadingImagesFor === mq.questionId ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                                                    {uploadingImagesFor === mq.questionId ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                                                                                    Image
+                                                                                    <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden"
+                                                                                        onChange={e => { addImagesToMQ(m.id, mq.questionId, e.target.files); e.target.value = ''; }} />
+                                                                                </label>
                                                                             </div>
                                                                             {isMcqType ? (
                                                                                 <div className="flex flex-col gap-1.5">
@@ -1787,10 +1880,25 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                                                         </div>
                                                                         <span className={`mt-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded-md shrink-0 ${TYPE_META[mq.question.type]?.color ?? 'bg-muted text-muted-foreground'}`}>{TYPE_META[mq.question.type]?.label}</span>
                                                                         <div className="flex-1 min-w-0">
-                                                                            <div className="flex items-start gap-1.5">
-                                                                                <span className="flex-1 text-sm">{mq.question.question}</span>
-                                                                                {hasOpts && (isOptsOpen ? <ChevronUp size={12} className="text-muted-foreground shrink-0 mt-0.5" /> : <ChevronDown size={12} className="text-muted-foreground shrink-0 mt-0.5" />)}
-                                                                            </div>
+                                                                            <span className="text-sm">{mq.question.question}</span>
+                                                                            {/* Images — shown large right below the question text,
+                                                                                always (not just when expanded) and always above the
+                                                                                options/answer, since a diagram/figure attached to a
+                                                                                question needs to actually be legible here. */}
+                                                                            {(mq.question.images ?? []).length > 0 && (
+                                                                                <div className="mt-2 flex flex-wrap gap-2" onClick={e => e.stopPropagation()}>
+                                                                                    {(mq.question.images ?? []).map((url, ii) => (
+                                                                                        <div key={ii} className="relative group/img">
+                                                                                            <img src={url} alt="" onClick={e => { e.stopPropagation(); setExpandedImage(url); }}
+                                                                                                className="max-w-[400px] max-h-[400px] w-auto h-auto rounded-lg object-contain border border-border bg-muted/40 cursor-pointer" />
+                                                                                            <button onClick={() => setRemoveImageConfirm({ moduleId: m.id, questionId: mq.questionId, url })}
+                                                                                                className="absolute -top-2 -right-2 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-all">
+                                                                                                <X size={11} />
+                                                                                            </button>
+                                                                                        </div>
+                                                                                    ))}
+                                                                                </div>
+                                                                            )}
                                                                             {isOptsOpen && opts.length > 0 && (
                                                                                 <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5">
                                                                                     {opts.map((opt, oi) => {
@@ -1822,17 +1930,30 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                                                                 </div>
                                                                             )}
                                                                         </div>
-                                                                        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/mq:opacity-100 transition-all">
-                                                                            <button onClick={e => { e.stopPropagation(); startEditMQ(mq); }}
-                                                                                className="text-muted-foreground hover:text-primary p-0.5 rounded mt-0.5"
-                                                                                title="Edit question">
-                                                                                <Pencil size={12} />
-                                                                            </button>
-                                                                            <button onClick={e => { e.stopPropagation(); setRemoveMQConfirm({ moduleId: m.id, questionId: mq.questionId, questionText: mq.question.question }); }}
-                                                                                className="text-muted-foreground hover:text-red-500 p-0.5 rounded mt-0.5"
-                                                                                title="Remove from module">
-                                                                                <X size={12} />
-                                                                            </button>
+                                                                        <div className="flex items-center gap-1.5 shrink-0">
+                                                                            {hasOpts && (isOptsOpen ? <ChevronUp size={12} className="text-muted-foreground shrink-0" /> : <ChevronDown size={12} className="text-muted-foreground shrink-0" />)}
+                                                                            <label onClick={e => e.stopPropagation()} className={`flex items-center gap-1 text-[10px] font-medium px-1.5 py-1 rounded-md border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-all cursor-pointer shrink-0 ${(mq.question.images ?? []).length === 0 ? 'opacity-0 group-hover/mq:opacity-100' : ''} ${uploadingImagesFor === mq.questionId ? 'opacity-50 pointer-events-none' : ''}`}>
+                                                                                {uploadingImagesFor === mq.questionId ? <Loader2 size={13} className="animate-spin" /> : <Plus size={13} />}
+                                                                                Image
+                                                                                <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden"
+                                                                                    onChange={e => { addImagesToMQ(m.id, mq.questionId, e.target.files); e.target.value = ''; }} />
+                                                                            </label>
+                                                                            {/* Edit/remove icons — grouped in the same items-center row
+                                                                                as the Image pill (rather than as separate top-aligned
+                                                                                siblings) so they line up on the Image pill's own
+                                                                                vertical center instead of sitting above it. */}
+                                                                            <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover/mq:opacity-100 transition-all">
+                                                                                <button onClick={e => { e.stopPropagation(); startEditMQ(mq); }}
+                                                                                    className="text-muted-foreground hover:text-primary p-0.5 rounded"
+                                                                                    title="Edit question">
+                                                                                    <Pencil size={12} />
+                                                                                </button>
+                                                                                <button onClick={e => { e.stopPropagation(); setRemoveMQConfirm({ moduleId: m.id, questionId: mq.questionId, questionText: mq.question.question }); }}
+                                                                                    className="text-muted-foreground hover:text-red-500 p-0.5 rounded"
+                                                                                    title="Remove from module">
+                                                                                    <X size={12} />
+                                                                                </button>
+                                                                            </div>
                                                                         </div>
                                                                     </div>
                                                                 );
@@ -1932,8 +2053,31 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                                                     <p className="text-[11px] text-amber-500">Please select the correct option above</p>
                                                                 )}
 
+                                                                {/* Images (optional) — held in memory here and only
+                                                                    actually uploaded once this question is created and has
+                                                                    a real id (see saveCustomQuestion). */}
+                                                                <div>
+                                                                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Images <span className="normal-case font-normal">(optional)</span></p>
+                                                                    <div className="flex flex-wrap items-center gap-1.5">
+                                                                        {customQImages.map((file, ii) => (
+                                                                            <div key={ii} className="relative group/img">
+                                                                                <img src={URL.createObjectURL(file)} alt="" className="w-10 h-10 rounded-md object-cover border border-border" />
+                                                                                <button onClick={() => setCustomQImages(prev => prev.filter((_, j) => j !== ii))}
+                                                                                    className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-red-500 text-white flex items-center justify-center opacity-0 group-hover/img:opacity-100 transition-all">
+                                                                                    <X size={9} />
+                                                                                </button>
+                                                                            </div>
+                                                                        ))}
+                                                                        <label className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-1 rounded-md border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-foreground/40 transition-all cursor-pointer">
+                                                                            <Plus size={13} /> Image
+                                                                            <input type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden"
+                                                                                onChange={e => { setCustomQImages(prev => [...prev, ...Array.from(e.target.files ?? [])]); e.target.value = ''; }} />
+                                                                        </label>
+                                                                    </div>
+                                                                </div>
+
                                                                 <div className="flex justify-end gap-2 pt-1">
-                                                                    <button onClick={() => { setAddQModuleId(null); setCustomQ({ type: 'MCQ', question: '', answer: '', options: ['','','',''], formula: '' }); }}
+                                                                    <button onClick={() => { setAddQModuleId(null); setCustomQ({ type: 'MCQ', question: '', answer: '', options: ['','','',''], formula: '' }); setCustomQImages([]); }}
                                                                         className="px-3 py-1.5 text-sm rounded-lg border border-border hover:bg-muted transition-all">Cancel</button>
                                                                     <button onClick={() => saveCustomQuestion(m.id)} disabled={savingCustomQ}
                                                                         className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50"
@@ -2354,7 +2498,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                         className="px-4 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
                                         Cancel
                                     </button>
-                                    <button onClick={() => { removeFromModule(removeMQConfirm.moduleId, removeMQConfirm.questionId); setRemoveMQConfirm(null); }}
+                    <button onClick={() => { removeFromModule(removeMQConfirm.moduleId, removeMQConfirm.questionId); setRemoveMQConfirm(null); }}
                                         className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
                                         Remove
                                     </button>
@@ -2362,6 +2506,75 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                             </div>
                         </motion.div>
                     </>
+                )}
+            </AnimatePresence>
+
+            {/* Remove image confirm modal */}
+            <AnimatePresence>
+                {removeImageConfirm && (
+                    <>
+                        <motion.div
+                            key="rimg-overlay"
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+                            onClick={() => setRemoveImageConfirm(null)}
+                        />
+                        <motion.div
+                            key="rimg-modal"
+                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 28 }}
+                            className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none"
+                        >
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-80 pointer-events-auto flex flex-col gap-4">
+                                <div className="flex flex-col gap-2">
+                                    <p className="text-sm font-semibold text-foreground">Remove this image?</p>
+                                    <img src={removeImageConfirm.url} alt="" className="max-h-40 w-auto rounded-lg object-contain border border-border bg-muted/40 self-center" />
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <button onClick={() => setRemoveImageConfirm(null)}
+                                        className="px-4 py-1.5 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
+                                        Cancel
+                                    </button>
+                                    <button onClick={() => { removeImageFromMQ(removeImageConfirm.moduleId, removeImageConfirm.questionId, removeImageConfirm.url); setRemoveImageConfirm(null); }}
+                                        className="px-4 py-1.5 text-sm rounded-lg bg-red-500 hover:bg-red-600 text-white font-medium transition-all">
+                                        Remove
+                                    </button>
+                                </div>
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
+
+            {/* Expanded question image — same zoom treatment as the profile
+                photo expand in Topbar.tsx's AvatarMenu. */}
+            <AnimatePresence>
+                {expandedImage && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                        onClick={() => setExpandedImage(null)}
+                    >
+                        <motion.div
+                            initial={{ scale: 0.85, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0.85, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            className="relative max-w-[90vw] max-h-[85vh]"
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <img src={expandedImage} alt="" className="max-w-[90vw] max-h-[85vh] w-auto h-auto rounded-2xl object-contain shadow-2xl" />
+                            <button
+                                onClick={() => setExpandedImage(null)}
+                                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                                <X size={16} className="text-white" />
+                            </button>
+                        </motion.div>
+                    </motion.div>
                 )}
             </AnimatePresence>
 
@@ -3990,6 +4203,9 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [paperZoom, setPaperZoom] = useState(1);
     const [mainTop, setMainTop] = useState(0);
+    // Full-screen zoom for question images shown in the module question
+    // picker below — same treatment as the Modules panel / profile photo zoom.
+    const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
     useLayoutEffect(() => {
         if (!isFullscreen) return;
@@ -4651,6 +4867,13 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                         <span className="text-xs font-bold shrink-0 mt-0.5 w-5 text-right" style={{ color: theme.accentColor }}>Q{num}.</span>
                         <div className="flex-1 min-w-0 -mt-[2.8px]">
                             <span className="text-[15px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
+                            {(bq.question.images ?? []).length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2 pl-1">
+                                    {(bq.question.images ?? []).map((url, ii) => (
+                                        <img key={ii} src={url} alt="" className="max-w-[340px] max-h-[340px] w-auto h-auto rounded-lg object-contain border" style={{ borderColor: theme.rowBorder }} />
+                                    ))}
+                                </div>
+                            )}
                             {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
                                 const opts = bq.question.type === 'MCQ'
                                     ? (bq.question.options ?? [])
@@ -4744,6 +4967,13 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                             <div className="flex items-start gap-1.5">
                                 <span className="flex-1 text-[13px] leading-relaxed" style={{ color: theme.titleColor }}>{bq.question.question}</span>
                             </div>
+                            {(bq.question.images ?? []).length > 0 && (
+                                <div className="mt-2 flex flex-wrap gap-2 pl-1">
+                                    {(bq.question.images ?? []).map((url, ii) => (
+                                        <img key={ii} src={url} alt="" className="max-w-[340px] max-h-[340px] w-auto h-auto rounded-lg object-contain border" style={{ borderColor: theme.rowBorder }} />
+                                    ))}
+                                </div>
+                            )}
                             {(bq.question.type === 'MCQ' || bq.question.type === 'CONCEPTUAL') && (() => {
                                 const opts = bq.question.type === 'MCQ'
                                     ? (bq.question.options ?? [])
@@ -5053,7 +5283,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                         {isExpanded ? <ChevronUp size={12} className="text-muted-foreground shrink-0" /> : <ChevronDown size={12} className="text-muted-foreground shrink-0" />}
                                     </button>
                                     {isExpanded && (
-                                        <div className="border-t border-border/40 bg-white dark:bg-black/20">
+                                        <div className="border-t border-border/40 bg-white dark:bg-black/20 max-h-[420px] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
                                             {mod.questions.length === 0 ? (
                                                 <p className="text-[11px] text-muted-foreground px-4 py-3">No questions in this module.</p>
                                             ) : mod.questions.map(mq => {
@@ -5101,6 +5331,19 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                                                 <span className="flex-1 text-xs leading-snug line-clamp-2">{q.question}</span>
                                                                 {hasOpts && (isOptsOpen ? <ChevronUp size={11} className="text-muted-foreground shrink-0 mt-0.5" /> : <ChevronDown size={11} className="text-muted-foreground shrink-0 mt-0.5" />)}
                                                             </div>
+                                                            {/* Images — same question data as the Modules panel, so any
+                                                                image attached there shows up here too when picking
+                                                                questions for a test/paper. View-only here (no add/remove
+                                                                controls) since this is a selection list, not the module
+                                                                editor — click to zoom, same as elsewhere. */}
+                                                            {(q.images ?? []).length > 0 && (
+                                                                <div className="mt-2 flex flex-wrap gap-2" onClick={e => e.stopPropagation()}>
+                                                                    {(q.images ?? []).map((url, ii) => (
+                                                                        <img key={ii} src={url} alt="" onClick={() => setExpandedImage(url)}
+                                                                            className="max-w-[300px] max-h-[300px] w-auto h-auto rounded-lg object-contain border border-border bg-muted/40 cursor-pointer" />
+                                                                    ))}
+                                                                </div>
+                                                            )}
                                                             {isOptsOpen && opts.length > 0 && (
                                                                 <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0">
                                                                     {opts.map((opt, oi) => {
@@ -5374,6 +5617,35 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                         </div>
                     </motion.div>
                 </>
+            )}
+        </AnimatePresence>
+
+        {/* Expanded question image — same zoom treatment as the Modules panel. */}
+        <AnimatePresence>
+            {expandedImage && (
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm"
+                    onClick={() => setExpandedImage(null)}
+                >
+                    <motion.div
+                        initial={{ scale: 0.85, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0.85, opacity: 0 }}
+                        transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                        className="relative max-w-[90vw] max-h-[85vh]"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <img src={expandedImage} alt="" className="max-w-[90vw] max-h-[85vh] w-auto h-auto rounded-2xl object-contain shadow-2xl" />
+                        <button
+                            onClick={() => setExpandedImage(null)}
+                            className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/50 flex items-center justify-center hover:bg-black/70 transition-all">
+                            <X size={16} className="text-white" />
+                        </button>
+                    </motion.div>
+                </motion.div>
             )}
         </AnimatePresence>
         </>

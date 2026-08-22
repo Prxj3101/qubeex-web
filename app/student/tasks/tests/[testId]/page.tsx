@@ -14,6 +14,7 @@ interface StartQuestion {
     sectionId?: string | null;
     sectionTitle?: string | null;
     sectionInstruction?: string | null;
+    images?: string[] | null;
 }
 
 interface StartResponse {
@@ -50,6 +51,7 @@ export default function TakeTestPage() {
     const [submitting, setSubmitting] = useState(false);
     const [malpracticeWarned, setMalpracticeWarned] = useState(false);
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
+    const [expandedImage, setExpandedImage] = useState<string | null>(null);
 
     const answersRef = useRef(answers);
     answersRef.current = answers;
@@ -306,6 +308,13 @@ export default function TakeTestPage() {
                 <p className="text-base font-medium leading-relaxed mb-5">{index + 1}. {q.questionText}</p>
 
                 <div className="flex-1 overflow-y-auto pr-2 visible-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.25) transparent' }}>
+                {(q.images ?? []).length > 0 && (
+                    <div className="mb-3 flex flex-wrap gap-2">
+                        {(q.images ?? []).map((url, ii) => (
+                            <img key={ii} src={url} alt="" onClick={() => setExpandedImage(url)} className="max-w-[300px] max-h-[300px] w-auto h-auto rounded-lg object-contain border border-border cursor-zoom-in" />
+                        ))}
+                    </div>
+                )}
                 {(q.type === 'MCQ' || q.type === 'CONCEPTUAL' || q.type === 'NUMERICAL') && (
                     <div className="space-y-3">
                         {q.options.map((opt, oi) => {
@@ -411,6 +420,13 @@ export default function TakeTestPage() {
                             </button>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {expandedImage && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 px-4" onClick={() => setExpandedImage(null)}>
+                    <img src={expandedImage} alt="" className="max-w-[92vw] max-h-[92vh] w-auto h-auto rounded-lg object-contain" onClick={(e) => e.stopPropagation()} />
+                    <button onClick={() => setExpandedImage(null)} className="absolute top-5 right-5 text-white/90 text-2xl leading-none">✕</button>
                 </div>
             )}
         </div>

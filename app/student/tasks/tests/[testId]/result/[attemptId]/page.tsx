@@ -25,6 +25,7 @@ interface AttemptAnswer {
     sectionId?: string | null;
     sectionTitle?: string | null;
     sectionInstruction?: string | null;
+    images?: string[] | null;
 }
 
 interface AttemptResult {
@@ -296,6 +297,13 @@ export default function TestResultPage() {
                                 {a.isCorrect ? <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" /> : <XCircle size={16} className="text-red-600 shrink-0 mt-0.5" />}
                                 <p className="text-sm font-medium leading-relaxed">{i + 1}. {a.generatedQuestion}</p>
                             </div>
+                            {(a.images ?? []).length > 0 && (
+                                <div className="pl-6 mb-2 flex flex-wrap gap-2">
+                                    {(a.images ?? []).map((url, ii) => (
+                                        <img key={ii} src={url} alt="" className="max-w-[340px] max-h-[340px] w-auto h-auto rounded-lg object-contain border border-border" />
+                                    ))}
+                                </div>
+                            )}
                             <div className="pl-6 space-y-1 text-xs">
                                 <p className={a.isCorrect ? 'text-emerald-700 dark:text-emerald-300' : 'text-red-700 dark:text-red-300'}>
                                     Your answer: {a.studentAnswer || '—'}

@@ -14,6 +14,7 @@ interface PaperQuestion {
     sectionId: string | null;
     marks: number;
     order: number;
+    images?: string[] | null;
 }
 
 interface PaperSection {
@@ -100,6 +101,15 @@ export default function AssignmentPaperPage() {
     const [downloading, setDownloading] = useState(false);
     const [pageGroups, setPageGroups] = useState<string[][] | null>(null);
     const blockElRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+    // Question images load asynchronously, so at the moment the pagination
+    // measurement effect first runs (useLayoutEffect, right after the DOM
+    // commit, before images have finished downloading) an <img> with no
+    // explicit width/height reports 0 height — that under-measures the
+    // block, so everything gets greedily packed onto one giant "page"
+    // instead of properly splitting across A4 sheets. Each image's onLoad
+    // bumps this counter to force the measurement effect to re-run once the
+    // image's real height is known.
+    const [imgLoadTick, setImgLoadTick] = useState(0);
     // Manual zoom for the laptop/browser view and the app's pinch gesture —
     // scales the whole scrollable section below the header (paper, grey
     // backdrop, all of it) as one flat image via `transform: scale`, not
@@ -377,7 +387,7 @@ export default function AssignmentPaperPage() {
             return groups;
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [paper]);
+    }, [paper, imgLoadTick]);
 
     if (loading) {
         return <div className="flex items-center justify-center h-full text-muted-foreground text-sm">Loading assignment…</div>;
@@ -443,6 +453,13 @@ export default function AssignmentPaperPage() {
                         <span style={{ fontSize: 12, fontWeight: 700, flexShrink: 0, marginTop: 2, width: 20, textAlign: 'right', color: theme.accentColor }}>Q{block.num}.</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                             <span style={{ fontSize: 13, lineHeight: 1.6, color: theme.titleColor }}>{q.question}</span>
+                            {(q.images ?? []).length > 0 && (
+                                <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                                    {(q.images ?? []).map((url, ii) => (
+                                        <img key={ii} src={url} alt="" onLoad={() => setImgLoadTick(t => t + 1)} style={{ maxWidth: 360, maxHeight: 360, width: 'auto', height: 'auto', borderRadius: 8, objectFit: 'contain', border: `1px solid ${theme.rowBorder}` }} />
+                                    ))}
+                                </div>
+                            )}
                             {(q.type === 'MCQ' || q.type === 'CONCEPTUAL') && q.options.length > 0 && (
                                 <div style={{ marginTop: 6, display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 24, rowGap: 2, paddingLeft: 4 }}>
                                     {q.options.map((opt, oi) => (
