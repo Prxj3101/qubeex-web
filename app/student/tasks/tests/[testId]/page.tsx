@@ -52,6 +52,16 @@ export default function TakeTestPage() {
     const [malpracticeWarned, setMalpracticeWarned] = useState(false);
     const [showSubmitConfirm, setShowSubmitConfirm] = useState(false);
     const [expandedImage, setExpandedImage] = useState<string | null>(null);
+    // Same app-webview flag other student task pages read (set by the app's
+    // wvToken bridge in student/layout.tsx) — used ONLY to give the app's
+    // WebView a taller/wider question card with tighter header spacing; a
+    // normal browser tab never sets this, so its layout stays exactly as-is.
+    const [isAppWebView, setIsAppWebView] = useState(false);
+    useEffect(() => {
+        try {
+            if (sessionStorage.getItem('isAppWebView') === '1') setIsAppWebView(true);
+        } catch { /* storage unavailable */ }
+    }, []);
 
     const answersRef = useRef(answers);
     answersRef.current = answers;
@@ -255,14 +265,14 @@ export default function TakeTestPage() {
     };
 
     return (
-        <div className="max-w-2xl mx-auto px-2 pb-10 min-h-full flex flex-col justify-center" onCopy={preventCopy} onPaste={preventCopy} onCut={preventCopy}>
+        <div className={`mx-auto pb-10 min-h-full flex flex-col justify-center ${isAppWebView ? 'max-w-full px-1' : 'max-w-2xl px-2'}`} onCopy={preventCopy} onPaste={preventCopy} onCut={preventCopy}>
             {/* Header */}
-            <div className="w-full flex flex-col items-center justify-center mb-3 sticky top-0 bg-background py-2 z-10">
+            <div className={`w-full flex flex-col items-center justify-center sticky top-0 bg-background z-10 ${isAppWebView ? 'mb-1 py-0.5' : 'mb-3 py-2'}`}>
                 <h1 className="text-3xl font-bold truncate text-center max-w-[70%] relative -top-1">{session.testTitle}</h1>
                 <p className="text-sm text-muted-foreground -mt-1">{session.subjectName} · {session.totalMarks} marks</p>
             </div>
 
-            <div className="flex items-start justify-between gap-2 mb-2">
+            <div className={`flex items-start justify-between gap-2 ${isAppWebView ? 'mb-1' : 'mb-2'}`}>
                 <p className="text-sm text-muted-foreground relative top-3">Question {index + 1} of {session.questions.length}</p>
                 <div className="flex items-center gap-2">
                     {malpracticeWarned && (
@@ -277,7 +287,7 @@ export default function TakeTestPage() {
             </div>
 
             {/* Progress bar */}
-            <div className="relative w-full h-1 bg-muted rounded-full mb-3">
+            <div className={`relative w-full h-1 bg-muted rounded-full ${isAppWebView ? 'mb-1' : 'mb-3'}`}>
                 <div className="h-1 rounded-full transition-all" style={{ width: `${progressPct}%`, background: 'linear-gradient(135deg,#E8876A,#C06040)' }} />
                 {sectionBoundaries.map((pct, i) => (
                     <div key={i} className="absolute top-1/2 -translate-y-1/2 w-[4px] h-2.5 rounded-full bg-background"
@@ -286,7 +296,7 @@ export default function TakeTestPage() {
             </div>
 
             {q.sectionTitle && (
-                <div className="mb-4 pl-3 flex items-center justify-between gap-3" style={{ borderLeft: '3px solid #C06040' }}>
+                <div className={`pl-3 flex items-center justify-between gap-3 ${isAppWebView ? 'mb-2' : 'mb-4'}`} style={{ borderLeft: '3px solid #C06040' }}>
                     <p className="text-base">
                         <span className="font-bold text-foreground">{q.sectionTitle}{q.sectionInstruction && ' :'}</span>
                         {q.sectionInstruction && (
@@ -304,7 +314,7 @@ export default function TakeTestPage() {
                 </div>
             )}
 
-            <div className="rounded-2xl border border-border bg-card p-5 mb-4 h-[300px] flex flex-col">
+            <div className={`rounded-2xl border border-border bg-card p-5 flex flex-col ${isAppWebView ? 'mb-3 h-[440px]' : 'mb-4 h-[300px]'}`}>
                 <p className="text-base font-medium leading-relaxed mb-5">{index + 1}. {q.questionText}</p>
 
                 <div className="flex-1 overflow-y-auto pr-2 visible-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.25) transparent' }}>
@@ -377,7 +387,7 @@ export default function TakeTestPage() {
                 </div>
             </div>
 
-            <div className="flex items-center justify-between gap-2">
+            <div className={`flex items-center justify-between gap-2 ${isAppWebView ? 'mt-1' : ''}`}>
                 <button onClick={() => setIndex((i) => Math.max(0, i - 1))} disabled={index === 0}
                     className="flex items-center gap-1 px-4 py-2 rounded-xl border border-border text-sm disabled:opacity-40">
                     <ChevronLeft size={14} /> Prev
