@@ -28,7 +28,7 @@ export const dynamic = 'force-dynamic';
 // Server Component can read it here and render 'theme-college' on <html>
 // directly in the server-rendered HTML — correct from byte one, no script,
 // no race, no flash. (First-ever visit before any cookie exists still
-// briefly shows the default violet look, same as it always would.)
+// briefly shows the default violet look same as it always would.)
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
   const isCollege = cookieStore.get('qubeex_inst_type')?.value?.toUpperCase() === 'COLLEGE';
