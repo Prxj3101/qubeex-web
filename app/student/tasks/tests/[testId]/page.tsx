@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { ChevronLeft, ChevronRight, Clock, ShieldAlert, Check, CheckCircle2 } from 'lucide-react';
 import api from '@/lib/api';
+import { getDeviceClientId } from '@/lib/deviceClientId';
 
 interface StartQuestion {
     questionId: string;
@@ -127,7 +128,8 @@ export default function TakeTestPage() {
                     return;
                 }
 
-                const res = await api.post(`/student/tasks/tests/${testId}/start`);
+                const clientId = getDeviceClientId();
+                const res = await api.post(`/student/tasks/tests/${testId}/start`, clientId ? { clientId } : {});
                 if (cancelled) return;
                 const data = res.data.data as StartResponse;
                 setSession(data);
@@ -151,6 +153,32 @@ export default function TakeTestPage() {
         const t = setTimeout(() => setSecondsLeft((s) => s - 1), 1000);
         return () => clearTimeout(t);
     }, [session, secondsLeft, doSubmit]);
+
+    // Single-device lock heartbeat — proves to the backend every ~10s that
+    // this device is still actively taking the test (see startTest's
+    // device-lock logic). If the response says the lock's gone (another
+    // device took over after this one went stale, or the attempt was
+    // auto-submitted as abandoned), stop the exam here instead of letting
+    // the student keep answering a test that's no longer really theirs to
+    // finish from this screen.
+    useEffect(() => {
+        if (!session) return;
+        const clientId = getDeviceClientId();
+        if (!clientId) return;
+        let cancelled = false;
+        const beat = async () => {
+            try {
+                const res = await api.post(`/student/tasks/tests/attempts/${session.attemptId}/heartbeat`, { clientId });
+                if (cancelled) return;
+                if (!res.data?.data?.locked) {
+                    toast.error('This test was taken over by another device or already submitted.', { duration: Infinity });
+                    router.replace('/student/tasks');
+                }
+            } catch { /* transient network blip — next heartbeat will retry */ }
+        };
+        const interval = setInterval(beat, 10000);
+        return () => { cancelled = true; clearInterval(interval); };
+    }, [session, router]);
 
     // 2-strike malpractice: 1st tab change = warning, 2nd = auto-submit flagged.
     useEffect(() => {
@@ -314,7 +342,7 @@ export default function TakeTestPage() {
                 </div>
             )}
 
-            <div className={`rounded-2xl border border-border bg-card p-5 flex flex-col ${isAppWebView ? 'mb-3 h-[400px]' : 'mb-4 h-[300px]'}`}>
+            <div className={`rounded-2xl border border-border bg-card p-5 flex flex-col ${isAppWebView ? 'mb-3 h-[400px]' : 'mb-4 h-[380px]'}`}>
                 <p className="text-base font-medium leading-relaxed mb-5">{index + 1}. {q.questionText}</p>
 
                 <div className="flex-1 overflow-y-auto pr-2 visible-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.25) transparent' }}>

@@ -9,6 +9,7 @@ import {
     Upload, FileEdit, Eye, ClipboardList, Radio, ShieldAlert, CheckCircle2,
 } from 'lucide-react';
 import api from '@/lib/api';
+import { getDeviceClientId } from '@/lib/deviceClientId';
 import { toast } from 'sonner';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -38,6 +39,10 @@ interface StudentTest {
     lastAttemptEndTime: string | null;
     lastAttemptMalpracticeFlag: boolean;
     attempts: { id: string; attemptNumber: number; totalScore: number; maxScore: number; percentage: number; startTime: string | null; endTime: string | null; malpracticeFlag: boolean }[];
+    // True when another device is actively in the middle of this test right
+    // now (single-device lock) — shown instead of "Start Test Now" so the
+    // same test can't be opened simultaneously on two screens.
+    lockedByOtherDevice: boolean;
 }
 
 interface StudentAssignmentAttempt {
@@ -313,7 +318,13 @@ function TestCard({ test }: { test: StudentTest }) {
                         )}
                     </div>
                 )}
-                {canStartAnother && (
+                {canStartAnother && test.lockedByOtherDevice && (
+                    <div className={`${test.lastAttemptId ? 'mt-2' : 'mt-3'} w-full py-2.5 rounded-xl text-sm font-semibold text-muted-foreground bg-muted/60 flex items-center justify-center gap-2`}>
+                        <ShieldAlert size={15} />
+                        Test in progress on another device
+                    </div>
+                )}
+                {canStartAnother && !test.lockedByOtherDevice && (
                     <button onClick={handleStart}
                         className={`${test.lastAttemptId ? 'mt-2' : 'mt-3'} w-full py-2.5 rounded-xl text-sm font-semibold text-white bg-red-500 hover:bg-red-600 active:scale-[0.98] transition-all flex items-center justify-center gap-2`}>
                         <Radio size={15} />
@@ -623,7 +634,8 @@ export default function StudentTasksPage() {
         let cancelled = false;
         (async () => {
             try {
-                const res = await api.get('/student/tasks/tests');
+                const clientId = getDeviceClientId();
+                const res = await api.get('/student/tasks/tests', { params: clientId ? { clientId } : {} });
                 if (!cancelled) setTests(res.data.data as StudentTest[]);
             } catch {
                 if (!cancelled) toast.error('Failed to load tests');
