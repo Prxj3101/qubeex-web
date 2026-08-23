@@ -211,17 +211,19 @@ function AvatarMenu({ restrictNav, lockMessage, disabled }: { restrictNav?: bool
                     <span className="text-sm font-medium">My Profile</span>
                 </DropdownMenuItem>
 
-                <DropdownMenuItem
-                    onClick={() => restrictNav ? toast.error('Set your password to continue') : router.push(settingsHref)}
-                    className={cn(
-                        "flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors",
-                        restrictNav ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"
-                    )}>
-                    <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                        <Settings size={13} className="text-slate-600 dark:text-slate-400" />
-                    </div>
-                    <span className="text-sm font-medium">Settings</span>
-                </DropdownMenuItem>
+                {!isStudent && (
+                    <DropdownMenuItem
+                        onClick={() => restrictNav ? toast.error('Set your password to continue') : router.push(settingsHref)}
+                        className={cn(
+                            "flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors",
+                            restrictNav ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"
+                        )}>
+                        <div className="w-7 h-7 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                            <Settings size={13} className="text-slate-600 dark:text-slate-400" />
+                        </div>
+                        <span className="text-sm font-medium">Settings</span>
+                    </DropdownMenuItem>
+                )}
 
                 <DropdownMenuItem
                     onClick={() => restrictNav ? toast.error(lockMessage) : handleLogout()}

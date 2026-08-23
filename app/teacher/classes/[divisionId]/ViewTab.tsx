@@ -408,10 +408,10 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
                 </div>
             </div>
             <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full overflow-hidden relative flex items-center justify-center text-[11px] font-bold text-white shrink-0"
+                <div className="w-11 h-11 rounded-full overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
                     style={{ background: ann.author.avatarUrl ? 'transparent' : avatarColor }}>
                     {ann.author.avatarUrl
-                        ? <NextImage src={ann.author.avatarUrl} alt={ann.author.name} fill sizes="32px" className="object-cover" />
+                        ? <NextImage src={ann.author.avatarUrl} alt={ann.author.name} fill sizes="88px" quality={95} className="object-cover" />
                         : initials}
                 </div>
                 <div>
@@ -428,7 +428,7 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
             <div>
                 <p className="text-sm font-bold mb-1">{ann.title}</p>
                 {ann.body && (
-                    <p className={`text-xs text-muted-foreground leading-relaxed ${!expanded && isLongBody ? 'line-clamp-2' : ''}`}>
+                    <p className={`text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap ${!expanded && isLongBody ? 'line-clamp-2' : ''}`}>
                         {ann.body}
                     </p>
                 )}
@@ -732,10 +732,11 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 flex items-center px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
-                                <input value={postBody} onChange={e => setPostBody(e.target.value)}
-                                    placeholder="Write description (optional)..."
-                                    className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none" />
+                            <div className="flex-1 flex items-start px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                                <textarea value={postBody} onChange={e => setPostBody(e.target.value)}
+                                    placeholder="Write description (optional)..." rows={2}
+                                    className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none resize-none max-h-24 overflow-y-auto py-0.5"
+                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }} />
                                 {attachments.length > 0 && (
                                     <div className="flex items-center gap-1 ml-2">
                                         {attachments.map((file, i) => (

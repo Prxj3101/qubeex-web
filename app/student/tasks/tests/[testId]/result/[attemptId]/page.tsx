@@ -147,6 +147,12 @@ export default function TestResultPage() {
     const prevAttempt = attemptIndex > 0 ? result.attempts[attemptIndex - 1] : null;
     const nextAttempt = attemptIndex >= 0 && attemptIndex < result.attempts.length - 1 ? result.attempts[attemptIndex + 1] : null;
     const goToAttempt = (id: string) => router.replace(`/student/tasks/tests/${testId}/result/${id}`);
+    // Derived from position in the (ascending-sorted, completed-only) attempts
+    // array rather than trusting the stored attemptNumber field directly — so
+    // this always agrees with the prev/next chevrons actually stepping through
+    // this same array, even if a row's stored attemptNumber were ever
+    // wrong/stale for any reason.
+    const displayedAttemptNumber = attemptIndex >= 0 ? attemptIndex + 1 : result.attemptNumber ?? null;
 
     return (
         <div className="max-w-2xl mx-auto px-2 pb-10">
@@ -226,9 +232,9 @@ export default function TestResultPage() {
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
                             <Layers size={10} /> {result.answers.length} Ques
                         </span>
-                        {result.attemptNumber != null && (
+                        {displayedAttemptNumber != null && (
                             <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
-                                Attempt {result.attemptNumber}{result.test.maxAttempts != null ? `/${result.test.maxAttempts}` : ''}
+                                Attempt {displayedAttemptNumber}{result.test.maxAttempts != null ? `/${result.test.maxAttempts}` : ''}
                             </span>
                         )}
                         {result.startTime && (

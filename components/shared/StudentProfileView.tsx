@@ -122,7 +122,12 @@ export default function StudentProfileView({
     feesSlot, projectsSlot,
 }: StudentProfileViewProps) {
     const [photoExpanded, setPhotoExpanded] = useState(false);
-    const [marksMode, setMarksMode] = useState<MarksMode>('combined');
+    // Default to offline — matches what the student's own dashboard "Overall
+    // Score" tile shows (that card has no toggle at all, it's always the
+    // offline pooled %). Defaulting this to 'combined' made the teacher/admin
+    // number disagree with the student's own view before either of them
+    // touched the toggle.
+    const [marksMode, setMarksMode] = useState<MarksMode>('offline');
     const [copied, setCopied] = useState(false);
 
     const dobDate = dob ? new Date(dob) : null;

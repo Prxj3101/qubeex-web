@@ -289,10 +289,10 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
             </div>
 
             <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center text-[11px] font-bold text-white shrink-0 relative"
+                <div className="w-11 h-11 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white shrink-0 relative"
                     style={{ background: post.author.avatarUrl ? 'transparent' : avatarColor }}>
                     {post.author.avatarUrl
-                        ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="32px" className="object-cover" />
+                        ? <NextImage src={post.author.avatarUrl} alt={post.author.name} fill sizes="88px" quality={95} className="object-cover" />
                         : initials}
                 </div>
                 <div>
@@ -309,7 +309,7 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
                 {post.body && (
                     <p
                         onClick={isLongBody ? () => setExpanded(v => !v) : undefined}
-                        className={`text-xs text-muted-foreground leading-relaxed ${!expanded && isLongBody ? 'line-clamp-2' : ''} ${isLongBody ? 'cursor-pointer' : ''}`}>
+                        className={`text-xs text-muted-foreground leading-relaxed whitespace-pre-wrap ${!expanded && isLongBody ? 'line-clamp-2' : ''} ${isLongBody ? 'cursor-pointer' : ''}`}>
                         <LinkifiedText text={post.body} />
                     </p>
                 )}

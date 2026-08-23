@@ -1980,14 +1980,19 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                                 </tr>
                                                             </tbody>
                                                         </table>
-                                                        {/* Graded Subjects table - offline only */}
+                                                        {/* Graded Subjects table - offline only. Wrapped in a
+                                                            sticky-top div so the header stays pinned for the full
+                                                            scroll range of the (taller) main table — sticky can't
+                                                            stick beyond its own box's bounds, and this table is
+                                                            short, so stickying just the <thead> isn't enough. */}
                                                         {isOffline && gradedSubs.length > 0 && (
-                                                            <table className="text-[12px] border-separate border-spacing-0 min-w-max shrink-0" style={{ color: "#2A1F10" }}>
-                                                                <thead className="sticky top-0 z-30">
+                                                            <div className="shrink-0" style={{ position: 'sticky', top: 0, alignSelf: 'flex-start' }}>
+                                                            <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: "#2A1F10" }}>
+                                                                <thead>
                                                                     <tr>
-                                                                        <th className="sticky left-0 z-40 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-left font-semibold text-[#2A1F10] whitespace-nowrap min-w-[110px]" style={{ lineHeight: '30px', fontWeight: 700 }}>Graded Subjects</th>
-                                                                        <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[80px]" style={{ lineHeight: '30px' }}>Term 1</th>
-                                                                        <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[80px]" style={{ lineHeight: '30px' }}>Term 2</th>
+                                                                        <th className="sticky top-0 left-0 z-40 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-left font-semibold text-[#2A1F10] whitespace-nowrap min-w-[110px]" style={{ lineHeight: '30px', fontWeight: 700 }}>Graded Subjects</th>
+                                                                        <th className="sticky top-0 z-30 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[80px]" style={{ lineHeight: '30px' }}>Term 1</th>
+                                                                        <th className="sticky top-0 z-30 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[80px]" style={{ lineHeight: '30px' }}>Term 2</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -2009,6 +2014,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                                     })}
                                                                 </tbody>
                                                             </table>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 ) : (

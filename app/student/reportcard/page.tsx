@@ -31,7 +31,11 @@ interface MarksheetData {
     onlineGrandTotal: { scored: number; max: number };
     onlineGrandPct: number | null;
     onlineGrade: string;
+    combinedGrandTotal: { scored: number; max: number };
+    combinedGrandPct: number | null;
+    combinedGrade: string;
     classRank: number | null;
+    combinedClassRank: number | null;
     classSize: number | null;
     gradedSubjects: GradedSubject[];
     conduct: string | null;
@@ -136,8 +140,17 @@ export default function ReportCardPage() {
 
     const studentName = data.student.name;
     const rollNo = data.student.rollNo;
-    const rank = data.classRank;
-    const overallPct = data.grandPct;
+    // Class Rank / Overall on the name card show the combined (offline +
+    // online pooled) figures — matching StudentProfileView's fixed "Overall"
+    // tile elsewhere, not the offline-only numbers.
+    const rank = data.combinedClassRank;
+    // Computed client-side from grandTotal + onlineGrandTotal (both already
+    // confirmed populated — they drive the offline/online tab totals) rather
+    // than trusting data.combinedGrandPct directly, since that field can be
+    // missing on older/cached API responses.
+    const combinedMax = data.grandTotal.max + data.onlineGrandTotal.max;
+    const combinedScored = data.grandTotal.scored + data.onlineGrandTotal.scored;
+    const overallPct = combinedMax > 0 ? Math.round((combinedScored / combinedMax) * 100) : null;
 
     return (
         <div className="flex flex-col h-full">
@@ -287,14 +300,24 @@ export default function ReportCardPage() {
                                     </tbody>
                                 </table>
 
-                                {/* Graded Subjects table */}
+                                {/* Graded Subjects table — wrapped in a sticky-top div so the
+                                    header stays pinned for the FULL scroll range of the (taller)
+                                    main table. A sticky element can't stick beyond its own box's
+                                    bounds, and this table itself is short (few graded subjects),
+                                    so making just the <thead> sticky isn't enough — it would
+                                    scroll away once this short table's own bottom edge passes.
+                                    Making the whole table sticky instead means its containing
+                                    block is the shared flex row (which is as tall as the main
+                                    table, since flex row height = tallest child), so it stays
+                                    pinned near the top the entire time. */}
                                 {data.gradedSubjects.length > 0 && (
-                                    <table className="text-[12px] border-separate border-spacing-0 min-w-max shrink-0" style={{ color: '#2A1F10' }}>
-                                        <thead className="sticky top-0 z-30">
+                                    <div className="shrink-0" style={{ position: 'sticky', top: 0, alignSelf: 'flex-start' }}>
+                                    <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: '#2A1F10' }}>
+                                        <thead>
                                             <tr>
-                                                <th className="sticky left-0 z-40 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-bold whitespace-nowrap min-w-[120px]">Graded Subjects</th>
-                                                <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-4 py-1.5 text-center font-semibold whitespace-nowrap min-w-[80px]">Term 1</th>
-                                                <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-4 py-1.5 text-center font-semibold whitespace-nowrap min-w-[80px]">Term 2</th>
+                                                <th className="sticky top-0 left-0 z-40 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-bold whitespace-nowrap min-w-[120px]">Graded Subjects</th>
+                                                <th className="sticky top-0 z-30 bg-[#EDE4D6] border border-[#D8C4A0] px-4 py-1.5 text-center font-semibold whitespace-nowrap min-w-[80px]">Term 1</th>
+                                                <th className="sticky top-0 z-30 bg-[#EDE4D6] border border-[#D8C4A0] px-4 py-1.5 text-center font-semibold whitespace-nowrap min-w-[80px]">Term 2</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -315,17 +338,19 @@ export default function ReportCardPage() {
                                             ))}
                                         </tbody>
                                     </table>
+                                    </div>
                                 )}
                             </div>
                         ) : data.subjects.some(s => s.onlineTotal.max > 0) ? (
-                            /* Online: subject-wise totals, not a per-test grid — different
-                               subjects can have very different numbers of completed tests,
-                               so there's no single shared column structure like offline has. */
+                            /* Online: each subject's row lists every completed test by name
+                               with its own mark (as chips), since different subjects can have
+                               very different numbers/names of tests — there's no single shared
+                               column structure like offline's exam columns. */
                             <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: '#2A1F10' }}>
                                 <thead className="sticky top-0 z-30">
                                     <tr>
                                         <th className="sticky left-0 z-40 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-bold whitespace-nowrap min-w-[130px]">Subjects</th>
-                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-semibold whitespace-nowrap min-w-[70px]">Tests</th>
+                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-semibold whitespace-nowrap min-w-[260px]">Tests & Marks</th>
                                         <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[60px]">Total</th>
                                         <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[52px]">%</th>
                                         <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[48px]">Grade</th>
@@ -334,22 +359,38 @@ export default function ReportCardPage() {
                                 <tbody>
                                     {data.subjects.map(sub => (
                                         <tr key={sub.id}>
-                                            <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap">
+                                            <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap align-top">
                                                 <div className="flex items-center gap-1.5">
                                                     <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
                                                     {sub.name}
                                                 </div>
                                             </td>
-                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap text-[#7A6A55]">
-                                                {sub.onlineColumns.length}
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 align-top">
+                                                {sub.onlineColumns.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {sub.onlineColumns.map(c => {
+                                                            const cPct = c.maxMarks > 0 && c.score !== null ? Math.round((c.score / c.maxMarks) * 100) : null;
+                                                            return (
+                                                                <span key={c.id} className="inline-flex items-center gap-1 rounded-md bg-[#EDE4D6] border border-[#D8C4A0] px-1.5 py-0.5 whitespace-nowrap">
+                                                                    <span className="text-[10px] text-[#7A6A55]">{c.name}</span>
+                                                                    {c.isAbsent
+                                                                        ? <span className="text-[10px] font-bold" style={{ color: '#DC2626' }}>Ab</span>
+                                                                        : <span className="text-[10px] font-bold" style={{ color: scoreColor(cPct) }}>{c.score}/{c.maxMarks}</span>}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[#C8B89A]">—</span>
+                                                )}
                                             </td>
-                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE]">
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE] align-top">
                                                 {sub.onlineTotal.max > 0 ? `${sub.onlineTotal.scored}/${sub.onlineTotal.max}` : '—'}
                                             </td>
-                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap">
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap align-top">
                                                 {sub.onlinePct !== null && <span style={{ color: scoreColor(sub.onlinePct), fontWeight: 700 }}>{sub.onlinePct}%</span>}
                                             </td>
-                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold">
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold align-top">
                                                 <span style={{ color: scoreColor(sub.onlinePct) }}>{sub.onlineGrade}</span>
                                             </td>
                                         </tr>

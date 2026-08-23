@@ -180,6 +180,14 @@ function TestCard({ test }: { test: StudentTest }) {
         router.push(`/student/tasks/tests/${test.id}`);
     }
     const viewedAttempt = test.attempts[viewedIdx] ?? test.attempts[test.attempts.length - 1] ?? null;
+    // Derived from position in the (ascending-sorted, completed-only) attempts
+    // array rather than trusting the stored attemptNumber field directly — so
+    // the "Attempt X/Y" label is always self-consistent with what the chevrons
+    // are actually stepping through, even if a row's stored attemptNumber were
+    // ever wrong/stale for any reason.
+    const viewedAttemptOrdinal = viewedAttempt
+        ? test.attempts.findIndex((a) => a.id === viewedAttempt.id) + 1
+        : null;
     function handleViewResult() {
         const id = viewedAttempt?.id ?? test.lastAttemptId;
         if (id) router.push(`/student/tasks/tests/${test.id}/result/${id}`);
@@ -252,7 +260,7 @@ function TestCard({ test }: { test: StudentTest }) {
                         <Layers size={10} /> {test.numberOfQuestions} Ques
                     </span>
                     <span className="flex items-center gap-1 text-[11px] text-muted-foreground bg-muted/60 px-2 py-1 rounded-lg">
-                        Attempt {viewedAttempt?.attemptNumber ?? test.attemptsUsed}/{test.maxAttempts}
+                        Attempt {viewedAttemptOrdinal ?? test.attemptsUsed}/{test.maxAttempts}
                     </span>
                     {(viewedAttempt?.startTime ?? test.lastAttemptStartTime) && (
                         <span className="flex items-center gap-1 text-[11px] text-muted-foreground px-2 py-1 rounded-lg whitespace-nowrap" style={{ background: 'rgba(192,96,64,0.12)' }}>
@@ -304,7 +312,7 @@ function TestCard({ test }: { test: StudentTest }) {
                         )}
                         <button onClick={handleViewResult}
                             className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-border text-foreground hover:bg-muted/50 active:scale-[0.98] transition-all">
-                            View Result{test.attempts.length > 1 && viewedAttempt ? ` (Attempt ${viewedAttempt.attemptNumber}/${test.maxAttempts})` : ''}
+                            View Result{test.attempts.length > 1 && viewedAttemptOrdinal ? ` (Attempt ${viewedAttemptOrdinal}/${test.maxAttempts})` : ''}
                         </button>
                         {test.attempts.length > 1 && (
                             <button

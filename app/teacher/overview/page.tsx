@@ -482,7 +482,7 @@ export default function TeacherOverviewPage() {
                                 <p className="text-[10px] text-muted-foreground">Used</p>
                             </div>
                             <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(Math.max(0, (aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.totalTokens ?? 0)))}</p>
+                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(Math.max(0, (aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.institutionPoolUsed ?? 0)))}</p>
                                 <p className="text-[10px] text-muted-foreground">Remaining</p>
                             </div>
                             <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(124,58,237,0.08)' }}>
@@ -543,52 +543,6 @@ export default function TeacherOverviewPage() {
                 </div>
             </div>
 
-            {/* ── RecentActivityCard + NotificationsPreviewCard equivalent ── */}
-            <div className="flex flex-col gap-3" style={{ marginTop: '1.25rem' }}>
-
-                {/* Recent Audit Logs */}
-                <div className="bg-card border border-border/50 rounded-xl p-5">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                            <ScrollText size={15} className="text-muted-foreground" />
-                            <p className="text-sm font-medium">Recent Audit Logs</p>
-                        </div>
-                        <a href="/teacher/audit-logs" className="text-xs text-primary hover:underline">
-                            View all →
-                        </a>
-                    </div>
-                    {(overview?.auditLogs ?? []).length === 0 ? (
-                        <p className="text-xs text-muted-foreground py-4">No recent activity.</p>
-                    ) : (
-                        <div className="space-y-0.5">
-                            {(overview?.auditLogs ?? []).slice(0, 3).map((log) => {
-                                const actionCfg = ACTION_CONFIG[log.action] ?? {
-                                    label: log.action.replace(/_/g, ' '),
-                                    cls: 'bg-muted text-muted-foreground',
-                                    dot: 'bg-muted-foreground',
-                                };
-                                const { date, time } = toIST(log.createdAt);
-                                return (
-                                    <div key={log.id} className="grid grid-cols-1 lg:grid-cols-[140px_1fr] items-start gap-1.5 lg:gap-3 py-2.5 border-b border-border/40 last:border-none">
-                                        {/* Action badge */}
-                                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full w-fit mt-0.5 ${actionCfg.cls}`}>
-                                            {actionCfg.label}
-                                        </span>
-                                        <div className="min-w-0">
-                                            <p className="text-xs text-foreground leading-relaxed">{log.details}</p>
-                                            <div className="flex items-center gap-2 mt-0.5">
-                                                <p className="text-[11px] text-muted-foreground">{log.ip}</p>
-                                                <span className="text-muted-foreground/40">·</span>
-                                                <p className="text-[11px] text-muted-foreground">{date} · {time}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
-            </div>
         </div>
     );
 }

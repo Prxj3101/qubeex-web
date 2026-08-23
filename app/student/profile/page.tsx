@@ -5,7 +5,7 @@ import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 import { useStudentStore } from '@/store/studentStore';
 import {
-    IndianRupee, Award, ChevronRight, Bell, Settings, LogOut, User,
+    IndianRupee, Award, ChevronRight, Bell, LogOut, User,
 } from 'lucide-react';
 import { FlagItem } from '@/lib/flags';
 import StudentProfileView, { ProfileViewMarksheet, ProfileViewAttendance } from '@/components/shared/StudentProfileView';
@@ -352,20 +352,15 @@ export default function StudentProfile() {
                 {/* ── Settings ── */}
                 <div className="space-y-1">
                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">Settings</p>
-                    {[
-                        { icon: Bell, label: 'Notifications', color: '#2563EB' },
-                        { icon: Settings, label: 'App Settings', color: '#7C3AED' },
-                    ].map(({ icon: Icon, label, color }) => (
-                        <button key={label}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-all">
-                            <div className="w-9 h-9 rounded-xl flex items-center justify-center"
-                                style={{ backgroundColor: color + '20' }}>
-                                <Icon size={16} style={{ color }} />
-                            </div>
-                            <span className="flex-1 text-sm font-medium text-left">{label}</span>
-                            <ChevronRight size={15} className="text-muted-foreground" />
-                        </button>
-                    ))}
+                    <button
+                        className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-all">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                            style={{ backgroundColor: '#2563EB20' }}>
+                            <Bell size={16} style={{ color: '#2563EB' }} />
+                        </div>
+                        <span className="flex-1 text-sm font-medium text-left">Notifications</span>
+                        <ChevronRight size={15} className="text-muted-foreground" />
+                    </button>
 
                     <button className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 dark:hover:bg-red-950/20 transition-all">
                         <div className="w-9 h-9 rounded-xl flex items-center justify-center bg-red-100 dark:bg-red-950">

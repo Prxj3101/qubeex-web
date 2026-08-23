@@ -104,6 +104,7 @@ export interface PlanCard {
     name: string;
     tagline: string;
     licence: number;
+    originalLicence: number;
     rate: number;
     rateBulk: number;
     highlight: boolean;
@@ -115,6 +116,7 @@ export const PLANS: PlanCard[] = [
         name: 'Basic',
         tagline: 'Everything to run your school digitally.',
         licence: 39999,
+        originalLicence: 99999,
         rate: 29,
         rateBulk: 24,
         highlight: false,
@@ -132,6 +134,7 @@ export const PLANS: PlanCard[] = [
         name: 'Pro',
         tagline: 'Everything in Basic, plus the works.',
         licence: 59999,
+        originalLicence: 149999,
         rate: 39,
         rateBulk: 33,
         highlight: true,
@@ -163,7 +166,7 @@ export const TESTIMONIALS: Testimonial[] = [];
 export interface Faq { q: string; a: string }
 
 export const FAQS: Faq[] = [
-    { q: 'What exactly is QubeEx?', a: 'QubeEx is an AI-powered Student Assessment System (SAS) - a single platform where institutions manage attendance, assessments, fees and analytics, with AI insights layered on top.' },
+    { q: 'What exactly is QubeEx?', a: 'QubeEx is an AI-powered Student Assessment System (SAS) - a single platform where institutions manage attendance, assessments, fees and analytics, with AI insights layered on top. This includes AI-generated tests, an AI-assisted digital blackboard, and AI-driven performance analytics.' },
     { q: 'Is it only for schools?', a: 'Schools are fully live today. College and coaching editions are in active development and launching soon - you can register interest via the demo form.' },
     { q: 'How does pricing work?', a: 'A one-time licence fee plus a small monthly rate per active user (admins, teachers and students). The rate drops automatically once your institution crosses 1,500 users. No hidden charges.' },
     { q: 'Is there a free trial?', a: 'Yes - every institution gets a 14-day free trial with full access. No payment details needed to start.' },

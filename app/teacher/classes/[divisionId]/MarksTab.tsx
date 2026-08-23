@@ -2135,14 +2135,19 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                                                                 </tr>
                                                             </tbody>
                                                         </table>
-                                                        {/* Graded Subjects table - offline only */}
+                                                        {/* Graded Subjects table - offline only. Wrapped in a
+                                                            sticky-top div so the header stays pinned for the full
+                                                            scroll range of the (taller) main table — sticky can't
+                                                            stick beyond its own box's bounds, and this table is
+                                                            short, so stickying just the <thead> isn't enough. */}
                                                         {isOffline && gradedSubs.length > 0 && (
-                                                            <table className="text-[12px] border-separate border-spacing-0 min-w-max shrink-0" style={{ color: "#2A1F10" }}>
-                                                                <thead className="sticky top-0 z-30">
+                                                            <div className="shrink-0" style={{ position: 'sticky', top: 0, alignSelf: 'flex-start' }}>
+                                                            <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: "#2A1F10" }}>
+                                                                <thead>
                                                                     <tr>
-                                                                        <th className="sticky left-0 z-40 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-left font-semibold text-[#2A1F10] whitespace-nowrap min-w-[110px]" style={{ lineHeight: '30px', fontWeight: 700 }}>Graded Subjects</th>
-                                                                        <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[80px]" style={{ lineHeight: '30px' }}>Term 1</th>
-                                                                        <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[80px]" style={{ lineHeight: '30px' }}>Term 2</th>
+                                                                        <th className="sticky top-0 left-0 z-40 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-left font-semibold text-[#2A1F10] whitespace-nowrap min-w-[110px]" style={{ lineHeight: '30px', fontWeight: 700 }}>Graded Subjects</th>
+                                                                        <th className="sticky top-0 z-30 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[80px]" style={{ lineHeight: '30px' }}>Term 1</th>
+                                                                        <th className="sticky top-0 z-30 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-4 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[80px]" style={{ lineHeight: '30px' }}>Term 2</th>
                                                                     </tr>
                                                                 </thead>
                                                                 <tbody>
@@ -2164,18 +2169,21 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                                                                     })}
                                                                 </tbody>
                                                             </table>
+                                                            </div>
                                                         )}
                                                     </div>
                                                 ) : (
                                                     /* Online: each subject can have a different number of completed
                                                        tests, so unlike offline this doesn't share one exam-column
-                                                       header across subjects — just subject-wise totals. */
+                                                       header across subjects — each row lists its own tests by name
+                                                       with its own mark (as chips), same as the standalone Report
+                                                       Card page's Online tab. */
                                                     subjectData.some(s => s.maxTotal > 0) ? (
                                                         <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: "#2A1F10" }}>
                                                             <thead className="sticky top-0 z-30">
                                                                 <tr>
                                                                     <th className="sticky left-0 z-40 bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-left font-bold text-[#2A1F10] whitespace-nowrap min-w-[110px]">Subjects</th>
-                                                                    <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[70px]">Tests</th>
+                                                                    <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 text-left font-semibold text-[#2A1F10] whitespace-nowrap min-w-[260px]">Tests & Marks</th>
                                                                     <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[56px]" style={{ fontWeight: 700 }}>Total</th>
                                                                     <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[52px]" style={{ fontWeight: 700 }}>%</th>
                                                                     <th className="bg-[#EDE4D6] border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-semibold text-[#2A1F10] whitespace-nowrap min-w-[48px]" style={{ fontWeight: 700 }}>Grade</th>
@@ -2184,22 +2192,35 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                                                             <tbody>
                                                                 {subjectData.map(({ sub, cells, scored, maxTotal, totalPct }) => (
                                                                     <tr key={sub.id}>
-                                                                        <td className="sticky left-0 z-20 bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-semibold text-[#2A1F10] whitespace-nowrap">
+                                                                        <td className="sticky left-0 z-20 bg-[#FAF5EE] border-[0.5px] border-[#D8C4A0] px-3 py-1.5 font-semibold text-[#2A1F10] whitespace-nowrap align-top">
                                                                             <div className="flex items-center gap-1.5">
                                                                                 <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: sub.color }} />
                                                                                 {sub.name}
                                                                             </div>
                                                                         </td>
-                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap text-[#7A6A55]">
-                                                                            {cells.length}
+                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 align-top">
+                                                                            {cells.length > 0 ? (
+                                                                                <div className="flex flex-wrap gap-1">
+                                                                                    {cells.map(({ ex, val, maxMarks }) => (
+                                                                                        <span key={ex.id} className="inline-flex items-center gap-1 rounded-md bg-[#EDE4D6] border border-[#D8C4A0] px-1.5 py-0.5 whitespace-nowrap">
+                                                                                            <span className="text-[10px] text-[#7A6A55]">{ex.name}</span>
+                                                                                            {val === null
+                                                                                                ? <span className="text-[10px] font-bold" style={{ color: '#DC2626' }}>Ab</span>
+                                                                                                : <span className="text-[10px] font-bold" style={{ color: scoreColor(maxMarks > 0 ? Math.round((val / maxMarks) * 100) : 0) }}>{val}/{maxMarks}</span>}
+                                                                                        </span>
+                                                                                    ))}
+                                                                                </div>
+                                                                            ) : (
+                                                                                <span className="text-[#C8B89A]">—</span>
+                                                                            )}
                                                                         </td>
-                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE]">
+                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE] align-top">
                                                                             {maxTotal > 0 ? `${scored}/${maxTotal}` : '—'}
                                                                         </td>
-                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap">
+                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap align-top">
                                                                             {totalPct !== null ? <span style={{ color: scoreColor(totalPct), fontWeight: 700 }}>{totalPct}%</span> : '—'}
                                                                         </td>
-                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold">
+                                                                        <td className="border-[0.5px] border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold align-top">
                                                                             {totalPct !== null ? <span style={{ color: scoreColor(totalPct) }}>{gradeLabel(totalPct)}</span> : '—'}
                                                                         </td>
                                                                     </tr>

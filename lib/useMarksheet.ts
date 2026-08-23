@@ -214,11 +214,18 @@ export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarkshee
   const handleAddColumn = useCallback(async (subjectId: string, name: string, maxMarks: number, examDate?: string | null) => {
     try {
       const mid = await ensureMarksheetId();
-      const col = await addColumn(mid, { subjectId, name, maxMarks, examDate: examDate ?? null });
-      setExamColumns(prev => ({
-        ...prev,
-        [subjectId]: [...(prev[subjectId] ?? []), col],
-      }));
+      // Backend fans this exam out to every subject in the division (an
+      // exam column is meant to line up across all subjects, not live only
+      // under the one subject tab the teacher happened to be on) — merge
+      // each created column into its own subject's list here.
+      const { allCreated } = await addColumn(mid, { subjectId, name, maxMarks, examDate: examDate ?? null });
+      setExamColumns(prev => {
+        const next = { ...prev };
+        for (const col of allCreated) {
+          next[col.subjectId] = [...(next[col.subjectId] ?? []), col];
+        }
+        return next;
+      });
       setHasUnpublishedChanges(true);
     } catch (err) {
       toast.error(apiErrorMessage(err, 'Could not add exam column'));
@@ -243,24 +250,41 @@ export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarkshee
   const handleDeleteColumn = useCallback(async (colId: string, subjectId: string) => {
     const mid = marksheetIdRef.current;
     if (!mid) return;
+    // This exam column was fanned out to every subject when it was created
+    // (see handleAddColumn) — deleting it here should remove the same exam
+    // from every subject, not leave orphaned copies behind in the others.
+    // Backend matches siblings by name within the marksheet; mirror the same
+    // match here so the optimistic update (and rollback) covers all of them.
+    const targetName = (examColumns[subjectId] ?? []).find(c => c.id === colId)?.name.trim().toLowerCase();
+    const matches: { subjectId: string; colId: string }[] = [];
+    if (targetName !== undefined) {
+      for (const [sid, cols] of Object.entries(examColumns)) {
+        for (const c of cols) {
+          if (c.name.trim().toLowerCase() === targetName) matches.push({ subjectId: sid, colId: c.id });
+        }
+      }
+    } else {
+      matches.push({ subjectId, colId });
+    }
     // Snapshot for rollback if the server rejects the delete.
-    const prevCols = examColumns[subjectId] ?? [];
-    const prevColScores = scores[colId];
-    setExamColumns(prev => ({
-      ...prev,
-      [subjectId]: (prev[subjectId] ?? []).filter(c => c.id !== colId),
-    }));
+    const prevExamColumns = examColumns;
+    const prevScores = scores;
+    setExamColumns(prev => {
+      const next = { ...prev };
+      for (const m of matches) next[m.subjectId] = (next[m.subjectId] ?? []).filter(c => c.id !== m.colId);
+      return next;
+    });
     setScores(prev => {
       const next = { ...prev };
-      delete next[colId];
+      for (const m of matches) delete next[m.colId];
       return next;
     });
     try {
       await deleteColumn(mid, colId);
       setHasUnpublishedChanges(true);
     } catch (err) {
-      setExamColumns(prev => ({ ...prev, [subjectId]: prevCols }));
-      if (prevColScores !== undefined) setScores(prev => ({ ...prev, [colId]: prevColScores }));
+      setExamColumns(prevExamColumns);
+      setScores(prevScores);
       toast.error(apiErrorMessage(err, 'Could not delete exam column'));
     }
   }, [examColumns, scores]);
@@ -268,17 +292,31 @@ export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarkshee
   const handleReorderColumns = useCallback(async (subjectId: string, orderedIds: string[]) => {
     const mid = marksheetIdRef.current;
     if (!mid) return;
-    const prevCols = examColumns[subjectId] ?? [];
+    // Full snapshot for rollback — the backend fans this reorder out to every
+    // subject (same exam column always lines up across subjects, matching
+    // add/delete's own fan-out), so a failed request needs to roll back more
+    // than just the one subject that was dragged.
+    const prevExamColumns = examColumns;
     setExamColumns(prev => {
       const cols = prev[subjectId] ?? [];
       const sorted = orderedIds.map(id => cols.find(c => c.id === id)!).filter(Boolean);
       return { ...prev, [subjectId]: sorted };
     });
     try {
-      await reorderColumns(mid, subjectId, orderedIds);
+      const updated = await reorderColumns(mid, subjectId, orderedIds);
+      const orderById = new Map(updated.map(u => [u.id, u.order]));
+      const touchedSubjectIds = new Set(updated.map(u => u.subjectId));
+      setExamColumns(prev => {
+        const next = { ...prev };
+        for (const sid of touchedSubjectIds) {
+          const cols = (next[sid] ?? []).map(c => orderById.has(c.id) ? { ...c, order: orderById.get(c.id)! } : c);
+          next[sid] = [...cols].sort((a, b) => a.order - b.order);
+        }
+        return next;
+      });
       setHasUnpublishedChanges(true);
     } catch (err) {
-      setExamColumns(prev => ({ ...prev, [subjectId]: prevCols }));
+      setExamColumns(prevExamColumns);
       toast.error(apiErrorMessage(err, 'Could not reorder columns'));
     }
   }, [examColumns]);

@@ -222,10 +222,6 @@ export default function StoragePage() {
         setUploading(true);
         let successCount = 0;
         for (const file of Array.from(files)) {
-            if (file.size > 25 * 1024 * 1024) {
-                toast.error(`${file.name} exceeds the 25 MB limit`);
-                continue;
-            }
             const formData = new FormData();
             formData.append('file', file);
             try {
@@ -285,13 +281,15 @@ export default function StoragePage() {
                             className="flex items-center gap-1.5 h-8 px-3 rounded-xl border border-border/50 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all">
                             <FolderPlus size={13} /> New Folder
                         </button>
-                        <label className={`flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white transition-all ${uploading ? 'opacity-60 pointer-events-none cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'}`}
-                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                            {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-                            {uploading ? 'Uploading...' : 'Upload'}
-                            <input type="file" multiple accept=".pdf,.ppt,.pptx,.doc,.docx" className="hidden"
-                                onChange={handleUpload} disabled={uploading} />
-                        </label>
+                        {currentPath.length > 0 && (
+                            <label className={`flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white transition-all ${uploading ? 'opacity-60 pointer-events-none cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'}`}
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
+                                {uploading ? 'Uploading...' : 'Upload'}
+                                <input type="file" multiple accept=".pdf,.ppt,.pptx,.doc,.docx" className="hidden"
+                                    onChange={handleUpload} disabled={uploading} />
+                            </label>
+                        )}
                     </div>
                 </div>
                 <div className="h-px bg-border/60 mt-2" />
@@ -327,6 +325,12 @@ export default function StoragePage() {
                     {/* Breadcrumb + toolbar */}
                     <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center justify-between">
                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground flex-wrap">
+                            {currentPath.length > 0 && (
+                                <button onClick={() => navigateTo(currentPath.slice(0, -1))}
+                                    className="flex items-center justify-center w-6 h-6 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all shrink-0">
+                                    <ArrowLeft size={13} />
+                                </button>
+                            )}
                             <button onClick={() => navigateTo([])}
                                 className="hover:text-foreground transition-colors font-medium">
                                 My Storage
@@ -342,12 +346,6 @@ export default function StoragePage() {
                                 </span>
                             ))}
                         </div>
-                        {currentPath.length > 0 && (
-                            <button onClick={() => navigateTo(currentPath.slice(0, -1))}
-                                className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-all">
-                                <ArrowLeft size={12} /> Back
-                            </button>
-                        )}
                     </div>
 
                     {/* Grid content */}
@@ -395,8 +393,8 @@ export default function StoragePage() {
                                             className="group relative">
                                             <button
                                                 onDoubleClick={() => navigateTo([...currentPath, folder.id])}
-                                                className="w-full flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 hover:bg-muted/40 hover:border-border transition-all text-center">
-                                                <FolderOpen size={32} className="text-amber-500" />
+                                                className="w-full flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 bg-card shadow-[0_8px_16px_rgba(0,0,0,0.16),0_2px_4px_rgba(0,0,0,0.10)] hover:shadow-[0_18px_32px_rgba(0,0,0,0.26),0_4px_8px_rgba(0,0,0,0.14)] hover:-translate-y-1.5 hover:border-border transition-all duration-200 text-center">
+                                                <FolderOpen size={32} className="text-amber-500 drop-shadow-[0_5px_5px_rgba(0,0,0,0.35)]" />
                                                 <p className="text-xs font-medium truncate w-full">{folder.name}</p>
                                                 <p className="text-[10px] text-muted-foreground">{folder.children.length + folder.files.length} items</p>
                                             </button>
@@ -436,8 +434,8 @@ export default function StoragePage() {
                                             <motion.div key={file.id}
                                                 initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
                                                 className="group relative">
-                                                <div className="w-full flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 hover:bg-muted/40 hover:border-border transition-all text-center">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${bg}`}>
+                                                <div className="w-full flex flex-col items-center gap-2 p-3 rounded-xl border border-border/50 bg-card shadow-[0_8px_16px_rgba(0,0,0,0.16),0_2px_4px_rgba(0,0,0,0.10)] hover:shadow-[0_18px_32px_rgba(0,0,0,0.26),0_4px_8px_rgba(0,0,0,0.14)] hover:-translate-y-1.5 hover:border-border transition-all duration-200 text-center">
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-[0_5px_10px_rgba(0,0,0,0.22)] ${bg}`}>
                                                         <Icon size={20} className={color} />
                                                     </div>
                                                     <p className="text-xs font-medium truncate w-full">{file.name}</p>

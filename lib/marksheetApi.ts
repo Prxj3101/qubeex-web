@@ -85,18 +85,18 @@ export async function updateMarksheetGradeScale(marksheetId: string, gradeScale:
   return res.data.data.gradeScale as GradeScaleEntry[];
 }
 
-export async function getMarksheet(divisionId: string, academicYear: string): Promise<MarksheetData | null> {
+export async function getMarksheet(divisionId: string, academicYear: string, opts?: { publishedOnly?: boolean }): Promise<MarksheetData | null> {
   const res = await api.get(`/teacher/marksheet/division/${divisionId}`, {
-    params: { academicYear },
+    params: { academicYear, ...(opts?.publishedOnly ? { publishedOnly: '1' } : {}) },
     validateStatus: (s) => s === 200 || s === 404,
   });
   if (res.status === 404) return null;
   return res.data.data as MarksheetData;
 }
 
-export async function getAdminMarksheet(divisionId: string, academicYear: string): Promise<MarksheetData | null> {
+export async function getAdminMarksheet(divisionId: string, academicYear: string, opts?: { publishedOnly?: boolean }): Promise<MarksheetData | null> {
   const res = await api.get(`/admin/marksheet/division/${divisionId}`, {
-    params: { academicYear },
+    params: { academicYear, ...(opts?.publishedOnly ? { publishedOnly: '1' } : {}) },
     validateStatus: (s) => s === 200 || s === 404,
   });
   if (res.status === 404) return null;
@@ -108,12 +108,18 @@ export async function initMarksheet(divisionId: string, academicYear: string): P
   return res.data.data as { marksheetId: string; shareToken: string };
 }
 
+// An exam column ("Unit Test 1", etc.) is one exam across every subject in
+// the division, not just the subject the teacher was viewing when they hit
+// "+" — the backend fans the same name/maxMarks/examDate out to every
+// subject and returns the full set via `allCreated` (each tagged with its
+// own subjectId) alongside `data`, the one for the subject that was
+// explicitly picked.
 export async function addColumn(
   marksheetId: string,
   payload: { subjectId: string; name: string; maxMarks: number; examDate?: string | null }
-): Promise<ExamColumn> {
+): Promise<{ column: ExamColumn; allCreated: ExamColumn[] }> {
   const res = await api.post(`/teacher/marksheet/${marksheetId}/columns`, payload);
-  return res.data.data as ExamColumn;
+  return { column: res.data.data as ExamColumn, allCreated: (res.data.allCreated ?? [res.data.data]) as ExamColumn[] };
 }
 
 export async function editColumn(
@@ -129,8 +135,13 @@ export async function deleteColumn(marksheetId: string, colId: string): Promise<
   await api.delete(`/teacher/marksheet/${marksheetId}/columns/${colId}`);
 }
 
-export async function reorderColumns(marksheetId: string, subjectId: string, orderedIds: string[]): Promise<void> {
-  await api.put(`/teacher/marksheet/${marksheetId}/columns/${subjectId}/reorder`, { orderedIds });
+// Backend fans this reorder out to every subject (the same exam column
+// always lines up across subjects, matching add/delete's own fan-out) and
+// returns every column it touched — not just the ones in the subject that
+// was dragged — so the caller can re-sort every affected subject's list.
+export async function reorderColumns(marksheetId: string, subjectId: string, orderedIds: string[]): Promise<{ id: string; subjectId: string; order: number }[]> {
+  const res = await api.put(`/teacher/marksheet/${marksheetId}/columns/${subjectId}/reorder`, { orderedIds });
+  return (res.data.updated ?? []) as { id: string; subjectId: string; order: number }[];
 }
 
 export async function saveScores(

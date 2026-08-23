@@ -1,11 +1,12 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Check } from 'lucide-react';
+import { Check, Zap } from 'lucide-react';
 import { PLANS } from './landing-data';
 import { Reveal, SectionHead, EASE, DISPLAY } from './motion';
 
 const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+const pctOff = (original: number, current: number) => Math.round(((original - current) / original) * 100);
 
 export default function Pricing({ onDemo }: { onDemo: () => void }) {
     return (
@@ -41,11 +42,44 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                                 </>
                             )}
 
+                            {/* Limited time corner ribbon */}
+                            <div className="absolute -right-12 top-7 z-10 w-44 rotate-45 overflow-hidden">
+                                <motion.div
+                                    animate={{ backgroundPositionX: ['0%', '100%'] }}
+                                    transition={{ duration: 2.2, repeat: Infinity, ease: 'linear' }}
+                                    style={{
+                                        background: 'linear-gradient(110deg, #F43F5E 0%, #DA7756 35%, #F97316 50%, #DA7756 65%, #F43F5E 100%)',
+                                        backgroundSize: '250% 100%',
+                                    }}
+                                    className="flex items-center justify-center gap-1 py-1.5 text-center text-[11px] font-extrabold uppercase tracking-wider text-white shadow-[0_4px_14px_rgba(0,0,0,0.35)]"
+                                >
+                                    <Zap size={11} className="fill-current" strokeWidth={0} />
+                                    Limited Time
+                                </motion.div>
+                            </div>
+
                             <div className="relative">
                                 <h3 style={DISPLAY} className={`text-2xl font-bold ${p.highlight ? 'text-white' : 'text-[#190D2E]'}`}>{p.name}</h3>
                                 <p className={`mt-1 text-sm ${p.highlight ? 'text-white/70' : 'text-[#6B6480]'}`}>{p.tagline}</p>
 
-                                <div className="mt-7 flex items-baseline gap-2">
+                                <div className="mt-7 flex items-center gap-2.5">
+                                    <span
+                                        className={`relative text-2xl font-semibold ${p.highlight ? 'text-white/70' : 'text-[#6B6480]'}`}
+                                    >
+                                        {inr(p.originalLicence)}
+                                        <span
+                                            aria-hidden
+                                            className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rotate-[-4deg] bg-[#F43F5E]"
+                                        />
+                                    </span>
+                                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-[13px] font-bold ${
+                                        p.highlight ? 'bg-[#22C55E]/20 text-[#4ADE80]' : 'bg-[#DCFCE7] text-[#16A34A]'
+                                    }`}>
+                                        {pctOff(p.originalLicence, p.licence)}% OFF
+                                    </span>
+                                </div>
+
+                                <div className="mt-1.5 flex items-baseline gap-2">
                                     <span style={DISPLAY} className={`text-[2.8rem] font-bold leading-none tracking-tight ${p.highlight ? 'text-white' : 'text-[#190D2E]'}`}>
                                         {inr(p.licence)}
                                     </span>

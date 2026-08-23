@@ -1,6 +1,7 @@
 'use client';
 import { useRouter } from 'next/navigation';
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
 import {
     Monitor, Upload, ChevronLeft, ChevronRight,
@@ -8,11 +9,13 @@ import {
     HelpCircle, Scan, Send, ZoomIn, ZoomOut,
     FolderOpen, ChevronDown, RotateCw, GripVertical, Pencil, Pen, Highlighter, Eraser, Undo2, Redo2,
     Loader2, RefreshCw, Check, ScanLine, Layers, CheckCircle2, Bot, Copy, ThumbsUp, ThumbsDown, Zap,
+    FileText, FileImage, FileVideo, Presentation,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
 import api from '@/lib/api';
 import { useTheme } from 'next-themes';
+import { blackboardMemory, usePersisted, setBlackboardValue, saveBlackboardFile, loadBlackboardFile, clearBlackboardFile } from '@/store/blackboardMemory';
 
 import dynamic from 'next/dynamic';
 
@@ -41,16 +44,40 @@ function useScanLoadingAnim() {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AIMode = 'scan' | 'prompt' | 'quiz' | null;
-type DocRenderer = 'pdf' | 'office-online' | 'office-local' | 'image' | 'unsupported';
+type DocRenderer = 'pdf' | 'office-online' | 'office-local' | 'image' | 'video' | 'unsupported';
 
 function getRenderer(doc: { url: string; type: string }): DocRenderer {
     if (doc.type === 'application/pdf') return 'pdf';
     if (doc.type.startsWith('image/')) return 'image';
+    if (doc.type.startsWith('video/')) return 'video';
     const isOffice =
         doc.type.includes('powerpoint') || doc.type.includes('presentation') ||
         doc.type.includes('word') || doc.type.includes('document');
     if (isOffice) return doc.url.startsWith('blob:') ? 'office-local' : 'office-online';
     return 'unsupported';
+}
+
+// Shown as a hover tooltip on the Load Document button/menu items, so teachers
+// don't have to guess what file types can actually be loaded.
+const SUPPORTED_TYPES_COMPUTER = [
+    { icon: FileText, label: 'PDF', color: '#EF4444' },
+    { icon: Presentation, label: 'PPT', color: '#F59E0B' },
+    { icon: FileText, label: 'Word', color: '#3B82F6' },
+    { icon: FileImage, label: 'Image', color: '#10B981' },
+    { icon: FileVideo, label: 'Video', color: '#A855F7' },
+];
+const SUPPORTED_TYPES_STORAGE = SUPPORTED_TYPES_COMPUTER.filter(t => t.label !== 'Video');
+
+function SupportedTypesTooltip({ types, className = '' }: { types: typeof SUPPORTED_TYPES_COMPUTER; className?: string }) {
+    return (
+        <div className={`absolute z-50 flex items-center gap-3 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/10 shadow-xl opacity-0 group-hover:opacity-100 transition-opacity duration-150 pointer-events-none whitespace-nowrap ${className}`}>
+            {types.map(({ icon: Icon, label, color }) => (
+                <span key={label} className="flex items-center gap-1.5 text-[10px] font-medium text-white/70">
+                    <Icon size={16} style={{ color }} /> {label}
+                </span>
+            ))}
+        </div>
+    );
 }
 
 interface QuizQuestion {
@@ -240,6 +267,18 @@ async function extractDocumentText(doc: { url: string; type: string }, selectedP
 }
 
 /** Host shown under each image — lets a teacher judge the source at a glance. */
+// Module-level (not React state): true while an AI Scan result image is
+// expanded full-screen. The page-level document-navigation keydown handler
+// checks this so Left/Right control the expanded image viewer instead of
+// flipping the blackboard's own pages underneath it. Reverts to normal page
+// navigation the instant the image is closed.
+let imageViewerActive = false;
+
+// AI Scan and AI Quiz both let the teacher hand-pick which document pages to
+// send — capped at 10 so a single request doesn't balloon into scanning/
+// quizzing an entire textbook at once.
+const MAX_SELECTABLE_PAGES = 10;
+
 function sourceHost(url: string): string {
     try {
         return new URL(url).hostname.replace(/^www\./, '');
@@ -259,12 +298,28 @@ function ScanImages({ images }: { images: { url: string; caption: string }[] }) 
     const [broken, setBroken] = useState<Record<string, true>>({});
     const [expanded, setExpanded] = useState<{ url: string; caption: string } | null>(null);
 
+    // While a scan image is expanded full-screen, Left/Right should flip
+    // through THIS list's images, not the blackboard document's pages
+    // underneath it — flag the shared module-level switch so the page-level
+    // handler defers to us for the duration.
+    useEffect(() => {
+        imageViewerActive = !!expanded;
+        return () => { imageViewerActive = false; };
+    }, [expanded]);
+
     useEffect(() => {
         if (!expanded) return;
-        const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setExpanded(null); };
+        const visible = images.filter(img => !broken[img.url]);
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') { setExpanded(null); return; }
+            const idx = visible.findIndex(img => img.url === expanded.url);
+            if (idx === -1) return;
+            if (e.key === 'ArrowRight') setExpanded(visible[(idx + 1) % visible.length]);
+            if (e.key === 'ArrowLeft') setExpanded(visible[(idx - 1 + visible.length) % visible.length]);
+        };
         window.addEventListener('keydown', onKey);
         return () => window.removeEventListener('keydown', onKey);
-    }, [expanded]);
+    }, [expanded, images, broken]);
 
     const visible = images.filter(img => !broken[img.url]);
     if (visible.length === 0) return null;
@@ -302,7 +357,14 @@ function ScanImages({ images }: { images: { url: string; caption: string }[] }) 
                 ))}
             </div>
 
-            {expanded && (
+            {expanded && typeof document !== 'undefined' && createPortal(
+                // Rendered straight into document.body via a portal — the panel
+                // this lives inside sits under Framer Motion's animated
+                // motion.div wrappers (which apply CSS transforms), and a
+                // transformed ancestor becomes the containing block for any
+                // "fixed" descendant, trapping it below other truly top-level
+                // fixed elements (like the blackboard's floating toolbar)
+                // instead of actually covering the whole screen.
                 <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/85 backdrop-blur-sm p-6"
                     onClick={() => setExpanded(null)}>
                     <div className="relative max-w-5xl w-full flex flex-col gap-2" onClick={e => e.stopPropagation()}>
@@ -328,7 +390,8 @@ function ScanImages({ images }: { images: { url: string; caption: string }[] }) 
                             <p className="text-[11px] text-white/40 text-center">Source: {sourceHost(expanded.url)}</p>
                         )}
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );
@@ -349,10 +412,10 @@ function AIScanPanel({
     onScanEnd: () => void;
     onNavigateToPage?: (page: number) => void;
 }) {
-    const [phase, setPhase] = useState<'input' | 'loading' | 'result'>('input');
-    const [instructions, setInstructions] = useState('');
-    const [mode, setMode] = useState<'summary' | 'notes'>('summary');
-    const [result, setResult] = useState<ScanResult | null>(null);
+    const [phase, setPhase] = usePersisted<'input' | 'loading' | 'result'>('scan_phase', 'input');
+    const [instructions, setInstructions] = usePersisted('scan_instructions', '');
+    const [mode, setMode] = usePersisted<'summary' | 'notes'>('scan_mode', 'summary');
+    const [result, setResult] = usePersisted<ScanResult | null>('scan_result', null);
     const loadingAnim = useScanLoadingAnim();
     const isPdf = doc?.type === 'application/pdf';
     const canScan = !doc ? false : isPdf ? selectedPages.length > 0 : true;
@@ -463,6 +526,11 @@ function AIScanPanel({
                         <div className="shrink-0 px-4 pt-2 pb-2" style={{ background: '#000' }}>
                             <p className="text-xs font-bold mb-1 text-white flex items-center gap-1.5">
                                 <CheckCircle2 size={12} style={{ color: '#DA7756' }} /> Selected Pages
+                                <span className="text-[9px] font-semibold italic px-1.5 py-0.5 rounded-full flex items-center gap-0.5 whitespace-nowrap"
+                                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
+                                    <FileText size={9} />
+                                    Max {MAX_SELECTABLE_PAGES} pages
+                                </span>
                             </p>
                             <p className="text-[11px] text-white/60">
                                 Use the page nav on the left to select the pages, they&apos;ll show up here.
@@ -1040,16 +1108,16 @@ function AIQuizPanel({
     onTogglePage: (page: number) => void;
     onNavigateToPage?: (page: number) => void;
 }) {
-    const [phase, setPhase] = useState<'input' | 'loading' | 'result'>('input');
-    const [instructions, setInstructions] = useState('');
-    const [count, setCount] = useState(5);
-    const [difficulty, setDifficulty] = useState<'easy' | 'medium' | 'hard'>('medium');
-    const [questions, setQuestions] = useState<QuizQuestion[]>([]);
-    const [currentQ, setCurrentQ] = useState(0);
+    const [phase, setPhase] = usePersisted<'input' | 'loading' | 'result'>('quiz_phase', 'input');
+    const [instructions, setInstructions] = usePersisted('quiz_instructions', '');
+    const [count, setCount] = usePersisted('quiz_count', 5);
+    const [difficulty, setDifficulty] = usePersisted<'easy' | 'medium' | 'hard'>('quiz_difficulty', 'medium');
+    const [questions, setQuestions] = usePersisted<QuizQuestion[]>('quiz_questions', []);
+    const [currentQ, setCurrentQ] = usePersisted('quiz_currentQ', 0);
     // Per-question answer state, keyed by question index — so navigating
     // Prev/Next preserves what was already selected/revealed for each question.
-    const [answers, setAnswers] = useState<Record<number, number>>({});
-    const [revealedMap, setRevealedMap] = useState<Record<number, boolean>>({});
+    const [answers, setAnswers] = usePersisted<Record<number, number>>('quiz_answers', {});
+    const [revealedMap, setRevealedMap] = usePersisted<Record<number, boolean>>('quiz_revealedMap', {});
     const selectedOption = answers[currentQ] ?? null;
     const revealed = revealedMap[currentQ] ?? false;
     const loadingAnim = useScanLoadingAnim();
@@ -1181,6 +1249,11 @@ function AIQuizPanel({
                         <div className="shrink-0 px-4 pt-2 pb-2" style={{ background: '#000' }}>
                             <p className="text-xs font-bold mb-1 text-white flex items-center gap-1.5">
                                 <CheckCircle2 size={12} style={{ color: '#DA7756' }} /> Selected Pages
+                                <span className="text-[9px] font-semibold italic px-1.5 py-0.5 rounded-full flex items-center gap-0.5 whitespace-nowrap"
+                                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
+                                    <FileText size={9} />
+                                    Max {MAX_SELECTABLE_PAGES} pages
+                                </span>
                             </p>
                             <p className="text-[11px] text-white/60">
                                 Use the page nav on the left to select the pages, they&apos;ll show up here.
@@ -1452,10 +1525,10 @@ function FloatingAIButton({ activeMode, onSelect, showControls }: {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BlackboardPage() {
-    const [doc, setDoc] = useState<{ name: string; url: string; type: string } | null>(null);
+    const [doc, setDoc] = usePersisted<{ name: string; url: string; type: string } | null>('doc', null);
     const [isFullscreen, setIsFullscreen] = useState(false);
-    const [currentPage, setCurrentPage] = useState(1);
-    const [activeMode, setActiveMode] = useState<AIMode>(null);
+    const [currentPage, setCurrentPage] = usePersisted('currentPage', 1);
+    const [activeMode, setActiveMode] = usePersisted<AIMode>('activeMode', null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1473,19 +1546,30 @@ export default function BlackboardPage() {
 
     // Pages selected in the AI Scan panel — also shown as a badge on the main
     // blackboard viewer when browsing that page, and used to drive the scan animation.
-    const [selectedScanPages, setSelectedScanPages] = useState<number[]>([]);
+    const [selectedScanPages, setSelectedScanPages] = usePersisted<number[]>('selectedScanPages', []);
     const [isScanningPages, setIsScanningPages] = useState(false);
     const [scanGoingDown, setScanGoingDown] = useState(true);
 
     // Pages selected in the AI Quiz panel — same page-picker mechanism as AI Scan,
     // kept as a separate selection so switching between Scan/Quiz doesn't clash.
-    const [selectedQuizPages, setSelectedQuizPages] = useState<number[]>([]);
+    const [selectedQuizPages, setSelectedQuizPages] = usePersisted<number[]>('selectedQuizPages', []);
 
     // Which selection array/setter the page-nav "select page" controls should
     // drive, based on whichever AI panel is currently open.
     const pageSelectMode = activeMode === 'scan' || activeMode === 'quiz';
     const activeSelectedPages = activeMode === 'quiz' ? selectedQuizPages : selectedScanPages;
     const setActiveSelectedPages = activeMode === 'quiz' ? setSelectedQuizPages : setSelectedScanPages;
+
+    // Shared by every "select page" control (toolbar toggle, AI panel's page
+    // picker) so the 10-page cap applies no matter which UI the teacher uses.
+    const toggleActivePage = (page: number) => setActiveSelectedPages(prev => {
+        if (prev.includes(page)) return prev.filter(p => p !== page);
+        if (prev.length >= MAX_SELECTABLE_PAGES) {
+            toast.error(`You can select up to ${MAX_SELECTABLE_PAGES} pages at a time`);
+            return prev;
+        }
+        return [...prev, page];
+    });
 
     useEffect(() => {
         if (!isScanningPages) return;
@@ -1505,10 +1589,37 @@ export default function BlackboardPage() {
                 setSelectedScanPages([]);
                 setSelectedQuizPages([]);
                 initialScaleSet.current = false;
+                setBlackboardValue('initialScaleSet', false);
+                // Switching to a real hosted Storage URL — any previously
+                // stashed local file is no longer the current document.
+                clearBlackboardFile();
             } catch {}
             sessionStorage.removeItem('blackboard_file');
         }
     }, []);
+
+    // A "From Computer" doc only exists as an in-memory File behind a blob:
+    // URL, which dies the instant the tab does a real reload — unlike a
+    // "From Storage" doc (a real hosted URL, survives reload on its own).
+    // Re-fetching the actual File from IndexedDB and minting a fresh blob URL
+    // for it is what lets the same document reappear after a refresh instead
+    // of just vanishing.
+    useEffect(() => {
+        if (!doc || !doc.url.startsWith('blob:')) return;
+        loadBlackboardFile().then(file => {
+            if (file && file.name === doc.name && file.type === doc.type) {
+                const freshUrl = URL.createObjectURL(file);
+                setDoc(prev => (prev ? { ...prev, url: freshUrl } : prev));
+            }
+        });
+        // Deliberately keyed on name/type (a document's stable identity), not
+        // doc.url — doc itself only becomes non-null a moment after mount
+        // (see usePersisted's hydration effect, which avoids an SSR mismatch
+        // by starting every persisted value at its default on first render),
+        // and re-including url here would loop forever every time this
+        // effect mints a fresh one.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [doc?.name, doc?.type]);
 
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -1521,8 +1632,27 @@ export default function BlackboardPage() {
         setScale(1);
         setRotation(0);
         initialScaleSet.current = false;
+        setBlackboardValue('initialScaleSet', false);
+        saveBlackboardFile(file);
         toast.success(`${file.name} loaded!`);
         e.target.value = '';
+    };
+
+    // Clears the currently loaded document off the blackboard — until now the
+    // only way to get rid of a loaded doc was to load a different one over it,
+    // with no explicit "remove" option.
+    const handleUnloadDocument = () => {
+        if (doc?.url.startsWith('blob:')) URL.revokeObjectURL(doc.url);
+        setDoc(null);
+        setCurrentPage(1);
+        setSelectedScanPages([]);
+        setSelectedQuizPages([]);
+        setScale(1);
+        setRotation(0);
+        initialScaleSet.current = false;
+        setBlackboardValue('initialScaleSet', false);
+        clearBlackboardFile();
+        toast.success('Document unloaded');
     };
 
     const toggleFullscreen = () => {
@@ -1542,8 +1672,8 @@ export default function BlackboardPage() {
         }, 2500);
     };
 
-    const [scale, setScale] = useState(1);
-    const [rotation, setRotation] = useState(0);
+    const [scale, setScale] = usePersisted('scale', 1);
+    const [rotation, setRotation] = usePersisted('rotation', 0);
 
     const viewerRef = useRef<HTMLDivElement>(null);
     const [pageWidth, setPageWidth] = useState(612);
@@ -1554,13 +1684,17 @@ export default function BlackboardPage() {
     const containerWidth = useRef(0);
     const [isDraggingState, setIsDraggingState] = useState(false);
 
-    const initialScaleSet = useRef(false);
+    // Persisted like doc/scale/rotation: without this, remounting after a nav
+    // away would re-run the auto-fit-to-page calculation and stomp whatever
+    // zoom level the teacher had actually set.
+    const initialScaleSetMemory = blackboardMemory['initialScaleSet'] === true;
+    const initialScaleSet = useRef(initialScaleSetMemory);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const [drawingMode, setDrawingMode] = useState(false);
-    const [activeTool, setActiveTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen');
-    const [drawColor, setDrawColor] = useState('#FF0000');
-    const [drawSize, setDrawSize] = useState(3);
+    const [drawingMode, setDrawingMode] = usePersisted('drawingMode', false);
+    const [activeTool, setActiveTool] = usePersisted<'pen' | 'highlighter' | 'eraser'>('activeTool', 'pen');
+    const [drawColor, setDrawColor] = usePersisted('drawColor', '#FF0000');
+    const [drawSize, setDrawSize] = usePersisted('drawSize', 3);
     const isDrawing = useRef(false);
     const lastPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -1569,6 +1703,24 @@ export default function BlackboardPage() {
 
     const undoStack = useRef<ImageData[]>([]);
     const redoStack = useRef<ImageData[]>([]);
+
+    // Restores whatever was drawn before this page was navigated away from (or
+    // the tab was refreshed) — the canvas element itself is brand new after
+    // remount, so its pixels need to be painted back in from the snapshot
+    // saved in blackboardMemory. Keyed by name+type rather than doc.url,
+    // since "From Computer" docs get a brand new blob: URL every reload.
+    useEffect(() => {
+        if (!drawingMode || !canvasRef.current || !doc) return;
+        const saved = blackboardMemory[`canvasSnapshot_${doc.name}_${doc.type}`] as string | undefined;
+        if (!saved) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        const img = new window.Image();
+        img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+        img.src = saved;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [drawingMode, doc?.name, doc?.type]);
 
     useEffect(() => {
         import('react-pdf').then(({ pdfjs }) => {
@@ -1582,6 +1734,7 @@ export default function BlackboardPage() {
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
             if (isPageJumpFocused) return; // don't hijack arrow keys while typing a page number
+            if (imageViewerActive) return; // an AI Scan image is expanded — it owns Left/Right for now
             if (e.key === 'ArrowRight') setCurrentPage(p => Math.min(totalPages, p + 1));
             if (e.key === 'ArrowLeft') setCurrentPage(p => Math.max(1, p - 1));
         };
@@ -1741,6 +1894,7 @@ export default function BlackboardPage() {
         redoStack.current.push(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
         const prev = undoStack.current.pop()!;
         ctx.putImageData(prev, 0, 0);
+        saveCanvasSnapshot();
     };
 
     const redo = () => {
@@ -1749,9 +1903,21 @@ export default function BlackboardPage() {
         undoStack.current.push(ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height));
         const next = redoStack.current.pop()!;
         ctx.putImageData(next, 0, 0);
+        saveCanvasSnapshot();
+    };
+
+    // Drawings live only as pixels on the <canvas> DOM node, which gets torn
+    // down whenever this page unmounts (navigating away) or the tab reloads.
+    // Snapshotting to a dataURL after every change and keying it by the
+    // doc's name+type (not its blob: URL, which changes every reload) means
+    // the restore effect above can paint it straight back afterwards.
+    const saveCanvasSnapshot = () => {
+        if (!canvasRef.current || !doc) return;
+        setBlackboardValue(`canvasSnapshot_${doc.name}_${doc.type}`, canvasRef.current.toDataURL());
     };
 
     const stopDraw = () => {
+        if (isDrawing.current) saveCanvasSnapshot();
         isDrawing.current = false;
         lastPos.current = null;
     };
@@ -1760,6 +1926,7 @@ export default function BlackboardPage() {
         if (!canvasRef.current) return;
         const ctx = canvasRef.current.getContext('2d')!;
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        saveCanvasSnapshot();
     };
 
     const handleDividerMouseDown = (e: React.MouseEvent) => {
@@ -1817,30 +1984,60 @@ export default function BlackboardPage() {
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="relative">
+                            <div className="relative group">
                                 <button onClick={() => setShowLoadMenu(v => !v)}
                                     className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
                                     style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                     <Upload size={14} /> Load Document <ChevronDown size={11} />
                                 </button>
+                                {!showLoadMenu && (
+                                    <SupportedTypesTooltip types={SUPPORTED_TYPES_COMPUTER} className="bottom-full mb-2 right-0" />
+                                )}
                                 <AnimatePresence>
                                     {showLoadMenu && (
                                         <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
                                             transition={{ duration: 0.15 }}
                                             className="absolute right-0 top-10 z-50 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[180px]">
-                                            <button onClick={() => { router.push('/teacher/blackboard/storage'); setShowLoadMenu(false); }}
-                                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs hover:bg-muted transition-colors">
-                                                <FolderOpen size={14} className="text-amber-500" /> From Storage
-                                            </button>
-                                            <button onClick={() => { fileInputRef.current?.click(); setShowLoadMenu(false); }}
-                                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs hover:bg-muted transition-colors">
-                                                <Upload size={14} className="text-primary" /> From Computer
-                                            </button>
+                                            <div className="relative group/item">
+                                                <button onClick={() => { router.push('/teacher/blackboard/storage'); setShowLoadMenu(false); }}
+                                                    className="w-full flex items-center gap-2 px-3 py-2.5 text-xs hover:bg-muted transition-colors">
+                                                    <FolderOpen size={14} className="text-amber-500" /> From Storage
+                                                </button>
+                                                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 flex items-center gap-3 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/10 shadow-xl opacity-0 group-hover/item:opacity-100 transition-opacity duration-150 pointer-events-none whitespace-nowrap z-50">
+                                                    {SUPPORTED_TYPES_STORAGE.map(({ icon: Icon, label, color }) => (
+                                                        <span key={label} className="flex items-center gap-1.5 text-[10px] font-medium text-white/70">
+                                                            <Icon size={16} style={{ color }} /> {label}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            <div className="relative group/item">
+                                                <button onClick={() => { fileInputRef.current?.click(); setShowLoadMenu(false); }}
+                                                    className="w-full flex items-center gap-2 px-3 py-2.5 text-xs hover:bg-muted transition-colors">
+                                                    <Upload size={14} className="text-primary" /> From Computer
+                                                </button>
+                                                <div className="absolute right-full mr-2 top-1/2 -translate-y-1/2 flex items-center gap-3 px-3 py-1.5 rounded-lg bg-zinc-900 border border-white/10 shadow-xl opacity-0 group-hover/item:opacity-100 transition-opacity duration-150 pointer-events-none whitespace-nowrap z-50">
+                                                    {SUPPORTED_TYPES_COMPUTER.map(({ icon: Icon, label, color }) => (
+                                                        <span key={label} className="flex items-center gap-1.5 text-[10px] font-medium text-white/70">
+                                                            <Icon size={16} style={{ color }} /> {label}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                            {doc && (
+                                                <>
+                                                    <div className="h-px bg-border/60 my-1" />
+                                                    <button onClick={() => { handleUnloadDocument(); setShowLoadMenu(false); }}
+                                                        className="w-full flex items-center gap-2 px-3 py-2.5 text-xs hover:bg-muted transition-colors text-red-500">
+                                                        <X size={14} /> Unload Document
+                                                    </button>
+                                                </>
+                                            )}
                                         </motion.div>
                                     )}
                                 </AnimatePresence>
                             </div>
-                            <input ref={fileInputRef} type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.svg" className="hidden" onChange={handleFileUpload} />
+                            <input ref={fileInputRef} type="file" accept=".pdf,.ppt,.pptx,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp,.svg,.mp4,.webm,.mov,.mkv,.m4v,video/*" className="hidden" onChange={handleFileUpload} />
                         </div>
                     </div>
                     <div className="h-px bg-border/60 mt-2" />
@@ -1863,7 +2060,7 @@ export default function BlackboardPage() {
                         animate={{ opacity: showControls ? 1 : 0 }}
                         transition={{ duration: 0.3 }}
                         onClick={toggleFullscreen}
-                        className="absolute top-3 right-3 z-20 w-8 h-8 rounded-xl flex items-center justify-center text-white/70 hover:text-white border border-white/10 transition-colors"
+                        className="absolute bottom-3 left-3 z-20 w-8 h-8 rounded-xl flex items-center justify-center text-white/70 hover:text-white border border-white/10 transition-colors"
                         style={{ background: 'rgba(0,0,0,0.6)' }}>
                         {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                     </motion.button>
@@ -1878,7 +2075,7 @@ export default function BlackboardPage() {
                             </div>
                             <div>
                                 <p className="text-sm font-semibold text-white/70">No document loaded</p>
-                                <p className="text-xs text-white/40 mt-1">Upload a PDF, PPT, or Word document to start</p>
+                                <p className="text-xs text-white/40 mt-1">Upload a PDF, PPT, Word document, or video to start</p>
                             </div>
                         </div>
                     ) : (
@@ -1900,9 +2097,7 @@ export default function BlackboardPage() {
                                         }}>
                                         {pageSelectMode && (
                                             <button
-                                                onClick={() => setActiveSelectedPages(prev =>
-                                                    prev.includes(currentPage) ? prev.filter(p => p !== currentPage) : [...prev, currentPage]
-                                                )}
+                                                onClick={() => toggleActivePage(currentPage)}
                                                 className="absolute top-7 left-7 z-20 w-5 h-5 rounded-full shrink-0 transition-all hover:scale-110"
                                                 style={activeSelectedPages.includes(currentPage)
                                                     ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }
@@ -1967,6 +2162,7 @@ export default function BlackboardPage() {
                                                                 const scaleH = viewerRef.current.clientHeight / page.originalHeight;
                                                                 setScale(Math.min(scaleW, scaleH) * 0.92);
                                                                 initialScaleSet.current = true;
+                                                                setBlackboardValue('initialScaleSet', true);
                                                             }
                                                         }}
                                                     />
@@ -2009,6 +2205,15 @@ export default function BlackboardPage() {
                                                 alt={doc.name}
                                                 className="max-w-full max-h-full object-contain"
                                                 style={{ transform: `rotate(${rotation}deg) scale(${scale})` }}
+                                            />
+                                        )}
+
+                                        {renderer === 'video' && (
+                                            <video
+                                                key={doc.url}
+                                                src={doc.url}
+                                                controls
+                                                className="max-w-full max-h-full"
                                             />
                                         )}
 
@@ -2158,9 +2363,7 @@ export default function BlackboardPage() {
                                                     <>
                                                         <div className="w-px h-4 bg-white/10 shrink-0" />
                                                         <button
-                                                            onClick={() => setActiveSelectedPages(prev =>
-                                                                prev.includes(currentPage) ? prev.filter(p => p !== currentPage) : [...prev, currentPage]
-                                                            )}
+                                                            onClick={() => toggleActivePage(currentPage)}
                                                             className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-semibold transition-all shrink-0"
                                                             style={activeSelectedPages.includes(currentPage)
                                                                 ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)', color: '#fff' }
@@ -2274,9 +2477,14 @@ export default function BlackboardPage() {
                                         doc={doc ? { url: doc.url, type: doc.type } : null}
                                         totalPages={totalPages}
                                         selectedPages={selectedScanPages}
-                                        onTogglePage={(page) => setSelectedScanPages(prev =>
-                                            prev.includes(page) ? prev.filter(p => p !== page) : [...prev, page]
-                                        )}
+                                        onTogglePage={(page) => setSelectedScanPages(prev => {
+                                            if (prev.includes(page)) return prev.filter(p => p !== page);
+                                            if (prev.length >= MAX_SELECTABLE_PAGES) {
+                                                toast.error(`You can select up to ${MAX_SELECTABLE_PAGES} pages at a time`);
+                                                return prev;
+                                            }
+                                            return [...prev, page];
+                                        })}
                                         onScanStart={() => setIsScanningPages(true)}
                                         onScanEnd={() => setIsScanningPages(false)}
                                         onNavigateToPage={setCurrentPage}
@@ -2298,9 +2506,14 @@ export default function BlackboardPage() {
                                         doc={doc ? { url: doc.url, type: doc.type } : null}
                                         totalPages={totalPages}
                                         selectedPages={selectedQuizPages}
-                                        onTogglePage={(page) => setSelectedQuizPages(prev =>
-                                            prev.includes(page) ? prev.filter(p => p !== page) : [...prev, page]
-                                        )}
+                                        onTogglePage={(page) => setSelectedQuizPages(prev => {
+                                            if (prev.includes(page)) return prev.filter(p => p !== page);
+                                            if (prev.length >= MAX_SELECTABLE_PAGES) {
+                                                toast.error(`You can select up to ${MAX_SELECTABLE_PAGES} pages at a time`);
+                                                return prev;
+                                            }
+                                            return [...prev, page];
+                                        })}
                                         onNavigateToPage={setCurrentPage}
                                     />
                                 )}

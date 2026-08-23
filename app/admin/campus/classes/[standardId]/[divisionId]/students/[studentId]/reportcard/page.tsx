@@ -21,8 +21,29 @@ interface ReportGradedSubject { id: string; name: string; term1Grade: string | n
 // Fallback shape — the lightweight per-student summary endpoint (same one
 // StudentProfileView's Subject Performance chart already uses successfully).
 // No per-exam columns, no graded-subjects section, but real scored data.
-interface SimpleSubject { id: string; name: string; code: string; color: string | null; total: { scored: number; max: number }; pct: number | null; grade: string; }
-interface SimpleMarksheet { subjects: SimpleSubject[]; grandPct: number | null; classRank: number | null; classSize: number | null; }
+interface OnlineTestColumn { id: string; name: string; maxMarks: number; score: number | null; isAbsent: boolean; }
+interface SimpleSubject {
+    id: string; name: string; code: string; color: string | null;
+    total: { scored: number; max: number }; pct: number | null; grade: string;
+    // Live-computed online marks — same source the online marksheet tab and
+    // leaderboard read from, no publish step of its own.
+    onlineTotal: { scored: number; max: number }; onlinePct: number | null; onlineGrade: string;
+    // Per-test breakdown (which tests, what mark each) — same as the
+    // student's own report card shows in its Online tab.
+    onlineColumns: OnlineTestColumn[];
+}
+interface SimpleMarksheet {
+    subjects: SimpleSubject[]; grandPct: number | null; classRank: number | null; classSize: number | null;
+    onlineGrandTotal: { scored: number; max: number }; onlineGrandPct: number | null; onlineGrade: string;
+    onlineClassRank: number | null; combinedClassRank: number | null; combinedGrandPct: number | null;
+    // Same Graded Subjects / Conduct / Remarks section the student's own
+    // report card shows — so this fallback source (used whenever the
+    // class-wide grid isn't available) doesn't silently drop it.
+    gradeScale: { grade: string; minPct: number }[];
+    gradedSubjects: ReportGradedSubject[];
+    conduct: string | null;
+    remarks: string | null;
+}
 
 // Must match useMarksheet.ts's getAcademicYear() exactly (plain hyphen, not en dash) —
 // this string is used as an API query param and has to match what the marksheet
@@ -57,12 +78,22 @@ function scoreColor(pct: number | null) {
     return '#DC2626';
 }
 
+// Same fallback the student's own report card uses when an institution
+// hasn't set a custom grade scale (gradeScale === []) — without this, every
+// grade fell through to the "unknown" gray instead of the green→red ramp.
+const DEFAULT_GRADE_SCALE: { grade: string; minPct: number }[] = [
+    { grade: 'A', minPct: 75 },
+    { grade: 'B', minPct: 60 },
+    { grade: 'C', minPct: 45 },
+    { grade: 'D', minPct: 35 },
+    { grade: 'F', minPct: 0 },
+];
 const GRADE_COLOR_RAMP = ['#059669', '#16A34A', '#65A30D', '#CA8A04', '#D97706', '#EA580C', '#DC2626', '#B91C1C', '#991B1B'];
 function gradeColor(g: string | null, scale: { grade: string; minPct: number }[]) {
     if (!g) return '#94A3B8';
-    const sorted = [...scale].sort((a, b) => b.minPct - a.minPct);
+    const sorted = scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE;
     const rank = sorted.findIndex(e => e.grade.toUpperCase() === g.toUpperCase());
-    if (rank === -1 || sorted.length === 0) return '#94A3B8';
+    if (rank === -1) return '#94A3B8';
     if (sorted.length <= 1) return GRADE_COLOR_RAMP[0];
     const idx = Math.round((rank / (sorted.length - 1)) * (GRADE_COLOR_RAMP.length - 1));
     return GRADE_COLOR_RAMP[idx];
@@ -108,25 +139,26 @@ export default function AdminStudentReportCardPage() {
             })
             .catch(err => console.error('reportcard: failed to load students list', err));
 
+        // Summary source — the only one with online marks (the rich per-exam-column
+        // grid below is offline-only), and also the fallback for the offline tab
+        // when the class-wide marksheet grid isn't initialized/published. Fetched
+        // unconditionally (not just as a fallback) so the Online tab always has
+        // data regardless of whether the rich grid loads.
+        const simplePromise = api.get(`/admin/campus/divisions/${divisionId}/students/${studentId}/marksheet`)
+            .then(res => { if (!cancelled) setSimpleData(res.data.data); })
+            .catch(err => { console.error('reportcard: summary marksheet failed', err); if (!cancelled) setNotPublished(true); });
+
         // Rich, per-exam-column source (same as student's own /student/marksheet).
-        getAdminMarksheet(divisionId, academicYear)
-            .then(marksheet => {
-                if (cancelled) return;
-                if (marksheet) { setClassData(marksheet); return; }
-                // Class-wide marksheet not initialized/published for this academic year —
-                // fall back to the lightweight per-student summary (already proven to work
-                // in the Profile tab's Subject Performance section).
-                return api.get(`/admin/campus/divisions/${divisionId}/students/${studentId}/marksheet`)
-                    .then(res => { if (!cancelled) setSimpleData(res.data.data); })
-                    .catch(err => { console.error('reportcard: fallback summary marksheet failed', err); if (!cancelled) setNotPublished(true); });
-            })
-            .catch(err => {
-                console.error('reportcard: class marksheet fetch errored', err);
-                return api.get(`/admin/campus/divisions/${divisionId}/students/${studentId}/marksheet`)
-                    .then(res => { if (!cancelled) setSimpleData(res.data.data); })
-                    .catch(err2 => { console.error('reportcard: fallback summary marksheet failed', err2); if (!cancelled) setNotPublished(true); });
-            })
-            .finally(() => { if (!cancelled) setLoading(false); });
+        // publishedOnly: this is a read-only report-card VIEW, not the score-entry
+        // UI (which also calls getAdminMarksheet, but needs live/editable data) —
+        // so here we ask the backend for the frozen publish-time snapshot instead,
+        // same as the student sees on their own dashboard. Live, not-yet-republished
+        // score edits must stay invisible here until Publish/Re-publish happens again.
+        const richPromise = getAdminMarksheet(divisionId, academicYear, { publishedOnly: true })
+            .then(marksheet => { if (!cancelled && marksheet) setClassData(marksheet); })
+            .catch(err => console.error('reportcard: class marksheet fetch errored', err));
+
+        Promise.all([simplePromise, richPromise]).then(() => { if (!cancelled) setLoading(false); });
 
         return () => { cancelled = true; };
     }, [divisionId, studentId]);
@@ -170,6 +202,19 @@ export default function AdminStudentReportCardPage() {
         return simpleData?.classRank ?? null;
     }, [classData, subjects, studentId, simpleData]);
 
+    // Name-card "Class Rank" / "Overall" show the combined (offline + online
+    // pooled) figures — matching StudentProfileView's fixed "Overall" tile and
+    // the student's own report card name card, not the offline-only numbers
+    // used inside the offline tab's own Grand Total row above.
+    const overallRank = simpleData?.combinedClassRank ?? null;
+    // Computed client-side from grandTotal (already reliable, drives the
+    // offline table above) + onlineGrandTotal (already reliable, drives the
+    // online tab) rather than trusting simpleData.combinedGrandPct directly,
+    // since that field can be missing on older/cached API responses.
+    const combinedMax = grandTotal.max + (simpleData?.onlineGrandTotal.max ?? 0);
+    const combinedScored = grandTotal.scored + (simpleData?.onlineGrandTotal.scored ?? 0);
+    const overallPct = combinedMax > 0 ? Math.round((combinedScored / combinedMax) * 100) : null;
+
     const uniqueColNames = useMemo(() => {
         const seen = new Set<string>();
         const cols: { name: string; maxMarks: number }[] = [];
@@ -185,6 +230,51 @@ export default function AdminStudentReportCardPage() {
 
     const hasRich = !!classData;
     const hasSimple = !hasRich && !!simpleData;
+
+    // Same Graded Subjects / Conduct / Remarks section the student's own
+    // report card shows — sourced from whichever data source is active so
+    // this page never silently drops it (previously only the rich per-exam
+    // grid branch showed it at all).
+    const activeGradedSubjects: ReportGradedSubject[] = hasRich ? gradedSubjects : (simpleData?.gradedSubjects ?? []);
+    const activeGradeScale = hasRich ? (classData?.gradeScale ?? []) : (simpleData?.gradeScale ?? []);
+    const activeConduct = hasRich ? (classData?.remarks[studentId]?.conduct ?? null) : (simpleData?.conduct ?? null);
+    const activeRemarksText = hasRich ? (classData?.remarks[studentId]?.remarks ?? null) : (simpleData?.remarks ?? null);
+
+    // Wrapped in a sticky-top div so the header stays pinned for the full
+    // scroll range of the (taller) main table — sticky can't stick beyond its
+    // own box's bounds, and this table is short, so stickying just the
+    // <thead> isn't enough. Making the whole table sticky uses the shared
+    // flex row (as tall as the main table) as its containing block instead.
+    const gradedSubjectsTable = activeGradedSubjects.length > 0 && (
+        <div className="shrink-0" style={{ position: 'sticky', top: 0, alignSelf: 'flex-start' }}>
+        <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: '#2A1F10' }}>
+            <thead>
+                <tr>
+                    <th className="sticky top-0 left-0 z-40 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-bold whitespace-nowrap min-w-[120px]">Graded Subjects</th>
+                    <th className="sticky top-0 z-30 bg-[#EDE4D6] border border-[#D8C4A0] px-4 py-1.5 text-center font-semibold whitespace-nowrap min-w-[80px]">Term 1</th>
+                    <th className="sticky top-0 z-30 bg-[#EDE4D6] border border-[#D8C4A0] px-4 py-1.5 text-center font-semibold whitespace-nowrap min-w-[80px]">Term 2</th>
+                </tr>
+            </thead>
+            <tbody>
+                {activeGradedSubjects.map(gs => (
+                    <tr key={gs.id}>
+                        <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap">{gs.name}</td>
+                        <td className="border border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold">
+                            {gs.term1Grade
+                                ? <span style={{ color: gradeColor(gs.term1Grade, activeGradeScale) }}>{gs.term1Grade}</span>
+                                : <span style={{ color: '#C8B89A' }}>—</span>}
+                        </td>
+                        <td className="border border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold">
+                            {gs.term2Grade
+                                ? <span style={{ color: gradeColor(gs.term2Grade, activeGradeScale) }}>{gs.term2Grade}</span>
+                                : <span style={{ color: '#C8B89A' }}>—</span>}
+                        </td>
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+        </div>
+    );
 
     if (loading) {
         return (
@@ -245,12 +335,12 @@ export default function AdminStudentReportCardPage() {
                         <p className="text-[10px] text-muted-foreground mt-0.5">Roll No. {rollNo}</p>
                     </div>
                     <div className="text-center px-3 py-2 rounded-xl border border-amber-400/30 bg-amber-400/5 w-full">
-                        <p className="text-[18px] font-black text-amber-500">{rank !== null ? `#${rank}` : '—'}</p>
+                        <p className="text-[18px] font-black text-amber-500">{overallRank !== null ? `#${overallRank}` : '—'}</p>
                         <p className="text-[9px] text-muted-foreground">Class Rank</p>
                     </div>
                     <div className="text-center w-full">
-                        <p className="text-[11px] font-black" style={{ color: scoreColor(grandPct) }}>
-                            {grandPct !== null ? `${grandPct}%` : '—'}
+                        <p className="text-[11px] font-black" style={{ color: scoreColor(overallPct) }}>
+                            {overallPct !== null ? `${overallPct}%` : '—'}
                         </p>
                         <p className="text-[9px] text-muted-foreground">Overall</p>
                     </div>
@@ -342,87 +432,165 @@ export default function AdminStudentReportCardPage() {
                                                     <span style={{ color: scoreColor(grandPct) }}>{grandGrade}</span>
                                                 </td>
                                             </tr>
+                                            {activeConduct && (
+                                                <tr>
+                                                    <td className="sticky left-0 z-20 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap align-top">Conduct</td>
+                                                    <td colSpan={uniqueColNames.length + 3} className="border border-[#D8C4A0] px-3 py-1.5 align-top">
+                                                        <span className="block whitespace-pre-wrap break-words" style={{ width: '1px', minWidth: '100%' }}>{activeConduct}</span>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            {activeRemarksText && (
+                                                <tr>
+                                                    <td className="sticky left-0 z-20 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap align-top">Remarks</td>
+                                                    <td colSpan={uniqueColNames.length + 3} className="border border-[#D8C4A0] px-3 py-1.5 italic text-[11px] align-top">
+                                                        <span className="block whitespace-pre-wrap break-words" style={{ width: '1px', minWidth: '100%' }}>{activeRemarksText}</span>
+                                                    </td>
+                                                </tr>
+                                            )}
                                         </tbody>
                                     </table>
 
-                                    {gradedSubjects.length > 0 && (
-                                        <table className="text-[12px] border-separate border-spacing-0 min-w-max shrink-0" style={{ color: '#2A1F10' }}>
-                                            <thead className="sticky top-0 z-30">
-                                                <tr>
-                                                    <th className="sticky left-0 z-40 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-bold whitespace-nowrap min-w-[120px]">Graded Subjects</th>
-                                                    <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-4 py-1.5 text-center font-semibold whitespace-nowrap min-w-[80px]">Term 1</th>
-                                                    <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-4 py-1.5 text-center font-semibold whitespace-nowrap min-w-[80px]">Term 2</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {gradedSubjects.map(gs => (
-                                                    <tr key={gs.id}>
-                                                        <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap">{gs.name}</td>
-                                                        <td className="border border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold">
-                                                            {gs.term1Grade
-                                                                ? <span style={{ color: gradeColor(gs.term1Grade, classData!.gradeScale) }}>{gs.term1Grade}</span>
-                                                                : <span style={{ color: '#C8B89A' }}>—</span>}
-                                                        </td>
-                                                        <td className="border border-[#D8C4A0] px-4 py-1.5 text-center whitespace-nowrap font-semibold">
-                                                            {gs.term2Grade
-                                                                ? <span style={{ color: gradeColor(gs.term2Grade, classData!.gradeScale) }}>{gs.term2Grade}</span>
-                                                                : <span style={{ color: '#C8B89A' }}>—</span>}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    )}
+                                    {gradedSubjectsTable}
                                 </div>
                             ) : (
-                                <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: '#2A1F10' }}>
-                                    <thead className="sticky top-0 z-30">
-                                        <tr>
-                                            <th className="sticky left-0 z-40 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-bold whitespace-nowrap min-w-[130px]">Subjects</th>
-                                            <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[60px]">Total</th>
-                                            <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[52px]">%</th>
-                                            <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[48px]">Grade</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {(simpleData?.subjects ?? []).map(sub => (
-                                            <tr key={sub.id}>
-                                                <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap">
-                                                    <div className="flex items-center gap-1.5">
-                                                        <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
-                                                        {sub.name}
-                                                    </div>
+                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                                    <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: '#2A1F10' }}>
+                                        <thead className="sticky top-0 z-30">
+                                            <tr>
+                                                <th className="sticky left-0 z-40 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-bold whitespace-nowrap min-w-[130px]">Subjects</th>
+                                                <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[60px]">Total</th>
+                                                <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[52px]">%</th>
+                                                <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[48px]">Grade</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {(simpleData?.subjects ?? []).map(sub => (
+                                                <tr key={sub.id}>
+                                                    <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap">
+                                                        <div className="flex items-center gap-1.5">
+                                                            <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
+                                                            {sub.name}
+                                                        </div>
+                                                    </td>
+                                                    <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE]">
+                                                        {sub.total.scored}/{sub.total.max}
+                                                    </td>
+                                                    <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap">
+                                                        {sub.pct !== null && <span style={{ color: scoreColor(sub.pct), fontWeight: 700 }}>{sub.pct}%</span>}
+                                                    </td>
+                                                    <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold">
+                                                        <span style={{ color: scoreColor(sub.pct) }}>{sub.grade}</span>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            <tr>
+                                                <td className="sticky left-0 z-20 bg-[#E8DDD0] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap">Grand Total</td>
+                                                <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#E8DDD0]">
+                                                    {(simpleData?.subjects ?? []).reduce((s, x) => s + x.total.scored, 0)}/{(simpleData?.subjects ?? []).reduce((s, x) => s + x.total.max, 0)}
                                                 </td>
-                                                <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE]">
-                                                    {sub.total.scored}/{sub.total.max}
+                                                <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap bg-[#E8DDD0]">
+                                                    {grandPct !== null && <span style={{ color: scoreColor(grandPct), fontWeight: 700 }}>{grandPct}%</span>}
                                                 </td>
-                                                <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap">
-                                                    {sub.pct !== null && <span style={{ color: scoreColor(sub.pct), fontWeight: 700 }}>{sub.pct}%</span>}
-                                                </td>
-                                                <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold">
-                                                    <span style={{ color: scoreColor(sub.pct) }}>{sub.grade}</span>
+                                                <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
+                                                    <span style={{ color: scoreColor(grandPct) }}>{grandGrade}</span>
                                                 </td>
                                             </tr>
-                                        ))}
-                                        <tr>
-                                            <td className="sticky left-0 z-20 bg-[#E8DDD0] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap">Grand Total</td>
-                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#E8DDD0]">
-                                                {(simpleData?.subjects ?? []).reduce((s, x) => s + x.total.scored, 0)}/{(simpleData?.subjects ?? []).reduce((s, x) => s + x.total.max, 0)}
+                                            {activeConduct && (
+                                                <tr>
+                                                    <td className="sticky left-0 z-20 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap align-top">Conduct</td>
+                                                    <td colSpan={3} className="border border-[#D8C4A0] px-3 py-1.5 align-top">
+                                                        <span className="block whitespace-pre-wrap break-words" style={{ width: '1px', minWidth: '100%' }}>{activeConduct}</span>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                            {activeRemarksText && (
+                                                <tr>
+                                                    <td className="sticky left-0 z-20 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap align-top">Remarks</td>
+                                                    <td colSpan={3} className="border border-[#D8C4A0] px-3 py-1.5 italic text-[11px] align-top">
+                                                        <span className="block whitespace-pre-wrap break-words" style={{ width: '1px', minWidth: '100%' }}>{activeRemarksText}</span>
+                                                    </td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+
+                                    {gradedSubjectsTable}
+                                </div>
+                            )
+                        ) : simpleData && simpleData.subjects.length > 0 ? (
+                            /* Each subject's row lists every completed test by name with its
+                               own mark (as chips) — matches the student's own report card's
+                               Online tab exactly, since different subjects can have very
+                               different numbers/names of tests. */
+                            <table className="text-[12px] border-separate border-spacing-0 min-w-max" style={{ color: '#2A1F10' }}>
+                                <thead className="sticky top-0 z-30">
+                                    <tr>
+                                        <th className="sticky left-0 z-40 bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-bold whitespace-nowrap min-w-[130px]">Subjects</th>
+                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-3 py-1.5 text-left font-semibold whitespace-nowrap min-w-[260px]">Tests & Marks</th>
+                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[60px]">Total</th>
+                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[52px]">%</th>
+                                        <th className="bg-[#EDE4D6] border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap min-w-[48px]">Grade</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {simpleData.subjects.map(sub => (
+                                        <tr key={sub.id}>
+                                            <td className="sticky left-0 z-20 bg-[#FAF5EE] border border-[#D8C4A0] px-3 py-1.5 font-semibold whitespace-nowrap align-top">
+                                                <div className="flex items-center gap-1.5">
+                                                    <div className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
+                                                    {sub.name}
+                                                </div>
                                             </td>
-                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap bg-[#E8DDD0]">
-                                                {grandPct !== null && <span style={{ color: scoreColor(grandPct), fontWeight: 700 }}>{grandPct}%</span>}
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 align-top">
+                                                {sub.onlineColumns.length > 0 ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {sub.onlineColumns.map(c => {
+                                                            const cPct = c.maxMarks > 0 && c.score !== null ? Math.round((c.score / c.maxMarks) * 100) : null;
+                                                            return (
+                                                                <span key={c.id} className="inline-flex items-center gap-1 rounded-md bg-[#EDE4D6] border border-[#D8C4A0] px-1.5 py-0.5 whitespace-nowrap">
+                                                                    <span className="text-[10px] text-[#7A6A55]">{c.name}</span>
+                                                                    {c.isAbsent
+                                                                        ? <span className="text-[10px] font-bold" style={{ color: '#DC2626' }}>Ab</span>
+                                                                        : <span className="text-[10px] font-bold" style={{ color: scoreColor(cPct) }}>{c.score}/{c.maxMarks}</span>}
+                                                                </span>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[#C8B89A]">—</span>
+                                                )}
                                             </td>
-                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
-                                                <span style={{ color: scoreColor(grandPct) }}>{grandGrade}</span>
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#FAF5EE] align-top">
+                                                {sub.onlineTotal.max > 0 ? `${sub.onlineTotal.scored}/${sub.onlineTotal.max}` : '—'}
+                                            </td>
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap align-top">
+                                                {sub.onlinePct !== null && <span style={{ color: scoreColor(sub.onlinePct), fontWeight: 700 }}>{sub.onlinePct}%</span>}
+                                            </td>
+                                            <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold align-top">
+                                                {sub.onlinePct !== null && <span style={{ color: scoreColor(sub.onlinePct) }}>{sub.onlineGrade}</span>}
                                             </td>
                                         </tr>
-                                    </tbody>
-                                </table>
-                            )
+                                    ))}
+                                    <tr>
+                                        <td className="sticky left-0 z-20 bg-[#E8DDD0] border border-[#D8C4A0] px-3 py-1.5 font-bold whitespace-nowrap">Grand Total</td>
+                                        <td className="bg-[#E8DDD0] border border-[#D8C4A0]" />
+                                        <td className="border border-[#D8C4A0] px-2 py-1.5 text-center font-bold whitespace-nowrap bg-[#E8DDD0]">
+                                            {simpleData.onlineGrandTotal.scored}/{simpleData.onlineGrandTotal.max}
+                                        </td>
+                                        <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap bg-[#E8DDD0]">
+                                            {simpleData.onlineGrandPct !== null && <span style={{ color: scoreColor(simpleData.onlineGrandPct), fontWeight: 700 }}>{simpleData.onlineGrandPct}%</span>}
+                                        </td>
+                                        <td className="border border-[#D8C4A0] px-2 py-1.5 text-center whitespace-nowrap font-semibold bg-[#E8DDD0]">
+                                            {simpleData.onlineGrandPct !== null && <span style={{ color: scoreColor(simpleData.onlineGrandPct) }}>{simpleData.onlineGrade}</span>}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         ) : (
                             <div className="flex flex-col items-center justify-center h-full min-h-[200px] gap-2 text-muted-foreground p-8">
-                                <p className="text-sm font-medium">Online results not yet available</p>
-                                <p className="text-[11px] opacity-60">Online exam module is coming soon</p>
+                                <p className="text-sm font-medium">No online test results yet</p>
+                                <p className="text-[11px] opacity-60">Scores will show once the student completes online tests</p>
                             </div>
                         )}
                     </div>
