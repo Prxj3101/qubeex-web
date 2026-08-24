@@ -81,7 +81,7 @@ export default function TeacherNotepad() {
                     createdAt: new Date(created.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
                 }, ...prev]);
             })
-            .catch(() => {});
+            .catch(() => { });
     };
 
     const addTask = () => {
@@ -94,7 +94,7 @@ export default function TeacherNotepad() {
                 const created = res.data.data as { id: string; text: string; done: boolean };
                 setTasks(prev => [...prev, { id: created.id, text: created.text, done: created.done }]);
             })
-            .catch(() => {});
+            .catch(() => { });
     };
 
     const toggleTask = (id: string) => {
@@ -108,11 +108,11 @@ export default function TeacherNotepad() {
     };
     const deleteTask = (id: string) => {
         setTasks(prev => prev.filter(t => t.id !== id));
-        api.delete(`/teacher/notepad/tasks/${id}`).catch(() => {});
+        api.delete(`/teacher/notepad/tasks/${id}`).catch(() => { });
     };
     const deleteNote = (id: string) => {
         setNotes(prev => prev.filter(n => n.id !== id));
-        api.delete(`/teacher/notepad/notes/${id}`).catch(() => {});
+        api.delete(`/teacher/notepad/notes/${id}`).catch(() => { });
     };
 
     const pending = tasks.filter(t => !t.done).length;
@@ -188,7 +188,7 @@ export default function TeacherNotepad() {
                                             const text = editingTaskText;
                                             setTasks(prev => prev.map(t => t.id === task.id ? { ...t, text } : t));
                                             setEditingTaskId(null);
-                                            api.patch(`/teacher/notepad/tasks/${task.id}`, { text }).catch(() => {});
+                                            api.patch(`/teacher/notepad/tasks/${task.id}`, { text }).catch(() => { });
                                         }}
                                             className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
                                             <Check size={9} className="text-white" />
@@ -239,7 +239,7 @@ export default function TeacherNotepad() {
                 {/* Divider */}
                 <div className="h-px w-full sm:h-auto sm:w-px bg-border/40 shrink-0" />
 
-                {/* ── RIGHT — Notes ── */}
+                {/* ─ RIGHT — Notes ── */}
                 <div className="flex-1 flex flex-col min-w-0 min-h-0">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-1.5">
@@ -324,7 +324,7 @@ export default function TeacherNotepad() {
                                                 const text = editingNoteText;
                                                 setNotes(prev => prev.map(n => n.id === note.id ? { ...n, text } : n));
                                                 setEditingNoteId(null);
-                                                api.patch(`/teacher/notepad/notes/${note.id}`, { text }).catch(() => {});
+                                                api.patch(`/teacher/notepad/notes/${note.id}`, { text }).catch(() => { });
                                             }}
                                                 className="w-5 h-5 rounded-full bg-black/20 flex items-center justify-center hover:bg-black/30">
                                                 <Check size={9} style={{ color: colorCfg.text }} />
