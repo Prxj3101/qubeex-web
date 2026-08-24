@@ -16,6 +16,45 @@ const CHARACTERS = [
     '/images/admin6.png',
 ];
 
+const CASUAL_MESSAGES = [
+    "Good morning! ☕ Your institution's engine room awaits.",
+    "GM! 🌅 Somewhere, a fee reminder is waiting to be sent.",
+    "Rise and shine - the timetable isn't going to balance itself.",
+    "Another day, another attendance report to glance at. 📊",
+    "Hope today has fewer 'sir ek minute' interruptions than yesterday.",
+    "Behind every smooth school day is an admin quietly holding it together. 💪",
+    "Coffee first, staff meeting agenda second. ☕",
+    "Today's forecast: 90% paperwork, 10% chaos, 100% you've got this.",
+    "Fun fact: no one notices a well-run school - that's the whole trick.",
+    "May your inbox be light and your fee collections be heavy. 💰",
+    "Somewhere a parent is drafting a WhatsApp message right now. Brace yourself. 😅",
+    "You run the show even when nobody's watching the credits roll.",
+    "Reminder: the staff room gossip is 90% accurate, plan accordingly.",
+    "Today feels like a good day to finally clear that pending leave request pile.",
+    "Behind schedule? So is everyone. You're just more honest about it.",
+    "Every great school has one thing in common - an admin who never sleeps on deadlines.",
+    "Plot twist: today might actually go as planned. Might.",
+    "The bell rings for students. For you, it never really stops. 🔔",
+    "Small tip: a five-minute walk through the corridors tells you more than any report.",
+    "Somewhere, a teacher needs five minutes of your time. Multiply that by twelve.",
+    "Great institutions aren't built in the classroom alone - admin desks matter too.",
+    "Here's hoping today's 'urgent' issues are actually urgent.",
+    "You've survived every Monday so far. Today is no different.",
+    "A well-organized notepad is the closest thing to a superpower you'll get today.",
+    "Somewhere in this building, a fan needs fixing and everyone assumes you already know.",
+    "Today's mission: keep the ship steady, one decision at a time. 🚢",
+    "Remember - the best schools run on decisions nobody sees you make.",
+    "If today gets loud, that's usually a sign things are actually working.",
+    "Admins don't get report cards, but if they did, yours would say 'exceeds expectations'.",
+    "Take a breath before the first knock on your door. It's coming. 😄",
+];
+
+function getCasualMessage() {
+    const today = new Date();
+    const day = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+    return CASUAL_MESSAGES[day % CASUAL_MESSAGES.length];
+}
+
 interface OverviewHeroProps {
     adminName: string;
     institutionName: string;
@@ -88,7 +127,7 @@ export function OverviewHero({ adminName, institutionName, institutionType, admi
                     </p>
                     <SillyStringOverlay name={institutionName} fontSize={30} active={isInstAnniversary} />
                 </div>
-                <p className="text-white/60 text-xs sm:text-sm">Here&apos;s what&apos;s happening at your {accent.label.toLowerCase()} today.</p>
+                <p className="text-white/60 text-xs sm:text-sm">{getCasualMessage()}</p>
                 <p className="text-white/50 text-xs mt-2">{dateStr}{currentTime && <span className="ml-2">·&nbsp; {currentTime}</span>}</p>
             </div>
 
