@@ -31,7 +31,7 @@ function BrandLockup({ hidden, rot }: { hidden: boolean; rot: number }) {
                 initial={false}
                 animate={{ x: hidden ? -100 : 0, opacity: hidden ? 0 : 1 }}
                 transition={{ x: { duration: 0.5, ease: 'easeInOut' }, opacity: { duration: 0.35, ease: 'easeInOut' } }}
-                className="relative z-0 -mt-1.5 leading-none text-[24px] font-bold text-[#FAE5D9]"
+                className="relative z-0 -mt-[5px] leading-none text-[24px] font-bold text-[#FAE5D9]"
                 style={{ fontFamily: 'var(--font-poppins)' }}
             >
                 QubeEx
