@@ -10,6 +10,7 @@ import { EnrollmentGrowthChart } from '@/components/admin/EnrollmentGrowthChart'
 import { PlanUsageCard } from '@/components/admin/PlanUsageCard';
 import { RecentActivityCard } from '@/components/admin/RecentActivityCard';
 import { NotificationsPreviewCard } from '@/components/admin/NotificationsPreviewCard';
+import AdminNotepad from '@/components/admin/AdminNotepad';
 import { Skeleton } from '@/components/ui/skeleton';
 import { WelcomeBanner } from '@/components/admin/WelcomeBanner';
 import { BirthdayBanner } from '@/components/shared/BirthdayBanner';
@@ -141,7 +142,7 @@ export default function AdminOverviewPage() {
 
             <div className="grid grid-cols-1 lg:grid-cols-7 gap-3 items-stretch">
 
-                {/* Graph — 2 cols */}
+                {/* Graph — 3 cols */}
                 <div className="lg:col-span-3">
                     <EnrollmentGrowthChart
                         data={overview.enrollmentGrowth}
@@ -149,46 +150,57 @@ export default function AdminOverviewPage() {
                     />
                 </div>
 
-                {/* AI Tokens — 2 cols */}
-                <div className="lg:col-span-2 bg-card border border-border/50 rounded-xl p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                        <Sparkles size={15} className="text-muted-foreground" />
-                        <p className="text-sm font-medium">AI Token Usage</p>
-                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">Institution pool</span>
-                    </div>
-                    {(() => {
-                        const aiUsed = overview.plan.usage.aiTokens.used;
-                        const aiLimit = overview.plan.usage.aiTokens.limit || 1;
-                        const aiPct = Math.min(100, Math.round((aiUsed / aiLimit) * 100));
-                        return (
-                            <div className="space-y-2">
-                                <div className="flex items-center justify-between">
-                                    <p className="text-lg font-semibold">
-                                        {formatTokens(aiUsed)}
-                                        <span className="text-sm font-normal text-muted-foreground"> / {formatTokens(aiLimit)} tokens</span>
-                                    </p>
-                                    <p className="text-sm font-semibold text-muted-foreground">{aiPct}%</p>
-                                </div>
-                                <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
-                                    <div className="h-full rounded-full transition-all duration-500"
-                                        style={{ width: `${aiPct}%`, background: aiPct > 85 ? '#ef4444' : aiPct > 70 ? '#f59e0b' : 'var(--primary)' }} />
-                                </div>
-                                <p className="text-[11px] text-muted-foreground/60">Shared across all teachers</p>
-                            </div>
-                        );
-                    })()}
-                </div>
-
-                {/* Plan — 1 col */}
-                <div className="lg:col-span-2">
-                    <PlanUsageCard plan={overview.plan} />
+                {/* Notepad — 4 cols */}
+                <div className="lg:col-span-4 h-[390px]">
+                    <AdminNotepad />
                 </div>
 
             </div>
 
-            <div className="flex flex-col gap-3">
-                <RecentActivityCard auditLogs={overview.auditLogs} />
-                <NotificationsPreviewCard tickets={overview.tickets} />
+            <div className="grid grid-cols-1 lg:grid-cols-7 gap-3 items-stretch">
+
+                {/* Left: AI Tokens + Current Plan, stacked — 3 cols */}
+                <div className="lg:col-span-3 flex flex-col gap-3 h-full">
+                    <div className="bg-card border border-border/50 rounded-xl p-5">
+                        <div className="flex items-center gap-2 mb-3">
+                            <Sparkles size={15} className="text-muted-foreground" />
+                            <p className="text-sm font-medium">AI Token Usage</p>
+                            <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">Institution pool</span>
+                        </div>
+                        {(() => {
+                            const aiUsed = overview.plan.usage.aiTokens.used;
+                            const aiLimit = overview.plan.usage.aiTokens.limit || 1;
+                            const aiPct = Math.min(100, Math.round((aiUsed / aiLimit) * 100));
+                            return (
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-lg font-semibold">
+                                            {formatTokens(aiUsed)}
+                                            <span className="text-sm font-normal text-muted-foreground"> / {formatTokens(aiLimit)} tokens</span>
+                                        </p>
+                                        <p className="text-sm font-semibold text-muted-foreground">{aiPct}%</p>
+                                    </div>
+                                    <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
+                                        <div className="h-full rounded-full transition-all duration-500"
+                                            style={{ width: `${aiPct}%`, background: aiPct > 85 ? '#ef4444' : aiPct > 70 ? '#f59e0b' : 'var(--primary)' }} />
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground/60">Shared across all teachers</p>
+                                </div>
+                            );
+                        })()}
+                    </div>
+
+                    <div className="flex-1 min-h-0">
+                        <PlanUsageCard plan={overview.plan} />
+                    </div>
+                </div>
+
+                {/* Right: Recent Activity + Notifications, stacked — 4 cols, matches Notepad width above */}
+                <div className="lg:col-span-4 flex flex-col gap-3 h-full">
+                    <RecentActivityCard auditLogs={overview.auditLogs} />
+                    <NotificationsPreviewCard tickets={overview.tickets} />
+                </div>
+
             </div>
         </div>
     );

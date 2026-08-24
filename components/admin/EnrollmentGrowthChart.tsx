@@ -18,8 +18,8 @@ export function EnrollmentGrowthChart({ data, institutionType }: EnrollmentGrowt
     const accent = getInstitutionAccent(institutionType);
 
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5 h-full w-full overflow-hidden">
-            <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5 h-full w-full overflow-hidden flex flex-col">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-4 shrink-0">
                 <div className="flex items-center gap-2">
                     <TrendingUp size={15} className="text-muted-foreground" />
                     <p className="text-sm font-medium">Enrollment growth</p>
@@ -35,7 +35,7 @@ export function EnrollmentGrowthChart({ data, institutionType }: EnrollmentGrowt
                     </span>
                 </div>
             </div>
-            <ResponsiveContainer width="100%" height={180}>
+            <ResponsiveContainer width="100%" height="100%" className="flex-1 min-h-0">
                 <ComposedChart data={data} margin={{ top: 8, right: 0, left: -20, bottom: 0 }}>
                     <CartesianGrid vertical={false} stroke="hsl(var(--border))" strokeOpacity={0.4} />
                     <XAxis
