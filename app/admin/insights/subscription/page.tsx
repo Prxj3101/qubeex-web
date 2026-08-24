@@ -137,16 +137,6 @@ const formatBillDate = (iso: string | null) => {
     });
 };
 
-const PRICING_TIERS: Record<'PRO' | 'BASIC', { min: number; max: number; rate: number }[]> = {
-    PRO: [
-        { min: 200, max: Infinity, rate: 39 },
-    ],
-    BASIC: [
-        { min: 200, max: Infinity, rate: 29 },
-    ],
-};
-
-
 // ─── Sub-components ───────────────────────────────────────────────────────────
 const fadeUp = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.35 } };
 
@@ -237,13 +227,26 @@ export default function SubscriptionPage() {
     const storageLimit = overview?.plan.usage.storage.limit ?? (config.storageLimit * 1024);
     const storagePct = storageLimit ? Math.min(100, (usedStorage / storageLimit) * 100) : 0;
 
-    const tiers = PRICING_TIERS[currentPlan];
     const billedUsers = overview?.plan.billedUsers ?? 200;
-    // Always use the current flat per-user rate (BASIC ₹29 / PRO ₹39) — ignore any stale
-    // perUserRate/estMonthlyBill the backend may still be sending from the old tiered pricing.
-    // Trial plans aren't billed at all, so both are forced to 0 regardless of user count.
-    const currentRate = isTrial ? 0 : (tiers.find((t) => billedUsers >= t.min && billedUsers <= t.max)?.rate ?? tiers[0].rate);
-    const monthlyBill = isTrial ? 0 : billedUsers * currentRate;
+    const planOption = overview?.plan.planOption ?? 'NORMAL';
+    // Real marginal-bracket structure (mirrors backend PLAN_BASE_RATES) — first
+    // 1500 users at the base rate, users beyond that at the lower marginal rate.
+    const committedMultiplier = planOption === 'COMMITTED' ? 0.85 : 1;
+    const tiers: { min: number; max: number; rate: number }[] = currentPlan === 'PRO'
+        ? [
+            { min: 200, max: 1499, rate: Math.round(39 * committedMultiplier) },
+            { min: 1500, max: Infinity, rate: Math.round(33 * committedMultiplier) },
+        ]
+        : [
+            { min: 200, max: 1499, rate: Math.round(29 * committedMultiplier) },
+            { min: 1500, max: Infinity, rate: Math.round(24 * committedMultiplier) },
+        ];
+    // Backend computes the real marginal-bracket rate (first 1500 users at base
+    // rate, the rest at the lower marginal rate) plus the Committed discount if
+    // applicable — trust it as the single source of truth instead of
+    // recomputing a flat rate here that can't reflect either of those.
+    const currentRate = isTrial ? 0 : (overview?.plan.perUserRate ?? 0);
+    const monthlyBill = isTrial ? 0 : (overview?.plan.estMonthlyBill ?? 0);
 
     // Current billing cycle window (calendar month, IST) — bills generate on the last day.
     const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
@@ -516,7 +519,7 @@ export default function SubscriptionPage() {
                                             <span className="text-muted-foreground">Users</span>
                                             {!isTrial && (
                                                 <span className="text-[11px] font-medium text-violet-500 dark:text-violet-400">
-                                                    (min. {config.userMin} | ₹{currentPlan === 'PRO' ? 39 : 29}/user per month)
+                                                    (min. {config.userMin} | ₹{currentRate}/user per month)
                                                 </span>
                                             )}
                                         </div>

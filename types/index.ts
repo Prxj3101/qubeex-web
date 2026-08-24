@@ -84,6 +84,7 @@ export interface AdminOverview {
         perUserRate: number;
         billedUsers: number;
         estMonthlyBill: number;
+        planOption?: 'NORMAL' | 'COMMITTED';
         usage: {
             users: { used: number; limit: number };
             storage: { used: number; limit: number };

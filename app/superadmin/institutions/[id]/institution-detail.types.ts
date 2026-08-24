@@ -84,6 +84,7 @@ export type InstData = {
     trialDays?: number | null;
     trialOutcome?: string | null;
     planOption?: string | null;
+    commitmentEndDate?: string | null;
   } | null;
 };
 

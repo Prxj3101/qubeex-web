@@ -51,6 +51,7 @@ import {
   Cpu,
   FlaskConical,
   ArrowUpRight,
+  TrendingUp,
 } from "lucide-react";
 import { Institution } from "@/types";
 import api from "@/lib/api";
@@ -1119,11 +1120,12 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
   const [tokenPricePer10k, setTokenPricePer10k] = useState<number | "">("");
   const [tokenAdded, setTokenAdded] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<
-    "deactivate" | "upgrade" | "downgrade" | "enable_addon" | null
+    "deactivate" | "upgrade" | "downgrade" | "enable_addon" | "switch_plan_option" | null
   >(null);
   const [upgradePaid, setUpgradePaid] = useState(false);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [downgradeLoading, setDowngradeLoading] = useState(false);
+  const [switchingPlanOption, setSwitchingPlanOption] = useState(false);
   const [upgradeDate, setUpgradeDate] = useState<Date | null>(null);
   const [upgradeModalTab, setUpgradeModalTab] = useState<"current" | "after">(
     "current",
@@ -1291,10 +1293,18 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
   const planBase = plan !== "TRIAL" ? PLAN_BASE[plan] : PLAN_BASE.BASIC;
   const monthlyBill = getMarginalMonthlyBill(activeUsers, planBase.baseRate, planBase.marginalRate, planOption);
   const effectiveRate = getEffectiveRate(activeUsers, planBase.baseRate, planBase.marginalRate, planOption);
-  // For display: base rate (standard per-user label)
-  const currentRate = plan !== "TRIAL" ? planBase.baseRate : 0;
   const today = new Date();
-  const nextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  // "Est. next bill" must match what generateMonthlyBills will actually charge —
+  // prorated for mid-month activation, same day-count formula reused from the
+  // real billing run (daysInMonth - activationDay + 1, only within the
+  // activation month; full month otherwise). Doesn't attempt to replicate the
+  // rarer mid-month-reactivation case — that's still correctly prorated server-side.
+  const isActivationMonth =
+    activationDate.getFullYear() === today.getFullYear() && activationDate.getMonth() === today.getMonth();
+  const daysInCurrentMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const proratedMonthlyBill = isActivationMonth
+    ? Math.round((monthlyBill / daysInCurrentMonth) * (daysInCurrentMonth - activationDate.getDate() + 1))
+    : monthlyBill;
   const canActivate = plan === "TRIAL" || licencePaid;
 
   const handleActivate = async () => {
@@ -1509,8 +1519,10 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
     const currentMonthItems: BillItem[] = [
       {
         label: "Monthly User Bill",
-        desc: `${billedUsers} users × ${fmt(currentRate)}/user`,
-        amount: monthlyBill,
+        desc: isActivationMonth
+          ? `${billedUsers} users × ${fmt(effectiveRate)}/user, prorated from ${activationDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}`
+          : `${billedUsers} users × ${fmt(effectiveRate)}/user`,
+        amount: proratedMonthlyBill,
         type: "base",
       },
       ...(storageAdded
@@ -1574,7 +1586,10 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                 {plan}
               </h2>
               <p className="text-sm text-muted-foreground mt-0.5">
-                {instType} · Monthly Billing · {fmt(currentRate)}/user
+                {instType} · {planOption === "COMMITTED" ? "Committed" : "Normal"} Billing · {fmt(effectiveRate)}/user
+                {planOption === "COMMITTED" && (
+                  <span className="text-emerald-600 dark:text-emerald-400 font-medium"> ({Math.round(COMMITTED_DISCOUNT * 100)}% off)</span>
+                )}
               </p>
 
               {/* Dates */}
@@ -1589,6 +1604,18 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                     })}
                   </span>
                 </span>
+                {planOption === "COMMITTED" && inst.subscription?.commitmentEndDate && (
+                  <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                    <CalendarIcon size={11} /> Committed until:{" "}
+                    <span className="font-medium text-foreground ml-1">
+                      {new Date(inst.subscription.commitmentEndDate).toLocaleDateString("en-IN", {
+                        day: "2-digit",
+                        month: "short",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </span>
+                )}
                 {upgradeDate && (
                   <span className="text-[11px] text-muted-foreground flex items-center gap-1">
                     <Zap size={11} className="text-[#DA7756]" /> Upgraded to
@@ -1621,6 +1648,13 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                   <Zap size={13} /> Upgrade to Pro
                 </button>
               )}
+              <button
+                onClick={() => setConfirmDialog("switch_plan_option")}
+                className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400 hover:opacity-80 transition-all"
+              >
+                <TrendingUp size={13} />
+                {planOption === "COMMITTED" ? "Switch to Normal" : "Switch to Committed"}
+              </button>
               {plan === "PRO" && (
                 <button
                   onClick={() => setConfirmDialog("downgrade")}
@@ -1721,13 +1755,13 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
               />
               <InfoBox
                 label="Current Rate"
-                value={fmt(currentRate)}
+                value={fmt(effectiveRate)}
                 sub="per user / month"
               />
               <InfoBox
                 label="Next Bill"
-                value={fmt(monthlyBill + addonBill)}
-                sub={nextMonth.toLocaleDateString("en-IN")}
+                value={fmt(proratedMonthlyBill + addonBill)}
+                sub={`generates ${new Date(today.getFullYear(), today.getMonth() + 1, 0).toLocaleDateString("en-IN")}`}
                 highlight
               />
             </div>
@@ -1771,7 +1805,8 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
               <p className="text-[11px] text-violet-600 dark:text-violet-400">
                 💡 Minimum 200 users billed per month. Current active:{" "}
                 {activeUsers} users — billed as {billedUsers} users.{" "}
-                {fmt(monthlyBill)} est. next bill.
+                {fmt(proratedMonthlyBill)} est. next bill
+                {isActivationMonth ? " (prorated for this partial month)" : ""}.
               </p>
             </div>
           </div>
@@ -2697,7 +2732,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                               Monthly rate
                             </span>
                             <span className="font-medium">
-                              ₹{PLAN_BASE.BASIC.baseRate} / ₹{PLAN_BASE.BASIC.marginalRate} (marginal)
+                              ₹{planOption === "COMMITTED" ? Math.round(PLAN_BASE.BASIC.baseRate * (1 - COMMITTED_DISCOUNT)) : PLAN_BASE.BASIC.baseRate} / ₹{planOption === "COMMITTED" ? Math.round(PLAN_BASE.BASIC.marginalRate * (1 - COMMITTED_DISCOUNT)) : PLAN_BASE.BASIC.marginalRate} (marginal)
                             </span>
                           </div>
                           <div className="flex justify-between text-xs">
@@ -3009,7 +3044,10 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                       <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Billing Changes</p>
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">New monthly rate</span>
-                        <span className="font-bold">₹{PLAN_BASE.BASIC.baseRate}/user (+ ₹{PLAN_BASE.BASIC.marginalRate} beyond 1500)</span>
+                        <span className="font-bold">
+                          ₹{planOption === "COMMITTED" ? Math.round(PLAN_BASE.BASIC.baseRate * (1 - COMMITTED_DISCOUNT)) : PLAN_BASE.BASIC.baseRate}/user
+                          (+ ₹{planOption === "COMMITTED" ? Math.round(PLAN_BASE.BASIC.marginalRate * (1 - COMMITTED_DISCOUNT)) : PLAN_BASE.BASIC.marginalRate} beyond 1500)
+                        </span>
                       </div>
                       <div className="flex justify-between text-xs">
                         <span className="text-muted-foreground">Effective from</span>
@@ -3167,6 +3205,69 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                       }}
                     >
                       Yes, Enable & Add to Bill
+                    </button>
+                  </div>
+                </div>
+              ) : confirmDialog === "switch_plan_option" ? (
+                <div className="p-6">
+                  <h3 className="text-base font-bold mb-2">
+                    {planOption === "COMMITTED" ? "🔓 Switch to Normal billing?" : "🔒 Switch to Committed billing?"}
+                  </h3>
+                  <p className="text-sm text-muted-foreground mb-2">
+                    {planOption === "COMMITTED"
+                      ? "Reverts to pay-as-you-go pricing. The 12-month commitment ends immediately."
+                      : `Locks in a 12-month commitment starting today at ${Math.round(COMMITTED_DISCOUNT * 100)}% off the per-user rate. Billing continues for the full term regardless of access state.`}
+                  </p>
+                  <div className="bg-muted/40 rounded-xl p-3 mb-4 space-y-1.5">
+                    <div className="flex justify-between text-xs">
+                      <span className="text-muted-foreground">New effective rate</span>
+                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                        {fmt(getEffectiveRate(activeUsers, planBase.baseRate, planBase.marginalRate, planOption === "COMMITTED" ? "NORMAL" : "COMMITTED"))}/user
+                      </span>
+                    </div>
+                    {planOption !== "COMMITTED" && (
+                      <div className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">Committed until</span>
+                        <span className="font-medium">
+                          {new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toLocaleDateString("en-IN")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 justify-end">
+                    <button
+                      onClick={() => setConfirmDialog(null)}
+                      disabled={switchingPlanOption}
+                      className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all disabled:opacity-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      disabled={switchingPlanOption}
+                      onClick={async () => {
+                        setSwitchingPlanOption(true);
+                        const next = planOption === "COMMITTED" ? "NORMAL" : "COMMITTED";
+                        try {
+                          await api.patch(`/superadmin/institutions/${inst.id}/plan-option`, { planOption: next });
+                          setPlanOption(next);
+                          onPatch?.({
+                            subscription: inst.subscription
+                              ? { ...inst.subscription, planOption: next }
+                              : inst.subscription,
+                          });
+                          await onRefetch?.();
+                          toast.success(`Switched to ${next === "COMMITTED" ? "Committed" : "Normal"} billing`);
+                          setConfirmDialog(null);
+                        } catch (err: unknown) {
+                          toast.error(getErrorMessage(err, "Failed to switch billing mode"));
+                        } finally {
+                          setSwitchingPlanOption(false);
+                        }
+                      }}
+                      className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                      style={{ background: "linear-gradient(135deg, #10B981 0%, #059669 100%)" }}
+                    >
+                      {switchingPlanOption ? "Switching…" : "Yes, Switch"}
                     </button>
                   </div>
                 </div>
@@ -3973,7 +4074,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                       : `${tier.min}–${tier.max} users`}
                   </span>
                   <span className="text-xs font-bold text-muted-foreground">
-                    {fmt(tier.rate)}/user/mo
+                    {fmt(planOption === "COMMITTED" ? Math.round(tier.rate * (1 - COMMITTED_DISCOUNT)) : tier.rate)}/user/mo
                   </span>
                 </div>
               ))}
@@ -3983,13 +4084,16 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
             <InfoBox label="Min. Users" value="200" sub="minimum billed" />
             <InfoBox
               label="Base Rate"
-              value={`${fmt(planPricing.tiers[0].rate)}/user`}
-              sub="200–1499 users"
+              value={`${fmt(getEffectiveRate(200, planBase.baseRate, planBase.marginalRate, planOption))}/user`}
+              sub={planOption === "COMMITTED" ? `200–1499 users · ${Math.round(COMMITTED_DISCOUNT * 100)}% off` : "200–1499 users"}
             />
             <InfoBox
               label="Min. First Bill"
-              value={fmt(200 * planPricing.tiers[0].rate)}
-              sub="minimum amount"
+              value={fmt(Math.round(
+                (getMarginalMonthlyBill(200, planBase.baseRate, planBase.marginalRate, planOption) / daysInCurrentMonth)
+                * (daysInCurrentMonth - today.getDate() + 1)
+              ))}
+              sub={`prorated · ${daysInCurrentMonth - today.getDate() + 1} days left this month`}
               highlight
             />
           </div>
