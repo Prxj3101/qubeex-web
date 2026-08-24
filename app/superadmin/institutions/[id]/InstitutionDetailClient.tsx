@@ -1067,7 +1067,7 @@ function ViewDetailsTab({
   );
 }
 
-function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Omit<Partial<InstData>, "admin"> & { admin?: Partial<AdminUser> }) => void }) {
+function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?: (patch: Omit<Partial<InstData>, "admin"> & { admin?: Partial<AdminUser> }) => void; onRefetch?: () => Promise<void> | void }) {
   const router = useRouter();
   const instType =
     (inst.type as keyof typeof PRICING) in PRICING
@@ -1076,14 +1076,24 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
   const pricing = PRICING[instType];
   const initialPlan =
     (inst.subscription?.plan?.name as "BASIC" | "PRO" | "TRIAL") ?? "BASIC";
-  const [planActive, setPlanActive] = useState(
-    (inst.subscription?.status ?? "") === "ACTIVE",
-  );
+  // Derived directly from the server response on every render — never a local
+  // useState — so Deactivate/Activate always reflect the actual DB state after
+  // a refetch, instead of a snapshot that can only be updated by hand.
+  const persistedPlanName = inst.subscription?.plan?.name as "BASIC" | "PRO" | "TRIAL" | undefined;
+  const hasPaidPlan = persistedPlanName !== undefined && persistedPlanName !== "TRIAL";
+  const planActive =
+    hasPaidPlan &&
+    inst.status !== "SUSPENDED" &&
+    inst.subscription?.status !== "LOCKED" &&
+    inst.subscription?.status !== "EXPIRED";
   const [plan, setPlan] = useState<"BASIC" | "PRO" | "TRIAL">(initialPlan);
   const [planOption, setPlanOption] = useState<"NORMAL" | "COMMITTED">(
-    // "FLEXIBLE" is the old name for this option (pause/half-billing removed —
-    // it's now just "Normal": full rate, no pause, deactivate = full block).
-    // Treat any legacy "FLEXIBLE" value from the backend as "NORMAL" too.
+    // NORMAL: full rate, deactivate blocks access AND pauses billing (e.g.
+    // vacations) — resumes the existing plan/pricing on reactivation.
+    // COMMITTED: discounted rate, fixed term — deactivate blocks access but
+    // billing continues through the committed term; only non-payment
+    // triggers an automatic deactivation. "FLEXIBLE" is a legacy value from
+    // before this field existed — treat it as NORMAL.
     inst.subscription?.planOption === "COMMITTED" ? "COMMITTED" : "NORMAL",
   );
   const [showDiscount, setShowDiscount] = useState(false);
@@ -1093,6 +1103,9 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
     (inst.subscription?.paymentStatus ?? "") === "PAID",
   );
   const [activating, setActivating] = useState(false);
+  const [reactivating, setReactivating] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
+  const [enablingAddon, setEnablingAddon] = useState(false);
   const [showTrialConfirm, setShowTrialConfirm] = useState(false);
   const [features, setFeatures] = useState<Record<string, boolean>>(
     getDefaultFeatures("BASIC"),
@@ -1299,9 +1312,10 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
         planOption: plan === "TRIAL" ? "NORMAL" : planOption,
       });
 
-      setPlanActive(true);
       const activation = res.data?.data?.activationDate;
       if (activation) setActivationDate(new Date(activation));
+      onPatch?.({ status: "ACTIVE" });
+      await onRefetch?.();
 
       setSavingAddons(true);
       await api.patch(`/superadmin/institutions/${inst.id}/addons`, buildStrictAddonsPayload());
@@ -2332,7 +2346,8 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                           ),
                         );
                         if (res.data?.data?.reactivated) {
-                          setPlanActive(true);
+                          onPatch?.({ status: "ACTIVE" });
+                          await onRefetch?.();
                           toast.success("Payment recorded and institution reactivated");
                         } else {
                           toast.success("Bill marked as Paid");
@@ -3102,26 +3117,50 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                       Cancel
                     </button>
                     <button
-                      onClick={() => {
+                      disabled={enablingAddon}
+                      onClick={async () => {
                         if (!pendingEnableKey) return;
-                        setFeatures((p) => ({
-                          ...p,
-                          [pendingEnableKey]: true,
-                        }));
-                        const newExpiry = new Date();
-                        newExpiry.setFullYear(newExpiry.getFullYear() + 1);
-                        setAddonExpiries((p) => ({
-                          ...p,
-                          [pendingEnableKey]: newExpiry,
-                        }));
-                        setAddonExtraBill((p) => p + 10000);
-                        toast.success(
-                          `Feature enabled — ₹10,000 added to this month's bill`,
-                        );
-                        setConfirmDialog(null);
-                        setPendingEnableKey(null);
+                        setEnablingAddon(true);
+                        try {
+                          // Only "smart_board" maps to a real backend addon with
+                          // free-year/lock semantics (smartBoardAi) — persist that
+                          // one for real. Other feature keys have no backend
+                          // billing counterpart yet, so they stay local-only.
+                          if (pendingEnableKey === "smart_board") {
+                            await api.patch(`/superadmin/institutions/${inst.id}/addons`, {
+                              addons: {
+                                smartBoardAi: {
+                                  active: true,
+                                  isInFreePeriod: false,
+                                  billingCycle: "MONTHLY",
+                                  amount: Math.round(10000 / 12),
+                                },
+                              },
+                            });
+                          }
+                          setFeatures((p) => ({
+                            ...p,
+                            [pendingEnableKey]: true,
+                          }));
+                          const newExpiry = new Date();
+                          newExpiry.setFullYear(newExpiry.getFullYear() + 1);
+                          setAddonExpiries((p) => ({
+                            ...p,
+                            [pendingEnableKey]: newExpiry,
+                          }));
+                          setAddonExtraBill((p) => p + 10000);
+                          toast.success(
+                            `Feature enabled — ₹10,000/yr added to billing`,
+                          );
+                          setConfirmDialog(null);
+                          setPendingEnableKey(null);
+                        } catch (err: unknown) {
+                          toast.error(getErrorMessage(err, "Failed to enable add-on"));
+                        } finally {
+                          setEnablingAddon(false);
+                        }
                       }}
-                      className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90"
+                      className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{
                         background:
                           "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)",
@@ -3137,25 +3176,46 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
                     ⚠️ Deactivate Plan?
                   </h3>
                   <p className="text-sm text-muted-foreground mb-5">
-                    This will permanently deactivate the plan. Institution will lose access immediately.
+                    {planOption === "COMMITTED"
+                      ? "Institution will lose access immediately. This is a Committed plan — billing continues for the rest of the committed term regardless of access state."
+                      : "Institution will lose access immediately and no bill will be generated while deactivated. Reactivating resumes the existing plan and pricing unchanged."}
                   </p>
                   <div className="flex gap-2 justify-end">
                     <button
                       onClick={() => setConfirmDialog(null)}
-                      className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all"
+                      disabled={deactivating}
+                      className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all disabled:opacity-50"
                     >
                       Cancel
                     </button>
                     <button
-                      onClick={() => {
-                        setPlanActive(false);
-                        toast.success("Plan deactivated");
-                        setConfirmDialog(null);
+                      disabled={deactivating}
+                      onClick={async () => {
+                        setDeactivating(true);
+                        try {
+                          await api.patch(`/superadmin/institutions/${inst.id}/status`, {
+                            status: "SUSPENDED",
+                          });
+                          // Optimistic patch for instant feedback, then a real refetch
+                          // so the view is driven by the actual DB state, not a guess.
+                          onPatch?.({ status: "SUSPENDED" });
+                          await onRefetch?.();
+                          toast.success(
+                            planOption === "COMMITTED"
+                              ? "Plan deactivated — billing continues through the committed term"
+                              : "Plan deactivated — billing paused",
+                          );
+                          setConfirmDialog(null);
+                        } catch (err: unknown) {
+                          toast.error(getErrorMessage(err, "Failed to deactivate"));
+                        } finally {
+                          setDeactivating(false);
+                        }
                       }}
                       className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{ background: "#ef4444" }}
                     >
-                      Yes, Deactivate
+                      {deactivating ? "Deactivating…" : "Yes, Deactivate"}
                     </button>
                   </div>
                 </div>
@@ -3163,6 +3223,76 @@ function ManagePlanTab({ inst, onPatch }: { inst: InstData; onPatch?: (patch: Om
             </motion.div>
           </div>
         )}
+      </motion.div>
+    );
+  }
+
+  // ── DEACTIVATED PAID PLAN VIEW ── (has a real plan, but not currently active) ──
+  if (hasPaidPlan) {
+    const subStatus = inst.subscription?.status;
+    const reason =
+      subStatus === "LOCKED"
+        ? "Trial was churned and the institution was locked."
+        : subStatus === "EXPIRED"
+        ? "Deactivated automatically — an overdue bill was not paid on time."
+        : subStatus === "PAUSED"
+        ? "Manually deactivated (Normal plan) — billing is paused while inactive."
+        : "Manually deactivated — billing continues through the committed term.";
+
+    const handleReactivate = async () => {
+      setReactivating(true);
+      try {
+        await api.patch(`/superadmin/institutions/${inst.id}/status`, { status: "ACTIVE" });
+        onPatch?.({ status: "ACTIVE" });
+        await onRefetch?.();
+        toast.success("Institution reactivated on its existing plan");
+      } catch (err: unknown) {
+        toast.error(getErrorMessage(err, "Failed to reactivate"));
+      } finally {
+        setReactivating(false);
+      }
+    };
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.25 }}
+        className="space-y-4"
+      >
+        <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50">
+          <div className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+          <div>
+            <p className="text-sm font-semibold text-red-700 dark:text-red-400">
+              {persistedPlanName} Plan — Deactivated
+            </p>
+            <p className="text-xs text-red-600/80 dark:text-red-500/80">{reason}</p>
+          </div>
+        </div>
+
+        <SectionCard
+          title={
+            <span className="flex items-center gap-2">
+              <LayoutGrid size={15} />
+              Reactivate
+            </span>
+          }
+        >
+          <p className="text-xs text-muted-foreground mb-4">
+            Reactivating restores access immediately and resumes the existing {persistedPlanName} plan
+            and pricing unchanged — no new licence fee, no plan reconfiguration.
+          </p>
+          <button
+            disabled={reactivating}
+            onClick={handleReactivate}
+            className="h-9 px-4 rounded-xl text-xs font-semibold text-white transition-all hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)",
+            }}
+          >
+            {reactivating ? "Reactivating…" : "Activate"}
+          </button>
+        </SectionCard>
       </motion.div>
     );
   }
@@ -4392,7 +4522,7 @@ export default function InstitutionDetailPage() {
             onInstitutionPatch={handleInstitutionPatch}
           />
         ) : (
-          <ManagePlanTab key="plan" inst={institution} onPatch={handleInstitutionPatch} />
+          <ManagePlanTab key="plan" inst={institution} onPatch={handleInstitutionPatch} onRefetch={fetchInstitution} />
         )}
       </AnimatePresence>
       <div className="pb-6" />
