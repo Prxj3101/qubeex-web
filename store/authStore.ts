@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { useUserAvatarStore } from './userAvatarStore';
 import { isInstType, writeCachedInstType, clearCachedInstType, rememberInstTypeForInstitution, lookupInstTypeForInstitution } from '@/lib/instTypeCache';
+import { clearCachedBranding } from '@/lib/brandingCache';
 import { clearBlackboardMemory } from './blackboardMemory';
 
 interface User {
@@ -65,6 +66,9 @@ export const useAuthStore = create<AuthStore>()(
                 // Clear the instType cache so a fresh login never briefly
                 // inherits the previous account's theme on first paint.
                 clearCachedInstType();
+                // Same reasoning for institution branding — a fresh login
+                // shouldn't briefly show the previous account's logo/name.
+                clearCachedBranding();
                 // Blackboard's loaded doc/drawing/AI-panel state is meant to
                 // survive in-app navigation but not a logout — a different
                 // teacher (or the same one signing back in later) shouldn't

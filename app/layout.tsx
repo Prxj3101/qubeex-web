@@ -3,10 +3,18 @@ import { cookies } from 'next/headers';
 import './globals.css';
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
+import { BrandingProvider } from '@/context/BrandingContext';
 
-export const metadata: Metadata = {
-  title: 'QubeEx',
-};
+// Mirrors the qubeex_inst_type cookie pattern below — the qubeex_branding
+// cookie carries the last-known institution brand name (empty when
+// white-labeling isn't enabled) so the very first server-rendered <title>
+// is already correct instead of always starting as "QubeEx" and flashing
+// once BrandingProvider's client fetch resolves.
+export async function generateMetadata(): Promise<Metadata> {
+  const cookieStore = await cookies();
+  const brandName = cookieStore.get('qubeex_branding')?.value;
+  return { title: brandName ? decodeURIComponent(brandName) : 'QubeEx' };
+}
 
 // Reading cookies() below should already opt this layout into per-request
 // rendering, but since it wraps the ENTIRE app, force it explicitly — if
@@ -42,8 +50,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           enableSystem
           disableTransitionOnChange
         >
-          {children}
-          <Toaster />
+          <BrandingProvider>
+            {children}
+            <Toaster />
+          </BrandingProvider>
         </ThemeProvider>
       </body>
     </html>

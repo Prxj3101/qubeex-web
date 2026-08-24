@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import api from '@/lib/api';
+import { useBranding } from '@/context/BrandingContext';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -273,26 +274,37 @@ function AvatarMenu({ restrictNav, lockMessage, disabled }: { restrictNav?: bool
 export function Topbar({ navItems, restrictNav, lockMessage, disableProfileActions }: TopbarProps) {
     const pathname = usePathname();
     const effectiveLockMessage = lockMessage ?? 'Set your password to continue';
+    const branding = useBranding();
 
     return (
         <div className="flex flex-col gap-2 px-2">
             <header className="h-17 rounded-4xl bg-card shadow-sm flex items-center justify-between px-3 sm:px-5 gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                     <Image
-                        src="/QubeEx_darkmode_DA7756.png"
-                        alt="QubeEx Logo"
+                        src={branding.enabled ? branding.logoUrl : '/QubeEx_darkmode_DA7756.png'}
+                        alt={branding.enabled ? `${branding.brandName} Logo` : 'QubeEx Logo'}
                         width={33}
                         height={33}
+                        unoptimized={branding.enabled}
                         style={{ width: 'auto', height: '40px' }}
                         className="rounded-md shrink-0"
                     />
-                    <div className="flex items-end gap-1.5 -mt-1 min-w-0">
-                        <span className="text-[19px] sm:text-[25.5px] font-bold text-[#374151] dark:text-[#FAE5D9] truncate" style={{ fontFamily: 'var(--font-poppins)' }}>
-                            QubeEx
-                        </span>
-                        <span className="hidden sm:inline-block mb-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-border/60 text-muted-foreground tracking-wide bg-transparent">
-                            BETA
-                        </span>
+                    <div className="flex flex-col min-w-0">
+                        <div className="flex items-end gap-1.5 -mt-1 min-w-0">
+                            <span className="text-[19px] sm:text-[25.5px] font-bold text-[#374151] dark:text-[#FAE5D9] truncate" style={{ fontFamily: 'var(--font-poppins)' }}>
+                                {branding.enabled ? branding.brandName : 'QubeEx'}
+                            </span>
+                            {!branding.enabled && (
+                                <span className="hidden sm:inline-block mb-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-border/60 text-muted-foreground tracking-wide bg-transparent">
+                                    BETA
+                                </span>
+                            )}
+                        </div>
+                        {branding.enabled && (
+                            <span className="text-[10px] text-muted-foreground/70 leading-none truncate">
+                                Powered by QubeEx
+                            </span>
+                        )}
                     </div>
                 </div>
 

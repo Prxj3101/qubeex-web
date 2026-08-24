@@ -71,6 +71,7 @@ import type {
 import { PRICING, ALL_FEATURES, statusCfg, PLAN_BASE, COMMITTED_DISCOUNT } from "./institution-detail.constants";
 import { formatTokens } from "@/lib/utils";
 import { DataStorageConfig } from "./DataStorageConfig";
+import { WhiteLabelConfig } from "./WhiteLabelConfig";
 import {
   toIST,
   mapApiBillToUiBill,
@@ -931,6 +932,11 @@ function ViewDetailsTab({
             value={toIST(inst.updatedAt)}
           />
         </SectionCard>
+      </div>
+
+      {/* White-Labeling */}
+      <div className="mt-4">
+        <WhiteLabelConfig institutionId={inst.id} planName={planName} />
       </div>
 
       {/* BYOD — Data Storage Configuration */}
