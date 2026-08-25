@@ -21,12 +21,18 @@ const BrandingContext = createContext<CachedBranding>(QUBEEX_DEFAULT_BRANDING);
  * logic — it just renders whatever the backend says.
  */
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
-    // Seed from the last-known value so a hard refresh doesn't flash QubeEx
-    // branding before the network round-trip finishes — same reasoning as
-    // MockInstTypeProvider's lazy initializer.
-    const [branding, setBranding] = useState<CachedBranding>(readCachedBranding);
+    // Must start from the same default the server rendered — reading
+    // localStorage in a lazy useState initializer runs during the client's
+    // hydration render too, and the server has no localStorage to match it
+    // against, which is exactly what caused the hydration mismatch on the
+    // logo/name. So: render the default first, then apply the cached value
+    // in an effect (after hydration, a plain client-side update is fine).
+    const [branding, setBranding] = useState<CachedBranding>(QUBEEX_DEFAULT_BRANDING);
 
     useEffect(() => {
+        const cached = readCachedBranding();
+        if (cached.enabled) setBranding(cached);
+
         api.get('/branding')
             .then((r) => {
                 const data = r.data?.data;

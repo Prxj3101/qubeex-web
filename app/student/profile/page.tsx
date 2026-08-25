@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { FlagItem } from '@/lib/flags';
 import StudentProfileView, { ProfileViewMarksheet, ProfileViewAttendance } from '@/components/shared/StudentProfileView';
+import { useBranding } from '@/context/BrandingContext';
 
 // ─── Fees: same data model & derivation logic as /student/fees ─────────────────
 type FeeStructureType = 'REGULAR' | 'ADDON' | 'PENALTY' | 'ONE_TIME' | 'BUS' | 'LATE_FEE';
@@ -95,6 +96,7 @@ function SectionCard({ title, icon: Icon, iconColor, children, action }: {
 
 export default function StudentProfile() {
     const router = useRouter();
+    const branding = useBranding();
     const student = useStudentStore();
 
     useEffect(() => {
@@ -373,8 +375,13 @@ export default function StudentProfile() {
 
                 {/* Watermark */}
                 <div className="text-center py-2 space-y-0.5">
-                    <p className="text-sm font-semibold text-muted-foreground/60">QubeEx v1.0</p>
+                    <p className="text-sm font-semibold text-muted-foreground/60">
+                        {branding.enabled ? branding.brandName : 'QubeEx v1.0'}
+                    </p>
                     <p className="text-xs text-muted-foreground/50">© 2026 All rights reserved.</p>
+                    {branding.enabled && (
+                        <p className="text-[10px] text-muted-foreground/40">Powered by QubeEx</p>
+                    )}
                 </div>
             </div>
         </div>

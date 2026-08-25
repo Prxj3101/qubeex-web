@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import QRCode from 'qrcode';
+import NextImage from 'next/image';
+import { useBranding } from '@/context/BrandingContext';
 import type { AdminOverview } from '@/types';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
@@ -188,6 +190,7 @@ export default function SubscriptionPage() {
     const currentPlan: 'BASIC' | 'PRO' = overview?.plan.name === 'PRO' ? 'PRO' : 'BASIC';
     // Trials include the full PRO feature set for free, regardless of the plan they'll convert to.
     const featurePlan: 'BASIC' | 'PRO' = isTrial ? 'PRO' : currentPlan;
+    const branding = useBranding();
     const config = PLAN_CONFIG[currentPlan];
     const BadgeIcon = config.badgeIcon;
 
@@ -673,6 +676,52 @@ export default function SubscriptionPage() {
                                 <ArrowUpRight className="w-3.5 h-3.5" /> Unlock features
                             </button>
                         </div>
+                    </div>
+
+                    {/* White-Labeling status */}
+                    <div className="mt-3 bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5">
+                        <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                                <ShieldCheck className="w-4 h-4 text-muted-foreground" />
+                                <p className="text-sm font-medium text-foreground">White-Labeling</p>
+                            </div>
+                            {branding.enabled && (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400">
+                                    <CheckCircle2 className="w-3 h-3" /> Active
+                                </span>
+                            )}
+                        </div>
+
+                        {branding.enabled ? (
+                            <div className="mt-3 flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+                                <NextImage
+                                    src={branding.logoUrl}
+                                    alt={branding.brandName}
+                                    width={36} height={36}
+                                    unoptimized
+                                    className="rounded-lg object-contain shrink-0"
+                                />
+                                <div>
+                                    <p className="text-sm font-semibold text-foreground">{branding.brandName}</p>
+                                    <p className="text-[11px] text-muted-foreground">
+                                        Your custom branding is live across the web and mobile app.
+                                    </p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+                                <p className="text-[11px] text-muted-foreground">
+                                    {currentPlan === 'PRO'
+                                        ? 'Replace QubeEx branding with your own name and logo. Contact us to get it set up.'
+                                        : 'Available on the Pro plan — replace QubeEx branding with your own name and logo.'}
+                                </p>
+                                <button
+                                    onClick={handleAddon}
+                                    className="shrink-0 text-xs font-semibold text-violet-400 border border-violet-500/30 rounded-lg px-3 py-1.5 hover:bg-violet-500/10 transition-colors whitespace-nowrap">
+                                    Request
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </motion.section>
 

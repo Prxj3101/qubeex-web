@@ -16,6 +16,7 @@ import Image from 'next/image';
 import api from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { blackboardMemory, usePersisted, setBlackboardValue, saveBlackboardFile, loadBlackboardFile, clearBlackboardFile } from '@/store/blackboardMemory';
+import { useBranding } from '@/context/BrandingContext';
 
 import dynamic from 'next/dynamic';
 
@@ -1475,6 +1476,7 @@ function FloatingAIButton({ activeMode, onSelect, showControls }: {
     const [open, setOpen] = useState(false);
     const { resolvedTheme } = useTheme();
     const isDark = resolvedTheme === 'dark';
+    const branding = useBranding();
 
     const options = [
         { key: 'scan' as AIMode, icon: ScanLine, label: 'AI Scan', color: 'var(--primary)', iconSize: 13 },
@@ -1517,7 +1519,10 @@ function FloatingAIButton({ activeMode, onSelect, showControls }: {
                 onClick={() => setOpen(v => !v)}
                 className="w-12 h-12 flex items-center justify-center active:scale-95"
                 whileHover={{ scale: 1.08 }}>
-                <Image src="/QubeEx_darkmode_DA7756.png" alt="QubeEx" width={34} height={34} className="rounded-md" />
+                <Image
+                    src={branding.enabled ? branding.logoUrl : '/QubeEx_darkmode_DA7756.png'}
+                    alt={branding.enabled ? branding.brandName : 'QubeEx'}
+                    width={34} height={34} className="rounded-md" unoptimized={branding.enabled} />
             </motion.button>
         </div>
     );
