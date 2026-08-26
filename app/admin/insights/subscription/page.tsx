@@ -235,13 +235,16 @@ export default function SubscriptionPage() {
     // Real marginal-bracket structure (mirrors backend PLAN_BASE_RATES) — first
     // 1500 users at the base rate, users beyond that at the lower marginal rate.
     const committedMultiplier = planOption === 'COMMITTED' ? 0.85 : 1;
+    // min: 1 here (not 200) so isActive correctly highlights schools with
+    // fewer than 200 actual users too — the "200" floor is a display-only
+    // label (see tier.min === 1 check below), not the real active-tier bound.
     const tiers: { min: number; max: number; rate: number }[] = currentPlan === 'PRO'
         ? [
-            { min: 200, max: 1499, rate: Math.round(39 * committedMultiplier) },
+            { min: 1, max: 1499, rate: Math.round(39 * committedMultiplier) },
             { min: 1500, max: Infinity, rate: Math.round(33 * committedMultiplier) },
         ]
         : [
-            { min: 200, max: 1499, rate: Math.round(29 * committedMultiplier) },
+            { min: 1, max: 1499, rate: Math.round(29 * committedMultiplier) },
             { min: 1500, max: Infinity, rate: Math.round(24 * committedMultiplier) },
         ];
     // Backend computes the real marginal-bracket rate (first 1500 users at base
@@ -250,6 +253,16 @@ export default function SubscriptionPage() {
     // recomputing a flat rate here that can't reflect either of those.
     const currentRate = isTrial ? 0 : (overview?.plan.perUserRate ?? 0);
     const monthlyBill = isTrial ? 0 : (overview?.plan.estMonthlyBill ?? 0);
+    // Mirrors the superadmin institution detail page's isActivationMonth —
+    // used only to decide whether to show the "(prorated for this partial
+    // month)" note; the actual proration math already happened server-side
+    // in estMonthlyBill.
+    const isActivationMonth = (() => {
+        if (!overview?.plan.activationDate) return false;
+        const activation = new Date(overview.plan.activationDate);
+        const today = new Date();
+        return activation.getFullYear() === today.getFullYear() && activation.getMonth() === today.getMonth();
+    })();
 
     // Current billing cycle window (calendar month, IST) — bills generate on the last day.
     const nowIST = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
@@ -428,7 +441,10 @@ export default function SubscriptionPage() {
                                     {isTrial ? 'TRIAL' : currentPlan}
                                 </h2>
                                 <p className="text-sm text-muted-foreground mt-0.5">
-                                    {isTrial ? `School · Free trial · ${trialDaysTotal} days total` : `School · Monthly Billing · ₹${currentRate}/user`}
+                                    {isTrial ? `School · Free trial · ${trialDaysTotal} days total` : `School · ${planOption === 'COMMITTED' ? 'Committed' : 'Normal'} Billing · ₹${currentRate}/user`}
+                                    {!isTrial && planOption === 'COMMITTED' && (
+                                        <span className="text-emerald-600 dark:text-emerald-400 font-medium"> (15% off)</span>
+                                    )}
                                 </p>
                                 <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                     {isTrial ? (
@@ -451,12 +467,22 @@ export default function SubscriptionPage() {
                                             )}
                                         </>
                                     ) : (
-                                        <span className="text-[11px] text-muted-foreground flex items-center gap-1">
-                                            <CalendarIcon size={11} /> Activated:
-                                            <span className="font-medium text-foreground ml-1">
-                                                {overview?.plan.activationDate ? formatBillDate(overview.plan.activationDate) : 'Not yet activated'}
+                                        <>
+                                            <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                                <CalendarIcon size={11} /> Activated:
+                                                <span className="font-medium text-foreground ml-1">
+                                                    {overview?.plan.activationDate ? formatBillDate(overview.plan.activationDate) : 'Not yet activated'}
+                                                </span>
                                             </span>
-                                        </span>
+                                            {planOption === 'COMMITTED' && overview?.plan.commitmentEndDate && (
+                                                <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                                    <CalendarIcon size={11} /> Committed until:
+                                                    <span className="font-medium text-foreground ml-1">
+                                                        {formatBillDate(overview.plan.commitmentEndDate)}
+                                                    </span>
+                                                </span>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
@@ -735,7 +761,15 @@ export default function SubscriptionPage() {
                             <p className="text-sm font-medium text-foreground">Billing Summary</p>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                                 <div className="bg-white dark:bg-muted/50 rounded-xl p-3 border border-border/50">
-                                    <p className="text-xs text-muted-foreground mb-1">Active Users</p>
+                                    <div className="flex items-center justify-between mb-1">
+                                        <p className="text-xs text-muted-foreground">Active Users</p>
+                                        <button
+                                            onClick={() => router.push('/admin/insights/users?from=subscription')}
+                                            className="w-6 h-6 rounded-md flex items-center justify-center hover:opacity-80 transition-all shrink-0"
+                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                            <ArrowUpRight size={13} className="text-white" />
+                                        </button>
+                                    </div>
                                     <p className="text-lg font-bold">{usedUsers}</p>
                                     <p className="text-[11px] text-muted-foreground">billed this month</p>
                                 </div>
@@ -748,7 +782,14 @@ export default function SubscriptionPage() {
                                     <p className="text-xs text-muted-foreground mb-1">Est. Monthly Bill</p>
                                     <p className="text-lg font-bold" style={{ color: '#DA7756' }}>₹{monthlyBill.toLocaleString('en-IN')}</p>
                                     <p className="text-[11px] text-muted-foreground">
-                                        {latestPending?.dueDate ? `Due ${formatBillDate(latestPending.dueDate)}` : 'No pending bill'}
+                                        {/* This card shows a running ESTIMATE for the current cycle, not an
+                                            already-generated invoice — always say "Generates" (when the bill
+                                            will actually be created), never "Due" (a payment-due date belongs
+                                            on an actual invoice, shown elsewhere on this page). */}
+                                        {(() => {
+                                            const genDate = nextAnticipatedDueDate ?? latestPending?.dueDate ?? null;
+                                            return genDate ? `Generates ${formatBillDate(genDate)}` : 'No pending bill';
+                                        })()}
                                     </p>
                                 </div>
                             </div>
@@ -768,7 +809,10 @@ export default function SubscriptionPage() {
                                                         <div className="flex items-center gap-2">
                                                             {isActive && <span className="w-1.5 h-1.5 rounded-full bg-[#DA7756]" />}
                                                             <span className={`text-xs ${isActive ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
-                                                                {tier.max === Infinity ? `${tier.min}+ users` : `${tier.min}–${tier.max} users`}
+                                                                {/* Display-only: real minimum billed is 200 (Math.max(200, userCount)
+                                                                    floor), so base-rate tier reads "200–1500 users". isActive above
+                                                                    stays on the real tier.min/max so highlight boundaries don't shift. */}
+                                                                {tier.max === Infinity ? `${tier.min}+ users` : tier.min === 1 ? `200–1500 users` : `${tier.min}–${tier.max} users`}
                                                             </span>
                                                             {isActive && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#DA7756]/15 text-[#DA7756] font-semibold">Current</span>}
                                                         </div>
@@ -780,9 +824,14 @@ export default function SubscriptionPage() {
                                             })}
                                         </div>
                                     </div>
-                                    <p className="text-[11px] text-muted-foreground">
-                                        💡 Minimum 200 users billed. Current active: {usedUsers} users — billed as {billedUsers} users. ₹{monthlyBill.toLocaleString('en-IN')} est. next bill.
-                                    </p>
+                                    <div className="p-3 bg-violet-50 dark:bg-violet-950/20 rounded-xl border border-violet-200/50 dark:border-violet-900/50">
+                                        <p className="text-[11px] text-violet-600 dark:text-violet-400">
+                                            💡 Minimum 200 users billed per month. Current active:{' '}
+                                            {usedUsers} users — billed as {billedUsers} users.{' '}
+                                            ₹{monthlyBill.toLocaleString('en-IN')} est. next bill
+                                            {isActivationMonth ? ' (prorated for this partial month)' : ''}.
+                                        </p>
+                                    </div>
                                 </>
                             )}
                         </div>

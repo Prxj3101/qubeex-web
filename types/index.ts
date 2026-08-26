@@ -85,6 +85,7 @@ export interface AdminOverview {
         billedUsers: number;
         estMonthlyBill: number;
         planOption?: 'NORMAL' | 'COMMITTED';
+        commitmentEndDate?: string | null;
         usage: {
             users: { used: number; limit: number };
             storage: { used: number; limit: number };

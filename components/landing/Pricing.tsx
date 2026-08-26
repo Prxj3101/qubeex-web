@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Check, Zap } from 'lucide-react';
+import { Check, Zap, Info } from 'lucide-react';
 import { PLANS } from './landing-data';
 import { Reveal, SectionHead, EASE, DISPLAY } from './motion';
 
@@ -62,33 +62,36 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                                 <h3 style={DISPLAY} className={`text-2xl font-bold ${p.highlight ? 'text-white' : 'text-[#190D2E]'}`}>{p.name}</h3>
                                 <p className={`mt-1 text-sm ${p.highlight ? 'text-white/70' : 'text-[#6B6480]'}`}>{p.tagline}</p>
 
-                                <div className="mt-7 flex items-center gap-2.5">
-                                    <span
-                                        className={`relative text-2xl font-semibold ${p.highlight ? 'text-white/70' : 'text-[#6B6480]'}`}
-                                    >
-                                        {inr(p.originalLicence)}
-                                        <span
-                                            aria-hidden
-                                            className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 rotate-[-4deg] bg-[#F43F5E]"
-                                        />
-                                    </span>
-                                    <span className={`inline-flex items-center rounded-full px-3 py-1 text-[13px] font-bold ${
-                                        p.highlight ? 'bg-[#22C55E]/20 text-[#4ADE80]' : 'bg-[#DCFCE7] text-[#16A34A]'
-                                    }`}>
-                                        {pctOff(p.originalLicence, p.licence)}% OFF
-                                    </span>
-                                </div>
-
-                                <div className="mt-1.5 flex items-baseline gap-2">
+                                <div className="mt-7 flex items-baseline gap-2">
                                     <span style={DISPLAY} className={`text-[2.8rem] font-bold leading-none tracking-tight ${p.highlight ? 'text-white' : 'text-[#190D2E]'}`}>
-                                        {inr(p.licence)}
+                                        {inr(p.rate)}
                                     </span>
-                                    <span className={`text-sm ${p.highlight ? 'text-white/60' : 'text-[#9A93AC]'}`}>one-time licence</span>
+                                    <span className={`text-sm font-medium ${p.highlight ? 'text-white/85' : 'text-[#6B6480]'}`}>/user/month</span>
                                 </div>
-                                <p className={`mt-2 text-sm font-medium ${p.highlight ? 'text-white/80' : 'text-[#3D3552]'}`}>
-                                    + -/user/month
-                                    <span className={`ml-1.5 text-xs font-normal ${p.highlight ? 'text-white/55' : 'text-[#9A93AC]'}`}>
-                                        (- beyond 1,500 users)
+                                <p className={`mt-1.5 text-sm font-normal ${p.highlight ? 'text-white/55' : 'text-[#9A93AC]'}`}>
+                                    (<span className="font-bold">{inr(p.rateBulk)}</span> beyond 1,500 users)
+                                </p>
+
+                                <p className={`mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm font-medium ${p.highlight ? 'text-white/80' : 'text-[#3D3552]'}`}>
+                                    <span className="text-lg font-semibold">+ {inr(p.licence)}</span>
+                                    <span className="flex items-baseline gap-1">
+                                        <span
+                                            className={`relative text-base font-semibold ${p.highlight ? 'text-white/70' : 'text-[#6B6480]'}`}
+                                        >
+                                            {inr(p.originalLicence)}
+                                            <span
+                                                aria-hidden
+                                                className="absolute left-0 right-0 top-1/2 h-[1.5px] -translate-y-1/2 rotate-[-4deg] bg-[#F43F5E]"
+                                            />
+                                        </span>
+                                        <span className={`relative -top-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                                            p.highlight ? 'bg-[#22C55E]/20 text-[#4ADE80]' : 'bg-[#DCFCE7] text-[#16A34A]'
+                                        }`}>
+                                            {pctOff(p.originalLicence, p.licence)}% OFF
+                                        </span>
+                                    </span>
+                                    <span className={`text-xs font-normal ${p.highlight ? 'text-white/55' : 'text-[#9A93AC]'}`}>
+                                        one-time licence
                                     </span>
                                 </p>
 
@@ -119,6 +122,10 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                                 >
                                     Start free trial
                                 </button>
+                                <p className={`mt-3 flex items-center justify-center gap-1.5 text-center text-xs ${p.highlight ? 'text-white/50' : 'text-[#9A93AC]'}`}>
+                                    <Info size={12} className="shrink-0" />
+                                    Per-user rates may fluctuate with market rates
+                                </p>
                             </div>
                         </motion.div>
                     </Reveal>
@@ -130,7 +137,7 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                     Every plan starts with a <span className="font-semibold text-[#DA7756]">14-day free trial</span> - full access, no payment details required.
                 </p>
                 <p className="mt-2 text-base text-[#9A93AC]">
-                    <span className="font-semibold text-[#DB2777]">AI Smartboard</span> addon included free for the first year on all plans. Multiple branches? Flat 20% off every licence.
+                    <span className="font-semibold text-[#DB2777]">AI Smartboard</span> addon included free for the first year on all plans. Multiple branches? Pay one full licence at 20% off, then just ₹20,000 per additional branch.
                 </p>
             </Reveal>
         </section>

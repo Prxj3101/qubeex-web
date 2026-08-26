@@ -68,14 +68,32 @@ export function LoginForm() {
     // users never have to hit caps lock to type IDs like SKPS-01A2-0001.
     const ID_DETECT_RE = /^[A-Za-z]{4}-\d/;
     const handleIdentifierChange = (newDisplayed: string) => {
-        // Reconstruct the as-typed (raw) string: for an append, the newly
-        // typed tail arrives in its natural case (our transform hasn't run
-        // on it yet); for a deletion, just truncate the existing raw value
-        // to match — this preserves original casing so removing the "-0"
-        // reverts display back to whatever was typed before it.
-        const newRaw = newDisplayed.length >= rawIdentifier.length
-            ? rawIdentifier + newDisplayed.slice(rawIdentifier.length)
-            : rawIdentifier.slice(0, newDisplayed.length);
+        // Reconstruct the as-typed (raw) string by diffing against the
+        // previously displayed value instead of assuming edits only ever
+        // happen at the end — that assumption broke editing/backspacing in
+        // the middle of the field (cursor would always jump to the end).
+        // Find the common prefix/suffix around whatever changed...
+        const prevDisplayed = identifier;
+        const maxPrefix = Math.min(prevDisplayed.length, newDisplayed.length);
+        let prefixLen = 0;
+        while (prefixLen < maxPrefix && prevDisplayed[prefixLen] === newDisplayed[prefixLen]) prefixLen++;
+
+        const maxSuffix = maxPrefix - prefixLen;
+        let suffixLen = 0;
+        while (
+            suffixLen < maxSuffix &&
+            prevDisplayed[prevDisplayed.length - 1 - suffixLen] === newDisplayed[newDisplayed.length - 1 - suffixLen]
+        ) suffixLen++;
+
+        // ...then splice that same edit into rawIdentifier. rawIdentifier and
+        // prevDisplayed are always the same length (uppercasing never changes
+        // length), so the prefix/suffix offsets line up between the two.
+        const insertedText = newDisplayed.slice(prefixLen, newDisplayed.length - suffixLen);
+        const newRaw =
+            rawIdentifier.slice(0, prefixLen) +
+            insertedText +
+            rawIdentifier.slice(rawIdentifier.length - suffixLen);
+
         setRawIdentifier(newRaw);
         setIdentifier(ID_DETECT_RE.test(newRaw) ? newRaw.toUpperCase() : newRaw);
     };

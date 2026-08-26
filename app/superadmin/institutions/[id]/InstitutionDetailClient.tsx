@@ -1289,7 +1289,11 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planActive, plan]);
 
-  const activeUsers = (inst.studentCount ?? 0) + (inst.teacherCount ?? 0) + 1;
+  // staffCount = ADMIN + SUB_ADMIN combined (backend: superadmin.service.ts
+  // getInstitution). Was hardcoded as "+ 1" for just the admin, which
+  // silently dropped SUB_ADMIN seats from this billing count — mismatching
+  // the admin side's own unfiltered user count.
+  const activeUsers = (inst.studentCount ?? 0) + (inst.teacherCount ?? 0) + (inst.staffCount ?? 1);
   const planPricing = pricing[plan] ?? pricing.BASIC;
   const licenceCost = planPricing.licence;
   const discountAmt = Math.round(licenceCost * (discount / 100));
@@ -1486,10 +1490,17 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
 
     const tierBreakdown = planPricing.tiers.map((tier) => ({
       ...tier,
+      // Display-only: the real minimum billed is 200 (getMarginalBill's
+      // Math.max(200, userCount) floor), so the base-rate tier reads
+      // "200–1500 users" here even though the underlying min/max used for
+      // isActive below is untouched (1–1499) to avoid overlapping the next
+      // tier's highlight at exactly 1500 users.
       label:
         tier.max === Infinity
           ? `${tier.min}+ users`
-          : `${tier.min}–${tier.max} users`,
+          : tier.min === 1
+            ? `200–1500 users`
+            : `${tier.min}–${tier.max} users`,
       isActive: activeUsers >= tier.min && activeUsers <= tier.max,
     }));
 
@@ -1686,7 +1697,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                 <PieChart>
                   <Pie
                     data={[
-                      { name: "Admin", value: 1 },
+                      { name: "Admin", value: inst.staffCount ?? 1 },
                       { name: "Teachers", value: inst.teacherCount ?? 0 },
                       { name: "Students", value: inst.studentCount ?? 0 },
                     ]}
@@ -1718,7 +1729,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
               {[
                 {
                   label: "Admin",
-                  value: 1,
+                  value: inst.staffCount ?? 1,
                   color: "text-violet-600 dark:text-violet-400",
                   dot: "bg-violet-500",
                 },
@@ -3579,7 +3590,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                 <PieChart>
                   <Pie
                     data={[
-                      { name: "Admin", value: 1 },
+                      { name: "Admin", value: inst.staffCount ?? 1 },
                       { name: "Teachers", value: inst.teacherCount ?? 0 },
                       { name: "Students", value: inst.studentCount ?? 0 },
                     ]}
@@ -3607,7 +3618,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
             </div>
             <div className="space-y-2 shrink-0">
               {[
-                { label: "Admin", value: 1, color: "text-violet-600 dark:text-violet-400", dot: "bg-violet-500" },
+                { label: "Admin", value: inst.staffCount ?? 1, color: "text-violet-600 dark:text-violet-400", dot: "bg-violet-500" },
                 { label: "Teachers", value: inst.teacherCount ?? 0, color: "text-amber-600 dark:text-amber-400", dot: "bg-amber-500" },
                 { label: "Students", value: inst.studentCount ?? 0, color: "text-emerald-600 dark:text-emerald-400", dot: "bg-emerald-500" },
               ].map(({ label, value, color, dot }) => (
@@ -4077,7 +4088,9 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                   <span className="text-xs text-muted-foreground">
                     {tier.max === Infinity
                       ? `${tier.min}+ users`
-                      : `${tier.min}–${tier.max} users`}
+                      : tier.min === 1
+                        ? `200–1500 users`
+                        : `${tier.min}–${tier.max} users`}
                   </span>
                   <span className="text-xs font-bold text-muted-foreground">
                     {fmt(planOption === "COMMITTED" ? Math.round(tier.rate * (1 - COMMITTED_DISCOUNT)) : tier.rate)}/user/mo
@@ -4091,7 +4104,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
             <InfoBox
               label="Base Rate"
               value={`${fmt(getEffectiveRate(200, planBase.baseRate, planBase.marginalRate, planOption))}/user`}
-              sub={planOption === "COMMITTED" ? `200–1499 users · ${Math.round(COMMITTED_DISCOUNT * 100)}% off` : "200–1499 users"}
+              sub={planOption === "COMMITTED" ? `200–1500 users · ${Math.round(COMMITTED_DISCOUNT * 100)}% off` : "200–1500 users"}
             />
             <InfoBox
               label="Min. First Bill"
@@ -4464,7 +4477,9 @@ export default function InstitutionDetailPage() {
         data.users?.filter((u) => u.role === "TEACHER").length ?? 0;
       const studentCount =
         data.users?.filter((u) => u.role === "STUDENT").length ?? 0;
-      setInstitution({ ...data, admin, teacherCount, studentCount });
+      const staffCount =
+        data.users?.filter((u) => u.role === "ADMIN" || u.role === "SUB_ADMIN").length ?? 1;
+      setInstitution({ ...data, admin, teacherCount, studentCount, staffCount });
     } catch {
       setError(true);
     } finally {

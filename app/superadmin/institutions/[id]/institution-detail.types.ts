@@ -71,6 +71,7 @@ export type InstData = {
   admin?: AdminUser | null;
   teacherCount?: number;
   studentCount?: number;
+  staffCount?: number;
   subscription?: {
     plan?: { name: string };
     status?: string;

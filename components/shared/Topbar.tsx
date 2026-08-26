@@ -294,11 +294,9 @@ export function Topbar({ navItems, restrictNav, lockMessage, disableProfileActio
                             <span className="text-[19px] sm:text-[25.5px] font-bold text-[#374151] dark:text-[#FAE5D9] truncate" style={{ fontFamily: 'var(--font-poppins)' }}>
                                 {branding.enabled ? branding.brandName : 'QubeEx'}
                             </span>
-                            {!branding.enabled && (
-                                <span className="hidden sm:inline-block mb-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-border/60 text-muted-foreground tracking-wide bg-transparent">
-                                    BETA
-                                </span>
-                            )}
+                            <span className="hidden sm:inline-block mb-1 px-2 py-0.5 text-[10px] font-semibold rounded-full border border-border/60 text-muted-foreground tracking-wide bg-transparent">
+                                BETA
+                            </span>
                         </div>
                     </div>
                 </div>
