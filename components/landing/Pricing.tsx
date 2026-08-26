@@ -90,7 +90,7 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                                             {pctOff(p.originalLicence, p.licence)}% OFF
                                         </span>
                                     </span>
-                                    <span className={`text-xs font-normal ${p.highlight ? 'text-white/55' : 'text-[#9A93AC]'}`}>
+                                    <span className={`relative -top-0.5 text-xs font-normal ${p.highlight ? 'text-white/55' : 'text-[#9A93AC]'}`}>
                                         one-time licence
                                     </span>
                                 </p>
