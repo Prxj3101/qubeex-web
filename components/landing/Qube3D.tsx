@@ -157,7 +157,11 @@ export default function Qube3D({ className }: { className?: string }) {
             matTerra.dispose();
             matBlue.dispose();
             edgeMat.dispose();
-            wrap.removeChild(renderer.domElement);
+            // Guard against React Strict Mode's double effect invocation in
+            // dev (mount → cleanup → mount again): the second cleanup would
+            // otherwise try to remove a node no longer attached to `wrap`,
+            // throwing "Cannot read properties of null (reading 'removeChild')".
+            if (wrap.contains(renderer.domElement)) wrap.removeChild(renderer.domElement);
         };
     }, []);
 

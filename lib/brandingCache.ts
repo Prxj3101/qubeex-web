@@ -21,7 +21,10 @@ export const QUBEEX_DEFAULT_BRANDING: CachedBranding = {
     enabled: false,
     brandName: 'QubeEx',
     logoUrl: '/QubeEx_darkmode_DA7756.png',
-    faviconUrl: '/favicon.ico',
+    // The old /favicon.ico rendered with a solid black background in the
+    // browser tab — this PNG (already used as the logo everywhere else) is
+    // transparent and matches the actual brand mark.
+    faviconUrl: '/QubeEx_darkmode_DA7756.png',
 };
 
 export function isCachedBranding(v: unknown): v is CachedBranding {
@@ -45,9 +48,17 @@ export function readCachedBranding(): CachedBranding {
 export function writeCachedBranding(b: CachedBranding) {
     try {
         window.localStorage.setItem(CACHE_KEY, JSON.stringify(b));
-        // Cookie only needs to carry what the server-rendered <title> uses —
-        // keep it small rather than round-tripping full URLs on every request.
-        document.cookie = `${COOKIE_KEY}=${encodeURIComponent(b.enabled ? b.brandName : '')}; path=/; max-age=31536000; SameSite=Lax`;
+        // Cookie carries what the server-rendered <title>/favicon <link> use.
+        // Client-side DOM tricks for swapping the favicon after the page has
+        // already loaded turned out to be unreliable across browsers — Chrome
+        // in particular mostly only picks up a favicon it finds during the
+        // actual (server-rendered or App Router client-navigation) metadata
+        // resolution, not one spliced into <head> after the fact. So the
+        // cookie now carries the favicon URL too, and the root layout's
+        // generateMetadata renders it server-side — same pattern as the
+        // title, which already worked reliably this way.
+        const payload = b.enabled ? JSON.stringify({ n: b.brandName, f: b.faviconUrl }) : '';
+        document.cookie = `${COOKIE_KEY}=${encodeURIComponent(payload)}; path=/; max-age=31536000; SameSite=Lax`;
     } catch { /* ignore */ }
 }
 

@@ -63,17 +63,20 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
             .catch(() => { /* not logged in yet, or request failed — keep default/cached */ });
     }, [isPublic]);
 
-    // Update the document title + favicon client-side whenever branding
-    // changes. True per-request SSR favicon swapping isn't feasible here
-    // (Next's favicon.ico convention is static, and the app has no
-    // subdomain-per-institution routing to key off pre-auth) — this is a
-    // deliberate flash-then-swap tradeoff, same as the title before the root
-    // layout's cookie mirror catches up on the next request.
+    // Update the document title client-side too, for the very first paint
+    // right after login (before the branding cookie exists yet, since it's
+    // only written once the /branding fetch above resolves). The favicon
+    // itself is intentionally NOT touched here anymore — Next's own
+    // app/favicon.ico file convention used to inject a competing <link
+    // rel="icon"> ahead of anything added dynamically, and browsers use
+    // whichever rel="icon" link appears FIRST in the document, so any
+    // client-side swap here was always a losing race. Removing that file
+    // and driving the favicon purely through the root layout's
+    // generateMetadata (cookie-based, same as the title) is what actually
+    // works reliably — see app/layout.tsx.
     useEffect(() => {
         const effective = isPublic ? QUBEEX_DEFAULT_BRANDING : branding;
         document.title = effective.enabled ? effective.brandName : 'QubeEx';
-        const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-        if (link) link.href = effective.enabled ? effective.faviconUrl : '/favicon.ico';
     }, [branding, isPublic]);
 
     return (

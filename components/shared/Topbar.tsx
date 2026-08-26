@@ -300,11 +300,6 @@ export function Topbar({ navItems, restrictNav, lockMessage, disableProfileActio
                                 </span>
                             )}
                         </div>
-                        {branding.enabled && (
-                            <span className="text-[10px] text-muted-foreground/70 leading-none truncate">
-                                Powered by QubeEx
-                            </span>
-                        )}
                     </div>
                 </div>
 

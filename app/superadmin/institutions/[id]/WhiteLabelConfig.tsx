@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
-import { Palette, Loader2, Upload, Lock, CheckCircle2 } from 'lucide-react';
+import { Palette, Loader2, Upload, Lock, CheckCircle2, Pencil } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 
@@ -29,6 +29,8 @@ export function WhiteLabelConfig({ institutionId, planName }: { institutionId: s
     const [eligible, setEligible] = useState(false);
     const [enabled, setEnabled] = useState(false);
     const [brandName, setBrandName] = useState('');
+    const [editingName, setEditingName] = useState(false);
+    const [nameDraft, setNameDraft] = useState('');
     const [logoUrl, setLogoUrl] = useState<string | null>(null);
     const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
 
@@ -78,13 +80,21 @@ export function WhiteLabelConfig({ institutionId, planName }: { institutionId: s
     const handleSaveName = async () => {
         setSaving(true);
         try {
-            await patch({ brandName: brandName.trim() || null });
+            const trimmed = nameDraft.trim();
+            await patch({ brandName: trimmed || null });
+            setBrandName(trimmed);
+            setEditingName(false);
             toast.success('Institution name saved');
         } catch (e) {
             toast.error(getErr(e, 'Failed to save institution name'));
         } finally {
             setSaving(false);
         }
+    };
+
+    const startEditingName = () => {
+        setNameDraft(brandName);
+        setEditingName(true);
     };
 
     const handleUpload = async (file: File, kind: 'logo' | 'favicon') => {
@@ -175,21 +185,44 @@ export function WhiteLabelConfig({ institutionId, planName }: { institutionId: s
                     <div className="space-y-4">
                         <div className="space-y-1.5">
                             <label className="text-[11px] font-semibold text-muted-foreground">Institution Name</label>
-                            <div className="flex gap-2">
-                                <input
-                                    value={brandName}
-                                    onChange={(e) => setBrandName(e.target.value)}
-                                    placeholder="e.g. ABC College"
-                                    className="flex-1 h-9 px-3 rounded-lg border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50"
-                                />
-                                <button
-                                    disabled={saving}
-                                    onClick={handleSaveName}
-                                    className="h-9 px-4 rounded-lg text-xs font-semibold border border-border hover:bg-muted transition-all disabled:opacity-50"
-                                >
-                                    Save
-                                </button>
-                            </div>
+                            {editingName ? (
+                                <div className="flex gap-2">
+                                    <input
+                                        autoFocus
+                                        value={nameDraft}
+                                        onChange={(e) => setNameDraft(e.target.value)}
+                                        placeholder="e.g. ABC College"
+                                        className="flex-1 h-9 px-3 rounded-lg border border-border bg-muted/40 text-sm focus:outline-none focus:border-primary/50"
+                                    />
+                                    <button
+                                        disabled={saving}
+                                        onClick={handleSaveName}
+                                        className="h-9 px-4 rounded-lg text-xs font-semibold text-white hover:opacity-90 transition-all disabled:opacity-50"
+                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                    >
+                                        {saving ? <Loader2 size={14} className="animate-spin" /> : 'Save'}
+                                    </button>
+                                    <button
+                                        disabled={saving}
+                                        onClick={() => setEditingName(false)}
+                                        className="h-9 px-4 rounded-lg text-xs font-semibold border border-border hover:bg-muted transition-all disabled:opacity-50"
+                                    >
+                                        Cancel
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between h-9 px-3 rounded-lg border border-border bg-muted/40">
+                                    <span className={`text-sm ${brandName ? '' : 'text-muted-foreground italic'}`}>
+                                        {brandName || 'Not set'}
+                                    </span>
+                                    <button
+                                        onClick={startEditingName}
+                                        className="flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:text-foreground transition-all"
+                                    >
+                                        <Pencil size={12} /> Edit
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">

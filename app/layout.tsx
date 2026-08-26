@@ -6,14 +6,34 @@ import { Toaster } from '@/components/ui/sonner';
 import { BrandingProvider } from '@/context/BrandingContext';
 
 // Mirrors the qubeex_inst_type cookie pattern below — the qubeex_branding
-// cookie carries the last-known institution brand name (empty when
-// white-labeling isn't enabled) so the very first server-rendered <title>
-// is already correct instead of always starting as "QubeEx" and flashing
-// once BrandingProvider's client fetch resolves.
+// cookie carries the last-known institution brand name + favicon URL (empty
+// when white-labeling isn't enabled) so the very first server-rendered
+// <title>/<link rel="icon"> are already correct instead of always starting
+// as QubeEx's and flashing once BrandingProvider's client fetch resolves.
+//
+// The favicon specifically MUST go through this server-rendered metadata
+// path rather than a client-side DOM swap after the page has already
+// loaded — browsers (Chrome especially) largely only pick up a favicon
+// found during actual page/navigation metadata resolution, not one spliced
+// into <head> afterwards. Public routes (landing "/", "/login") override
+// this back to QubeEx's own title+icon via their own page-level metadata,
+// which Next.js merges over this layout's for that specific route.
 export async function generateMetadata(): Promise<Metadata> {
   const cookieStore = await cookies();
-  const brandName = cookieStore.get('qubeex_branding')?.value;
-  return { title: brandName ? decodeURIComponent(brandName) : 'QubeEx' };
+  const raw = cookieStore.get('qubeex_branding')?.value;
+  let brandName = '';
+  let faviconUrl = '';
+  if (raw) {
+    try {
+      const parsed = JSON.parse(decodeURIComponent(raw));
+      if (parsed && typeof parsed.n === 'string') brandName = parsed.n;
+      if (parsed && typeof parsed.f === 'string') faviconUrl = parsed.f;
+    } catch { /* stale/legacy cookie format — ignore, fall back to defaults */ }
+  }
+  return {
+    title: brandName || 'QubeEx',
+    icons: { icon: faviconUrl || '/QubeEx_darkmode_DA7756.png' },
+  };
 }
 
 // Reading cookies() below should already opt this layout into per-request
