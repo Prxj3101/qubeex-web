@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
 import {
     type CachedBranding,
@@ -9,6 +10,13 @@ import {
     writeCachedBranding,
     QUBEEX_DEFAULT_BRANDING,
 } from '@/lib/brandingCache';
+
+// Public marketing/auth routes never have a logged-in institution to derive
+// branding from — a stale localStorage cache from a previous session (e.g.
+// testing a white-labeled institution) must never leak onto these pages.
+function isPublicRoute(pathname: string): boolean {
+    return pathname === '/' || pathname.startsWith('/login');
+}
 
 const BrandingContext = createContext<CachedBranding>(QUBEEX_DEFAULT_BRANDING);
 
@@ -21,6 +29,9 @@ const BrandingContext = createContext<CachedBranding>(QUBEEX_DEFAULT_BRANDING);
  * logic — it just renders whatever the backend says.
  */
 export function BrandingProvider({ children }: { children: React.ReactNode }) {
+    const pathname = usePathname();
+    const isPublic = isPublicRoute(pathname ?? '/');
+
     // Must start from the same default the server rendered — reading
     // localStorage in a lazy useState initializer runs during the client's
     // hydration render too, and the server has no localStorage to match it
@@ -30,6 +41,14 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     const [branding, setBranding] = useState<CachedBranding>(QUBEEX_DEFAULT_BRANDING);
 
     useEffect(() => {
+        // Public marketing/login pages never have an institution context —
+        // a stale cache from a previously-tested white-labeled institution
+        // must not leak the wrong name/favicon onto them.
+        if (isPublic) {
+            setBranding(QUBEEX_DEFAULT_BRANDING);
+            return;
+        }
+
         const cached = readCachedBranding();
         if (cached.enabled) setBranding(cached);
 
@@ -42,7 +61,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
                 }
             })
             .catch(() => { /* not logged in yet, or request failed — keep default/cached */ });
-    }, []);
+    }, [isPublic]);
 
     // Update the document title + favicon client-side whenever branding
     // changes. True per-request SSR favicon swapping isn't feasible here
@@ -51,10 +70,11 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     // deliberate flash-then-swap tradeoff, same as the title before the root
     // layout's cookie mirror catches up on the next request.
     useEffect(() => {
-        document.title = branding.enabled ? branding.brandName : 'QubeEx';
+        const effective = isPublic ? QUBEEX_DEFAULT_BRANDING : branding;
+        document.title = effective.enabled ? effective.brandName : 'QubeEx';
         const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-        if (link) link.href = branding.enabled ? branding.faviconUrl : '/favicon.ico';
-    }, [branding]);
+        if (link) link.href = effective.enabled ? effective.faviconUrl : '/favicon.ico';
+    }, [branding, isPublic]);
 
     return (
         <BrandingContext.Provider value={branding}>
