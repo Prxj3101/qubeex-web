@@ -3,10 +3,11 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { TicketIcon, Star, Headset } from 'lucide-react';
+import { TicketIcon, Star, Headset, CalendarClock } from 'lucide-react';
 
 const SUPPORT_TABS = [
     { label: 'Tickets', href: '/superadmin/support/tickets', icon: TicketIcon },
+    { label: 'Demo Requests', href: '/superadmin/support/demo-requests', icon: CalendarClock },
     { label: 'Reviews & Feedback', href: '/superadmin/support/reviews', icon: Star },
 ];
 

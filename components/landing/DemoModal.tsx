@@ -4,14 +4,32 @@ import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CheckCircle2, X } from 'lucide-react';
 import { EASE } from './motion';
+import api from '@/lib/api';
 
 const INPUT =
     'w-full rounded-xl border border-[#E4DCF7] bg-[#FBFAFE] px-4 py-3 text-sm text-[#1D1433] placeholder:text-[#9A93AC] outline-none transition-colors focus:border-[#7C3AED] focus:bg-white';
 
+const SELECT =
+    'w-full rounded-xl border border-[#E4DCF7] bg-[#FBFAFE] px-4 py-3 text-sm text-[#1D1433] outline-none transition-colors focus:border-[#7C3AED] focus:bg-white appearance-none';
+
+const INSTITUTION_TYPES = [
+    { value: 'SCHOOL', label: 'School' },
+    { value: 'COLLEGE', label: 'College' },
+    { value: 'COACHING', label: 'Coaching Institute' },
+] as const;
+
+const emptyForm = {
+    name: '', institution: '', email: '', phone: '',
+    institutionType: 'SCHOOL' as (typeof INSTITUTION_TYPES)[number]['value'],
+    studentCount: '', message: '',
+};
+
 export default function DemoModal({ open, onClose }: { open: boolean; onClose: () => void }) {
     const [sent, setSent] = useState(false);
-    const [form, setForm] = useState({ name: '', institution: '', email: '', phone: '' });
-    const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    const [submitting, setSubmitting] = useState(false);
+    const [error, setError] = useState('');
+    const [form, setForm] = useState(emptyForm);
+    const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
         setForm((p) => ({ ...p, [k]: e.target.value }));
 
     const close = () => {
@@ -19,13 +37,31 @@ export default function DemoModal({ open, onClose }: { open: boolean; onClose: (
         // reset after exit animation
         setTimeout(() => {
             setSent(false);
-            setForm({ name: '', institution: '', email: '', phone: '' });
+            setError('');
+            setForm(emptyForm);
         }, 350);
     };
 
-    const submit = (e: React.FormEvent) => {
+    const submit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setSent(true); // TODO: wire to backend API when available
+        setError('');
+        setSubmitting(true);
+        try {
+            await api.post('/public/demo-requests', {
+                name: form.name,
+                email: form.email,
+                phone: form.phone,
+                institutionName: form.institution,
+                institutionType: form.institutionType,
+                studentCount: form.studentCount ? Number(form.studentCount) : undefined,
+                message: form.message || undefined,
+            });
+            setSent(true);
+        } catch {
+            setError("Couldn't submit your request. Please try again in a moment.");
+        } finally {
+            setSubmitting(false);
+        }
     };
 
     return (
@@ -88,11 +124,27 @@ export default function DemoModal({ open, onClose }: { open: boolean; onClose: (
                                     <input required value={form.institution} onChange={set('institution')} placeholder="Institution name" className={INPUT} />
                                     <input required type="email" value={form.email} onChange={set('email')} placeholder="Work email" className={INPUT} />
                                     <input value={form.phone} onChange={set('phone')} placeholder="Phone (optional)" className={INPUT} />
+                                    <select required value={form.institutionType} onChange={set('institutionType')} className={SELECT}>
+                                        {INSTITUTION_TYPES.map((t) => (
+                                            <option key={t.value} value={t.value}>{t.label}</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        type="number" min={1} value={form.studentCount} onChange={set('studentCount')}
+                                        placeholder="Number of students/users (optional)" className={INPUT}
+                                    />
+                                    <textarea
+                                        value={form.message} onChange={set('message')} rows={3}
+                                        placeholder="What would you like to see? (optional)"
+                                        className={`${INPUT} resize-none`}
+                                    />
+                                    {error && <p className="text-sm text-red-500">{error}</p>}
                                     <button
                                         type="submit"
-                                        className="mt-2 w-full rounded-xl bg-[#7C3AED] py-3.5 text-sm font-semibold text-white shadow-[0_12px_28px_-12px_rgba(124,58,237,0.6)] transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                        disabled={submitting}
+                                        className="mt-2 w-full rounded-xl bg-[#7C3AED] py-3.5 text-sm font-semibold text-white shadow-[0_12px_28px_-12px_rgba(124,58,237,0.6)] transition-all hover:scale-[1.02] active:scale-[0.98] disabled:opacity-60 disabled:hover:scale-100"
                                     >
-                                        Submit request
+                                        {submitting ? 'Submitting…' : 'Submit request'}
                                     </button>
                                 </form>
                             </div>
