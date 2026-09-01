@@ -113,13 +113,15 @@ export interface StudentProfileViewProps {
     feesSlot?: React.ReactNode;
     /** Rendered side-by-side with Remarks (right column). */
     projectsSlot?: React.ReactNode;
+    /** Rendered full-width below Remarks/Projects — the PTM Notes card. Omit to render nothing. */
+    ptmNotesSlot?: React.ReactNode;
 }
 
 export default function StudentProfileView({
     institutionName, studentName, studentIdCode, standard, division, rollNo, admissionYear,
     dob, email, photo, status = 'ACTIVE', marksheetData, attendanceApiData, flags,
     onBack, onViewDetail, onViewReportCard, onViewAttendanceDetails, onViewAllFlags, standalone = true,
-    feesSlot, projectsSlot,
+    feesSlot, projectsSlot, ptmNotesSlot,
 }: StudentProfileViewProps) {
     const [photoExpanded, setPhotoExpanded] = useState(false);
     // Default to offline — matches what the student's own dashboard "Overall
@@ -561,6 +563,12 @@ export default function StudentProfileView({
                 </SectionCard>
                 {projectsSlot}
                 </div>
+
+                {ptmNotesSlot && (
+                    <div className="grid grid-cols-1 gap-4">
+                        {ptmNotesSlot}
+                    </div>
+                )}
         </>
     );
 

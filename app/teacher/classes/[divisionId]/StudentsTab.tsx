@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Users, ExternalLink, Flag, User } from 'lucide-react';
+import { Users, Flag, User } from 'lucide-react';
 import { Division, getInitials, getAvatarColor } from './DivisionClassPageClient';
 import { useStudentPhotosStore } from '@/store/studentPhotosStore';
 import api from '@/lib/api';
@@ -189,10 +189,6 @@ export default function StudentsTab({ division }: { division: Division }) {
                                     )}
                                         className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-red-500 hover:border-red-400/50 transition-all">
                                         <Flag size={11} /> Report
-                                    </button>
-                                    <button onClick={() => navigateWithSelection(`/teacher/classes/${division.id}/students/${selectedStudent.id}/profile`)}
-                                        className="flex items-center gap-1.5 h-7 px-3 rounded-lg border border-border/50 text-[11px] font-medium text-muted-foreground hover:text-primary hover:border-primary/40 transition-all">
-                                        <ExternalLink size={10} /> View Profile
                                     </button>
                                 </div>
                             </div>

@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { IndianRupee, Award, User, ChevronRight } from 'lucide-react';
 import api from '@/lib/api';
 import StudentProfileView, { ProfileViewMarksheet, ProfileViewAttendance } from '@/components/shared/StudentProfileView';
+import PTMNotesCard from '@/components/shared/PTMNotesCard';
 import { FlagItem } from '@/lib/flags';
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -374,6 +375,7 @@ export default function TeacherStudentProfilePage() {
             onViewAllFlags={() => router.push(`/teacher/classes/${divisionId}/students/${studentId}/reports?name=${encodeURIComponent(student.user.name ?? 'Student')}&class=${encodeURIComponent(divisionName)}&from=profile`)}
             feesSlot={feesElement}
             projectsSlot={projectsElement}
+            ptmNotesSlot={<PTMNotesCard divisionId={divisionId} studentId={studentId} />}
         />
     );
 }
