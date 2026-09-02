@@ -57,6 +57,10 @@
      server-side from a cookie (see app/layout.tsx) — so server and client
      agree from the very first paint. */
   --hero-accent: #7C3AED;
+  /* Needle/pivot/number ink for the AI Fee Health Score gauge — plain
+     --foreground in light mode, but overridden to a softer grey in dark
+     mode below, since near-white against the dark card felt too stark. */
+  --gauge-ink: var(--foreground);
 }
 
 .dark {
@@ -81,6 +85,7 @@
   --blue: #60A5FA;
   --blue-light: #0D1F3C;
   --hero-accent: #4C1D95;
+  --gauge-ink: #CBD5E1;
 }
 
 /* ── College institution theme — same shade structure as the violet school
@@ -147,7 +152,7 @@
    card's options list. */
 .visible-scrollbar::-webkit-scrollbar {
   display: block;
-  width: 6px;
+  width: 4px;
 }
 .visible-scrollbar::-webkit-scrollbar-track {
   background: transparent;
