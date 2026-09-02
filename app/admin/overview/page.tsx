@@ -170,7 +170,12 @@ export default function AdminOverviewPage() {
                         {(() => {
                             const aiUsed = overview.plan.usage.aiTokens.used;
                             const aiLimit = overview.plan.usage.aiTokens.limit || 1;
-                            const aiPct = Math.min(100, Math.round((aiUsed / aiLimit) * 100));
+                            const aiPctRaw = Math.min(100, (aiUsed / aiLimit) * 100);
+                            const aiPct = Math.round(aiPctRaw);
+                            // Below 1% a whole-number round collapses any real
+                            // but small usage down to a misleading "0%" — show
+                            // 2-decimal precision in that range instead.
+                            const aiPctLabel = aiPctRaw > 0 && aiPctRaw < 1 ? aiPctRaw.toFixed(2) : String(aiPct);
                             return (
                                 <div className="space-y-2">
                                     <div className="flex items-center justify-between">
@@ -178,11 +183,11 @@ export default function AdminOverviewPage() {
                                             {formatTokens(aiUsed)}
                                             <span className="text-sm font-normal text-muted-foreground"> / {formatTokens(aiLimit)} tokens</span>
                                         </p>
-                                        <p className="text-sm font-semibold text-muted-foreground">{aiPct}%</p>
+                                        <p className="text-sm font-semibold text-muted-foreground">{aiPctLabel}%</p>
                                     </div>
                                     <div className="w-full h-2.5 bg-muted rounded-full overflow-hidden">
                                         <div className="h-full rounded-full transition-all duration-500"
-                                            style={{ width: `${aiPct}%`, background: aiPct > 85 ? '#ef4444' : aiPct > 70 ? '#f59e0b' : 'var(--primary)' }} />
+                                            style={{ width: `${aiPctRaw}%`, minWidth: aiPctRaw > 0 ? '3px' : 0, background: aiPct > 85 ? '#ef4444' : aiPct > 70 ? '#f59e0b' : 'var(--primary)' }} />
                                     </div>
                                     <p className="text-[11px] text-muted-foreground/60">Shared across all teachers</p>
                                 </div>

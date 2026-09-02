@@ -331,6 +331,7 @@ export default function StudentProfile() {
                 <StudentProfileView
                     standalone={false}
                     institutionName={student.institutionName}
+                    institutionLogoUrl={student.institutionLogoUrl}
                     studentName={student.name}
                     studentIdCode={student.studentId}
                     standard={student.standard}

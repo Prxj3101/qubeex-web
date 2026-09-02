@@ -14,8 +14,12 @@ export function toTitleCase(value?: string | null): string {
 
 // Formats a raw token count for display, scaling to K/M so small real usage
 // (e.g. 2,000 tokens) doesn't round away to "0.0M" against a multi-million pool.
-export function formatTokens(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+// `decimals` (default 1) controls precision at the M scale — bump it to 2 when
+// displaying a value that's a large pool minus a comparatively tiny amount
+// (e.g. "remaining" after subtracting one teacher's usage), since 1 decimal
+// often rounds the subtraction away entirely and the number looks unchanged.
+export function formatTokens(n: number, decimals: number = 1): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(decimals)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
   return n.toLocaleString('en-IN');
 }

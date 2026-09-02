@@ -466,7 +466,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         {/* Teacher usage */}
                         <div>
                             <div className="flex items-center justify-between mb-1.5">
-                                <p className="text-xs font-semibold">{formatDisplayName(teacher.name, teacher.prefix)}&apos;s usage · last 30 days</p>
+                                <p className="text-xs font-semibold">{formatDisplayName(teacher.name, teacher.prefix)}&apos;s usage · this month</p>
                                 <span className="text-xs font-bold">
                                     {aiUsageLoading ? '…' : formatTokens(aiUsage?.totalTokens ?? 0)}
                                     <span className="text-muted-foreground font-normal"> / {formatTokens(aiUsage?.institutionPoolLimit ?? 0)} pool</span>
@@ -485,7 +485,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                 <p className="text-[10px] text-muted-foreground">Used</p>
                             </div>
                             <div className="bg-muted/40 rounded-xl p-3 text-center">
-                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(Math.max(0, (aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.totalTokens ?? 0)))}</p>
+                                <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(Math.max(0, (aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.totalTokens ?? 0)), 2)}</p>
                                 <p className="text-[10px] text-muted-foreground">Remaining</p>
                             </div>
                             <div className="rounded-xl p-3 text-center" style={{ background: 'rgba(124,58,237,0.08)' }}>

@@ -13,6 +13,7 @@ interface StudentState {
     divisionId: string;
     houseColor: string;
     institutionName: string;
+    institutionLogoUrl: string | null;
     tempPassword: string | null;
     mustChangePassword: boolean;
 
@@ -53,7 +54,7 @@ interface StudentState {
 
     // Actions
     fetchProfile: () => Promise<void>;
-    saveProfile: (patch: Partial<Omit<StudentState, 'fetchProfile' | 'saveProfile' | 'uploadPhoto' | 'updateInfo' | 'isLoading' | 'isSaving' | 'error' | 'studentId' | 'rollNo' | 'standard' | 'division' | 'houseColor' | 'institutionName' | 'tempPassword' | 'mustChangePassword'>>) => Promise<void>;
+    saveProfile: (patch: Partial<Omit<StudentState, 'fetchProfile' | 'saveProfile' | 'uploadPhoto' | 'updateInfo' | 'isLoading' | 'isSaving' | 'error' | 'studentId' | 'rollNo' | 'standard' | 'division' | 'houseColor' | 'institutionName' | 'institutionLogoUrl' | 'tempPassword' | 'mustChangePassword'>>) => Promise<void>;
     uploadPhoto: (file: File) => Promise<void>;
     updateInfo: (data: Partial<StudentState>) => void;
 }
@@ -66,6 +67,7 @@ export const useStudentStore = create<StudentState>()(persist((set, get) => ({
     divisionId: '',
     houseColor: '',
     institutionName: '',
+    institutionLogoUrl: null,
     tempPassword: null,
     mustChangePassword: false,
 
@@ -112,6 +114,7 @@ export const useStudentStore = create<StudentState>()(persist((set, get) => ({
                 divisionId: s.division?.id ?? '',
                 houseColor: s.houseColor ?? '',
                 institutionName: s.institution?.name ?? '',
+                institutionLogoUrl: s.institution?.logoUrl ?? null,
                 tempPassword: s.tempPassword ?? null,
                 mustChangePassword: s.user?.mustChangePassword ?? false,
                 photo: s.avatarUrl ?? null,

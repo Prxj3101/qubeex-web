@@ -1173,6 +1173,11 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
       failedRequests: number;
       totalTokens: number;
     }[];
+    // Last 5 calendar months (current month included), independent of the
+    // `range` filter above — "how much of the pool did this institution
+    // actually use each month". `limit` is today's plan limit applied to
+    // every month shown (historical plan changes aren't tracked).
+    monthly?: { month: string; totalTokens: number; limit: number }[];
   } | null>(null);
 
   const buildStrictAddonsPayload = useCallback(() => {
@@ -2025,6 +2030,36 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                       </span>
                     </div>
                   ))}
+                </div>
+              )}
+              {aiUsageDetail?.monthly && aiUsageDetail.monthly.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+                  <p className="text-[11px] font-semibold text-muted-foreground">
+                    Monthly usage (last {aiUsageDetail.monthly.length} months)
+                  </p>
+                  {aiUsageDetail.monthly.map((m) => {
+                    const pct = m.limit > 0 ? Math.min(100, Math.round((m.totalTokens / m.limit) * 100)) : 0;
+                    const label = new Date(`${m.month}-01T00:00:00Z`).toLocaleDateString("en-IN", { month: "short", year: "numeric" });
+                    return (
+                      <div key={m.month}>
+                        <div className="flex items-center justify-between text-[11px] mb-1">
+                          <span className="text-muted-foreground">{label}</span>
+                          <span className="font-semibold">
+                            {formatTokens(m.totalTokens)} / {formatTokens(m.limit)} ({pct}%)
+                          </span>
+                        </div>
+                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${pct}%`,
+                              background: pct > 85 ? "#ef4444" : pct > 70 ? "#f59e0b" : "#DA7756",
+                            }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               <div className="bg-muted/40 rounded-xl p-4 space-y-3">

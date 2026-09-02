@@ -24,6 +24,19 @@ const Document = dynamic(() => import('react-pdf').then(m => m.Document), { ssr:
 const Page = dynamic(() => import('react-pdf').then(m => m.Page), { ssr: false });
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 
+// pdf.js defaults to fetching a hosted PDF in byte-range chunks (streaming
+// only the pages/objects it needs) rather than downloading the whole file.
+// That only works cleanly if the storage backend serving doc.url correctly
+// implements HTTP Range requests end-to-end (Content-Range, 206 responses,
+// consistent ETags across ranged requests, etc). On a backend that doesn't,
+// large embedded page images on scanned PDFs can end up with an incomplete
+// byte range fetched for their data stream — pdf.js then permanently logs
+// "Dependent image isn't ready yet" while waiting on a fetch that will never
+// finish, and that image never paints. Forcing a single full-file download
+// instead sidesteps that class of bug entirely (a page-count worth of
+// scanned-textbook slower to load, but every image actually resolves).
+const PDF_LOAD_OPTIONS = { disableRange: true, disableStream: true } as const;
+
 // Module-level cache — fetched once as soon as this file loads (not tied to any
 // panel's mount/unmount), so whichever panel needs it first already has it
 // in memory and can render it in the very same tick as everything else.
@@ -155,7 +168,7 @@ const PAGE_TEXT_CHAR_LIMIT = 7500;
 async function extractPdfPageText(fileUrl: string, pages: number[]): Promise<string> {
     if (pages.length === 0) return '';
     const { pdfjs } = await import('react-pdf');
-    const pdf = await pdfjs.getDocument(fileUrl).promise;
+    const pdf = await pdfjs.getDocument({ url: fileUrl, ...PDF_LOAD_OPTIONS }).promise;
     const textByPage = new Map<number, string>();
     const needsOcr: number[] = [];
 
@@ -428,6 +441,15 @@ function AIScanPanel({
         return () => clearTimeout(id);
     }, [phase]);
 
+    // Lets the teacher bail out of a scan that's taking too long instead of
+    // being stuck waiting for it to finish or fail on its own.
+    const scanAbortRef = useRef<AbortController | null>(null);
+    const handleStopScan = () => {
+        scanAbortRef.current?.abort();
+        setPhase('input');
+        onScanEnd();
+    };
+
     const handleScan = async () => {
         if (!canScan) return;
         const sorted = [...selectedPages].sort((a, b) => a - b);
@@ -439,6 +461,8 @@ function AIScanPanel({
         setPhase('loading');
         onScanStart();
 
+        const controller = new AbortController();
+        scanAbortRef.current = controller;
         const minDelay = new Promise(resolve => setTimeout(resolve, 5000));
 
         try {
@@ -468,12 +492,15 @@ function AIScanPanel({
                     mode,
                     ...(pageText ? { pageText } : {}),
                     ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
-                }),
+                }, { signal: controller.signal }),
                 minDelay,
             ]);
             setResult(res.data.data);
             setPhase('result');
         } catch (err: any) {
+            // Teacher-initiated stop — handleStopScan already reset the UI
+            // back to 'input', so there's nothing left to do here.
+            if (err.code === 'ERR_CANCELED' || err.name === 'CanceledError') return;
             await minDelay;
             toast.error(err.response?.status === 429
                 ? 'Monthly AI token limit reached'
@@ -481,6 +508,7 @@ function AIScanPanel({
             setPhase('input');
         } finally {
             onScanEnd();
+            scanAbortRef.current = null;
         }
     };
 
@@ -513,6 +541,13 @@ function AIScanPanel({
                             onClick={() => setPhase('input')}
                             className="h-6 px-2 rounded-lg text-[10.5px] font-medium text-white/60 border border-white/15 hover:bg-white/10 transition-all flex items-center gap-1">
                             <RefreshCw size={10} /> Scan Again
+                        </button>
+                    )}
+                    {phase === 'loading' && (
+                        <button
+                            onClick={handleStopScan}
+                            className="h-6 px-2 rounded-lg text-[10.5px] font-medium text-white/60 border border-white/15 hover:bg-white/10 transition-all flex items-center gap-1">
+                            <X size={10} /> Stop Scan
                         </button>
                     )}
                     <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all">
@@ -549,7 +584,7 @@ function AIScanPanel({
                                         <p className="text-[11px] text-white/40">No pages selected yet</p>
                                     </div>
                                 ) : (
-                                    <Document file={doc!.url} loading={null}>
+                                    <Document file={doc!.url} loading={null} options={PDF_LOAD_OPTIONS}>
                                         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, 220px)' }}>
                                             {[...selectedPages].sort((a, b) => a - b).map(pageNum => (
                                                 <div key={pageNum}
@@ -1273,7 +1308,7 @@ function AIQuizPanel({
                                         <p className="text-[11px] text-white/40">No pages selected yet</p>
                                     </div>
                                 ) : (
-                                    <Document file={doc!.url} loading={null}>
+                                    <Document file={doc!.url} loading={null} options={PDF_LOAD_OPTIONS}>
                                         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, 220px)' }}>
                                             {[...selectedPages].sort((a, b) => a - b).map(pageNum => (
                                                 <div key={pageNum}
@@ -1626,9 +1661,76 @@ export default function BlackboardPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [doc?.name, doc?.type]);
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
+    // "From Computer" never touches the backend (blob: URL + IndexedDB
+    // only), so it doesn't get the Ghostscript normalization that Storage
+    // uploads get for PDFs with the JPXDecode/CMYK bug (see
+    // pdfNormalize.service.ts on the backend). Before loading a PDF, do the
+    // same cheap raw-byte scan the backend does — if the marker isn't
+    // present (the vast majority of PDFs), skip the network round-trip
+    // entirely and behave exactly as before. Only PDFs that actually need
+    // it get sent to /blackboard/normalize-pdf for cleanup.
+    const mightNeedPdfNormalization = async (file: File): Promise<boolean> => {
+        try {
+            const buf = await file.arrayBuffer();
+            // Scan in chunks to avoid building one huge string for large PDFs.
+            const bytes = new Uint8Array(buf);
+            const needle = '/JPXDecode';
+            const chunkSize = 1024 * 1024;
+            const decoder = new TextDecoder('latin1');
+            let carry = '';
+            for (let i = 0; i < bytes.length; i += chunkSize) {
+                const chunk = bytes.subarray(i, Math.min(i + chunkSize, bytes.length));
+                const text = carry + decoder.decode(chunk);
+                if (text.includes(needle)) return true;
+                carry = text.slice(-needle.length);
+            }
+            return false;
+        } catch {
+            return false;
+        }
+    };
+
+    const normalizePdfViaBackend = async (file: File): Promise<File> => {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await api.post('/teacher/blackboard/normalize-pdf', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+                responseType: 'arraybuffer',
+            });
+            // Backend tried Ghostscript but it failed/timed out (very large
+            // file, corrupt page, etc.) and fell back to serving the
+            // original, still-broken PDF — worth telling the teacher rather
+            // than letting them wonder why some images are still blank.
+            if (res.headers['x-pdf-normalize-status'] === 'failed') {
+                toast.warning(`Some images in ${file.name} might not display correctly`);
+            }
+            return new File([res.data], file.name, { type: 'application/pdf' });
+        } catch {
+            // Request itself failed (network, timeout, etc.) — load the
+            // original file rather than blocking the user.
+            return file;
+        }
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const rawFile = e.target.files?.[0];
+        if (!rawFile) return;
+        e.target.value = '';
+
+        // For PDFs the byte-scan + possible backend round-trip can take a
+        // couple seconds, during which the picker just sits there with no
+        // feedback — show a loading toast right away so it's clear
+        // something's happening, then swap it for the success toast once
+        // the (possibly normalized) file is actually ready to load.
+        const isPdf = rawFile.type === 'application/pdf';
+        const toastId = isPdf ? toast.loading(`Loading ${rawFile.name}...`) : undefined;
+
+        let file = rawFile;
+        if (isPdf && await mightNeedPdfNormalization(file)) {
+            file = await normalizePdfViaBackend(file);
+        }
+
         const url = URL.createObjectURL(file);
         setDoc({ name: file.name, url, type: file.type });
         setCurrentPage(1);
@@ -1639,8 +1741,7 @@ export default function BlackboardPage() {
         initialScaleSet.current = false;
         setBlackboardValue('initialScaleSet', false);
         saveBlackboardFile(file);
-        toast.success(`${file.name} loaded!`);
-        e.target.value = '';
+        toast.success(`${file.name} loaded!`, toastId ? { id: toastId } : undefined);
     };
 
     // Clears the currently loaded document off the blackboard — until now the
@@ -1694,6 +1795,49 @@ export default function BlackboardPage() {
     // zoom level the teacher had actually set.
     const initialScaleSetMemory = blackboardMemory['initialScaleSet'] === true;
     const initialScaleSet = useRef(initialScaleSetMemory);
+
+    // Gates the visible <Page>: pre-fetch this page's true size via pdf.js
+    // BEFORE ever mounting it, so the first paint already uses the correct
+    // fit-to-viewer scale. The old approach mounted <Page> at scale=1, then
+    // immediately re-rendered it at the fitted scale from inside Page's own
+    // onLoadSuccess — that second render cancelled the first mid-flight,
+    // and on image-heavy pages (e.g. a scanned textbook page) pdf.js's
+    // image decoder for the cancelled render never got its deferred
+    // repaint back, leaving that image permanently blank (surfaced as
+    // pdf.js's own "Dependent image isn't ready yet" console warning).
+    const [scaleReady, setScaleReady] = useState(initialScaleSetMemory);
+
+    useEffect(() => {
+        if (!doc || getRenderer(doc) !== 'pdf') return;
+        if (initialScaleSet.current) { setScaleReady(true); return; }
+        let cancelled = false;
+        setScaleReady(false);
+        (async () => {
+            try {
+                const { pdfjs } = await import('react-pdf');
+                const pdf = await pdfjs.getDocument({ url: doc.url, ...PDF_LOAD_OPTIONS }).promise;
+                const page = await pdf.getPage(currentPage);
+                const viewport = page.getViewport({ scale: 1 });
+                if (cancelled) return;
+                setPageWidth(viewport.width);
+                setPageHeight(viewport.height);
+                if (viewerRef.current) {
+                    const scaleW = viewerRef.current.clientWidth / viewport.width;
+                    const scaleH = viewerRef.current.clientHeight / viewport.height;
+                    setScale(Math.min(scaleW, scaleH) * 0.92);
+                }
+                initialScaleSet.current = true;
+                setBlackboardValue('initialScaleSet', true);
+            } catch {
+                // Fall through — <Page> still mounts below at whatever scale
+                // is current and can self-correct via its own onLoadSuccess.
+            } finally {
+                if (!cancelled) setScaleReady(true);
+            }
+        })();
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [doc?.url, currentPage]);
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [drawingMode, setDrawingMode] = usePersisted('drawingMode', false);
@@ -2148,30 +2292,30 @@ export default function BlackboardPage() {
                                         </AnimatePresence>
                                         {renderer === 'pdf' && (
                                             <>
-                                                <Document
-                                                    file={doc.url}
-                                                    onLoadSuccess={({ numPages }) => setTotalPages(numPages)}
-                                                    className="flex items-center justify-center h-full overflow-auto">
-                                                    <Page
-                                                        pageNumber={currentPage}
-                                                        scale={scale}
-                                                        rotate={rotation}
-                                                        renderTextLayer={false}
-                                                        renderAnnotationLayer={false}
-                                                        className="shadow-2xl"
-                                                        onLoadSuccess={(page) => {
-                                                            setPageWidth(page.originalWidth);
-                                                            setPageHeight(page.originalHeight);
-                                                            if (viewerRef.current && !initialScaleSet.current) {
-                                                                const scaleW = viewerRef.current.clientWidth / page.originalWidth;
-                                                                const scaleH = viewerRef.current.clientHeight / page.originalHeight;
-                                                                setScale(Math.min(scaleW, scaleH) * 0.92);
-                                                                initialScaleSet.current = true;
-                                                                setBlackboardValue('initialScaleSet', true);
-                                                            }
-                                                        }}
-                                                    />
-                                                </Document>
+                                                {scaleReady ? (
+                                                    <Document
+                                                        file={doc.url}
+                                                        options={PDF_LOAD_OPTIONS}
+                                                        onLoadSuccess={({ numPages }) => setTotalPages(numPages)}
+                                                        className="flex items-center justify-center h-full overflow-auto">
+                                                        <Page
+                                                            pageNumber={currentPage}
+                                                            scale={scale}
+                                                            rotate={rotation}
+                                                            renderTextLayer={false}
+                                                            renderAnnotationLayer={false}
+                                                            className="shadow-2xl"
+                                                            onLoadSuccess={(page) => {
+                                                                setPageWidth(page.originalWidth);
+                                                                setPageHeight(page.originalHeight);
+                                                            }}
+                                                        />
+                                                    </Document>
+                                                ) : (
+                                                    <div className="flex items-center justify-center h-full text-white/50 text-sm">
+                                                        Loading page…
+                                                    </div>
+                                                )}
 
                                                 {drawingMode && (
                                                     <canvas

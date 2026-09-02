@@ -41,8 +41,23 @@ const AI_FEATURE_LABELS: Record<string, string> = {
     BLACKBOARD_SCAN: 'AI Scan',
     BLACKBOARD_CHAT: 'AI Chat',
     BLACKBOARD_QUIZ: 'Quiz Generation',
+    BLACKBOARD_MINDMAP: 'Mindmap Generation',
     TASK_QUESTION_GENERATION: 'Question Bank',
 };
+// Fixed color per feature (not by sort/render order) so e.g. AI Scan is
+// always the same pink everywhere — admin analytics AND superadmin.
+const AI_FEATURE_COLORS: Record<string, string> = {
+    BLACKBOARD_CONTEXT: '#84CC16',
+    BLACKBOARD_SCAN: '#DB2777',
+    BLACKBOARD_CHAT: '#059669',
+    BLACKBOARD_QUIZ: '#F59E0B',
+    BLACKBOARD_MINDMAP: '#2563EB',
+    TASK_QUESTION_GENERATION: '#0891B2',
+};
+const AI_FEATURE_COLOR_FALLBACK = '#64748B';
+function featureColor(feature: string) {
+    return AI_FEATURE_COLORS[feature] ?? AI_FEATURE_COLOR_FALLBACK;
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function StatCard({ icon: Icon, label, value, sub, iconBg, iconColor }: {
@@ -495,13 +510,13 @@ export default function AdminAnalyticsPage() {
         return (
             <div className="space-y-4 py-4">
                 <Skeleton className="h-8 w-48 rounded-lg" />
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                    {[0, 1, 2, 3, 4].map(i => <Skeleton key={i} className="h-28 rounded-2xl" />)}
-                </div>
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                    <Skeleton className="h-64 rounded-2xl" />
-                    <Skeleton className="h-64 rounded-2xl" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                        {[0, 1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-28 rounded-2xl" />)}
+                    </div>
+                    <Skeleton className="h-full min-h-[240px] rounded-2xl" />
                 </div>
+                <Skeleton className="h-64 rounded-2xl" />
                 <Skeleton className="h-96 rounded-2xl" />
             </div>
         );
@@ -527,7 +542,38 @@ export default function AdminAnalyticsPage() {
 
     const institutionTokensUsed = plan.usage.aiTokens.used;
     const institutionTokensLimit = plan.usage.aiTokens.limit || 1;
-    const tokenPct = Math.min(100, Math.round((institutionTokensUsed / institutionTokensLimit) * 100));
+    // Raw (unrounded) — the bar's width can round fine, but on a multi-million
+    // token pool actual usage is often under 1%, and whole-percent rounding
+    // collapsed that down to a misleading "0% used" (same issue the per-teacher
+    // bars had before switching to decimal precision below 1%).
+    const tokenPctRaw = Math.min(100, (institutionTokensUsed / institutionTokensLimit) * 100);
+    const tokenPct = Math.round(tokenPctRaw);
+    const tokenPctLabel = tokenPctRaw === 0 ? '0%' : tokenPctRaw < 1 ? `${tokenPctRaw.toFixed(2)}%` : `${tokenPct}%`;
+    // aiTeachers now lists every teacher (zero-usage ones included, so the
+    // "Per teacher" card always shows the full staff list with a 0% bar
+    // instead of hiding anyone) — adoption must count only the ones who
+    // actually made a request, not the list length.
+    const activeAiTeachers = aiTeachers.filter(t => t.totalRequests > 0);
+    const aiAdoptionPct = stats.totalTeachers > 0 ? Math.round((activeAiTeachers.length / stats.totalTeachers) * 100) : 0;
+
+    // Institution-scoped feature breakdown — aggregated from this institution's
+    // own teachers only (unlike superadmin's system/ai-usage page, which sums
+    // this across every institution on the platform). Seeded with every known
+    // feature at zero first so the "Usage by Feature" card always lists all
+    // of them, not just whichever ones happen to have usage this month.
+    const featureTotals = new Map<string, { totalTokens: number; requests: number }>(
+        Object.keys(AI_FEATURE_LABELS).map(f => [f, { totalTokens: 0, requests: 0 }])
+    );
+    aiTeachers.forEach(t => t.byFeature.forEach(f => {
+        const cur = featureTotals.get(f.feature) ?? { totalTokens: 0, requests: 0 };
+        cur.totalTokens += f.totalTokens;
+        cur.requests += f.requests;
+        featureTotals.set(f.feature, cur);
+    }));
+    const featureBreakdown = Array.from(featureTotals.entries())
+        .map(([feature, v]) => ({ feature, ...v }))
+        .sort((a, b) => b.totalTokens - a.totalTokens);
+    const featureGrandTotal = featureBreakdown.reduce((s, f) => s + f.totalTokens, 0) || 1;
 
     return (
         <div className="space-y-3 pb-4">
@@ -552,30 +598,33 @@ export default function AdminAnalyticsPage() {
                 <div className="h-px bg-border/60 mt-2" />
             </div>
 
-            {/* ── Stat cards ── */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <StatCard icon={Users} label="Total Users" value={stats.totalUsers}
-                    iconBg="bg-violet-100 dark:bg-violet-950" iconColor="text-violet-600 dark:text-violet-400"
-                    sub="∞ limit" />
-                <StatCard icon={GraduationCap} label="Students" value={stats.totalStudents}
-                    iconBg="bg-emerald-100 dark:bg-emerald-950" iconColor="text-emerald-600 dark:text-emerald-400"
-                    sub="Enrolled students" />
-                <StatCard icon={BookOpen} label="Teachers" value={stats.totalTeachers}
-                    iconBg="bg-amber-100 dark:bg-amber-950" iconColor="text-amber-600 dark:text-amber-400"
-                    sub={`${activeTeachers} active · ${inactiveTeachers} inactive`} />
-                <StatCard icon={Layers} label="Classes" value={stats.totalClasses}
-                    iconBg="bg-sky-100 dark:bg-sky-950" iconColor="text-sky-600 dark:text-sky-400"
-                    sub="Configured in campus" />
-                <StatCard icon={Wallet} label="Plan" value={plan.name.toUpperCase()}
-                    iconBg="bg-rose-100 dark:bg-rose-950" iconColor="text-rose-600 dark:text-rose-400"
-                    sub={`${plan.usage.users.used} users used`} />
-            </div>
+            {/* ── Stat cards (2x3) + Plan Usage side card ── */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-stretch">
 
-            {/* ── Plan Usage + AI Usage side by side ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                {/* Stat cards, 3-up, 2 rows */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
+                    <StatCard icon={Users} label="Total Users" value={stats.totalUsers}
+                        iconBg="bg-violet-100 dark:bg-violet-950" iconColor="text-violet-600 dark:text-violet-400"
+                        sub="∞ limit" />
+                    <StatCard icon={GraduationCap} label="Students" value={stats.totalStudents}
+                        iconBg="bg-emerald-100 dark:bg-emerald-950" iconColor="text-emerald-600 dark:text-emerald-400"
+                        sub="Enrolled students" />
+                    <StatCard icon={BookOpen} label="Teachers" value={stats.totalTeachers}
+                        iconBg="bg-amber-100 dark:bg-amber-950" iconColor="text-amber-600 dark:text-amber-400"
+                        sub={`${activeTeachers} active · ${inactiveTeachers} inactive`} />
+                    <StatCard icon={Layers} label="Classes" value={stats.totalClasses}
+                        iconBg="bg-sky-100 dark:bg-sky-950" iconColor="text-sky-600 dark:text-sky-400"
+                        sub="Configured in campus" />
+                    <StatCard icon={Wallet} label="Plan" value={plan.name.toUpperCase()}
+                        iconBg="bg-rose-100 dark:bg-rose-950" iconColor="text-rose-600 dark:text-rose-400"
+                        sub={`${plan.usage.users.used} users used`} />
+                    <StatCard icon={Sparkles} label="AI Adoption" value={`${aiAdoptionPct}%`}
+                        iconBg="bg-fuchsia-100 dark:bg-fuchsia-950" iconColor="text-fuchsia-600 dark:text-fuchsia-400"
+                        sub={`${activeAiTeachers.length} of ${stats.totalTeachers} teachers used AI`} />
+                </div>
 
-                {/* Plan Usage */}
-                <div className="bg-card border border-border/50 rounded-2xl p-5 flex flex-col gap-4">
+                {/* Plan Usage — stretches to match the stat-card block's height */}
+                <div className="bg-card border border-border/50 rounded-2xl p-5 flex flex-col gap-4 h-full">
                     <div className="flex items-center gap-2 mb-1">
                         < Gauge size={15} className="text-muted-foreground" />
                         <p className="text-sm font-semibold">Plan Usage</p>
@@ -624,86 +673,202 @@ export default function AdminAnalyticsPage() {
                         })}
                     </div>
                 </div>
+            </div>
 
-                {/* AI Usage */}
-                <div className="bg-card border border-border/50 rounded-2xl p-5 flex flex-col gap-4">
-                    <div className="flex items-center gap-2 mb-1">
-                        <Sparkles size={15} className="text-muted-foreground" />
-                        <p className="text-sm font-semibold">AI Usage</p>
-                    </div>
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <p className="text-xs text-muted-foreground">Institution token pool</p>
-                            <p className="text-lg font-semibold">
-                                {formatTokens(institutionTokensUsed)}
-                                <span className="text-sm font-normal text-muted-foreground"> / {formatTokens(institutionTokensLimit)} tokens</span>
-                            </p>
-                        </div>
-                        <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center">
-                            <Sparkles size={15} className="text-violet-600 dark:text-violet-400" />
-                        </div>
-                    </div>
+            {/* ── AI Usage — full width, split 60/40 with a separator ── */}
+            <div className="bg-card border border-border/50 rounded-2xl p-5">
+                <div className="flex flex-col lg:flex-row gap-5">
 
-                    {/* Pool bar */}
-                    <div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden mb-1">
-                            <div className="h-full rounded-full transition-all duration-700"
-                                style={{
-                                    width: `${tokenPct}%`,
-                                    background: 'linear-gradient(90deg, #DA7756, #C06040)',
-                                }} />
+                    {/* Left 60% — all existing content */}
+                    <div className="lg:w-[60%] flex flex-col gap-4">
+                        <div className="flex items-center gap-2 mb-1">
+                            <Sparkles size={15} className="text-muted-foreground" />
+                            <p className="text-sm font-semibold">AI Usage</p>
                         </div>
                         <div className="flex items-center justify-between">
-                            <p className="text-[10px] text-muted-foreground">{tokenPct}% used</p>
-                            <p className="text-[10px] text-muted-foreground">Shared institution pool</p>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Institution token pool</p>
+                                <p className="text-lg font-semibold">
+                                    {formatTokens(institutionTokensUsed)}
+                                    <span className="text-sm font-normal text-muted-foreground"> / {formatTokens(institutionTokensLimit)} tokens</span>
+                                </p>
+                            </div>
+                            <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center">
+                                <Sparkles size={15} className="text-violet-600 dark:text-violet-400" />
+                            </div>
+                        </div>
+
+                        {/* Pool bar */}
+                        <div>
+                            <div className="h-2 bg-muted rounded-full overflow-hidden mb-1">
+                                <div className="h-full rounded-full transition-all duration-700"
+                                    style={{
+                                        width: `${tokenPctRaw}%`,
+                                        minWidth: tokenPctRaw > 0 ? '3px' : 0,
+                                        background: 'linear-gradient(90deg, #DA7756, #C06040)',
+                                    }} />
+                            </div>
+                            <div className="flex items-center justify-between">
+                                <p className="text-[10px] text-muted-foreground">{tokenPctLabel} used</p>
+                                <p className="text-[10px] text-muted-foreground">Shared institution pool</p>
+                            </div>
+                        </div>
+
+                        {/* Per teacher — total bar + full feature breakdown.
+                            Fixed height so this card doesn't keep growing as
+                            more teachers/features get added — the list itself
+                            scrolls instead. */}
+                        <div className="flex flex-col min-h-0">
+                            <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-3">Per teacher <span className="normal-case font-normal">(this month)</span></p>
+                            <div className="space-y-3 h-[250px] overflow-y-auto pr-1"
+                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                            {aiTeachers.length === 0 && (
+                                <p className="text-[11px] text-muted-foreground/60 italic">No AI usage recorded yet</p>
+                            )}
+                            {aiTeachers.length > 0 && (() => {
+                                // Bars are this teacher's share of the actual
+                                // institution token pool (same denominator as
+                                // the pool bar above) — previously this was
+                                // relative to the heaviest user, which made
+                                // whoever used the most always show a full bar
+                                // regardless of how much of the pool was
+                                // actually used.
+                                // Same order as the "Usage by Feature" card on the right
+                                // (institution-wide, sorted by tokens desc), so a feature
+                                // sits in the same position in every teacher's list too.
+                                const featureOrder = featureBreakdown.map(f => f.feature);
+                                return aiTeachers.map((t) => {
+                                    // Real, unrounded share of the pool — with a big pool
+                                    // and modest per-teacher usage this is often well under
+                                    // 1%, so rounding to a whole number (or worse, flooring
+                                    // to a fixed minimum like "2%") made every light user
+                                    // look identical. Bar width uses the exact value with a
+                                    // pixel minWidth (not a % floor) just so a real sliver
+                                    // of usage isn't literally invisible; the label shows
+                                    // decimals when the value is small so teachers with
+                                    // different usage still read as different.
+                                    const usagePct = institutionTokensLimit > 0
+                                        ? Math.min(100, (t.totalTokens / institutionTokensLimit) * 100)
+                                        : 0;
+                                    const usagePctLabel = usagePct === 0
+                                        ? '0%'
+                                        : usagePct < 1
+                                            ? `${usagePct.toFixed(2)}%`
+                                            : `${Math.round(usagePct)}%`;
+                                    const orderedFeatures = [...t.byFeature].sort(
+                                        (a, b) => featureOrder.indexOf(a.feature) - featureOrder.indexOf(b.feature)
+                                    );
+                                    return (
+                                        <div key={t.teacherId} className="rounded-xl border border-border/40 bg-muted/10 p-3">
+                                            <div className="flex items-center gap-2.5">
+                                                <div className="w-7 h-7 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
+                                                    <span className="text-[10px] font-bold text-violet-500">
+                                                        {t.name.split(' ').map(n => n[0]).join('')}
+                                                    </span>
+                                                </div>
+                                                <div className="flex-1 min-w-0 flex items-center gap-2 flex-wrap">
+                                                    <span className="text-[12px] font-semibold text-foreground truncate">{t.name}</span>
+                                                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400">{t.successRequests} ok</span>
+                                                    {t.failedRequests > 0 && (
+                                                        <span className="text-[10px] text-red-500">{t.failedRequests} failed</span>
+                                                    )}
+                                                    {t.isOverSoftLimit && (
+                                                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                                                            Over limit
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div className="text-right shrink-0">
+                                                    <p className="text-[13px] font-bold text-foreground leading-none">{formatTokens(t.totalTokens)}</p>
+                                                    <p className="text-[10px] text-muted-foreground mt-0.5">{t.totalRequests} requests</p>
+                                                </div>
+                                            </div>
+
+                                            {/* Total usage bar — this teacher's share of the institution pool */}
+                                            <div className="h-1.5 bg-muted rounded-full overflow-hidden mt-2.5">
+                                                <div className="h-full rounded-full transition-all duration-700"
+                                                    style={{
+                                                        width: `${usagePct}%`,
+                                                        minWidth: usagePct > 0 ? '3px' : 0,
+                                                        background: 'linear-gradient(90deg, #7C3AED, #A78BFA)',
+                                                    }} />
+                                            </div>
+                                            <p className="text-[9.5px] text-muted-foreground mt-1">{usagePctLabel} of institution pool</p>
+
+                                            {/* Feature-wise breakdown */}
+                                            <div className="mt-2.5 pt-2.5 border-t border-border/30 space-y-1.5">
+                                                {orderedFeatures.map((f) => {
+                                                    const share = t.totalTokens > 0 ? Math.round((f.totalTokens / t.totalTokens) * 100) : 0;
+                                                    const color = featureColor(f.feature);
+                                                    return (
+                                                        <div key={f.feature} className="flex items-center gap-2">
+                                                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                                                            <span className="text-[10.5px] text-foreground/80 w-[104px] shrink-0 truncate">
+                                                                {AI_FEATURE_LABELS[f.feature] ?? f.feature}
+                                                            </span>
+                                                            <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden min-w-[24px]">
+                                                                <div className="h-full rounded-full" style={{ width: `${share}%`, background: color }} />
+                                                            </div>
+                                                            <span className="text-[10px] font-medium text-foreground shrink-0 w-14 text-right">
+                                                                {formatTokens(f.totalTokens)}
+                                                            </span>
+                                                            <span className="text-[9.5px] text-muted-foreground shrink-0 w-16 text-right">
+                                                                {f.requests} req
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                });
+                            })()}
+                            </div>
                         </div>
                     </div>
 
-                    {/* Per teacher */}
-                    <div className="space-y-2.5">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Per teacher</p>
-                        {aiTeachers.length === 0 && (
-                            <p className="text-[11px] text-muted-foreground/60 italic">No AI usage recorded yet</p>
-                        )}
-                        {aiTeachers.map((t) => {
-                            return (
-                                <div key={t.teacherId} className="flex items-center gap-2.5">
-                                    <div className="w-6 h-6 rounded-full bg-violet-500/15 flex items-center justify-center shrink-0">
-                                        <span className="text-[9px] font-bold text-violet-400">
-                                            {t.name.split(' ').map(n => n[0]).join('')}
-                                        </span>
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center justify-between mb-0.5">
-                                            <span className="text-[11px] font-medium text-foreground truncate">{t.name}</span>
-                                            {/* No share-of-pool bar here: this row has no
-                                                per-teacher pool limit to divide by, and the
-                                                old hardcoded 10M assumption was wrong for
-                                                Pro/trial plans and token addons. */}
-                                            <span className="text-[10px] font-semibold shrink-0 ml-2 text-muted-foreground">
-                                                {formatTokens(t.totalTokens)} tokens
-                                            </span>
+                    {/* Separator */}
+                    <div className="hidden lg:block w-px bg-border/60 self-stretch" />
+                    <div className="lg:hidden h-px bg-border/60 w-full" />
+
+                    {/* Right 40% — Usage by Feature, this institution only.
+                        Same max-height + internal scroll as "Per teacher" on
+                        the left, so a long feature list can't stretch the
+                        whole card taller — it scrolls in place instead. */}
+                    <div className="lg:w-[40%] flex flex-col gap-5 min-h-0">
+                        <p className="text-sm font-semibold">Usage by Feature <span className="text-xs font-normal text-muted-foreground">(this month)</span></p>
+                        {/* flex-1 instead of a fixed height — the left column has
+                            extra header/pool-bar content above its own list, so
+                            matching this to a fixed px value left the two boxes
+                            starting at the same height but ending at different
+                            points. Stretching this to fill the remaining column
+                            height (set by the row's flex stretch) makes both
+                            columns' bottoms land in the same place instead. */}
+                        <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-1"
+                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                            {featureBreakdown.map((f) => {
+                                const pct = Math.round((f.totalTokens / featureGrandTotal) * 100);
+                                const color = featureColor(f.feature);
+                                return (
+                                    <div key={f.feature}>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <span className="text-[11px] font-semibold">{AI_FEATURE_LABELS[f.feature] ?? f.feature}</span>
+                                            <span className="text-[11px] font-bold" style={{ color }}>{pct}%</span>
                                         </div>
-                                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                                            {t.byFeature.slice(0, 3).map((f) => (
-                                                <span key={f.feature} className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">
-                                                    {AI_FEATURE_LABELS[f.feature] ?? f.feature}: {f.requests}
-                                                </span>
-                                            ))}
-                                            <span className="text-[10px] text-emerald-600 dark:text-emerald-400">{t.successRequests} ok</span>
-                                            {t.failedRequests > 0 && (
-                                                <span className="text-[10px] text-red-500">{t.failedRequests} failed</span>
-                                            )}
-                                            {t.isOverSoftLimit && (
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                                                    Over soft limit
-                                                </span>
-                                            )}
+                                        <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                                        </div>
+                                        <div className="flex justify-between mt-1">
+                                            <span className="text-[10px] text-muted-foreground">{formatTokens(f.totalTokens)} tokens</span>
+                                            <span className="text-[10px] text-muted-foreground">{f.requests} requests</span>
                                         </div>
                                     </div>
-                                </div>
-                            );
-                        })}
+                                );
+                            })}
+                            {featureBreakdown.length === 0 && (
+                                <p className="text-xs text-muted-foreground">No AI usage recorded yet.</p>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

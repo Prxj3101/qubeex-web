@@ -89,6 +89,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
 
 export interface StudentProfileViewProps {
     institutionName?: string;
+    institutionLogoUrl?: string | null;
     studentName: string;
     studentIdCode: string;
     standard: string;
@@ -118,7 +119,7 @@ export interface StudentProfileViewProps {
 }
 
 export default function StudentProfileView({
-    institutionName, studentName, studentIdCode, standard, division, rollNo, admissionYear,
+    institutionName, institutionLogoUrl, studentName, studentIdCode, standard, division, rollNo, admissionYear,
     dob, email, photo, status = 'ACTIVE', marksheetData, attendanceApiData, flags,
     onBack, onViewDetail, onViewReportCard, onViewAttendanceDetails, onViewAllFlags, standalone = true,
     feesSlot, projectsSlot, ptmNotesSlot,
@@ -210,11 +211,19 @@ export default function StudentProfileView({
                 <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg">
                     <div className="px-4 py-4 flex items-center justify-between gap-2 lg:px-6 dark:[background:linear-gradient(135deg,#4C1D95,#2D1F50)]"
                         style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
-                        <div>
-                            <p className="text-white font-bold text-base" style={{ fontFamily: 'var(--font-poppins)' }}>
-                                {institutionName || 'School'}
-                            </p>
-                            <p className="text-white/70 text-xs">Student ID Card</p>
+                        <div className="flex items-center gap-2.5 min-w-0">
+                            {institutionLogoUrl && (
+                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/15 shrink-0 flex items-center justify-center">
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={institutionLogoUrl} alt="" className="w-full h-full object-contain" />
+                                </div>
+                            )}
+                            <div className="min-w-0">
+                                <p className="text-white font-bold text-base truncate" style={{ fontFamily: 'var(--font-poppins)' }}>
+                                    {institutionName || 'School'}
+                                </p>
+                                <p className="text-white/70 text-xs">Student ID Card</p>
+                            </div>
                         </div>
                         {onViewDetail && (
                             <button

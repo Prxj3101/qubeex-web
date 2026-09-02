@@ -20,7 +20,7 @@
     "lucide-react": "^1.8.0",
     "next": "16.2.3",
     "next-themes": "^0.4.6",
-    "pdfjs-dist": "5.4.296",
+    "pdfjs-dist": "5.6.205",
     "qrcode": "^1.5.4",
     "radix-ui": "^1.4.3",
     "react": "19.2.4",
@@ -37,6 +37,11 @@
     "xlsx": "^0.18.5",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
+  },
+  "overrides": {
+    "react-pdf": {
+      "pdfjs-dist": "5.6.205"
+    }
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
