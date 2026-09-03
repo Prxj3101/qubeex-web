@@ -48,3 +48,10 @@ CLAUDE.md
 
 temp.txt
 AGENTS.md
+
+# This is a pnpm project - never commit an npm lockfile.
+# Vercel picks npm over pnpm if it finds one, which silently changes
+# dependency resolution (e.g. the pdfjs-dist/react-pdf version mismatch
+# that broke every Blackboard PDF).
+package-lock.json
+yarn.lock
