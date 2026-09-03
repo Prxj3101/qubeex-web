@@ -20,8 +20,28 @@ import { useBranding } from '@/context/BrandingContext';
 
 import dynamic from 'next/dynamic';
 
-const Document = dynamic(() => import('react-pdf').then(m => m.Document), { ssr: false });
-const Page = dynamic(() => import('react-pdf').then(m => m.Page), { ssr: false });
+// Single gate for react-pdf: nothing gets the module back until the pdf.js
+// worker has been pointed at its script. The worker used to be configured in
+// a useEffect that raced the dynamically-imported <Document> — whichever
+// resolved first won, so Document could mount and call getDocument() with
+// workerSrc still unset, which throws inside pdf.js. Setting it here makes
+// that ordering impossible, and covers the direct getDocument() callers too.
+let pdfModulePromise: Promise<typeof import('react-pdf')> | null = null;
+function loadPdfjs(): Promise<typeof import('react-pdf')> {
+    if (!pdfModulePromise) {
+        pdfModulePromise = import('react-pdf').then((m) => {
+            m.pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+                'pdfjs-dist/build/pdf.worker.min.mjs',
+                import.meta.url,
+            ).toString();
+            return m;
+        });
+    }
+    return pdfModulePromise;
+}
+
+const Document = dynamic(() => loadPdfjs().then(m => m.Document), { ssr: false });
+const Page = dynamic(() => loadPdfjs().then(m => m.Page), { ssr: false });
 const Lottie = dynamic(() => import('lottie-react'), { ssr: false });
 
 // pdf.js defaults to fetching a hosted PDF in byte-range chunks (streaming
@@ -167,7 +187,7 @@ const PAGE_TEXT_CHAR_LIMIT = 7500;
 
 async function extractPdfPageText(fileUrl: string, pages: number[]): Promise<string> {
     if (pages.length === 0) return '';
-    const { pdfjs } = await import('react-pdf');
+    const { pdfjs } = await loadPdfjs();
     const pdf = await pdfjs.getDocument({ url: fileUrl, ...PDF_LOAD_OPTIONS }).promise;
     const textByPage = new Map<number, string>();
     const needsOcr: number[] = [];
@@ -1517,73 +1537,71 @@ interface SavedMindmap {
 }
 
 // ── Mindmap design system ────────────────────────────────────────────────────
-// Sticker look: thick outlines, hard offset shadows, an emoji per node, a
-// slight tilt so branches read as stickers pressed onto a page rather than
-// rows in a table. Each mindmap picks a theme + layout deterministically from
-// its own id, so two maps rarely look alike but reopening a saved one always
-// looks the way the student left it.
+// Hand-drawn only. A clean-card renderer was tried first and consistently read
+// as a corporate diagram, which is the opposite of what a student mindmap
+// should feel like. Variety comes from six paper/pen/handwriting combinations
+// instead of from swapping rendering techniques.
 
-interface MindmapPen { c: string; t: string }
+// ── Hand-drawn style ─────────────────────────────────────────────────────────
+// A separate rendering technique, not just another palette: Rough.js draws
+// every box and arrow with real wobble, on ruled paper, in a handwriting face.
+// Solid bright fills and heavy black outlines — the restrained version of this
+// read as a design-studio artefact rather than something a student made.
 
-interface MindmapTheme {
+interface DoodleTheme {
     key: string;
-    ground: string;          // the map's own page colour
-    rule?: string;           // ruled-paper lines, when the theme has them
-    cardBg: string;
-    ink: string;             // outline + hard shadow colour
-    text: string;
-    hub: string;
-    hubText: string;
-    pens: MindmapPen[];      // per-branch solid + tint
+    paper: string;
+    rule: string;
+    ink: string;        // outlines, arrows, doodles
+    cardText: string;   // text sitting on a bright card fill — separate from
+                        // ink so dark papers can draw in chalk while keeping
+                        // card labels legible on their bright fills
+    burst: string;      // the starburst centre
+    font: string;       // heading face, all already loaded in globals.css
+    body: string;
+    pens: string[];
 }
 
-const MINDMAP_THEMES: MindmapTheme[] = [
+const DOODLE_THEMES: DoodleTheme[] = [
     {
-        key: 'notebook',
-        ground: '#FFFDF6', rule: '#D9E7F7', cardBg: '#FFFFFF',
-        ink: '#1C1B2E', text: '#1C1B2E', hub: '#FF3E8E', hubText: '#FFFFFF',
-        pens: [
-            { c: '#5B5BF5', t: '#E6E6FF' }, { c: '#00A5D8', t: '#D9F2FB' },
-            { c: '#9B4DEA', t: '#F0E4FE' }, { c: '#FF9111', t: '#FFEEDA' },
-            { c: '#FF3E8E', t: '#FFE3EF' }, { c: '#0FB981', t: '#D7F7EC' },
-        ],
+        key: 'crayon',
+        paper: '#FFFDF0', rule: '#DDE7F0', ink: '#141210', cardText: '#141210', burst: '#FF4FA3',
+        font: 'Caveat', body: 'Patrick Hand',
+        pens: ['#FF6B8A', '#FFD93D', '#5BD1F0', '#8CE99A', '#C77DFF', '#FFA94D'],
     },
     {
-        key: 'arcade',
-        ground: '#191540', cardBg: '#251E5C',
-        ink: '#0A0725', text: '#F4F1FF', hub: '#FF4FA3', hubText: '#FFFFFF',
-        pens: [
-            { c: '#7B7BFF', t: '#332C7A' }, { c: '#2FD9FF', t: '#1B3F63' },
-            { c: '#C084FC', t: '#3B2A6B' }, { c: '#FFB020', t: '#4A371A' },
-            { c: '#FF4FA3', t: '#4D2148' }, { c: '#34E5A8', t: '#173F42' },
-        ],
+        key: 'highlighter',
+        paper: '#FFFEF7', rule: '#EFE7CF', ink: '#1A1508', cardText: '#1A1508', burst: '#FFE14D',
+        font: 'Kalam', body: 'Patrick Hand',
+        pens: ['#FFE14D', '#7CF3B0', '#8AD9FF', '#FFAFCC', '#FFC97A', '#D0BFFF'],
+    },
+    {
+        key: 'poster',
+        paper: '#FFF6E9', rule: '#F0DCC2', ink: '#12100E', cardText: '#12100E', burst: '#FF7A45',
+        font: 'Architects Daughter', body: 'Handlee',
+        pens: ['#FF7A45', '#3DCFB6', '#FFCE3D', '#7A8BFF', '#FF9DC4', '#9BE564'],
     },
     {
         key: 'bubblegum',
-        ground: '#FFF1F8', cardBg: '#FFFFFF',
-        ink: '#3B1F44', text: '#3B1F44', hub: '#9B4DEA', hubText: '#FFFFFF',
-        pens: [
-            { c: '#FF6FB1', t: '#FFE4F0' }, { c: '#7C5CFF', t: '#E9E4FF' },
-            { c: '#22C3C3', t: '#D6F6F6' }, { c: '#FFA53D', t: '#FFEEDB' },
-            { c: '#E24FD0', t: '#FBE2F8' }, { c: '#4DA6FF', t: '#DFEEFF' },
-        ],
+        paper: '#FFF0F7', rule: '#F6D9E8', ink: '#2A0E20', cardText: '#2A0E20', burst: '#7DE2FF',
+        font: 'Caveat', body: 'Handlee',
+        pens: ['#FF8FC8', '#B694FF', '#7DE2FF', '#FFE066', '#8CE99A', '#FFA8A8'],
     },
     {
         key: 'chalkboard',
-        ground: '#1F3B33', cardBg: '#2A4C42',
-        ink: '#122620', text: '#F2FBF6', hub: '#FFD166', hubText: '#1F3B33',
-        pens: [
-            { c: '#8AE6C1', t: '#1C3F37' }, { c: '#FFD166', t: '#42381F' },
-            { c: '#88C7FF', t: '#1E3550' }, { c: '#FF9EB1', t: '#4A2A33' },
-            { c: '#C9A7FF', t: '#332A4D' }, { c: '#FFF3C4', t: '#3F3A26' },
-        ],
+        // Chalk: light strokes on a dark board. Cards are bright chalk blocks,
+        // so their text stays dark while every drawn line goes light.
+        paper: '#1E3A32', rule: '#2B4C42', ink: '#F4FFF9', cardText: '#12211C', burst: '#FFD166',
+        font: 'Kalam', body: 'Patrick Hand',
+        pens: ['#8AE6C1', '#FFD166', '#88C7FF', '#FF9EB1', '#C9A7FF', '#FFF3C4'],
+    },
+    {
+        key: 'graphpaper',
+        paper: '#F4FAFF', rule: '#CFE4F5', ink: '#0E1A24', cardText: '#0E1A24', burst: '#4DD4AC',
+        font: 'Architects Daughter', body: 'Patrick Hand',
+        pens: ['#4DD4AC', '#FF8B6B', '#5AA9FF', '#FFC845', '#D08BFF', '#7BE38F'],
     },
 ];
-
-type MindmapLayout = 'grid' | 'tree' | 'radial';
-// 'grid' twice so the layout the reference templates use comes up ~half the
-// time, with tree/radial as the change of pace.
-const MINDMAP_LAYOUTS: MindmapLayout[] = ['grid', 'grid', 'tree', 'radial'];
 
 function hashString(s: string): number {
     let h = 2166136261;
@@ -1594,390 +1612,208 @@ function hashString(s: string): number {
     return h >>> 0;
 }
 
-function pickMindmapDesign(seed: string): { theme: MindmapTheme; layout: MindmapLayout } {
-    const h = hashString(seed);
-    return {
-        layout: MINDMAP_LAYOUTS[h % MINDMAP_LAYOUTS.length],
-        theme: MINDMAP_THEMES[Math.floor(h / MINDMAP_LAYOUTS.length) % MINDMAP_THEMES.length],
-    };
+// Same id always lands on the same theme, so a saved map reopens looking
+// exactly as the student left it, while two different maps rarely match.
+function pickMindmapTheme(seed: string): DoodleTheme {
+    return DOODLE_THEMES[hashString(seed) % DOODLE_THEMES.length];
 }
 
-const TILTS = ['-1.6deg', '1.4deg', '1.2deg', '-1.5deg', '-1.1deg', '1.6deg'];
 
-// ── Sticker pieces ───────────────────────────────────────────────────────────
+// ── Layout: hand-drawn ───────────────────────────────────────────────────────
+// Text stays real HTML on top; only the shapes are sketched underneath. That
+// split is the whole point — an image model would have to draw the letters
+// too, which is exactly where it mangles them.
 
-function HubNode({ node, theme }: { node: MindmapNode; theme: MindmapTheme }) {
+function MindmapDoodle({ node, theme }: { node: MindmapNode; theme: DoodleTheme }) {
+    const boardRef = useRef<HTMLDivElement>(null);
+    const svgRef = useRef<SVGSVGElement>(null);
+    const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+    const branches = node.children;
+    const W = 1080, H = 860;
+    const CX = W / 2, CY = H / 2;
+    const RX = 372, RY = 282;
+    const CARD_W = 262;
+    const HUB_W = 200, HUB_H = 150;
+
+    const angleOf = (i: number) => (i / Math.max(branches.length, 1)) * Math.PI * 2 - Math.PI / 2;
+
+    useEffect(() => {
+        const svg = svgRef.current;
+        const board = boardRef.current;
+        if (!svg || !board) return;
+
+        let cancelled = false;
+        // Rough.js is ~9kb and only ever needed for this style, so it loads on
+        // demand rather than riding along in the blackboard's main bundle.
+        import('roughjs').then(({ default: rough }) => {
+            if (cancelled || !svgRef.current) return;
+            const el = svgRef.current;
+            el.innerHTML = '';
+            const rc = rough.svg(el);
+            const add = (n: SVGGElement) => el.appendChild(n);
+            const INK = theme.ink;
+
+            const arrow = (fx: number, fy: number, tx: number, ty: number) => {
+                const dx = tx - fx, dy = ty - fy, len = Math.hypot(dx, dy) || 1;
+                const nx = -dy / len, ny = dx / len, bend = 58;
+                const c1x = fx + dx * 0.3 + nx * bend, c1y = fy + dy * 0.3 + ny * bend;
+                const c2x = fx + dx * 0.7 - nx * bend * 0.55, c2y = fy + dy * 0.7 - ny * bend * 0.55;
+                add(rc.path(`M${fx},${fy} C${c1x},${c1y} ${c2x},${c2y} ${tx},${ty}`,
+                    { stroke: INK, strokeWidth: 4, roughness: 2.1, bowing: 3, fill: 'none' }));
+                const ang = Math.atan2(ty - c2y, tx - c2x), hl = 20, sp = 0.46;
+                add(rc.line(tx, ty, tx - hl * Math.cos(ang - sp), ty - hl * Math.sin(ang - sp),
+                    { stroke: INK, strokeWidth: 3.6, roughness: 1.7 }));
+                add(rc.line(tx, ty, tx - hl * Math.cos(ang + sp), ty - hl * Math.sin(ang + sp),
+                    { stroke: INK, strokeWidth: 3.6, roughness: 1.7 }));
+            };
+
+            branches.forEach((_, i) => {
+                const card = cardRefs.current[i];
+                if (!card) return;
+                const a = angleOf(i);
+                const x = CX + RX * Math.cos(a);
+                const y = CY + RY * Math.sin(a);
+                const h = card.offsetHeight;
+                const left = Math.round(x - CARD_W / 2);
+                const top = Math.round(y - h / 2);
+                card.style.left = `${left}px`;
+                card.style.top = `${top}px`;
+
+                add(rc.rectangle(left - 11, top - 11, CARD_W + 22, h + 22, {
+                    stroke: INK, strokeWidth: 3.6, roughness: 1.9, bowing: 2,
+                    fill: theme.pens[i % theme.pens.length], fillStyle: 'solid',
+                }));
+
+                arrow(
+                    CX + (HUB_W / 2 + 30) * Math.cos(a),
+                    CY + (HUB_H / 2 + 26) * Math.sin(a),
+                    x - Math.cos(a) * (CARD_W / 2 + 30),
+                    y - Math.sin(a) * (h / 2 + 30),
+                );
+            });
+
+            // Comic starburst centre — alternating long/short spokes.
+            const pts: [number, number][] = [];
+            const SPIKES = 15;
+            for (let i = 0; i < SPIKES * 2; i++) {
+                const a = (i / (SPIKES * 2)) * Math.PI * 2 - Math.PI / 2;
+                const rx = (HUB_W / 2 + 52) * (i % 2 ? 0.74 : 1);
+                const ry = (HUB_H / 2 + 46) * (i % 2 ? 0.74 : 1);
+                pts.push([CX + rx * Math.cos(a), CY + ry * Math.sin(a)]);
+            }
+            add(rc.polygon(pts, {
+                stroke: INK, strokeWidth: 3.8, roughness: 1.6, bowing: 1.4,
+                fill: theme.burst, fillStyle: 'solid',
+            }));
+
+            // Margin doodles, the way a student fills empty page corners.
+            const solid = (c: string, w = 3.2) =>
+                ({ stroke: INK, strokeWidth: w, roughness: 1.9, fill: c, fillStyle: 'solid' as const });
+            const line = (w = 3.2, r = 2.1) => ({ stroke: INK, strokeWidth: w, roughness: r, fill: 'none' });
+            const P = theme.pens;
+
+            const bulb = (x: number, y: number, s: number) => {
+                add(rc.circle(x, y, 46 * s, solid(P[1])));
+                add(rc.rectangle(x - 9 * s, y + 20 * s, 18 * s, 13 * s, solid(P[5], 2.8)));
+                ([[-34, -20], [0, -36], [34, -20], [-40, 6], [40, 6]] as const).forEach(([dx, dy]) =>
+                    add(rc.line(x + dx * s * 0.78, y + dy * s * 0.78, x + dx * s * 1.2, y + dy * s * 1.2, line(2.8, 2.3))));
+            };
+            const magnifier = (x: number, y: number, s: number) => {
+                add(rc.circle(x, y, 52 * s, solid(P[2])));
+                add(rc.line(x + 19 * s, y + 19 * s, x + 44 * s, y + 44 * s, line(5, 1.7)));
+            };
+            const cloud = (x: number, y: number, s: number) => {
+                add(rc.ellipse(x, y, 104 * s, 58 * s, solid(P[4], 3)));
+                add(rc.circle(x - 40 * s, y + 38 * s, 20 * s, solid(P[4], 2.6)));
+                add(rc.circle(x - 56 * s, y + 56 * s, 12 * s, solid(P[4], 2.4)));
+            };
+            const star = (x: number, y: number, s: number) => {
+                const q: [number, number][] = [];
+                for (let i = 0; i < 10; i++) {
+                    const a = (i / 10) * Math.PI * 2 - Math.PI / 2, r = (i % 2 ? 9 : 22) * s;
+                    q.push([x + r * Math.cos(a), y + r * Math.sin(a)]);
+                }
+                add(rc.polygon(q, solid(P[0], 2.8)));
+            };
+
+            bulb(70, 96, 1.05);
+            magnifier(W - 78, 112, 1);
+            cloud(104, H - 104, 1);
+            star(W - 96, H - 104, 1.25);
+            star(W - 158, H - 46, 0.85);
+            star(146, 176, 0.7);
+        }).catch((err) => console.error('[AI Mindmap] Rough.js failed to load:', err));
+
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [node, theme]);
+
     return (
         <div
-            data-hub
-            className="relative shrink-0 rounded-full flex flex-col items-center justify-center text-center px-5"
+            ref={boardRef}
+            className="relative"
             style={{
-                width: 190, height: 190,
-                background: theme.hub, color: theme.hubText,
-                border: `3.5px solid ${theme.ink}`,
-                boxShadow: `6px 7px 0 ${theme.ink}`,
+                width: W, height: H,
+                background: `repeating-linear-gradient(to bottom, transparent 0 34px, ${theme.rule} 34px 35px), ${theme.paper}`,
             }}
         >
-            {node.emoji && <span className="text-[28px] leading-none mb-1.5">{node.emoji}</span>}
-            <span className="font-bold leading-tight" style={{ fontSize: 17 }}>{node.label}</span>
-        </div>
-    );
-}
+            <svg ref={svgRef} className="absolute inset-0 pointer-events-none" width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ zIndex: 1 }} />
 
-function BranchSticker({
-    node, index, theme, open, onToggle, side, width,
-}: {
-    node: MindmapNode;
-    index: number;
-    theme: MindmapTheme;
-    open: boolean;
-    onToggle: () => void;
-    side: 'left' | 'right';
-    width: number;
-}) {
-    const pen = theme.pens[index % theme.pens.length];
-    return (
-        <div
-            data-branch
-            data-side={side}
-            data-color={pen.c}
-            className="overflow-hidden transition-transform duration-200"
-            style={{
-                width,
-                background: theme.cardBg,
-                border: `3px solid ${pen.c}`,
-                borderRadius: 20,
-                boxShadow: `5px 5px 0 ${pen.c}`,
-                transform: `rotate(${open ? '0deg' : TILTS[index % TILTS.length]})`,
-            }}
-        >
-            <button
-                data-head
-                onClick={onToggle}
-                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left"
-                style={{ background: pen.t }}
-            >
-                <span
-                    className="shrink-0 flex items-center justify-center text-[19px] leading-none"
-                    style={{
-                        width: 36, height: 36, background: theme.cardBg,
-                        border: `2.5px solid ${pen.c}`, borderRadius: 11,
-                    }}
+            {branches.map((b, i) => (
+                <div
+                    key={i}
+                    ref={(el) => { cardRefs.current[i] = el; }}
+                    className="absolute px-[18px] pt-[14px] pb-4"
+                    style={{ width: CARD_W, zIndex: 2, color: theme.cardText, fontFamily: `'${theme.body}', cursive` }}
                 >
-                    {node.emoji ?? '•'}
-                </span>
-                <span
-                    className="shrink-0 flex items-center justify-center text-[11px] font-bold"
-                    style={{
-                        width: 20, height: 20, background: pen.c, color: theme.cardBg,
-                        border: `2px solid ${theme.ink}`, borderRadius: 7,
-                    }}
-                >
-                    {index + 1}
-                </span>
-                <span className="font-bold text-[13.5px] leading-tight" style={{ color: theme.text }}>
-                    {node.label}
-                </span>
-                <ChevronDown
-                    size={15}
-                    className="ml-auto shrink-0 transition-transform duration-300"
-                    style={{ color: pen.c, transform: open ? 'rotate(180deg)' : 'none' }}
-                />
-            </button>
-
-            {/* 0fr → 1fr collapses the row itself; the padding sits on the list
-                inside so it shrinks away with the content instead of leaving a
-                gap on a closed branch. */}
-            <div
-                className="grid transition-[grid-template-rows] duration-[400ms]"
-                style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionTimingFunction: 'cubic-bezier(.3,1.35,.5,1)' }}
-            >
-                <div className="overflow-hidden min-h-0">
-                    <ul className="list-none m-0 pl-8 pr-4 pt-3 pb-3.5">
-                        {node.children.map((child, i) => (
-                            <li key={i} className="relative text-[12.5px] leading-snug mb-1.5 last:mb-0" style={{ color: theme.text }}>
+                    <div
+                        className="flex items-center gap-2.5 mb-2"
+                        style={{ fontFamily: `'${theme.font}', cursive`, fontWeight: 700, fontSize: 33, lineHeight: 0.95 }}
+                    >
+                        {b.emoji && <span style={{ fontSize: 28 }}>{b.emoji}</span>}
+                        {b.label}
+                    </div>
+                    <ul className="list-none m-0 p-0">
+                        {b.children.map((child, j) => (
+                            <li key={j} className="relative pl-[17px] mb-[5px]" style={{ fontSize: 19.5, lineHeight: 1.26 }}>
                                 <span
                                     className="absolute rounded-full"
-                                    style={{
-                                        left: -17, top: 5, width: 9, height: 9,
-                                        background: pen.c, border: `2px solid ${theme.ink}`,
-                                    }}
+                                    style={{ left: 0, top: 9, width: 8, height: 8, background: theme.cardText }}
                                 />
-                                {child.emoji && <span className="mr-1">{child.emoji}</span>}
                                 {child.label}
                             </li>
                         ))}
                     </ul>
                 </div>
-            </div>
-        </div>
-    );
-}
+            ))}
 
-// Measures the rendered stickers and draws a curved connector from the hub to
-// each branch's header. Re-runs whenever the container resizes — which covers
-// opening/closing a branch, since that changes the container's height.
-function useMindmapConnectors(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
-    const [paths, setPaths] = useState<{ d: string; color: string }[]>([]);
-
-    useEffect(() => {
-        const el = ref.current;
-        if (!el || !enabled) { setPaths([]); return; }
-
-        let last = '';
-        const compute = () => {
-            const box = el.getBoundingClientRect();
-            const hubEl = el.querySelector('[data-hub]');
-            if (!hubEl) return;
-            const hub = hubEl.getBoundingClientRect();
-            const hx = hub.left + hub.width / 2 - box.left;
-            const hy = hub.top + hub.height / 2 - box.top;
-
-            const next: { d: string; color: string }[] = [];
-            el.querySelectorAll('[data-branch]').forEach((b) => {
-                const head = b.querySelector('[data-head]') ?? b;
-                const r = head.getBoundingClientRect();
-                const isLeft = b.getAttribute('data-side') === 'left';
-                const x = (isLeft ? r.right : r.left) - box.left;
-                const y = r.top + r.height / 2 - box.top;
-                const mx = (x + hx) / 2;
-                next.push({
-                    d: `M${hx},${hy} C${mx},${hy} ${mx},${y} ${x},${y}`,
-                    color: b.getAttribute('data-color') ?? '#000',
-                });
-            });
-
-            // Bail out when nothing moved, so the ResizeObserver below can't
-            // ping-pong with its own setState.
-            const key = JSON.stringify(next);
-            if (key === last) return;
-            last = key;
-            setPaths(next);
-        };
-
-        compute();
-        const ro = new ResizeObserver(compute);
-        ro.observe(el);
-        el.querySelectorAll('[data-branch]').forEach((b) => ro.observe(b));
-        return () => ro.disconnect();
-    }, [ref, enabled]);
-
-    return paths;
-}
-
-// ── Layout: grid (hub centred, branches down both sides) ─────────────────────
-
-function MindmapGrid({
-    node, theme, openSet, toggle, wide,
-}: {
-    node: MindmapNode;
-    theme: MindmapTheme;
-    openSet: Set<number>;
-    toggle: (i: number) => void;
-    wide: boolean;
-}) {
-    const ref = useRef<HTMLDivElement>(null);
-    const paths = useMindmapConnectors(ref, wide);
-    const branches = node.children;
-    const cardWidth = wide ? 290 : 300;
-
-    const sticker = (b: MindmapNode, i: number, side: 'left' | 'right') => (
-        <BranchSticker
-            key={i} node={b} index={i} theme={theme} side={side} width={cardWidth}
-            open={openSet.has(i)} onToggle={() => toggle(i)}
-        />
-    );
-
-    if (!wide) {
-        // Narrow panel: one column, hub on top. No connectors — a single
-        // vertical stack reads fine without them and they'd only clutter it.
-        return (
-            <div ref={ref} className="flex flex-col items-center gap-5">
-                <HubNode node={node} theme={theme} />
-                <div className="flex flex-col gap-4">
-                    {branches.map((b, i) => sticker(b, i, 'left'))}
-                </div>
-            </div>
-        );
-    }
-
-    const left = branches.filter((_, i) => i % 2 === 0);
-    const right = branches.filter((_, i) => i % 2 === 1);
-
-    return (
-        <div ref={ref} className="relative grid items-center" style={{ gridTemplateColumns: `${cardWidth}px 1fr ${cardWidth}px`, columnGap: 24 }}>
-            <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, width: '100%', height: '100%' }}>
-                {paths.map((p, i) => (
-                    <path key={i} d={p.d} fill="none" stroke={p.color} strokeWidth={4} strokeLinecap="round" />
-                ))}
-            </svg>
-            <div className="flex flex-col gap-5 relative" style={{ zIndex: 2 }}>
-                {left.map((b) => sticker(b, branches.indexOf(b), 'left'))}
-            </div>
-            <div className="flex items-center justify-center relative" style={{ zIndex: 3 }}>
-                <HubNode node={node} theme={theme} />
-            </div>
-            <div className="flex flex-col gap-5 items-end relative" style={{ zIndex: 2 }}>
-                {right.map((b) => sticker(b, branches.indexOf(b), 'right'))}
-            </div>
-        </div>
-    );
-}
-
-// ── Layout: tree (root left, branches stacked to its right) ──────────────────
-
-function MindmapTree({
-    node, theme, openSet, toggle,
-}: {
-    node: MindmapNode;
-    theme: MindmapTheme;
-    openSet: Set<number>;
-    toggle: (i: number) => void;
-}) {
-    return (
-        <div className="flex items-center gap-5">
             <div
-                className="shrink-0 flex flex-col items-center text-center px-4 py-3.5"
+                className="absolute flex flex-col items-center justify-center text-center"
                 style={{
-                    background: theme.hub, color: theme.hubText, maxWidth: 190,
-                    border: `3px solid ${theme.ink}`, borderRadius: 18, boxShadow: `5px 5px 0 ${theme.ink}`,
+                    width: HUB_W, height: HUB_H, left: CX - HUB_W / 2, top: CY - HUB_H / 2,
+                    zIndex: 3, color: theme.cardText,
                 }}
             >
-                {node.emoji && <span className="text-[24px] leading-none mb-1">{node.emoji}</span>}
-                <span className="font-bold text-[15px] leading-tight">{node.label}</span>
-            </div>
-            <div style={{ width: 26, height: 3, background: theme.ink }} className="shrink-0" />
-            <div className="flex flex-col gap-4">
-                {node.children.map((b, i) => (
-                    <BranchSticker
-                        key={i} node={b} index={i} theme={theme} side="right" width={300}
-                        open={openSet.has(i)} onToggle={() => toggle(i)}
-                    />
-                ))}
+                {node.emoji && <span style={{ fontSize: 34, lineHeight: 1 }}>{node.emoji}</span>}
+                <span style={{ fontFamily: `'${theme.font}', cursive`, fontWeight: 700, fontSize: 34, lineHeight: 0.9, marginTop: 2 }}>
+                    {node.label}
+                </span>
             </div>
         </div>
     );
 }
-
-// ── Layout: radial (branches ringed around the hub) ──────────────────────────
-
-function MindmapRadial({ node, theme }: { node: MindmapNode; theme: MindmapTheme }) {
-    const branches = node.children;
-    // Cards sit on the ring, so the gap between neighbours is chord length
-    // 2·R·sin(π/n) — with a fixed radius, six branches just fit and eight
-    // overlap. Solve for the radius the card actually needs instead.
-    const CARD_REACH = 150; // half a card's diagonal, roughly
-    const R = Math.max(240, CARD_REACH / Math.sin(Math.PI / Math.max(branches.length, 3)));
-    const pad = 190;
-    const size = (R + pad) * 2;
-    const c = size / 2;
-
-    const points = branches.map((b, i) => {
-        const a = (i / branches.length) * Math.PI * 2 - Math.PI / 2;
-        return { b, i, x: c + R * Math.cos(a), y: c + R * Math.sin(a) };
-    });
-
-    return (
-        <div className="relative" style={{ width: size, height: size }}>
-            <svg width={size} height={size} className="absolute inset-0 pointer-events-none">
-                {points.map(({ i, x, y }) => (
-                    <line
-                        key={i} x1={c} y1={c} x2={x} y2={y}
-                        stroke={theme.pens[i % theme.pens.length].c}
-                        strokeWidth={4} strokeLinecap="round"
-                    />
-                ))}
-            </svg>
-
-            {points.map(({ b, i, x, y }) => {
-                const pen = theme.pens[i % theme.pens.length];
-                return (
-                    <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: x, top: y, width: 230 }}>
-                        <div
-                            style={{
-                                background: theme.cardBg, border: `3px solid ${pen.c}`,
-                                borderRadius: 18, boxShadow: `4px 4px 0 ${pen.c}`,
-                                transform: `rotate(${TILTS[i % TILTS.length]})`,
-                            }}
-                        >
-                            <div className="flex items-center gap-2 px-2.5 py-2" style={{ background: pen.t }}>
-                                <span className="text-[17px] leading-none">{b.emoji ?? '•'}</span>
-                                <span className="font-bold text-[12.5px] leading-tight" style={{ color: theme.text }}>{b.label}</span>
-                            </div>
-                            {b.children.length > 0 && (
-                                <ul className="list-none m-0 pl-6 pr-3 py-2">
-                                    {b.children.map((child, j) => (
-                                        <li key={j} className="relative text-[11.5px] leading-snug mb-1 last:mb-0" style={{ color: theme.text }}>
-                                            <span
-                                                className="absolute rounded-full"
-                                                style={{ left: -13, top: 4, width: 7, height: 7, background: pen.c, border: `1.5px solid ${theme.ink}` }}
-                                            />
-                                            {child.label}
-                                        </li>
-                                    ))}
-                                </ul>
-                            )}
-                        </div>
-                    </div>
-                );
-            })}
-
-            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-                <HubNode node={node} theme={theme} />
-            </div>
-        </div>
-    );
-}
-
-// ── Entry point ──────────────────────────────────────────────────────────────
 
 function MindmapView({ node, seed }: { node: MindmapNode; seed: string }) {
-    const { theme, layout } = useMemo(() => pickMindmapDesign(seed), [seed]);
+    // Callers pass key={seed}, so a different mindmap remounts this rather
+    // than needing a reset effect.
+    const theme = useMemo(() => pickMindmapTheme(seed), [seed]);
 
-    // Branches start open: the teacher panel doubles as the export source, so
-    // a map has to read completely on sight. Tapping a header collapses it —
-    // handy for revealing one branch at a time while teaching.
-    // Callers pass key={seed}, so a different mindmap remounts this and gets a
-    // fresh all-open state rather than needing a reset effect.
-    const [openSet, setOpenSet] = useState<Set<number>>(() => new Set(node.children.map((_, i) => i)));
-
-    const toggle = (i: number) => setOpenSet((prev) => {
-        const next = new Set(prev);
-        if (next.has(i)) next.delete(i); else next.add(i);
-        return next;
-    });
-
-    // The AI panel is resizable, so the two-column grid only fits some of the
-    // time — measure rather than guess.
-    const shellRef = useRef<HTMLDivElement>(null);
-    const [wide, setWide] = useState(false);
-    useEffect(() => {
-        const el = shellRef.current;
-        if (!el) return;
-        const check = () => setWide(el.clientWidth >= 900);
-        check();
-        const ro = new ResizeObserver(check);
-        ro.observe(el);
-        return () => ro.disconnect();
-    }, []);
-
+    // The map paints its own ruled paper at a fixed canvas size, so it needs
+    // no shell around it.
     return (
-        <div
-            ref={shellRef}
-            className="inline-block rounded-3xl p-7"
-            style={{
-                background: theme.rule
-                    ? `repeating-linear-gradient(to bottom, transparent 0 31px, ${theme.rule} 31px 32px), ${theme.ground}`
-                    : theme.ground,
-                border: `3px solid ${theme.ink}`,
-                minWidth: '100%',
-            }}
-        >
-            {layout === 'radial'
-                ? <MindmapRadial node={node} theme={theme} />
-                : layout === 'tree'
-                    ? <MindmapTree node={node} theme={theme} openSet={openSet} toggle={toggle} />
-                    : <MindmapGrid node={node} theme={theme} openSet={openSet} toggle={toggle} wide={wide} />}
+        <div className="inline-block">
+            <MindmapDoodle node={node} theme={theme} />
         </div>
     );
 }
@@ -1995,7 +1831,6 @@ function AIMindmapPanel({
 }) {
     const [phase, setPhase] = usePersisted<'input' | 'loading' | 'result'>('mindmap_phase', 'input');
     const [instructions, setInstructions] = usePersisted('mindmap_instructions', '');
-    const [depth, setDepth] = usePersisted('mindmap_depth', 2);
     const [mindmap, setMindmap] = usePersisted<MindmapNode | null>('mindmap_result', null);
     // Seeds the deterministic design pick (layout + palette) — the saved id
     // once persisted, or the label as a fallback right after a fresh
@@ -2105,7 +1940,6 @@ function AIMindmapPanel({
             const [res] = await Promise.all([
                 api.post('/teacher/blackboard/ai/mindmap', {
                     topic: topic.trim(),
-                    depth,
                     ...(pageText ? { pageText } : {}),
                     ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
                 }),
@@ -2265,25 +2099,6 @@ function AIMindmapPanel({
                                 rows={1}
                                 className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-primary/50 placeholder:text-white/30 resize-none"
                             />
-                        </div>
-
-                        <div className="border-t border-white/10 -mb-2" />
-
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">
-                                Depth: <span style={{ color: '#2563EB' }}>{depth} level{depth > 1 ? 's' : ''}</span>
-                            </label>
-                            <div className="flex gap-2">
-                                {[1, 2, 3].map(d => (
-                                    <button key={d} onClick={() => setDepth(d)}
-                                        className="flex-1 py-2 rounded-xl text-[11px] font-semibold transition-all"
-                                        style={depth === d
-                                            ? { background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.5)', color: '#60A5FA' }
-                                            : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
-                                        {d}
-                                    </button>
-                                ))}
-                            </div>
                         </div>
 
                         <button
@@ -2629,7 +2444,7 @@ export default function BlackboardPage() {
         setScaleReady(false);
         (async () => {
             try {
-                const { pdfjs } = await import('react-pdf');
+                const { pdfjs } = await loadPdfjs();
                 const pdf = await pdfjs.getDocument({ url: doc.url, ...PDF_LOAD_OPTIONS }).promise;
                 const page = await pdf.getPage(currentPage);
                 const viewport = page.getViewport({ scale: 1 });
@@ -2686,14 +2501,8 @@ export default function BlackboardPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [drawingMode, doc?.name, doc?.type]);
 
-    useEffect(() => {
-        import('react-pdf').then(({ pdfjs }) => {
-            pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-                'pdfjs-dist/build/pdf.worker.min.mjs',
-                import.meta.url,
-            ).toString();
-        });
-    }, []);
+    // Worker setup moved to loadPdfjs() at module scope — see the note there.
+    // Doing it in an effect meant it raced <Document>'s own chunk load.
 
     useEffect(() => {
         const handleKey = (e: KeyboardEvent) => {
