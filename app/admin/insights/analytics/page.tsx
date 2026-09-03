@@ -11,7 +11,7 @@ import { useMockInstType } from '@/context/MockInstTypeContext';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, ReferenceLine, AreaChart, Area } from 'recharts';
 import {
     Users, GraduationCap, BookOpen, AlertCircle, RefreshCw, BarChart2, Gauge,
-    Sparkles, Clock, Layers, Wallet, ChevronRight, ArrowUpRight, Database, Info, X,
+    Sparkles, Clock, Layers, Wallet, ChevronRight, ArrowUpRight, Database, Info, X, Search,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -76,6 +76,7 @@ interface AttendanceAiInsights {
 }
 interface DisengagedFamily {
     studentId: string;
+    studentCode: string;
     name: string;
     avatarUrl: string | null;
     standardId: string;
@@ -972,6 +973,7 @@ export default function AdminAnalyticsPage() {
     const [attendanceData, setAttendanceData] = useState<AttendanceStandard[]>([]);
     const [attendanceAi, setAttendanceAi] = useState<AttendanceAiInsights | null>(null);
     const [disengagedFamilies, setDisengagedFamilies] = useState<DisengagedFamily[]>([]);
+    const [parentEngagementSearch, setParentEngagementSearch] = useState('');
     const [feeData, setFeeData] = useState<FeeStandard[]>([]);
     const [feeAi, setFeeAi] = useState<FeeAiInsights | null>(null);
     const [aiTeachers, setAiTeachers] = useState<AiTeacherUsage[]>([]);
@@ -1500,43 +1502,75 @@ export default function AdminAnalyticsPage() {
                             </span>
                         </p>
                     </div>
-                    {disengagedFamilies.length > 0 && (
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
-                            {disengagedFamilies.length} disengaged
-                        </span>
-                    )}
+                    <div className="flex items-center gap-2 shrink-0">
+                        {disengagedFamilies.length > 0 && (
+                            <div className="relative">
+                                <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground/60" />
+                                <input
+                                    type="text"
+                                    value={parentEngagementSearch}
+                                    onChange={(e) => setParentEngagementSearch(e.target.value)}
+                                    placeholder="Search name/ID"
+                                    className="h-7 w-44 pl-6 pr-2 rounded-md text-[11px] bg-muted/30 border border-border/50 focus:outline-none focus:border-amber-400/60 placeholder:text-muted-foreground/50"
+                                />
+                            </div>
+                        )}
+                        {disengagedFamilies.length > 0 && (
+                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400 whitespace-nowrap">
+                                {disengagedFamilies.length} disengaged
+                            </span>
+                        )}
+                    </div>
                 </div>
                 {disengagedFamilies.length === 0 ? (
                     <p className="text-xs text-muted-foreground/70 leading-snug">No disengaged families right now — everyone's checked in recently.</p>
-                ) : (
-                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                        {disengagedFamilies.map((f) => (
-                            <button key={f.studentId}
-                                onClick={() => router.push(`/admin/campus/classes/${f.standardId}/${f.divisionId}?tab=attendance`)}
-                                className="shrink-0 flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-muted/30 hover:border-amber-300 transition-colors text-left"
-                                style={{ minWidth: 180, willChange: 'scroll-position' }}>
-                                <div className="relative shrink-0">
-                                    {f.avatarUrl ? (
-                                        <div className="relative w-8 h-8 rounded-full overflow-hidden">
-                                            <NextImage src={f.avatarUrl} alt={f.name} fill sizes="64px" quality={100} className="object-cover" />
-                                        </div>
-                                    ) : (
-                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
-                                            style={{ background: streakAvatarColor(f.name) }}>
-                                            {streakInitials(f.name)}
-                                        </div>
-                                    )}
+                ) : (() => {
+                    const query = parentEngagementSearch.trim().toLowerCase();
+                    const filtered = query
+                        ? disengagedFamilies.filter((f) =>
+                            (f.name ?? '').toLowerCase().includes(query) || (f.studentCode ?? '').toLowerCase().includes(query)
+                        )
+                        : disengagedFamilies;
+                    // Without a search, only the top 15 (already sorted worst-first)
+                    // show by default — the search box exists precisely so a large
+                    // roster doesn't force everyone into one giant scroll.
+                    const visible = query ? filtered : filtered.slice(0, 15);
+                    return (
+                        <div className="flex flex-col gap-2">
+                            {visible.length === 0 ? (
+                                <p className="text-xs text-muted-foreground/70 leading-snug py-1">No disengaged student matches &quot;{parentEngagementSearch}&quot;.</p>
+                            ) : (
+                                <div className="flex flex-wrap gap-2 overflow-y-auto pb-1 max-h-[170px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                    {visible.map((f) => (
+                                        <button key={f.studentId}
+                                            onClick={() => router.push(`/admin/campus/classes/${f.standardId}/${f.divisionId}?tab=attendance`)}
+                                            className="shrink-0 flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-muted/30 hover:border-amber-300 transition-colors text-left"
+                                            style={{ minWidth: 180, willChange: 'scroll-position' }}>
+                                            <div className="relative shrink-0">
+                                                {f.avatarUrl ? (
+                                                    <div className="relative w-8 h-8 rounded-full overflow-hidden">
+                                                        <NextImage src={f.avatarUrl} alt={f.name} fill sizes="64px" quality={100} className="object-cover" />
+                                                    </div>
+                                                ) : (
+                                                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                                                        style={{ background: streakAvatarColor(f.name) }}>
+                                                        {streakInitials(f.name)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-[11.5px] font-semibold truncate">{f.name}</p>
+                                                <p className="text-[10px] text-muted-foreground truncate">
+                                                    {f.divisionName} · {f.daysSinceLastOpen === null ? 'Never opened' : `${f.daysSinceLastOpen}d since check-in`}
+                                                </p>
+                                            </div>
+                                        </button>
+                                    ))}
                                 </div>
-                                <div className="min-w-0">
-                                    <p className="text-[11.5px] font-semibold truncate">{f.name}</p>
-                                    <p className="text-[10px] text-muted-foreground truncate">
-                                        {f.divisionName} · {f.daysSinceLastOpen === null ? 'Never opened' : `${f.daysSinceLastOpen}d since check-in`}
-                                    </p>
-                                </div>
-                            </button>
-                        ))}
-                    </div>
-                )}
+                            )}
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* ── Open tickets ── */}
