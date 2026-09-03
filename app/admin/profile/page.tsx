@@ -122,7 +122,7 @@ const statusCfg: Record<string, { label: string; cls: string }> = {
 };
 
 const ADMIN_PREFIX_OPTIONS = ['Mr.', 'Ms.', 'Mrs.', 'Dr.', 'Prof.', 'Er.', 'CA', 'Adv.'];
-const ADMIN_TITLE_OPTIONS = ['Principal', 'Vice Principal', 'Head Master', 'Head Mistress', 'Director', 'Admin', 'Dean', 'Rector', 'Superintendent', 'Coordinator', 'Chairman', 'Secretary', 'Trustee'];
+const ADMIN_TITLE_OPTIONS = ['Principal', 'Vice Principal', 'Head Master', 'Head Mistress', 'Director', 'Admin', 'Administrator', 'Dean', 'Rector', 'Superintendent', 'Coordinator', 'Chairman', 'Secretary', 'Trustee'];
 const ADMIN_GENDER_OPTIONS = [{ value: 'Male', label: 'Male' }, { value: 'Female', label: 'Female' }, { value: 'Other', label: 'Other' }];
 
 // ── Sub-components ────────────────────────────────────────────────────────────

@@ -74,6 +74,15 @@ interface AttendanceAiInsights {
     aiSummary: string | null;
     isAiGenerated: boolean;
 }
+interface DisengagedFamily {
+    studentId: string;
+    name: string;
+    avatarUrl: string | null;
+    standardId: string;
+    divisionId: string;
+    divisionName: string;
+    daysSinceLastOpen: number | null; // null = never opened Parent Mode
+}
 type AnalyticsMode = 'overall' | 'monthly';
 interface AiFeatureBreakdown { feature: string; requests: number; successRequests: number; failedRequests: number; totalTokens: number; }
 interface AiTeacherUsage {
@@ -98,8 +107,8 @@ const AI_FEATURE_LABELS: Record<string, string> = {
 const AI_FEATURE_COLORS: Record<string, string> = {
     BLACKBOARD_CONTEXT: '#84CC16',
     BLACKBOARD_SCAN: '#DB2777',
-    BLACKBOARD_CHAT: '#059669',
-    BLACKBOARD_QUIZ: '#F59E0B',
+    BLACKBOARD_CHAT: '#DA7756',
+    BLACKBOARD_QUIZ: '#059669',
     BLACKBOARD_MINDMAP: '#2563EB',
     TASK_QUESTION_GENERATION: '#0891B2',
     OTHERS: '#64748B',
@@ -962,6 +971,7 @@ export default function AdminAnalyticsPage() {
     const [teachers, setTeachers] = useState<{ status: string }[]>([]);
     const [attendanceData, setAttendanceData] = useState<AttendanceStandard[]>([]);
     const [attendanceAi, setAttendanceAi] = useState<AttendanceAiInsights | null>(null);
+    const [disengagedFamilies, setDisengagedFamilies] = useState<DisengagedFamily[]>([]);
     const [feeData, setFeeData] = useState<FeeStandard[]>([]);
     const [feeAi, setFeeAi] = useState<FeeAiInsights | null>(null);
     const [aiTeachers, setAiTeachers] = useState<AiTeacherUsage[]>([]);
@@ -983,13 +993,14 @@ export default function AdminAnalyticsPage() {
         setLoading(true);
         setError(false);
         try {
-            const [ovRes, teachRes, attRes, feeRes, feeAiRes, aiRes] = await Promise.allSettled([
+            const [ovRes, teachRes, attRes, feeRes, feeAiRes, aiRes, parentEngRes] = await Promise.allSettled([
                 api.get('/admin/overview'),
                 api.get('/admin/teachers'),
                 api.get('/admin/insights/attendance'),
                 api.get('/admin/insights/fees'),
                 api.get('/admin/insights/fees/ai'),
                 api.get('/admin/insights/ai-usage'),
+                api.get('/admin/insights/parent-engagement'),
             ]);
             if (ovRes.status === 'fulfilled') setOverview(ovRes.value.data.data);
             else setError(true);
@@ -1002,6 +1013,7 @@ export default function AdminAnalyticsPage() {
                     isAiGenerated: attRes.value.data.data?.isAiGenerated ?? false,
                 });
             }
+            if (parentEngRes.status === 'fulfilled') setDisengagedFamilies(parentEngRes.value.data.data?.disengaged ?? []);
             if (feeRes.status === 'fulfilled') setFeeData(feeRes.value.data.data ?? []);
             if (feeAiRes.status === 'fulfilled') setFeeAi(feeAiRes.value.data.data ?? null);
             if (aiRes.status === 'fulfilled') {
@@ -1466,6 +1478,66 @@ export default function AdminAnalyticsPage() {
 
             {/* ── Attendance Analysis ── */}
             <AttendanceAccordion data={attendanceData} ai={attendanceAi} />
+
+            {/* ── Parent Engagement — families who haven't opened Parent Mode
+                recently, cross-checked with the app whenever it's switched on
+                (see ParentModeEvent). Always shown, same "always visible, even
+                when empty" rule as the AI Attendance boxes. ── */}
+            <div className="bg-card border border-border/50 rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                        <Users size={15} className="text-muted-foreground" />
+                        <p className="text-sm font-semibold flex items-center gap-1">
+                            Parent Engagement
+                            <span className="relative inline-flex group">
+                                <Info size={11} className="text-muted-foreground/60" />
+                                <span
+                                    className="pointer-events-none absolute left-0 top-full mt-1.5 hidden group-hover:block w-64 whitespace-normal z-20 px-2 py-1.5 rounded-lg text-[10px] font-medium normal-case leading-snug shadow-lg"
+                                    style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                                >
+                                    Flags students whose family hasn&apos;t opened Parent Mode on the app in 15+ days, or never at all. Use it to spot parents who aren&apos;t checking their child&apos;s attendance, marks, or fee status, and reach out before it becomes a bigger problem.
+                                </span>
+                            </span>
+                        </p>
+                    </div>
+                    {disengagedFamilies.length > 0 && (
+                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400">
+                            {disengagedFamilies.length} disengaged
+                        </span>
+                    )}
+                </div>
+                {disengagedFamilies.length === 0 ? (
+                    <p className="text-xs text-muted-foreground/70 leading-snug">No disengaged families right now — everyone's checked in recently.</p>
+                ) : (
+                    <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                        {disengagedFamilies.map((f) => (
+                            <button key={f.studentId}
+                                onClick={() => router.push(`/admin/campus/classes/${f.standardId}/${f.divisionId}?tab=attendance`)}
+                                className="shrink-0 flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-xl border border-amber-200/70 dark:border-amber-900/40 bg-muted/30 hover:border-amber-300 transition-colors text-left"
+                                style={{ minWidth: 180, willChange: 'scroll-position' }}>
+                                <div className="relative shrink-0">
+                                    {f.avatarUrl ? (
+                                        <div className="relative w-8 h-8 rounded-full overflow-hidden">
+                                            <NextImage src={f.avatarUrl} alt={f.name} fill sizes="64px" quality={100} className="object-cover" />
+                                        </div>
+                                    ) : (
+                                        <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                                            style={{ background: streakAvatarColor(f.name) }}>
+                                            {streakInitials(f.name)}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="min-w-0">
+                                    <p className="text-[11.5px] font-semibold truncate">{f.name}</p>
+                                    <p className="text-[10px] text-muted-foreground truncate">
+                                        {f.divisionName} · {f.daysSinceLastOpen === null ? 'Never opened' : `${f.daysSinceLastOpen}d since check-in`}
+                                    </p>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
+            </div>
 
             {/* ── Open tickets ── */}
             {overview.tickets.length > 0 && (

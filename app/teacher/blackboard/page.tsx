@@ -553,7 +553,7 @@ function AIScanPanel({
             )}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10" style={{ background: '#000' }}>
                 <p className="text-sm font-bold flex items-center gap-2 text-white">
-                    <ScanLine size={14} style={{ color: '#DA7756' }} /> AI Scan
+                    <ScanLine size={14} style={{ color: '#DB2777' }} /> AI Scan
                 </p>
                 <div className="flex items-center gap-2">
                     {phase === 'result' && (
@@ -581,7 +581,7 @@ function AIScanPanel({
                     {isPdf && totalPages > 0 && (
                         <div className="shrink-0 px-4 pt-2 pb-2" style={{ background: '#000' }}>
                             <p className="text-xs font-bold mb-1 text-white flex items-center gap-1.5">
-                                <CheckCircle2 size={12} style={{ color: '#DA7756' }} /> Selected Pages
+                                <CheckCircle2 size={12} style={{ color: '#DB2777' }} /> Selected Pages
                                 <span className="text-[9px] font-semibold italic px-1.5 py-0.5 rounded-full flex items-center gap-0.5 whitespace-nowrap"
                                     style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
                                     <FileText size={9} />
@@ -610,11 +610,11 @@ function AIScanPanel({
                                                 <div key={pageNum}
                                                     onClick={() => onNavigateToPage?.(pageNum)}
                                                     className="relative rounded-lg overflow-hidden border-2 w-fit leading-[0] cursor-pointer hover:opacity-90 transition-opacity"
-                                                    style={{ borderColor: '#DA7756' }}
+                                                    style={{ borderColor: '#DB2777' }}
                                                     title="Go to this page">
                                                     <Page pageNumber={pageNum} width={220} renderTextLayer={false} renderAnnotationLayer={false} />
                                                     <span className="absolute bottom-0 inset-x-0 text-[10px] text-center py-1 text-white"
-                                                        style={{ background: '#DA7756' }}>
+                                                        style={{ background: '#DB2777' }}>
                                                         {pageNum}
                                                     </span>
                                                     <button onClick={(e) => { e.stopPropagation(); onTogglePage(pageNum); }}
@@ -649,7 +649,7 @@ function AIScanPanel({
                                     { key: 'notes' as const, label: 'Detailed Notes' },
                                 ]).map(opt => (
                                     <button key={opt.key} type="button" onClick={() => setMode(opt.key)}
-                                        className={`flex-1 h-8 rounded-lg text-[11px] font-semibold border transition-all ${mode === opt.key ? 'bg-primary/20 border-primary/50 text-white' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
+                                        className={`flex-1 h-8 rounded-lg text-[11px] font-semibold border transition-all ${mode === opt.key ? 'bg-[#DB2777]/20 border-[#DB2777]/50 text-white' : 'border-white/10 text-white/50 hover:bg-white/5'}`}>
                                         {opt.label}
                                     </button>
                                 ))}
@@ -663,7 +663,7 @@ function AIScanPanel({
                                 onChange={e => setInstructions(e.target.value)}
                                 placeholder="e.g. Show diagrams of the water cycle stages"
                                 rows={1}
-                                className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-primary/50 placeholder:text-white/30 resize-none"
+                                className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-[#DB2777]/50 placeholder:text-white/30 resize-none"
                             />
                         </div>
 
@@ -671,7 +671,7 @@ function AIScanPanel({
                             onClick={handleScan}
                             disabled={!canScan}
                             className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                            style={{ background: 'linear-gradient(135deg, #EC4899 0%, #DB2777 40%, #9D174D 100%)' }}>
                             <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
                             {!doc ? 'Load a Document First' : isPdf && totalPages > 0 ? 'Scan Selected Pages' : 'Scan Document'}
                         </button>
@@ -682,8 +682,8 @@ function AIScanPanel({
             {phase === 'result' && result && (
                 <div className="flex-1 overflow-y-auto px-4 pt-3 pb-10 space-y-3" style={{ background: '#000' }}>
                     {/* Topic */}
-                    <div className="p-3 rounded-xl bg-primary/10 border border-primary/20">
-                        <p className="text-[10px] font-semibold text-primary uppercase tracking-wide mb-1">Detected Topic</p>
+                    <div className="p-3 rounded-xl bg-[#DB2777]/10 border border-[#DB2777]/20">
+                        <p className="text-[10px] font-semibold text-[#DB2777] uppercase tracking-wide mb-1">Detected Topic</p>
                         <p className="text-sm font-bold text-white">{result.topic}</p>
                     </div>
 
@@ -700,7 +700,7 @@ function AIScanPanel({
                             <div className="space-y-1">
                                 {toBullets(result.keyPoints).map((point, i) => (
                                     <div key={i} className="flex items-start gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-primary shrink-0 mt-1.5" />
+                                        <div className="w-1.5 h-1.5 rounded-full bg-[#DB2777] shrink-0 mt-1.5" />
                                         <p className="text-xs text-white/80">{point}</p>
                                     </div>
                                 ))}
@@ -1275,7 +1275,7 @@ function AIQuizPanel({
             )}
             <div className="flex items-center justify-between px-4 py-3 border-b border-white/10" style={{ background: '#000' }}>
                 <p className="text-sm font-bold flex items-center gap-2 text-white">
-                    <HelpCircle size={14} style={{ color: '#DA7756' }} /> AI Quiz
+                    <HelpCircle size={14} style={{ color: '#059669' }} /> AI Quiz
                     <span className="text-[9px] font-semibold italic px-1.5 py-0.5 rounded-full flex items-center gap-0.5"
                         style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
                         <Zap size={9} className="fill-current" />
@@ -1304,7 +1304,7 @@ function AIQuizPanel({
                     {isPdf && totalPages > 0 && (
                         <div className="shrink-0 px-4 pt-2 pb-2" style={{ background: '#000' }}>
                             <p className="text-xs font-bold mb-1 text-white flex items-center gap-1.5">
-                                <CheckCircle2 size={12} style={{ color: '#DA7756' }} /> Selected Pages
+                                <CheckCircle2 size={12} style={{ color: '#059669' }} /> Selected Pages
                                 <span className="text-[9px] font-semibold italic px-1.5 py-0.5 rounded-full flex items-center gap-0.5 whitespace-nowrap"
                                     style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
                                     <FileText size={9} />
@@ -1334,11 +1334,11 @@ function AIQuizPanel({
                                                 <div key={pageNum}
                                                     onClick={() => onNavigateToPage?.(pageNum)}
                                                     className="relative rounded-lg overflow-hidden border-2 w-fit leading-[0] cursor-pointer hover:opacity-90 transition-opacity"
-                                                    style={{ borderColor: '#DA7756' }}
+                                                    style={{ borderColor: '#059669' }}
                                                     title="Go to this page">
                                                     <Page pageNumber={pageNum} width={220} renderTextLayer={false} renderAnnotationLayer={false} />
                                                     <span className="absolute bottom-0 inset-x-0 text-[10px] text-center py-1 text-white"
-                                                        style={{ background: '#DA7756' }}>
+                                                        style={{ background: '#059669' }}>
                                                         {pageNum}
                                                     </span>
                                                     <button onClick={(e) => { e.stopPropagation(); onTogglePage(pageNum); }}
@@ -1372,7 +1372,7 @@ function AIQuizPanel({
                                 onChange={e => setInstructions(e.target.value)}
                                 placeholder="e.g. Focus on definitions and key dates"
                                 rows={1}
-                                className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-primary/50 placeholder:text-white/30 resize-none"
+                                className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-[#059669]/50 placeholder:text-white/30 resize-none"
                             />
                         </div>
 
@@ -1380,11 +1380,11 @@ function AIQuizPanel({
 
                         <div className="space-y-1.5 -mb-2.5">
                             <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">
-                                Questions: <span style={{ color: '#DA7756' }}>{count}</span>
+                                Questions: <span style={{ color: '#059669' }}>{count}</span>
                             </label>
                             <input type="range" min={1} max={10} value={count}
                                 onChange={e => setCount(Number(e.target.value))}
-                                className="w-full h-1 cursor-pointer" style={{ accentColor: '#DA7756' }} />
+                                className="w-full h-1 cursor-pointer" style={{ accentColor: '#059669' }} />
                             <div className="flex justify-between text-[10px] text-white/30">
                                 <span>1</span><span>10</span>
                             </div>
@@ -1420,7 +1420,7 @@ function AIQuizPanel({
                             onClick={handleGenerate}
                             disabled={!canGenerate}
                             className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
-                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                            style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 40%, #047857 100%)' }}>
                             <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
                             {!doc ? 'Load a Document First' : isPdf && totalPages > 0 ? 'Generate Quiz from Selected Pages' : 'Generate Quiz'}
                         </button>
@@ -1433,8 +1433,8 @@ function AIQuizPanel({
                 <>
                     <div className="flex-1 px-4 py-3 space-y-3 overflow-y-auto" style={{ background: '#000' }}>
                         {/* Question */}
-                        <div className="p-3 rounded-xl" style={{ background: 'rgba(218,119,86,0.08)', border: '1px solid rgba(218,119,86,0.25)' }}>
-                            <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: '#DA7756' }}>Question {currentQ + 1}</p>
+                        <div className="p-3 rounded-xl" style={{ background: 'rgba(5,150,105,0.08)', border: '1px solid rgba(5,150,105,0.25)' }}>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide mb-1" style={{ color: '#059669' }}>Question {currentQ + 1}</p>
                             <p className="text-sm font-semibold leading-relaxed text-white">{q.question}</p>
                         </div>
 
@@ -1452,7 +1452,7 @@ function AIQuizPanel({
                                             : { background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' };
                                 } else {
                                     style = isSelected
-                                        ? { background: 'rgba(218,119,86,0.15)', borderColor: '#DA7756', color: '#fff' }
+                                        ? { background: 'rgba(5,150,105,0.15)', borderColor: '#059669', color: '#fff' }
                                         : { background: 'rgba(255,255,255,0.04)', borderColor: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.85)' };
                                 }
                                 return (
@@ -1497,7 +1497,7 @@ function AIQuizPanel({
                             <button onClick={() => setRevealedMap(prev => ({ ...prev, [currentQ]: true }))}
                                 disabled={selectedOption === null}
                                 className="w-full h-8 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all"
-                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 40%, #047857 100%)' }}>
                                 {selectedOption === null ? 'Select an option to reveal' : 'Reveal Answer'}
                             </button>
                         )}
@@ -1624,13 +1624,21 @@ function pickMindmapTheme(seed: string): DoodleTheme {
 // split is the whole point — an image model would have to draw the letters
 // too, which is exactly where it mangles them.
 
+// Fixed native canvas size the mindmap is always drawn at — MindmapDoodle's
+// own layout math (arrows, starburst, doodles) all assumes this size, so
+// rather than making the drawing itself responsive, the panel that hosts it
+// scales the whole thing down (CSS transform) to fit whatever space is
+// available and back up again on resize. Shared here so that fit-scale math
+// outside this component uses the same numbers.
+const MINDMAP_W = 1080, MINDMAP_H = 860;
+
 function MindmapDoodle({ node, theme }: { node: MindmapNode; theme: DoodleTheme }) {
     const boardRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
     const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     const branches = node.children;
-    const W = 1080, H = 860;
+    const W = MINDMAP_W, H = MINDMAP_H;
     const CX = W / 2, CY = H / 2;
     const RX = 372, RY = 282;
     const CARD_W = 262;
@@ -1844,6 +1852,29 @@ function AIMindmapPanel({
 
     const exportRef = useRef<HTMLDivElement>(null);
     const [exporting, setExporting] = useState(false);
+
+    // The mindmap itself always draws at a fixed MINDMAP_W x MINDMAP_H canvas
+    // (see MindmapDoodle) — too big for the panel at native size. Rather than
+    // letting it overflow/scroll, this measures the available space and
+    // scales the whole drawing down (up to but not beyond 1:1) to fit,
+    // re-measuring whenever the panel is resized.
+    const mindmapFitRef = useRef<HTMLDivElement>(null);
+    const [mindmapScale, setMindmapScale] = useState(1);
+    useEffect(() => {
+        const el = mindmapFitRef.current;
+        if (!el || phase !== 'result') return;
+        const PADDING = 24; // matches the p-6 on the fit container
+        const recompute = () => {
+            const availW = el.clientWidth - PADDING * 2;
+            const availH = el.clientHeight - PADDING * 2;
+            if (availW <= 0 || availH <= 0) return;
+            setMindmapScale(Math.min(1, availW / MINDMAP_W, availH / MINDMAP_H));
+        };
+        recompute();
+        const ro = new ResizeObserver(recompute);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, [phase, mindmap]);
 
     // Snapshots the already-rendered mindmap DOM straight to a PNG — no extra
     // AI call, works for whichever of the three layouts is currently showing
@@ -2114,13 +2145,19 @@ function AIMindmapPanel({
             )}
 
             {phase === 'result' && mindmap && (
-                <div className="flex-1 overflow-auto p-6" style={{ background: '#000' }}>
-                    <div ref={exportRef} className="inline-block">
-                        <MindmapView
-                            key={mindmapSeed || mindmap.label}
-                            node={mindmap}
-                            seed={mindmapSeed || mindmap.label}
-                        />
+                <div ref={mindmapFitRef} className="flex-1 overflow-hidden p-6 flex items-center justify-center" style={{ background: '#000' }}>
+                    {/* Reserves exactly the scaled footprint so the flex
+                        centering above has no leftover space to account for. */}
+                    <div style={{ width: MINDMAP_W * mindmapScale, height: MINDMAP_H * mindmapScale }}>
+                        <div style={{ width: MINDMAP_W, height: MINDMAP_H, transform: `scale(${mindmapScale})`, transformOrigin: 'top left' }}>
+                            <div ref={exportRef} className="inline-block">
+                                <MindmapView
+                                    key={mindmapSeed || mindmap.label}
+                                    node={mindmap}
+                                    seed={mindmapSeed || mindmap.label}
+                                />
+                            </div>
+                        </div>
                     </div>
                 </div>
             )}
@@ -2140,7 +2177,7 @@ function FloatingAIButton({ activeMode, onSelect, showControls }: {
     const branding = useBranding();
 
     const options = [
-        { key: 'scan' as AIMode, icon: ScanLine, label: 'AI Scan', color: 'var(--primary)', iconSize: 13 },
+        { key: 'scan' as AIMode, icon: ScanLine, label: 'AI Scan', color: '#DB2777', iconSize: 13 },
         { key: 'prompt' as AIMode, icon: Bot, label: 'AI Prompt', color: '#DA7756', iconSize: 15 },
         { key: 'quiz' as AIMode, icon: HelpCircle, label: 'AI Quiz', color: '#059669', iconSize: 13 },
         { key: 'mindmap' as AIMode, icon: Network, label: 'AI Mindmap', color: '#2563EB', iconSize: 13 },
@@ -2901,15 +2938,15 @@ export default function BlackboardPage() {
                                                         {/* Trailing glow — sits above the line when moving down, below when moving up */}
                                                         <div className="absolute inset-x-0 h-20 pointer-events-none"
                                                             style={scanGoingDown
-                                                                ? { bottom: '100%', background: 'linear-gradient(180deg, transparent, rgba(218,119,86,0.35))' }
-                                                                : { top: '100%', background: 'linear-gradient(0deg, transparent, rgba(218,119,86,0.35))' }} />
+                                                                ? { bottom: '100%', background: 'linear-gradient(180deg, transparent, rgba(219,39,119,0.35))' }
+                                                                : { top: '100%', background: 'linear-gradient(0deg, transparent, rgba(219,39,119,0.35))' }} />
                                                         {/* Scan line */}
-                                                        <div className="absolute inset-0" style={{ background: '#DA7756', boxShadow: '0 0 14px 3px rgba(218,119,86,1)' }} />
+                                                        <div className="absolute inset-0" style={{ background: '#DB2777', boxShadow: '0 0 14px 3px rgba(219,39,119,1)' }} />
                                                         {/* End dots */}
                                                         <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
-                                                            style={{ background: '#DA7756', boxShadow: '0 0 6px 1px rgba(218,119,86,0.9)' }} />
+                                                            style={{ background: '#DB2777', boxShadow: '0 0 6px 1px rgba(219,39,119,0.9)' }} />
                                                         <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
-                                                            style={{ background: '#DA7756', boxShadow: '0 0 6px 1px rgba(218,119,86,0.9)' }} />
+                                                            style={{ background: '#DB2777', boxShadow: '0 0 6px 1px rgba(219,39,119,0.9)' }} />
                                                     </motion.div>
                                                 </motion.div>
                                             )}
