@@ -3228,6 +3228,8 @@ export default function BlackboardPage() {
                                                         file={doc.url}
                                                         options={PDF_LOAD_OPTIONS}
                                                         onLoadSuccess={({ numPages }) => setTotalPages(numPages)}
+                                                        onLoadError={(err) => console.error('[Blackboard] PDF load failed:', err, { url: doc.url })}
+                                                        onSourceError={(err) => console.error('[Blackboard] PDF source failed:', err, { url: doc.url })}
                                                         className="flex items-center justify-center h-full overflow-auto">
                                                         <Page
                                                             pageNumber={currentPage}
