@@ -33,6 +33,8 @@ const AI_FEATURE_LABELS: Record<string, string> = {
     BLACKBOARD_QUIZ: 'Quiz Generation',
     BLACKBOARD_MINDMAP: 'Mindmap Generation',
     TASK_QUESTION_GENERATION: 'Question Bank',
+    FEE_FORECAST: 'AI Forecast',
+    ATTENDANCE_SUMMARY: 'AI Attendance Insight',
 };
 // Fixed color per feature (not by sort/render order) so e.g. AI Scan is
 // always the same pink everywhere — superadmin AND admin analytics.
@@ -43,6 +45,8 @@ const AI_FEATURE_COLORS: Record<string, string> = {
     BLACKBOARD_QUIZ: '#F59E0B',
     BLACKBOARD_MINDMAP: '#2563EB',
     TASK_QUESTION_GENERATION: '#0891B2',
+    FEE_FORECAST: '#DA7756',
+    ATTENDANCE_SUMMARY: '#DC2626',
 };
 const AI_FEATURE_COLOR_FALLBACK = '#64748B';
 
@@ -62,6 +66,10 @@ export default function AIUsagePage() {
     // 5 calendar months, independent of the page's own date filter).
     const [monthlyByInst, setMonthlyByInst] = useState<Record<string, MonthlyUsagePoint[]>>({});
     const [loadingMonthly, setLoadingMonthly] = useState<Record<string, boolean>>({});
+    // This-month "Usage by Feature" per institution — comes from the same
+    // fetch as `monthly` above (range: '1M'), so `byFeature` here is already
+    // scoped to the current calendar month, not the page's own date filter.
+    const [byFeatureByInst, setByFeatureByInst] = useState<Record<string, FeatureBreakdown[]>>({});
 
     useEffect(() => {
         setLoading(true);
@@ -77,8 +85,14 @@ export default function AIUsagePage() {
         if (next && !monthlyByInst[next] && !loadingMonthly[next]) {
             setLoadingMonthly(prev => ({ ...prev, [next]: true }));
             api.get(`/superadmin/institutions/${next}/ai-usage`, { params: { range: '1M' } })
-                .then(res => setMonthlyByInst(prev => ({ ...prev, [next]: res.data.data?.monthly ?? [] })))
-                .catch(() => setMonthlyByInst(prev => ({ ...prev, [next]: [] })))
+                .then(res => {
+                    setMonthlyByInst(prev => ({ ...prev, [next]: res.data.data?.monthly ?? [] }));
+                    setByFeatureByInst(prev => ({ ...prev, [next]: res.data.data?.byFeature ?? [] }));
+                })
+                .catch(() => {
+                    setMonthlyByInst(prev => ({ ...prev, [next]: [] }));
+                    setByFeatureByInst(prev => ({ ...prev, [next]: [] }));
+                })
                 .finally(() => setLoadingMonthly(prev => ({ ...prev, [next]: false })));
         }
     };
@@ -153,7 +167,7 @@ export default function AIUsagePage() {
             })()}
 
             {/* ── Usage Trend + Feature Split ── */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
 
                 {/* Trend Chart */}
                 <div className="lg:col-span-2 bg-card border border-border/50 rounded-2xl p-5">
@@ -181,35 +195,46 @@ export default function AIUsagePage() {
                     unused this range) rather than only ones with actual usage,
                     so the card reads as a fixed menu of features, not a list
                     that disappears when nothing's been used yet. */}
-                <div className="bg-card border border-border/50 rounded-2xl p-5 flex flex-col gap-5">
+                <div className="lg:col-span-3 bg-card border border-border/50 rounded-2xl p-5 flex flex-col gap-5">
                     <p className="text-sm font-semibold">Usage by Feature</p>
-                    <div className="space-y-4">
-                        {(() => {
-                            const byFeatureMap = new Map(Object.keys(AI_FEATURE_LABELS).map(f => [f, { feature: f, requests: 0, successRequests: 0, failedRequests: 0, totalTokens: 0 }]));
-                            (usage?.byFeature ?? []).forEach(f => byFeatureMap.set(f.feature, f));
-                            const rows = Array.from(byFeatureMap.values()).sort((a, b) => b.totalTokens - a.totalTokens);
-                            const total = rows.reduce((s, x) => s + x.totalTokens, 0) || 1;
-                            return rows.map((f) => {
-                                const pct = Math.round((f.totalTokens / total) * 100);
-                                const color = AI_FEATURE_COLORS[f.feature] ?? AI_FEATURE_COLOR_FALLBACK;
-                                return (
-                                    <div key={f.feature}>
-                                        <div className="flex items-center justify-between mb-1.5">
-                                            <span className="text-[11px] font-semibold">{AI_FEATURE_LABELS[f.feature] ?? f.feature}</span>
-                                            <span className="text-[11px] font-bold" style={{ color }}>{pct}%</span>
-                                        </div>
-                                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
-                                        </div>
-                                        <div className="flex justify-between mt-1">
-                                            <span className="text-[10px] text-muted-foreground">{formatTokens(f.totalTokens)} tokens</span>
-                                            <span className="text-[10px] text-muted-foreground">{f.requests} requests</span>
-                                        </div>
+                    {(() => {
+                        const byFeatureMap = new Map(Object.keys(AI_FEATURE_LABELS).map(f => [f, { feature: f, requests: 0, successRequests: 0, failedRequests: 0, totalTokens: 0 }]));
+                        (usage?.byFeature ?? []).forEach(f => byFeatureMap.set(f.feature, f));
+                        const rows = Array.from(byFeatureMap.values()).sort((a, b) => b.totalTokens - a.totalTokens);
+                        const total = rows.reduce((s, x) => s + x.totalTokens, 0) || 1;
+                        // Split into two columns — first half left, second half
+                        // right — so as new features get added to the feature
+                        // list over time, they land in the right column and the
+                        // left stays roughly where it is instead of the whole
+                        // list just growing taller as one long stack.
+                        const half = Math.ceil(rows.length / 2);
+                        const columns = [rows.slice(0, half), rows.slice(half)];
+                        const renderRow = (f: typeof rows[number]) => {
+                            const pct = Math.round((f.totalTokens / total) * 100);
+                            const color = AI_FEATURE_COLORS[f.feature] ?? AI_FEATURE_COLOR_FALLBACK;
+                            return (
+                                <div key={f.feature}>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <span className="text-[11px] font-semibold">{AI_FEATURE_LABELS[f.feature] ?? f.feature}</span>
+                                        <span className="text-[11px] font-bold" style={{ color }}>{pct}%</span>
                                     </div>
-                                );
-                            });
-                        })()}
-                    </div>
+                                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                        <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                                    </div>
+                                    <div className="flex justify-between mt-1">
+                                        <span className="text-[10px] text-muted-foreground">{formatTokens(f.totalTokens)} tokens</span>
+                                        <span className="text-[10px] text-muted-foreground">{f.requests} requests</span>
+                                    </div>
+                                </div>
+                            );
+                        };
+                        return (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                                <div className="space-y-4">{columns[0].map(renderRow)}</div>
+                                <div className="space-y-4">{columns[1].map(renderRow)}</div>
+                            </div>
+                        );
+                    })()}
                 </div>
             </div>
 
@@ -296,44 +321,82 @@ export default function AIUsagePage() {
                                             ))}
                                         </div>
 
-                                        {/* Monthly usage — last 5 calendar months, independent of
-                                            the page's date filter above (that filter only affects
-                                            the platform-wide summary/trend, not this). */}
-                                        <div className="mt-3 p-3 bg-card rounded-xl border border-border/50">
-                                            <p className="text-[10px] text-muted-foreground mb-2">Monthly usage (last 5 months)</p>
-                                            {loadingMonthly[inst.institutionId] && (
-                                                <p className="text-[11px] text-muted-foreground italic">Loading…</p>
-                                            )}
-                                            {!loadingMonthly[inst.institutionId] && (monthlyByInst[inst.institutionId]?.length ?? 0) === 0 && (
-                                                <p className="text-[11px] text-muted-foreground italic">No usage recorded yet</p>
-                                            )}
-                                            {!loadingMonthly[inst.institutionId] && (monthlyByInst[inst.institutionId]?.length ?? 0) > 0 && (
-                                                <div className="space-y-2">
-                                                    {monthlyByInst[inst.institutionId].map((m) => {
-                                                        const pct = m.limit > 0 ? Math.min(100, Math.round((m.totalTokens / m.limit) * 100)) : 0;
-                                                        const label = new Date(`${m.month}-01T00:00:00Z`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
-                                                        return (
-                                                            <div key={m.month}>
-                                                                <div className="flex items-center justify-between text-[11px] mb-1">
-                                                                    <span className="text-muted-foreground">{label}</span>
-                                                                    <span className="font-semibold">
-                                                                        {formatTokens(m.totalTokens)} / {formatTokens(m.limit)} ({pct}%)
-                                                                    </span>
+                                        <div className="mt-3 grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+                                            {/* Monthly usage — last 5 calendar months, independent of
+                                                the page's date filter above (that filter only affects
+                                                the platform-wide summary/trend, not this). */}
+                                            <div className="p-3 bg-card rounded-xl border border-border/50">
+                                                <p className="text-[10px] text-muted-foreground mb-2">Monthly usage (last 5 months)</p>
+                                                {loadingMonthly[inst.institutionId] && (
+                                                    <p className="text-[11px] text-muted-foreground italic">Loading…</p>
+                                                )}
+                                                {!loadingMonthly[inst.institutionId] && (monthlyByInst[inst.institutionId]?.length ?? 0) === 0 && (
+                                                    <p className="text-[11px] text-muted-foreground italic">No usage recorded yet</p>
+                                                )}
+                                                {!loadingMonthly[inst.institutionId] && (monthlyByInst[inst.institutionId]?.length ?? 0) > 0 && (
+                                                    <div className="space-y-2">
+                                                        {monthlyByInst[inst.institutionId].map((m) => {
+                                                            const pct = m.limit > 0 ? Math.min(100, Math.round((m.totalTokens / m.limit) * 100)) : 0;
+                                                            const label = new Date(`${m.month}-01T00:00:00Z`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' });
+                                                            return (
+                                                                <div key={m.month}>
+                                                                    <div className="flex items-center justify-between text-[11px] mb-1">
+                                                                        <span className="text-muted-foreground">{label}</span>
+                                                                        <span className="font-semibold">
+                                                                            {formatTokens(m.totalTokens)} / {formatTokens(m.limit)} ({pct}%)
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                                                                        <div
+                                                                            className="h-full rounded-full"
+                                                                            style={{
+                                                                                width: `${pct}%`,
+                                                                                background: pct > 85 ? '#ef4444' : pct > 70 ? '#f59e0b' : 'var(--primary)',
+                                                                            }}
+                                                                        />
+                                                                    </div>
                                                                 </div>
-                                                                <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
-                                                                    <div
-                                                                        className="h-full rounded-full"
-                                                                        style={{
-                                                                            width: `${pct}%`,
-                                                                            background: pct > 85 ? '#ef4444' : pct > 70 ? '#f59e0b' : 'var(--primary)',
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Usage by Feature — this calendar month for this
+                                                institution only (same fetch, range '1M'). Every
+                                                known feature is listed even at 0%, matching the
+                                                platform-wide panel above. */}
+                                            <div className="p-3 bg-card rounded-xl border border-border/50">
+                                                <p className="text-[10px] text-muted-foreground mb-2">Usage by feature (this month)</p>
+                                                {loadingMonthly[inst.institutionId] && (
+                                                    <p className="text-[11px] text-muted-foreground italic">Loading…</p>
+                                                )}
+                                                {!loadingMonthly[inst.institutionId] && (() => {
+                                                    const byFeatureMap = new Map(Object.keys(AI_FEATURE_LABELS).map(f => [f, { feature: f, requests: 0, successRequests: 0, failedRequests: 0, totalTokens: 0 }]));
+                                                    (byFeatureByInst[inst.institutionId] ?? []).forEach(f => byFeatureMap.set(f.feature, f));
+                                                    const rows = Array.from(byFeatureMap.values()).sort((a, b) => b.totalTokens - a.totalTokens);
+                                                    const total = rows.reduce((s, x) => s + x.totalTokens, 0) || 1;
+                                                    return (
+                                                        <div className="space-y-2">
+                                                            {rows.map((f) => {
+                                                                const pct = Math.round((f.totalTokens / total) * 100);
+                                                                const color = AI_FEATURE_COLORS[f.feature] ?? AI_FEATURE_COLOR_FALLBACK;
+                                                                return (
+                                                                    <div key={f.feature}>
+                                                                        <div className="flex items-center justify-between text-[11px] mb-1">
+                                                                            <span className="text-muted-foreground truncate">{AI_FEATURE_LABELS[f.feature] ?? f.feature}</span>
+                                                                            <span className="font-semibold" style={{ color }}>{formatTokens(f.totalTokens)} ({pct}%)</span>
+                                                                        </div>
+                                                                        <div className="w-full h-1.5 bg-muted rounded-full overflow-hidden">
+                                                                            <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </div>
                                         </div>
                                     </motion.div>
                                 )}

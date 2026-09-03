@@ -131,6 +131,21 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     const [remarkInput, setRemarkInput] = useState('');
 
     const currentKey = dateKey(selectedDate);
+
+    // Keep the sheet's month tab in sync with whatever date was picked in the
+    // left calendar — without this, picking a date in a different month than
+    // the sheet is currently showing left the sheet on the old month while
+    // the left panel had already moved on, so the two panels disagreed about
+    // which date/month was "current".
+    useEffect(() => {
+        const targetMonth = selectedDate.getMonth();
+        setActiveMonth(prev => (prev === targetMonth ? prev : targetMonth));
+        const idx = SHEET_MONTHS.findIndex(m => m.key === targetMonth);
+        if (idx === -1) return;
+        setMonthOffset(prev => (idx >= prev && idx <= prev + 2) ? prev : Math.max(0, Math.min(SHEET_MONTHS.length - 3, idx)));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedDate]);
+
     const startYear = today.getMonth() >= 5 ? today.getFullYear() : today.getFullYear() - 1;
     const year = activeMonth >= 5 ? startYear : startYear + 1;
     const daysInMonth = new Date(year, activeMonth + 1, 0).getDate();
@@ -1191,6 +1206,12 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const autoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [loadingDate, setLoadingDate] = useState(false);
+    // Per-date count of distinct students marked, for the calendar popup's
+    // "fully marked" dot — keyed by "YYYY-MM-DD" for the month currently
+    // shown in the popup. A date only counts as fully marked once every
+    // active student in the roster has a status for it, not just "someone"
+    // marked something that day.
+    const [monthMarkedCounts, setMonthMarkedCounts] = useState<Record<string, number>>({});
 
     // Initialize attendance state when the student ROSTER changes (division
     // switch, first load). Deliberately keyed on the joined id list, not on
@@ -1241,6 +1262,24 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
 
     const isCurrentDaySunday = selectedDate.getDay() === 0;
     const isCurrentDayHoliday = !!holidays[currentDk];
+
+    // Fetch the marked-student count per date for whichever month the
+    // calendar popup is showing, so it can dot out dates that are fully
+    // marked. Re-fetches on refreshKey too, so a save on the currently open
+    // date lights up its dot immediately instead of waiting for a re-open.
+    useEffect(() => {
+        const monthStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
+        api.get(`${attBase}/monthly?month=${monthStr}`)
+            .then(res => {
+                const perDate: Record<string, Set<string>> = {};
+                res.data.data.records.forEach((r: { studentId: string; date: string; status: string | null }) => {
+                    if (!r.status) return;
+                    (perDate[r.date] ??= new Set()).add(r.studentId);
+                });
+                setMonthMarkedCounts(Object.fromEntries(Object.entries(perDate).map(([dk, set]) => [dk, set.size])));
+            })
+            .catch(() => setMonthMarkedCounts({}));
+    }, [calYear, calMonth, divisionId, attBase, refreshKey]);
 
     const handleHolidayChange = async (dk: string, name: string | null) => {
         onHolidayChange(dk, name);
@@ -1375,6 +1414,10 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                                                 const isFuture = new Date(calYear, calMonth, d) > today;
                                                 const dk = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
                                                 const isHol = !!holidays[dk];
+                                                // Only counts as "marked" once every active student in the roster
+                                                // has a status for this date — one unmarked student is enough to
+                                                // keep the dot off, per how the teacher wants this read.
+                                                const isFullyMarked = students.length > 0 && (monthMarkedCounts[dk] ?? 0) >= students.length;
                                                 return (
                                                     <button key={i}
                                                         onClick={() => {
@@ -1391,7 +1434,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                                                             setSelectedDate(new Date(calYear, calMonth, d));
                                                             setShowDatePicker(false);
                                                         }}
-                                                        className={`aspect-square rounded-lg text-[10px] font-medium transition-all flex items-center justify-center
+                                                        className={`relative aspect-square rounded-lg text-[10px] font-medium transition-all flex items-center justify-center
                                                             ${isFuture ? 'opacity-25 cursor-not-allowed' : 'cursor-pointer'}
                                                             ${isHol ? 'bg-red-100 text-red-500 font-bold' : ''}
                                                             ${isSelected(d) && !isHol ? 'bg-primary text-white font-bold' : ''}
@@ -1399,6 +1442,9 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                                                             ${weekend && !isSelected(d) && !isToday(d) && !isHol ? 'text-red-400' : ''}
                                                             ${!isSelected(d) && !isToday(d) && !weekend && !isHol ? 'text-foreground hover:bg-muted' : !isHol ? 'hover:bg-muted/60' : ''}`}>
                                                         {d}
+                                                        {isFullyMarked && !isHol && (
+                                                            <span className={`absolute bottom-[3px] left-1/2 -translate-x-1/2 w-1 h-1 rounded-full ${isSelected(d) ? 'bg-white' : 'bg-emerald-500'}`} />
+                                                        )}
                                                     </button>
                                                 );
                                             })}

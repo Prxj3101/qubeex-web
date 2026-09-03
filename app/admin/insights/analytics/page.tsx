@@ -68,6 +68,12 @@ interface FeeAiInsights {
 }
 interface AttendanceDivision { id: string; name: string; overallPct: number | null; monthPct: number | null; total: number; }
 interface AttendanceStandard { id: string; name: string; divisions: AttendanceDivision[]; }
+interface AttendanceStreakAlert { studentId: string; name: string; avatarUrl: string | null; standardId: string; divisionId: string; divisionName: string; streakLength: number; }
+interface AttendanceAiInsights {
+    streaks: AttendanceStreakAlert[];
+    aiSummary: string | null;
+    isAiGenerated: boolean;
+}
 type AnalyticsMode = 'overall' | 'monthly';
 interface AiFeatureBreakdown { feature: string; requests: number; successRequests: number; failedRequests: number; totalTokens: number; }
 interface AiTeacherUsage {
@@ -110,7 +116,8 @@ const MAIN_AI_FEATURES = new Set(
 // features here as they're introduced so the tooltip stays readable instead
 // of showing raw backend feature keys.
 const OTHER_FEATURE_LABELS: Record<string, string> = {
-    FEE_FORECAST: 'Fee Analysis',
+    FEE_FORECAST: 'AI Forecast',
+    ATTENDANCE_SUMMARY: 'AI Attendance Insight',
 };
 function featureColor(feature: string) {
     return AI_FEATURE_COLORS[feature] ?? AI_FEATURE_COLOR_FALLBACK;
@@ -284,6 +291,17 @@ function StatCard({ icon: Icon, label, value, sub, iconBg, iconColor }: {
 }
 
 // ── Attendance Accordion ──────────────────────────────────────────────────────
+// Small avatar helpers for the streak-alert cards — same idea as the
+// initials/color helpers used on the teacher division page, kept local here
+// since this file doesn't otherwise import from that page.
+const STREAK_AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB'];
+function streakInitials(name: string) {
+    return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+}
+function streakAvatarColor(name: string) {
+    return STREAK_AVATAR_COLORS[name.charCodeAt(0) % STREAK_AVATAR_COLORS.length];
+}
+
 function getAttendanceColor(pct: number) {
     if (pct >= 75) return {
         bar: 'linear-gradient(90deg, #10B981, #34D399)',
@@ -308,10 +326,10 @@ function getAttendanceColor(pct: number) {
     };
 }
 
-function AttendanceAccordion({ data }: { data: AttendanceStandard[] }) {
+function AttendanceAccordion({ data, ai }: { data: AttendanceStandard[]; ai: AttendanceAiInsights | null }) {
     const router = useRouter();
     const [expandedId, setExpandedId] = useState<string | null>(data[0]?.id ?? null);
-    const [mode, setMode] = useState<AnalyticsMode>('overall');
+    const [mode, setMode] = useState<AnalyticsMode>('monthly');
 
     if (data.length === 0) {
         return (
@@ -355,6 +373,69 @@ function AttendanceAccordion({ data }: { data: AttendanceStandard[] }) {
                     <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${overallColor.badge}`}>
                         {overallPct}% {mode === 'overall' ? 'overall' : 'this month'}
                     </span>
+                </div>
+            </div>
+
+            <div className="mx-5 mt-3 mb-3 flex flex-col lg:flex-row gap-6 items-stretch">
+                <div className="rounded-2xl p-2.5 lg:flex-1 bg-muted/30 border border-border/50">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                        <Sparkles size={16} style={{ color: '#DA7756' }} />
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">AI Attendance Insight</p>
+                    </div>
+                    {ai?.aiSummary ? (
+                        <p className="text-xs font-medium text-foreground leading-snug">{ai.aiSummary}</p>
+                    ) : (
+                        <p className="text-xs text-muted-foreground/70 leading-snug">Nothing to flag right now — check back after more attendance is marked.</p>
+                    )}
+                </div>
+
+                <div className="min-w-0 flex-1 rounded-2xl p-2.5 bg-muted/30 border border-border/50">
+                    <div className="flex items-center gap-1.5 mb-1.5">
+                        <Sparkles size={16} className="text-red-500" />
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">AI Absence Detection</p>
+                    </div>
+                    {ai && ai.streaks.length > 0 ? (
+                        <>
+                            <p className="text-[10px] font-semibold text-red-500 uppercase tracking-wider flex items-center gap-1.5 mb-2">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500" />
+                                </span>
+                                Needs attention · {ai.streaks.length} student{ai.streaks.length === 1 ? '' : 's'} on an absence streak
+                            </p>
+                            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(239,68,68,0.2) transparent', WebkitOverflowScrolling: 'touch', transform: 'translateZ(0)' }}>
+                                {ai.streaks.map((s) => (
+                                    <button key={s.studentId}
+                                        onClick={() => router.push(`/admin/campus/classes/${s.standardId}/${s.divisionId}?tab=attendance`)}
+                                        className="shrink-0 flex items-center gap-2.5 pl-2 pr-3 py-2 rounded-xl border border-red-200/70 dark:border-red-900/40 bg-card hover:border-red-300 transition-colors text-left"
+                                        style={{ minWidth: 172, willChange: 'scroll-position' }}>
+                                        <div className="relative shrink-0">
+                                            {s.avatarUrl ? (
+                                                <div className="relative w-8 h-8 rounded-full overflow-hidden">
+                                                    <NextImage src={s.avatarUrl} alt={s.name} fill sizes="64px" quality={100} className="object-cover" />
+                                                </div>
+                                            ) : (
+                                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-bold"
+                                                    style={{ background: streakAvatarColor(s.name) }}>
+                                                    {streakInitials(s.name)}
+                                                </div>
+                                            )}
+                                            <span className="absolute -top-1.5 -right-1.5 min-w-[17px] h-[17px] px-0.5 rounded-full bg-red-500 text-white text-[9px] font-bold flex items-center justify-center border-2"
+                                                style={{ borderColor: 'var(--card)' }}>
+                                                {s.streakLength}
+                                            </span>
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-[11.5px] font-semibold truncate">{s.name}</p>
+                                            <p className="text-[10px] text-muted-foreground truncate">{s.divisionName} · {s.streakLength}d absent</p>
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        </>
+                    ) : (
+                        <p className="text-xs text-muted-foreground/70 leading-snug">No students currently on an absence streak — all clear.</p>
+                    )}
                 </div>
             </div>
 
@@ -880,6 +961,7 @@ export default function AdminAnalyticsPage() {
     const [overview, setOverview] = useState<AdminOverview | null>(null);
     const [teachers, setTeachers] = useState<{ status: string }[]>([]);
     const [attendanceData, setAttendanceData] = useState<AttendanceStandard[]>([]);
+    const [attendanceAi, setAttendanceAi] = useState<AttendanceAiInsights | null>(null);
     const [feeData, setFeeData] = useState<FeeStandard[]>([]);
     const [feeAi, setFeeAi] = useState<FeeAiInsights | null>(null);
     const [aiTeachers, setAiTeachers] = useState<AiTeacherUsage[]>([]);
@@ -912,7 +994,14 @@ export default function AdminAnalyticsPage() {
             if (ovRes.status === 'fulfilled') setOverview(ovRes.value.data.data);
             else setError(true);
             if (teachRes.status === 'fulfilled') setTeachers(teachRes.value.data.data ?? []);
-            if (attRes.status === 'fulfilled') setAttendanceData(attRes.value.data.data ?? []);
+            if (attRes.status === 'fulfilled') {
+                setAttendanceData(attRes.value.data.data?.standards ?? []);
+                setAttendanceAi({
+                    streaks: attRes.value.data.data?.streaks ?? [],
+                    aiSummary: attRes.value.data.data?.aiSummary ?? null,
+                    isAiGenerated: attRes.value.data.data?.isAiGenerated ?? false,
+                });
+            }
             if (feeRes.status === 'fulfilled') setFeeData(feeRes.value.data.data ?? []);
             if (feeAiRes.status === 'fulfilled') setFeeAi(feeAiRes.value.data.data ?? null);
             if (aiRes.status === 'fulfilled') {
@@ -1157,43 +1246,56 @@ export default function AdminAnalyticsPage() {
                             pool bar in the left column, per request. */}
                         <div className="flex flex-col gap-3">
                             <p className="text-sm font-semibold">Usage by Feature <span className="text-xs font-normal text-muted-foreground">(this month)</span></p>
-                            <div className="space-y-4 h-[222px] overflow-y-auto pr-1"
+                            <div className="h-[222px] overflow-y-auto pr-1"
                                 style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
-                                {featureBreakdown.map((f) => {
-                                    const pct = Math.round((f.totalTokens / featureGrandTotal) * 100);
-                                    const color = featureColor(f.feature);
-                                    return (
-                                        <div key={f.feature}>
-                                            <div className="flex items-center justify-between mb-1.5">
-                                                <span className="text-[11px] font-semibold flex items-center gap-1">
-                                                    {AI_FEATURE_LABELS[f.feature] ?? f.feature}
-                                                    {f.feature === 'OTHERS' && othersIncluded.length > 0 && (
-                                                        <span className="relative inline-flex group">
-                                                            <Info size={11} className="text-muted-foreground/60" />
-                                                            <span
-                                                                className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-1.5 hidden group-hover:block whitespace-nowrap z-20 px-2 py-1 rounded-lg text-[10px] font-medium shadow-lg"
-                                                                style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
-                                                            >
-                                                                Includes: {othersIncluded.join(', ')}
+                                {featureBreakdown.length === 0 ? (
+                                    <p className="text-xs text-muted-foreground">No AI usage recorded yet.</p>
+                                ) : (() => {
+                                    // Split into two columns — first half left,
+                                    // second half right — same fixed card height,
+                                    // just fits more before it needs to scroll,
+                                    // and new features land in the right column.
+                                    const half = Math.ceil(featureBreakdown.length / 2);
+                                    const columns = [featureBreakdown.slice(0, half), featureBreakdown.slice(half)];
+                                    const renderRow = (f: typeof featureBreakdown[number]) => {
+                                        const pct = Math.round((f.totalTokens / featureGrandTotal) * 100);
+                                        const color = featureColor(f.feature);
+                                        return (
+                                            <div key={f.feature}>
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <span className="text-[11px] font-semibold flex items-center gap-1">
+                                                        {AI_FEATURE_LABELS[f.feature] ?? f.feature}
+                                                        {f.feature === 'OTHERS' && othersIncluded.length > 0 && (
+                                                            <span className="relative inline-flex group">
+                                                                <Info size={11} className="text-muted-foreground/60" />
+                                                                <span
+                                                                    className="pointer-events-none absolute left-full top-1/2 -translate-y-1/2 ml-1.5 hidden group-hover:block whitespace-nowrap z-20 px-2 py-1 rounded-lg text-[10px] font-medium shadow-lg"
+                                                                    style={{ background: 'var(--card)', border: '1px solid var(--border)', color: 'var(--foreground)' }}
+                                                                >
+                                                                    Includes: {othersIncluded.join(', ')}
+                                                                </span>
                                                             </span>
-                                                        </span>
-                                                    )}
-                                                </span>
-                                                <span className="text-[11px] font-bold" style={{ color }}>{pct}%</span>
+                                                        )}
+                                                    </span>
+                                                    <span className="text-[11px] font-bold" style={{ color }}>{pct}%</span>
+                                                </div>
+                                                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                                                    <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
+                                                </div>
+                                                <div className="flex justify-between mt-1">
+                                                    <span className="text-[10px] text-muted-foreground">{formatTokens(f.totalTokens)} tokens</span>
+                                                    <span className="text-[10px] text-muted-foreground">{f.requests} requests</span>
+                                                </div>
                                             </div>
-                                            <div className="h-2 bg-muted rounded-full overflow-hidden">
-                                                <div className="h-full rounded-full" style={{ width: `${pct}%`, backgroundColor: color }} />
-                                            </div>
-                                            <div className="flex justify-between mt-1">
-                                                <span className="text-[10px] text-muted-foreground">{formatTokens(f.totalTokens)} tokens</span>
-                                                <span className="text-[10px] text-muted-foreground">{f.requests} requests</span>
-                                            </div>
+                                        );
+                                    };
+                                    return (
+                                        <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                                            <div className="space-y-4">{columns[0].map(renderRow)}</div>
+                                            <div className="space-y-4">{columns[1].map(renderRow)}</div>
                                         </div>
                                     );
-                                })}
-                                {featureBreakdown.length === 0 && (
-                                    <p className="text-xs text-muted-foreground">No AI usage recorded yet.</p>
-                                )}
+                                })()}
                             </div>
                         </div>
                     </div>
@@ -1363,7 +1465,7 @@ export default function AdminAnalyticsPage() {
             <FeeAccordion data={feeData} ai={feeAi} />
 
             {/* ── Attendance Analysis ── */}
-            <AttendanceAccordion data={attendanceData} />
+            <AttendanceAccordion data={attendanceData} ai={attendanceAi} />
 
             {/* ── Open tickets ── */}
             {overview.tickets.length > 0 && (
