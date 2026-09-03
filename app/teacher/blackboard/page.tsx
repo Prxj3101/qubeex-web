@@ -1527,6 +1527,9 @@ function AIQuizPanel({
 interface MindmapNode {
     label: string;
     emoji?: string;
+    // Root only — the school subject the model placed this material in, which
+    // selects the paper/palette/handwriting.
+    subject?: string;
     children: MindmapNode[];
 }
 
@@ -1560,48 +1563,108 @@ interface DoodleTheme {
     font: string;       // heading face, all already loaded in globals.css
     body: string;
     pens: string[];
+    // Dark papers must keep solid card fills: a sketchy fill lets the dark
+    // paper show through, and cardText is dark, so the label would vanish.
+    darkPaper?: boolean;
 }
 
-const DOODLE_THEMES: DoodleTheme[] = [
-    {
-        key: 'crayon',
-        paper: '#FFFDF0', rule: '#DDE7F0', ink: '#141210', cardText: '#141210', burst: '#FF4FA3',
+// Themes are keyed to the school subject the model reports, so a biology map
+// comes out botanical and a history map comes out like parchment. Subjects the
+// model can't place fall to 'general', which keeps a rotating set so those
+// still vary between maps.
+type MindmapSubject =
+    | 'biology' | 'chemistry' | 'physics' | 'maths'
+    | 'history' | 'geography' | 'language' | 'computer' | 'general';
+
+const SUBJECT_THEMES: Record<MindmapSubject, DoodleTheme[]> = {
+    biology: [{
+        key: 'botanical',
+        paper: '#E7F3D8', rule: '#CFE3B8', ink: '#12210F', cardText: '#12210F', burst: '#7CD46B',
         font: 'Caveat', body: 'Patrick Hand',
-        pens: ['#FF6B8A', '#FFD93D', '#5BD1F0', '#8CE99A', '#C77DFF', '#FFA94D'],
-    },
-    {
-        key: 'highlighter',
-        paper: '#FFFEF7', rule: '#EFE7CF', ink: '#1A1508', cardText: '#1A1508', burst: '#FFE14D',
+        pens: ['#7CD46B', '#4FC3A1', '#F2B84B', '#FF8FA3', '#9FE08A', '#5BC0EB'],
+    }],
+    chemistry: [{
+        key: 'lab',
+        paper: '#DCEDF9', rule: '#B9D8EC', ink: '#0D1B26', cardText: '#0D1B26', burst: '#4DD4E8',
         font: 'Kalam', body: 'Patrick Hand',
-        pens: ['#FFE14D', '#7CF3B0', '#8AD9FF', '#FFAFCC', '#FFC97A', '#D0BFFF'],
-    },
-    {
-        key: 'poster',
-        paper: '#FFF6E9', rule: '#F0DCC2', ink: '#12100E', cardText: '#12100E', burst: '#FF7A45',
-        font: 'Architects Daughter', body: 'Handlee',
-        pens: ['#FF7A45', '#3DCFB6', '#FFCE3D', '#7A8BFF', '#FF9DC4', '#9BE564'],
-    },
-    {
-        key: 'bubblegum',
-        paper: '#FFF0F7', rule: '#F6D9E8', ink: '#2A0E20', cardText: '#2A0E20', burst: '#7DE2FF',
-        font: 'Caveat', body: 'Handlee',
-        pens: ['#FF8FC8', '#B694FF', '#7DE2FF', '#FFE066', '#8CE99A', '#FFA8A8'],
-    },
-    {
-        key: 'chalkboard',
-        // Chalk: light strokes on a dark board. Cards are bright chalk blocks,
-        // so their text stays dark while every drawn line goes light.
-        paper: '#1E3A32', rule: '#2B4C42', ink: '#F4FFF9', cardText: '#12211C', burst: '#FFD166',
-        font: 'Kalam', body: 'Patrick Hand',
-        pens: ['#8AE6C1', '#FFD166', '#88C7FF', '#FF9EB1', '#C9A7FF', '#FFF3C4'],
-    },
-    {
+        pens: ['#4DD4E8', '#FF9F5A', '#B08CFF', '#5AD68C', '#FFD84D', '#FF7A9C'],
+    }],
+    physics: [{
         key: 'graphpaper',
-        paper: '#F4FAFF', rule: '#CFE4F5', ink: '#0E1A24', cardText: '#0E1A24', burst: '#4DD4AC',
+        paper: '#E2ECFB', rule: '#BFD4EE', ink: '#0E1724', cardText: '#0E1724', burst: '#5AA9FF',
         font: 'Architects Daughter', body: 'Patrick Hand',
-        pens: ['#4DD4AC', '#FF8B6B', '#5AA9FF', '#FFC845', '#D08BFF', '#7BE38F'],
-    },
-];
+        pens: ['#5AA9FF', '#FF8B6B', '#4DD4AC', '#FFC845', '#D08BFF', '#7BE38F'],
+    }],
+    maths: [{
+        key: 'squared',
+        paper: '#F5EEDA', rule: '#DED3AE', ink: '#16150E', cardText: '#16150E', burst: '#FFC845',
+        font: 'Architects Daughter', body: 'Handlee',
+        pens: ['#FFC845', '#6BAAFF', '#FF7E6B', '#57D1A0', '#C58BFF', '#FF9EC4'],
+    }],
+    history: [{
+        key: 'parchment',
+        paper: '#EBD6AC', rule: '#D3B57F', ink: '#2A1B0C', cardText: '#2A1B0C', burst: '#D98E45',
+        font: 'Caveat', body: 'Handlee',
+        pens: ['#D98E45', '#B06B4E', '#8F9E5C', '#C9A227', '#A57BB0', '#7FA6A0'],
+    }],
+    geography: [{
+        key: 'atlas',
+        paper: '#DAEBE2', rule: '#B4D3C4', ink: '#0F1F1C', cardText: '#0F1F1C', burst: '#48B7A0',
+        font: 'Kalam', body: 'Handlee',
+        pens: ['#48B7A0', '#F0A44B', '#6BA9E0', '#8FCB6B', '#E0796B', '#C4A45E'],
+    }],
+    language: [{
+        key: 'notebook',
+        paper: '#FFFAE6', rule: '#D8E2F0', ink: '#131A2A', cardText: '#131A2A', burst: '#7B8CFF',
+        font: 'Caveat', body: 'Patrick Hand',
+        pens: ['#7B8CFF', '#FF9DB4', '#FFD166', '#6FD6C4', '#C79BFF', '#FFA36B'],
+    }],
+    computer: [{
+        key: 'terminal', darkPaper: true,
+        // Dark board: strokes and doodles go light, card labels stay dark on
+        // their bright fills.
+        paper: '#141A24', rule: '#1F2836', ink: '#E8F6FF', cardText: '#0B1018', burst: '#5EEAD4',
+        font: 'Kalam', body: 'Patrick Hand',
+        pens: ['#5EEAD4', '#FFD84D', '#7BA9FF', '#FF8FB8', '#B79BFF', '#8CE99A'],
+    }],
+    general: [
+        {
+            key: 'crayon',
+            paper: '#FFF3D8', rule: '#E7D9B4', ink: '#141210', cardText: '#141210', burst: '#FF4FA3',
+            font: 'Caveat', body: 'Patrick Hand',
+            pens: ['#FF6B8A', '#FFD93D', '#5BD1F0', '#8CE99A', '#C77DFF', '#FFA94D'],
+        },
+        {
+            key: 'highlighter',
+            paper: '#FCFADF', rule: '#E3DFAE', ink: '#1A1508', cardText: '#1A1508', burst: '#FFE14D',
+            font: 'Kalam', body: 'Patrick Hand',
+            pens: ['#FFE14D', '#7CF3B0', '#8AD9FF', '#FFAFCC', '#FFC97A', '#D0BFFF'],
+        },
+        {
+            key: 'poster',
+            paper: '#FFE5C8', rule: '#EEC79C', ink: '#12100E', cardText: '#12100E', burst: '#FF7A45',
+            font: 'Architects Daughter', body: 'Handlee',
+            pens: ['#FF7A45', '#3DCFB6', '#FFCE3D', '#7A8BFF', '#FF9DC4', '#9BE564'],
+        },
+        {
+            key: 'bubblegum',
+            paper: '#FBDCEF', rule: '#EFB9D8', ink: '#2A0E20', cardText: '#2A0E20', burst: '#7DE2FF',
+            font: 'Caveat', body: 'Handlee',
+            pens: ['#FF8FC8', '#B694FF', '#7DE2FF', '#FFE066', '#8CE99A', '#FFA8A8'],
+        },
+        {
+            key: 'chalkboard', darkPaper: true,
+            paper: '#1E3A32', rule: '#2B4C42', ink: '#F4FFF9', cardText: '#12211C', burst: '#FFD166',
+            font: 'Kalam', body: 'Patrick Hand',
+            pens: ['#8AE6C1', '#FFD166', '#88C7FF', '#FF9EB1', '#C9A7FF', '#FFF3C4'],
+        },
+    ],
+};
+
+// Arrangement varies independently of palette, so two biology maps share the
+// botanical look but aren't the same picture.
+type DoodleLayout = 'ring' | 'spine' | 'fan';
+const DOODLE_LAYOUTS: DoodleLayout[] = ['ring', 'spine', 'fan'];
 
 function hashString(s: string): number {
     let h = 2166136261;
@@ -1612,10 +1675,44 @@ function hashString(s: string): number {
     return h >>> 0;
 }
 
-// Same id always lands on the same theme, so a saved map reopens looking
-// exactly as the student left it, while two different maps rarely match.
-function pickMindmapTheme(seed: string): DoodleTheme {
-    return DOODLE_THEMES[hashString(seed) % DOODLE_THEMES.length];
+// A design is a recipe, not a colourway. Palette alone changed almost nothing
+// perceptually — every map still had rectangles, solid fill and a starburst,
+// so thirteen themes read as one design in thirteen colours. These axes change
+// the silhouette and texture, which is what the eye actually reads as
+// "a different design".
+type NodeShape = 'rect' | 'rounded' | 'torn' | 'bubble';
+type HubShape = 'starburst' | 'cloud' | 'banner' | 'circle';
+type CardFill = 'solid' | 'hachure' | 'cross-hatch' | 'zigzag';
+
+const NODE_SHAPES: NodeShape[] = ['rect', 'rounded', 'torn', 'bubble'];
+const HUB_SHAPES: HubShape[] = ['starburst', 'cloud', 'banner', 'circle'];
+const CARD_FILLS: CardFill[] = ['solid', 'hachure', 'cross-hatch', 'zigzag'];
+
+interface MindmapRecipe {
+    theme: DoodleTheme;
+    layout: DoodleLayout;
+    nodeShape: NodeShape;
+    hubShape: HubShape;
+    fill: CardFill;
+}
+
+// Subject constrains the palette; everything else comes from a different slice
+// of the id hash so the axes vary independently. Same id always resolves the
+// same way, so a saved map reopens exactly as the student left it.
+function pickMindmapDesign(node: MindmapNode, seed: string): MindmapRecipe {
+    const h = hashString(seed);
+    const subject = (node.subject ?? 'general') as MindmapSubject;
+    const options = SUBJECT_THEMES[subject] ?? SUBJECT_THEMES.general;
+    const theme = options[h % options.length];
+    return {
+        theme,
+        layout: DOODLE_LAYOUTS[Math.floor(h / 7) % DOODLE_LAYOUTS.length],
+        nodeShape: NODE_SHAPES[Math.floor(h / 31) % NODE_SHAPES.length],
+        hubShape: HUB_SHAPES[Math.floor(h / 131) % HUB_SHAPES.length],
+        // See DoodleTheme.darkPaper — a see-through fill would swallow the
+        // label on a dark board.
+        fill: theme.darkPaper ? 'solid' : CARD_FILLS[Math.floor(h / 517) % CARD_FILLS.length],
+    };
 }
 
 
@@ -1632,19 +1729,76 @@ function pickMindmapTheme(seed: string): DoodleTheme {
 // outside this component uses the same numbers.
 const MINDMAP_W = 1080, MINDMAP_H = 860;
 
-function MindmapDoodle({ node, theme }: { node: MindmapNode; theme: DoodleTheme }) {
+function MindmapDoodle({ node, recipe, onHeight }: {
+    node: MindmapNode;
+    recipe: MindmapRecipe;
+    // Reported upward so the panel's fit-scaler works against the real height
+    // rather than a fixed guess.
+    onHeight?: (h: number) => void;
+}) {
+    const { theme, layout } = recipe;
     const boardRef = useRef<HTMLDivElement>(null);
     const svgRef = useRef<SVGSVGElement>(null);
+    const hubRef = useRef<HTMLDivElement>(null);
     const cardRefs = useRef<(HTMLDivElement | null)[]>([]);
 
     const branches = node.children;
-    const W = MINDMAP_W, H = MINDMAP_H;
-    const CX = W / 2, CY = H / 2;
-    const RX = 372, RY = 282;
+    const W = MINDMAP_W;
+    const CX = W / 2;
     const CARD_W = 262;
     const HUB_W = 200, HUB_H = 150;
+    const GAP = 30;          // clear space between stacked cards
+    const n = Math.max(branches.length, 1);
 
-    const angleOf = (i: number) => (i / Math.max(branches.length, 1)) * Math.PI * 2 - Math.PI / 2;
+    // Card height depends on how many points it holds and how the text wraps,
+    // so positions can only be worked out after the browser has laid the cards
+    // out. Placing by index against a fixed step — which is what this did
+    // first — collides as soon as one branch is taller than the step.
+    const computeGeometry = (heights: number[]) => {
+        const maxH = Math.max(...heights, 120);
+
+        if (layout === 'spine') {
+            // Hub up top, branches zig-zagging down either side. Each column
+            // stacks on its own running total.
+            const hubY = 150;
+            const startY = hubY + HUB_H / 2 + 70;
+            let leftY = startY, rightY = startY;
+            const cards = heights.map((h, i) => {
+                const onLeft = i % 2 === 0;
+                const y = (onLeft ? leftY : rightY) + h / 2;
+                if (onLeft) leftY += h + GAP; else rightY += h + GAP;
+                return { x: CX + (onLeft ? -300 : 300), y };
+            });
+            return { hub: { x: CX, y: hubY }, cards, height: Math.max(leftY, rightY) + 70 };
+        }
+
+        if (layout === 'fan') {
+            // Hub on the left, one stacked column on the right.
+            const top = 90;
+            let y = top;
+            const cards = heights.map((h) => {
+                const c = { x: 762, y: y + h / 2 };
+                y += h + GAP;
+                return c;
+            });
+            const bottom = y - GAP;
+            return { hub: { x: 214, y: (top + bottom) / 2 }, cards, height: bottom + 90 };
+        }
+
+        // ring — hub centred, branches around an ellipse. The vertical radius
+        // has to clear roughly half the cards stacked up one side, otherwise
+        // neighbours near the top and bottom overlap.
+        const perSide = Math.ceil(n / 2);
+        const avgH = heights.reduce((a, b) => a + b, 0) / heights.length;
+        const RY = Math.max(250, (perSide * (avgH + GAP)) / 2);
+        const RX = 372;
+        const cy = RY + maxH / 2 + 60;
+        const cards = heights.map((_, i) => {
+            const a = (i / n) * Math.PI * 2 - Math.PI / 2;
+            return { x: CX + RX * Math.cos(a), y: cy + RY * Math.sin(a) };
+        });
+        return { hub: { x: CX, y: cy }, cards, height: cy + RY + maxH / 2 + 60 };
+    };
 
     useEffect(() => {
         const svg = svgRef.current;
@@ -1655,12 +1809,27 @@ function MindmapDoodle({ node, theme }: { node: MindmapNode; theme: DoodleTheme 
         // Rough.js is ~9kb and only ever needed for this style, so it loads on
         // demand rather than riding along in the blackboard's main bundle.
         import('roughjs').then(({ default: rough }) => {
-            if (cancelled || !svgRef.current) return;
+            if (cancelled || !svgRef.current || !boardRef.current) return;
             const el = svgRef.current;
             el.innerHTML = '';
             const rc = rough.svg(el);
             const add = (n: SVGGElement) => el.appendChild(n);
             const INK = theme.ink;
+
+            // Measure every card before placing any of them, then size the
+            // canvas to whatever the arrangement actually needs.
+            const heights = branches.map((_, i) => cardRefs.current[i]?.offsetHeight ?? 140);
+            const geometry = computeGeometry(heights);
+            const H = Math.round(geometry.height);
+            boardRef.current.style.height = `${H}px`;
+            el.setAttribute('height', String(H));
+            el.setAttribute('viewBox', `0 0 ${W} ${H}`);
+            onHeight?.(H);
+
+            if (hubRef.current) {
+                hubRef.current.style.left = `${geometry.hub.x - HUB_W / 2}px`;
+                hubRef.current.style.top = `${geometry.hub.y - HUB_H / 2}px`;
+            }
 
             const arrow = (fx: number, fy: number, tx: number, ty: number) => {
                 const dx = tx - fx, dy = ty - fy, len = Math.hypot(dx, dy) || 1;
@@ -1676,44 +1845,138 @@ function MindmapDoodle({ node, theme }: { node: MindmapNode; theme: DoodleTheme 
                     { stroke: INK, strokeWidth: 3.6, roughness: 1.7 }));
             };
 
+            // Sketchy fills let the paper show through, so they're drawn wide
+            // and thin — dense hatching under a label makes it hard to read.
+            const fillOpts = (colour: string) => recipe.fill === 'solid'
+                ? { fill: colour, fillStyle: 'solid' as const }
+                : {
+                    fill: colour, fillStyle: recipe.fill,
+                    fillWeight: 1.6, hachureGap: 13, hachureAngle: -41,
+                };
+
+            // Every shape is drawn inside the same box the layout reserved, so
+            // swapping shapes can never reintroduce the overlap bug.
+            const drawCard = (bx: number, by: number, bw: number, bh: number, colour: string) => {
+                const o = {
+                    stroke: INK, strokeWidth: 3.6, roughness: 1.9, bowing: 2,
+                    ...fillOpts(colour),
+                };
+                const r = 26;
+                switch (recipe.nodeShape) {
+                    case 'rounded':
+                        add(rc.path(
+                            `M${bx + r},${by} H${bx + bw - r} Q${bx + bw},${by} ${bx + bw},${by + r}` +
+                            ` V${by + bh - r} Q${bx + bw},${by + bh} ${bx + bw - r},${by + bh}` +
+                            ` H${bx + r} Q${bx},${by + bh} ${bx},${by + bh - r}` +
+                            ` V${by + r} Q${bx},${by} ${bx + r},${by} Z`, o));
+                        break;
+                    case 'torn': {
+                        // Ragged edge — midpoints pushed in and out so it reads
+                        // like paper torn out of a notebook.
+                        const j = 11;
+                        add(rc.polygon([
+                            [bx, by], [bx + bw * 0.34, by - j], [bx + bw * 0.68, by + j], [bx + bw, by],
+                            [bx + bw + j, by + bh * 0.4], [bx + bw, by + bh],
+                            [bx + bw * 0.6, by + bh + j], [bx + bw * 0.28, by + bh - j], [bx, by + bh],
+                            [bx - j, by + bh * 0.55],
+                        ], o));
+                        break;
+                    }
+                    case 'bubble': {
+                        // Speech bubble: rounded box plus a small tail. The tail
+                        // points back at the hub, into empty space.
+                        add(rc.path(
+                            `M${bx + r},${by} H${bx + bw - r} Q${bx + bw},${by} ${bx + bw},${by + r}` +
+                            ` V${by + bh - r} Q${bx + bw},${by + bh} ${bx + bw - r},${by + bh}` +
+                            ` H${bx + r} Q${bx},${by + bh} ${bx},${by + bh - r}` +
+                            ` V${by + r} Q${bx},${by} ${bx + r},${by} Z`, o));
+                        const towardHub = geometry.hub.x < bx;
+                        const tx0 = towardHub ? bx + 6 : bx + bw - 6;
+                        const dir = towardHub ? -1 : 1;
+                        add(rc.polygon([
+                            [tx0, by + bh * 0.62], [tx0 + dir * 22, by + bh * 0.78], [tx0, by + bh * 0.86],
+                        ], { ...o, fillStyle: 'solid', fill: colour }));
+                        break;
+                    }
+                    default:
+                        add(rc.rectangle(bx, by, bw, bh, o));
+                }
+            };
+
             branches.forEach((_, i) => {
                 const card = cardRefs.current[i];
                 if (!card) return;
-                const a = angleOf(i);
-                const x = CX + RX * Math.cos(a);
-                const y = CY + RY * Math.sin(a);
+                const { x, y } = geometry.cards[i];
                 const h = card.offsetHeight;
                 const left = Math.round(x - CARD_W / 2);
                 const top = Math.round(y - h / 2);
                 card.style.left = `${left}px`;
                 card.style.top = `${top}px`;
 
-                add(rc.rectangle(left - 11, top - 11, CARD_W + 22, h + 22, {
-                    stroke: INK, strokeWidth: 3.6, roughness: 1.9, bowing: 2,
-                    fill: theme.pens[i % theme.pens.length], fillStyle: 'solid',
-                }));
+                drawCard(left - 11, top - 11, CARD_W + 22, h + 22, theme.pens[i % theme.pens.length]);
 
+                // Angle taken from the real hub→card vector, so this works for
+                // whichever arrangement placed them.
+                const a = Math.atan2(y - geometry.hub.y, x - geometry.hub.x);
                 arrow(
-                    CX + (HUB_W / 2 + 30) * Math.cos(a),
-                    CY + (HUB_H / 2 + 26) * Math.sin(a),
+                    geometry.hub.x + (HUB_W / 2 + 30) * Math.cos(a),
+                    geometry.hub.y + (HUB_H / 2 + 26) * Math.sin(a),
                     x - Math.cos(a) * (CARD_W / 2 + 30),
                     y - Math.sin(a) * (h / 2 + 30),
                 );
             });
 
             // Comic starburst centre — alternating long/short spokes.
-            const pts: [number, number][] = [];
-            const SPIKES = 15;
-            for (let i = 0; i < SPIKES * 2; i++) {
-                const a = (i / (SPIKES * 2)) * Math.PI * 2 - Math.PI / 2;
-                const rx = (HUB_W / 2 + 52) * (i % 2 ? 0.74 : 1);
-                const ry = (HUB_H / 2 + 46) * (i % 2 ? 0.74 : 1);
-                pts.push([CX + rx * Math.cos(a), CY + ry * Math.sin(a)]);
-            }
-            add(rc.polygon(pts, {
+            // Hub always keeps a solid fill — the title sits on it and has to
+            // stay readable whatever the cards are doing.
+            const hubOpts = {
                 stroke: INK, strokeWidth: 3.8, roughness: 1.6, bowing: 1.4,
-                fill: theme.burst, fillStyle: 'solid',
-            }));
+                fill: theme.burst, fillStyle: 'solid' as const,
+            };
+            const hx = geometry.hub.x, hy = geometry.hub.y;
+            const HRX = HUB_W / 2 + 52, HRY = HUB_H / 2 + 46;
+
+            switch (recipe.hubShape) {
+                case 'cloud': {
+                    // A ring of overlapping puffs, drawn before nothing else so
+                    // the outlines read as one cloud.
+                    const puffs = 9;
+                    for (let i = 0; i < puffs; i++) {
+                        const a = (i / puffs) * Math.PI * 2;
+                        add(rc.circle(hx + HRX * 0.72 * Math.cos(a), hy + HRY * 0.72 * Math.sin(a),
+                            HRY * 1.05, hubOpts));
+                    }
+                    add(rc.ellipse(hx, hy, HRX * 1.5, HRY * 1.35, hubOpts));
+                    break;
+                }
+                case 'banner': {
+                    // Ribbon with notched ends.
+                    const w = HRX * 2, h = HRY * 1.5;
+                    const x0 = hx - w / 2, y0 = hy - h / 2, notch = 30;
+                    add(rc.polygon([
+                        [x0, y0], [x0 + w, y0], [x0 + w - notch, y0 + h / 2], [x0 + w, y0 + h],
+                        [x0, y0 + h], [x0 + notch, y0 + h / 2],
+                    ], hubOpts));
+                    break;
+                }
+                case 'circle':
+                    add(rc.ellipse(hx, hy, HRX * 2, HRY * 1.9, hubOpts));
+                    add(rc.ellipse(hx, hy, HRX * 2.16, HRY * 2.06,
+                        { ...hubOpts, fill: 'none', strokeWidth: 2, roughness: 2.6 }));
+                    break;
+                default: {
+                    const pts: [number, number][] = [];
+                    const SPIKES = 15;
+                    for (let i = 0; i < SPIKES * 2; i++) {
+                        const a = (i / (SPIKES * 2)) * Math.PI * 2 - Math.PI / 2;
+                        pts.push([
+                            hx + HRX * (i % 2 ? 0.74 : 1) * Math.cos(a),
+                            hy + HRY * (i % 2 ? 0.74 : 1) * Math.sin(a),
+                        ]);
+                    }
+                    add(rc.polygon(pts, hubOpts));
+                }
+            }
 
             // Margin doodles, the way a student fills empty page corners.
             const solid = (c: string, w = 3.2) =>
@@ -1755,18 +2018,20 @@ function MindmapDoodle({ node, theme }: { node: MindmapNode; theme: DoodleTheme 
 
         return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [node, theme]);
+    }, [node, recipe]);
 
     return (
         <div
             ref={boardRef}
             className="relative"
             style={{
-                width: W, height: H,
+                // Starting size only — the effect measures the cards and
+                // resizes both this and the svg to what the layout needs.
+                width: W, height: MINDMAP_H,
                 background: `repeating-linear-gradient(to bottom, transparent 0 34px, ${theme.rule} 34px 35px), ${theme.paper}`,
             }}
         >
-            <svg ref={svgRef} className="absolute inset-0 pointer-events-none" width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ zIndex: 1 }} />
+            <svg ref={svgRef} className="absolute inset-0 pointer-events-none" width={W} height={MINDMAP_H} viewBox={`0 0 ${W} ${MINDMAP_H}`} style={{ zIndex: 1 }} />
 
             {branches.map((b, i) => (
                 <div
@@ -1797,9 +2062,12 @@ function MindmapDoodle({ node, theme }: { node: MindmapNode; theme: DoodleTheme 
             ))}
 
             <div
+                ref={hubRef}
                 className="absolute flex flex-col items-center justify-center text-center"
                 style={{
-                    width: HUB_W, height: HUB_H, left: CX - HUB_W / 2, top: CY - HUB_H / 2,
+                    width: HUB_W, height: HUB_H,
+                    // Placed by the effect, alongside the cards it has to sit
+                    // among — see computeGeometry.
                     zIndex: 3, color: theme.cardText,
                 }}
             >
@@ -1812,16 +2080,17 @@ function MindmapDoodle({ node, theme }: { node: MindmapNode; theme: DoodleTheme 
     );
 }
 
-function MindmapView({ node, seed }: { node: MindmapNode; seed: string }) {
+function MindmapView({ node, seed, onHeight }: {
+    node: MindmapNode; seed: string; onHeight?: (h: number) => void;
+}) {
     // Callers pass key={seed}, so a different mindmap remounts this rather
     // than needing a reset effect.
-    const theme = useMemo(() => pickMindmapTheme(seed), [seed]);
+    const recipe = useMemo(() => pickMindmapDesign(node, seed), [node, seed]);
 
-    // The map paints its own ruled paper at a fixed canvas size, so it needs
-    // no shell around it.
+    // The map paints its own ruled paper, sized to whatever the layout needs.
     return (
         <div className="inline-block">
-            <MindmapDoodle node={node} theme={theme} />
+            <MindmapDoodle node={node} recipe={recipe} onHeight={onHeight} />
         </div>
     );
 }
@@ -1853,13 +2122,13 @@ function AIMindmapPanel({
     const exportRef = useRef<HTMLDivElement>(null);
     const [exporting, setExporting] = useState(false);
 
-    // The mindmap itself always draws at a fixed MINDMAP_W x MINDMAP_H canvas
-    // (see MindmapDoodle) — too big for the panel at native size. Rather than
-    // letting it overflow/scroll, this measures the available space and
-    // scales the whole drawing down (up to but not beyond 1:1) to fit,
+    // The mindmap draws at a fixed width but its height depends on how tall
+    // the branch cards turn out, so MindmapDoodle measures and reports it.
+    // This scales the whole drawing down (never up past 1:1) to fit the panel,
     // re-measuring whenever the panel is resized.
     const mindmapFitRef = useRef<HTMLDivElement>(null);
     const [mindmapScale, setMindmapScale] = useState(1);
+    const [mindmapHeight, setMindmapHeight] = useState(MINDMAP_H);
     useEffect(() => {
         const el = mindmapFitRef.current;
         if (!el || phase !== 'result') return;
@@ -1868,13 +2137,13 @@ function AIMindmapPanel({
             const availW = el.clientWidth - PADDING * 2;
             const availH = el.clientHeight - PADDING * 2;
             if (availW <= 0 || availH <= 0) return;
-            setMindmapScale(Math.min(1, availW / MINDMAP_W, availH / MINDMAP_H));
+            setMindmapScale(Math.min(1, availW / MINDMAP_W, availH / mindmapHeight));
         };
         recompute();
         const ro = new ResizeObserver(recompute);
         ro.observe(el);
         return () => ro.disconnect();
-    }, [phase, mindmap]);
+    }, [phase, mindmap, mindmapHeight]);
 
     // Snapshots the already-rendered mindmap DOM straight to a PNG — no extra
     // AI call, works for whichever of the three layouts is currently showing
@@ -2148,13 +2417,14 @@ function AIMindmapPanel({
                 <div ref={mindmapFitRef} className="flex-1 overflow-hidden p-6 flex items-center justify-center" style={{ background: '#000' }}>
                     {/* Reserves exactly the scaled footprint so the flex
                         centering above has no leftover space to account for. */}
-                    <div style={{ width: MINDMAP_W * mindmapScale, height: MINDMAP_H * mindmapScale }}>
-                        <div style={{ width: MINDMAP_W, height: MINDMAP_H, transform: `scale(${mindmapScale})`, transformOrigin: 'top left' }}>
+                    <div style={{ width: MINDMAP_W * mindmapScale, height: mindmapHeight * mindmapScale }}>
+                        <div style={{ width: MINDMAP_W, height: mindmapHeight, transform: `scale(${mindmapScale})`, transformOrigin: 'top left' }}>
                             <div ref={exportRef} className="inline-block">
                                 <MindmapView
                                     key={mindmapSeed || mindmap.label}
                                     node={mindmap}
                                     seed={mindmapSeed || mindmap.label}
+                                    onHeight={setMindmapHeight}
                                 />
                             </div>
                         </div>
