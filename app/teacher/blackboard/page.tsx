@@ -1,6 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useMotionValue } from 'framer-motion';
 import {
@@ -9,7 +9,7 @@ import {
     HelpCircle, Scan, Send, ZoomIn, ZoomOut,
     FolderOpen, ChevronDown, RotateCw, GripVertical, Pencil, Pen, Highlighter, Eraser, Undo2, Redo2,
     Loader2, RefreshCw, Check, ScanLine, Layers, CheckCircle2, Bot, Copy, ThumbsUp, ThumbsDown, Zap,
-    FileText, FileImage, FileVideo, Presentation,
+    FileText, FileImage, FileVideo, Presentation, Network, Trash2, Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
@@ -57,7 +57,7 @@ function useScanLoadingAnim() {
 }
 
 // ── Types ─────────────────────────────────────────────────────────────────────
-type AIMode = 'scan' | 'prompt' | 'quiz' | null;
+type AIMode = 'scan' | 'prompt' | 'quiz' | 'mindmap' | null;
 type DocRenderer = 'pdf' | 'office-online' | 'office-local' | 'image' | 'video' | 'unsupported';
 
 function getRenderer(doc: { url: string; type: string }): DocRenderer {
@@ -1502,6 +1502,817 @@ function AIQuizPanel({
     );
 }
 
+// ── AI Mindmap Panel ───────────────────────────────────────────────────────────
+
+interface MindmapNode {
+    label: string;
+    emoji?: string;
+    children: MindmapNode[];
+}
+
+interface SavedMindmap {
+    id: string;
+    title: string;
+    createdAt: string;
+}
+
+// ── Mindmap design system ────────────────────────────────────────────────────
+// Sticker look: thick outlines, hard offset shadows, an emoji per node, a
+// slight tilt so branches read as stickers pressed onto a page rather than
+// rows in a table. Each mindmap picks a theme + layout deterministically from
+// its own id, so two maps rarely look alike but reopening a saved one always
+// looks the way the student left it.
+
+interface MindmapPen { c: string; t: string }
+
+interface MindmapTheme {
+    key: string;
+    ground: string;          // the map's own page colour
+    rule?: string;           // ruled-paper lines, when the theme has them
+    cardBg: string;
+    ink: string;             // outline + hard shadow colour
+    text: string;
+    hub: string;
+    hubText: string;
+    pens: MindmapPen[];      // per-branch solid + tint
+}
+
+const MINDMAP_THEMES: MindmapTheme[] = [
+    {
+        key: 'notebook',
+        ground: '#FFFDF6', rule: '#D9E7F7', cardBg: '#FFFFFF',
+        ink: '#1C1B2E', text: '#1C1B2E', hub: '#FF3E8E', hubText: '#FFFFFF',
+        pens: [
+            { c: '#5B5BF5', t: '#E6E6FF' }, { c: '#00A5D8', t: '#D9F2FB' },
+            { c: '#9B4DEA', t: '#F0E4FE' }, { c: '#FF9111', t: '#FFEEDA' },
+            { c: '#FF3E8E', t: '#FFE3EF' }, { c: '#0FB981', t: '#D7F7EC' },
+        ],
+    },
+    {
+        key: 'arcade',
+        ground: '#191540', cardBg: '#251E5C',
+        ink: '#0A0725', text: '#F4F1FF', hub: '#FF4FA3', hubText: '#FFFFFF',
+        pens: [
+            { c: '#7B7BFF', t: '#332C7A' }, { c: '#2FD9FF', t: '#1B3F63' },
+            { c: '#C084FC', t: '#3B2A6B' }, { c: '#FFB020', t: '#4A371A' },
+            { c: '#FF4FA3', t: '#4D2148' }, { c: '#34E5A8', t: '#173F42' },
+        ],
+    },
+    {
+        key: 'bubblegum',
+        ground: '#FFF1F8', cardBg: '#FFFFFF',
+        ink: '#3B1F44', text: '#3B1F44', hub: '#9B4DEA', hubText: '#FFFFFF',
+        pens: [
+            { c: '#FF6FB1', t: '#FFE4F0' }, { c: '#7C5CFF', t: '#E9E4FF' },
+            { c: '#22C3C3', t: '#D6F6F6' }, { c: '#FFA53D', t: '#FFEEDB' },
+            { c: '#E24FD0', t: '#FBE2F8' }, { c: '#4DA6FF', t: '#DFEEFF' },
+        ],
+    },
+    {
+        key: 'chalkboard',
+        ground: '#1F3B33', cardBg: '#2A4C42',
+        ink: '#122620', text: '#F2FBF6', hub: '#FFD166', hubText: '#1F3B33',
+        pens: [
+            { c: '#8AE6C1', t: '#1C3F37' }, { c: '#FFD166', t: '#42381F' },
+            { c: '#88C7FF', t: '#1E3550' }, { c: '#FF9EB1', t: '#4A2A33' },
+            { c: '#C9A7FF', t: '#332A4D' }, { c: '#FFF3C4', t: '#3F3A26' },
+        ],
+    },
+];
+
+type MindmapLayout = 'grid' | 'tree' | 'radial';
+// 'grid' twice so the layout the reference templates use comes up ~half the
+// time, with tree/radial as the change of pace.
+const MINDMAP_LAYOUTS: MindmapLayout[] = ['grid', 'grid', 'tree', 'radial'];
+
+function hashString(s: string): number {
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+}
+
+function pickMindmapDesign(seed: string): { theme: MindmapTheme; layout: MindmapLayout } {
+    const h = hashString(seed);
+    return {
+        layout: MINDMAP_LAYOUTS[h % MINDMAP_LAYOUTS.length],
+        theme: MINDMAP_THEMES[Math.floor(h / MINDMAP_LAYOUTS.length) % MINDMAP_THEMES.length],
+    };
+}
+
+const TILTS = ['-1.6deg', '1.4deg', '1.2deg', '-1.5deg', '-1.1deg', '1.6deg'];
+
+// ── Sticker pieces ───────────────────────────────────────────────────────────
+
+function HubNode({ node, theme }: { node: MindmapNode; theme: MindmapTheme }) {
+    return (
+        <div
+            data-hub
+            className="relative shrink-0 rounded-full flex flex-col items-center justify-center text-center px-5"
+            style={{
+                width: 190, height: 190,
+                background: theme.hub, color: theme.hubText,
+                border: `3.5px solid ${theme.ink}`,
+                boxShadow: `6px 7px 0 ${theme.ink}`,
+            }}
+        >
+            {node.emoji && <span className="text-[28px] leading-none mb-1.5">{node.emoji}</span>}
+            <span className="font-bold leading-tight" style={{ fontSize: 17 }}>{node.label}</span>
+        </div>
+    );
+}
+
+function BranchSticker({
+    node, index, theme, open, onToggle, side, width,
+}: {
+    node: MindmapNode;
+    index: number;
+    theme: MindmapTheme;
+    open: boolean;
+    onToggle: () => void;
+    side: 'left' | 'right';
+    width: number;
+}) {
+    const pen = theme.pens[index % theme.pens.length];
+    return (
+        <div
+            data-branch
+            data-side={side}
+            data-color={pen.c}
+            className="overflow-hidden transition-transform duration-200"
+            style={{
+                width,
+                background: theme.cardBg,
+                border: `3px solid ${pen.c}`,
+                borderRadius: 20,
+                boxShadow: `5px 5px 0 ${pen.c}`,
+                transform: `rotate(${open ? '0deg' : TILTS[index % TILTS.length]})`,
+            }}
+        >
+            <button
+                data-head
+                onClick={onToggle}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-left"
+                style={{ background: pen.t }}
+            >
+                <span
+                    className="shrink-0 flex items-center justify-center text-[19px] leading-none"
+                    style={{
+                        width: 36, height: 36, background: theme.cardBg,
+                        border: `2.5px solid ${pen.c}`, borderRadius: 11,
+                    }}
+                >
+                    {node.emoji ?? '•'}
+                </span>
+                <span
+                    className="shrink-0 flex items-center justify-center text-[11px] font-bold"
+                    style={{
+                        width: 20, height: 20, background: pen.c, color: theme.cardBg,
+                        border: `2px solid ${theme.ink}`, borderRadius: 7,
+                    }}
+                >
+                    {index + 1}
+                </span>
+                <span className="font-bold text-[13.5px] leading-tight" style={{ color: theme.text }}>
+                    {node.label}
+                </span>
+                <ChevronDown
+                    size={15}
+                    className="ml-auto shrink-0 transition-transform duration-300"
+                    style={{ color: pen.c, transform: open ? 'rotate(180deg)' : 'none' }}
+                />
+            </button>
+
+            {/* 0fr → 1fr collapses the row itself; the padding sits on the list
+                inside so it shrinks away with the content instead of leaving a
+                gap on a closed branch. */}
+            <div
+                className="grid transition-[grid-template-rows] duration-[400ms]"
+                style={{ gridTemplateRows: open ? '1fr' : '0fr', transitionTimingFunction: 'cubic-bezier(.3,1.35,.5,1)' }}
+            >
+                <div className="overflow-hidden min-h-0">
+                    <ul className="list-none m-0 pl-8 pr-4 pt-3 pb-3.5">
+                        {node.children.map((child, i) => (
+                            <li key={i} className="relative text-[12.5px] leading-snug mb-1.5 last:mb-0" style={{ color: theme.text }}>
+                                <span
+                                    className="absolute rounded-full"
+                                    style={{
+                                        left: -17, top: 5, width: 9, height: 9,
+                                        background: pen.c, border: `2px solid ${theme.ink}`,
+                                    }}
+                                />
+                                {child.emoji && <span className="mr-1">{child.emoji}</span>}
+                                {child.label}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// Measures the rendered stickers and draws a curved connector from the hub to
+// each branch's header. Re-runs whenever the container resizes — which covers
+// opening/closing a branch, since that changes the container's height.
+function useMindmapConnectors(ref: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
+    const [paths, setPaths] = useState<{ d: string; color: string }[]>([]);
+
+    useEffect(() => {
+        const el = ref.current;
+        if (!el || !enabled) { setPaths([]); return; }
+
+        let last = '';
+        const compute = () => {
+            const box = el.getBoundingClientRect();
+            const hubEl = el.querySelector('[data-hub]');
+            if (!hubEl) return;
+            const hub = hubEl.getBoundingClientRect();
+            const hx = hub.left + hub.width / 2 - box.left;
+            const hy = hub.top + hub.height / 2 - box.top;
+
+            const next: { d: string; color: string }[] = [];
+            el.querySelectorAll('[data-branch]').forEach((b) => {
+                const head = b.querySelector('[data-head]') ?? b;
+                const r = head.getBoundingClientRect();
+                const isLeft = b.getAttribute('data-side') === 'left';
+                const x = (isLeft ? r.right : r.left) - box.left;
+                const y = r.top + r.height / 2 - box.top;
+                const mx = (x + hx) / 2;
+                next.push({
+                    d: `M${hx},${hy} C${mx},${hy} ${mx},${y} ${x},${y}`,
+                    color: b.getAttribute('data-color') ?? '#000',
+                });
+            });
+
+            // Bail out when nothing moved, so the ResizeObserver below can't
+            // ping-pong with its own setState.
+            const key = JSON.stringify(next);
+            if (key === last) return;
+            last = key;
+            setPaths(next);
+        };
+
+        compute();
+        const ro = new ResizeObserver(compute);
+        ro.observe(el);
+        el.querySelectorAll('[data-branch]').forEach((b) => ro.observe(b));
+        return () => ro.disconnect();
+    }, [ref, enabled]);
+
+    return paths;
+}
+
+// ── Layout: grid (hub centred, branches down both sides) ─────────────────────
+
+function MindmapGrid({
+    node, theme, openSet, toggle, wide,
+}: {
+    node: MindmapNode;
+    theme: MindmapTheme;
+    openSet: Set<number>;
+    toggle: (i: number) => void;
+    wide: boolean;
+}) {
+    const ref = useRef<HTMLDivElement>(null);
+    const paths = useMindmapConnectors(ref, wide);
+    const branches = node.children;
+    const cardWidth = wide ? 290 : 300;
+
+    const sticker = (b: MindmapNode, i: number, side: 'left' | 'right') => (
+        <BranchSticker
+            key={i} node={b} index={i} theme={theme} side={side} width={cardWidth}
+            open={openSet.has(i)} onToggle={() => toggle(i)}
+        />
+    );
+
+    if (!wide) {
+        // Narrow panel: one column, hub on top. No connectors — a single
+        // vertical stack reads fine without them and they'd only clutter it.
+        return (
+            <div ref={ref} className="flex flex-col items-center gap-5">
+                <HubNode node={node} theme={theme} />
+                <div className="flex flex-col gap-4">
+                    {branches.map((b, i) => sticker(b, i, 'left'))}
+                </div>
+            </div>
+        );
+    }
+
+    const left = branches.filter((_, i) => i % 2 === 0);
+    const right = branches.filter((_, i) => i % 2 === 1);
+
+    return (
+        <div ref={ref} className="relative grid items-center" style={{ gridTemplateColumns: `${cardWidth}px 1fr ${cardWidth}px`, columnGap: 24 }}>
+            <svg className="absolute inset-0 pointer-events-none" style={{ zIndex: 1, width: '100%', height: '100%' }}>
+                {paths.map((p, i) => (
+                    <path key={i} d={p.d} fill="none" stroke={p.color} strokeWidth={4} strokeLinecap="round" />
+                ))}
+            </svg>
+            <div className="flex flex-col gap-5 relative" style={{ zIndex: 2 }}>
+                {left.map((b) => sticker(b, branches.indexOf(b), 'left'))}
+            </div>
+            <div className="flex items-center justify-center relative" style={{ zIndex: 3 }}>
+                <HubNode node={node} theme={theme} />
+            </div>
+            <div className="flex flex-col gap-5 items-end relative" style={{ zIndex: 2 }}>
+                {right.map((b) => sticker(b, branches.indexOf(b), 'right'))}
+            </div>
+        </div>
+    );
+}
+
+// ── Layout: tree (root left, branches stacked to its right) ──────────────────
+
+function MindmapTree({
+    node, theme, openSet, toggle,
+}: {
+    node: MindmapNode;
+    theme: MindmapTheme;
+    openSet: Set<number>;
+    toggle: (i: number) => void;
+}) {
+    return (
+        <div className="flex items-center gap-5">
+            <div
+                className="shrink-0 flex flex-col items-center text-center px-4 py-3.5"
+                style={{
+                    background: theme.hub, color: theme.hubText, maxWidth: 190,
+                    border: `3px solid ${theme.ink}`, borderRadius: 18, boxShadow: `5px 5px 0 ${theme.ink}`,
+                }}
+            >
+                {node.emoji && <span className="text-[24px] leading-none mb-1">{node.emoji}</span>}
+                <span className="font-bold text-[15px] leading-tight">{node.label}</span>
+            </div>
+            <div style={{ width: 26, height: 3, background: theme.ink }} className="shrink-0" />
+            <div className="flex flex-col gap-4">
+                {node.children.map((b, i) => (
+                    <BranchSticker
+                        key={i} node={b} index={i} theme={theme} side="right" width={300}
+                        open={openSet.has(i)} onToggle={() => toggle(i)}
+                    />
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// ── Layout: radial (branches ringed around the hub) ──────────────────────────
+
+function MindmapRadial({ node, theme }: { node: MindmapNode; theme: MindmapTheme }) {
+    const branches = node.children;
+    // Cards sit on the ring, so the gap between neighbours is chord length
+    // 2·R·sin(π/n) — with a fixed radius, six branches just fit and eight
+    // overlap. Solve for the radius the card actually needs instead.
+    const CARD_REACH = 150; // half a card's diagonal, roughly
+    const R = Math.max(240, CARD_REACH / Math.sin(Math.PI / Math.max(branches.length, 3)));
+    const pad = 190;
+    const size = (R + pad) * 2;
+    const c = size / 2;
+
+    const points = branches.map((b, i) => {
+        const a = (i / branches.length) * Math.PI * 2 - Math.PI / 2;
+        return { b, i, x: c + R * Math.cos(a), y: c + R * Math.sin(a) };
+    });
+
+    return (
+        <div className="relative" style={{ width: size, height: size }}>
+            <svg width={size} height={size} className="absolute inset-0 pointer-events-none">
+                {points.map(({ i, x, y }) => (
+                    <line
+                        key={i} x1={c} y1={c} x2={x} y2={y}
+                        stroke={theme.pens[i % theme.pens.length].c}
+                        strokeWidth={4} strokeLinecap="round"
+                    />
+                ))}
+            </svg>
+
+            {points.map(({ b, i, x, y }) => {
+                const pen = theme.pens[i % theme.pens.length];
+                return (
+                    <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: x, top: y, width: 230 }}>
+                        <div
+                            style={{
+                                background: theme.cardBg, border: `3px solid ${pen.c}`,
+                                borderRadius: 18, boxShadow: `4px 4px 0 ${pen.c}`,
+                                transform: `rotate(${TILTS[i % TILTS.length]})`,
+                            }}
+                        >
+                            <div className="flex items-center gap-2 px-2.5 py-2" style={{ background: pen.t }}>
+                                <span className="text-[17px] leading-none">{b.emoji ?? '•'}</span>
+                                <span className="font-bold text-[12.5px] leading-tight" style={{ color: theme.text }}>{b.label}</span>
+                            </div>
+                            {b.children.length > 0 && (
+                                <ul className="list-none m-0 pl-6 pr-3 py-2">
+                                    {b.children.map((child, j) => (
+                                        <li key={j} className="relative text-[11.5px] leading-snug mb-1 last:mb-0" style={{ color: theme.text }}>
+                                            <span
+                                                className="absolute rounded-full"
+                                                style={{ left: -13, top: 4, width: 7, height: 7, background: pen.c, border: `1.5px solid ${theme.ink}` }}
+                                            />
+                                            {child.label}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
+
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+                <HubNode node={node} theme={theme} />
+            </div>
+        </div>
+    );
+}
+
+// ── Entry point ──────────────────────────────────────────────────────────────
+
+function MindmapView({ node, seed }: { node: MindmapNode; seed: string }) {
+    const { theme, layout } = useMemo(() => pickMindmapDesign(seed), [seed]);
+
+    // Branches start open: the teacher panel doubles as the export source, so
+    // a map has to read completely on sight. Tapping a header collapses it —
+    // handy for revealing one branch at a time while teaching.
+    // Callers pass key={seed}, so a different mindmap remounts this and gets a
+    // fresh all-open state rather than needing a reset effect.
+    const [openSet, setOpenSet] = useState<Set<number>>(() => new Set(node.children.map((_, i) => i)));
+
+    const toggle = (i: number) => setOpenSet((prev) => {
+        const next = new Set(prev);
+        if (next.has(i)) next.delete(i); else next.add(i);
+        return next;
+    });
+
+    // The AI panel is resizable, so the two-column grid only fits some of the
+    // time — measure rather than guess.
+    const shellRef = useRef<HTMLDivElement>(null);
+    const [wide, setWide] = useState(false);
+    useEffect(() => {
+        const el = shellRef.current;
+        if (!el) return;
+        const check = () => setWide(el.clientWidth >= 900);
+        check();
+        const ro = new ResizeObserver(check);
+        ro.observe(el);
+        return () => ro.disconnect();
+    }, []);
+
+    return (
+        <div
+            ref={shellRef}
+            className="inline-block rounded-3xl p-7"
+            style={{
+                background: theme.rule
+                    ? `repeating-linear-gradient(to bottom, transparent 0 31px, ${theme.rule} 31px 32px), ${theme.ground}`
+                    : theme.ground,
+                border: `3px solid ${theme.ink}`,
+                minWidth: '100%',
+            }}
+        >
+            {layout === 'radial'
+                ? <MindmapRadial node={node} theme={theme} />
+                : layout === 'tree'
+                    ? <MindmapTree node={node} theme={theme} openSet={openSet} toggle={toggle} />
+                    : <MindmapGrid node={node} theme={theme} openSet={openSet} toggle={toggle} wide={wide} />}
+        </div>
+    );
+}
+
+function AIMindmapPanel({
+    onClose, docName, doc, totalPages, selectedPages, onTogglePage, onNavigateToPage,
+}: {
+    onClose: () => void;
+    docName?: string;
+    doc: { url: string; type: string } | null;
+    totalPages: number;
+    selectedPages: number[];
+    onTogglePage: (page: number) => void;
+    onNavigateToPage?: (page: number) => void;
+}) {
+    const [phase, setPhase] = usePersisted<'input' | 'loading' | 'result'>('mindmap_phase', 'input');
+    const [instructions, setInstructions] = usePersisted('mindmap_instructions', '');
+    const [depth, setDepth] = usePersisted('mindmap_depth', 2);
+    const [mindmap, setMindmap] = usePersisted<MindmapNode | null>('mindmap_result', null);
+    // Seeds the deterministic design pick (layout + palette) — the saved id
+    // once persisted, or the label as a fallback right after a fresh
+    // generation before its id comes back.
+    const [mindmapSeed, setMindmapSeed] = usePersisted<string>('mindmap_seed', '');
+    const loadingAnim = useScanLoadingAnim();
+
+    const [showSaved, setShowSaved] = useState(false);
+    const [savedList, setSavedList] = useState<SavedMindmap[]>([]);
+    const [loadingSaved, setLoadingSaved] = useState(false);
+
+    const exportRef = useRef<HTMLDivElement>(null);
+    const [exporting, setExporting] = useState(false);
+
+    // Snapshots the already-rendered mindmap DOM straight to a PNG — no extra
+    // AI call, works for whichever of the three layouts is currently showing
+    // since it captures pixels, not a re-derived drawing.
+    const handleExportImage = async () => {
+        if (!exportRef.current || exporting) return;
+        setExporting(true);
+        try {
+            const { toPng } = await import('html-to-image');
+            // No backgroundColor here on purpose — each theme paints its own
+            // ground (some are dark), so forcing one behind the capture would
+            // show as a border around the map's rounded card.
+            const dataUrl = await toPng(exportRef.current, {
+                pixelRatio: 2,
+            });
+            const link = document.createElement('a');
+            const safeName = (mindmap?.label || 'mindmap').replace(/[^a-z0-9]+/gi, '-').toLowerCase().slice(0, 60);
+            link.download = `${safeName || 'mindmap'}.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('[AI Mindmap] Export failed:', err);
+            toast.error('Failed to export image. Please try again.');
+        } finally {
+            setExporting(false);
+        }
+    };
+
+    const [showLoadingText, setShowLoadingText] = useState(false);
+    useEffect(() => {
+        if (phase !== 'loading') { setShowLoadingText(false); return; }
+        const id = setTimeout(() => setShowLoadingText(true), 300);
+        return () => clearTimeout(id);
+    }, [phase]);
+
+    const isPdf = doc?.type === 'application/pdf';
+    const canGenerate = !doc ? false : isPdf ? selectedPages.length > 0 : true;
+
+    const openSavedList = async () => {
+        setShowSaved(v => !v);
+        if (showSaved) return;
+        setLoadingSaved(true);
+        try {
+            const res = await api.get('/teacher/blackboard/mindmaps');
+            setSavedList(Array.isArray(res.data?.data) ? res.data.data : []);
+        } catch {
+            toast.error('Failed to load saved mindmaps');
+        } finally {
+            setLoadingSaved(false);
+        }
+    };
+
+    const openSaved = async (id: string) => {
+        try {
+            const res = await api.get(`/teacher/blackboard/mindmaps/${id}`);
+            const data = res.data?.data?.data;
+            if (data && typeof data.label === 'string') {
+                setMindmap(data);
+                setMindmapSeed(id);
+                setPhase('result');
+                setShowSaved(false);
+            }
+        } catch {
+            toast.error('Failed to load mindmap');
+        }
+    };
+
+    const deleteSaved = async (id: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            await api.delete(`/teacher/blackboard/mindmaps/${id}`);
+            setSavedList(prev => prev.filter(m => m.id !== id));
+        } catch {
+            toast.error('Failed to delete mindmap');
+        }
+    };
+
+    const handleGenerate = async () => {
+        if (!canGenerate) return;
+        const sorted = [...selectedPages].sort((a, b) => a - b);
+        const topic = sorted.length > 0 ? `Pages ${sorted.join(', ')}` : (docName ? stripExtension(docName) : instructions.trim());
+        if (!topic.trim()) return;
+        setPhase('loading');
+
+        const minDelay = new Promise(resolve => setTimeout(resolve, 4000));
+
+        try {
+            let pageText = '';
+            try {
+                pageText = await extractDocumentText(doc!, sorted);
+            } catch (extractErr) {
+                console.error('[AI Mindmap] Document text extraction failed, falling back to topic-only:', extractErr);
+            }
+            const [res] = await Promise.all([
+                api.post('/teacher/blackboard/ai/mindmap', {
+                    topic: topic.trim(),
+                    depth,
+                    ...(pageText ? { pageText } : {}),
+                    ...(instructions.trim() ? { instructions: instructions.trim() } : {}),
+                }),
+                minDelay,
+            ]);
+            const result = res.data?.data?.mindmap;
+            if (!result || typeof result.label !== 'string' || !Array.isArray(result.children)) {
+                await minDelay;
+                toast.error('Mindmap generation returned an unusable result. Please try again.');
+                setPhase('input');
+                return;
+            }
+            setMindmap(result);
+            setMindmapSeed(typeof res.data?.data?.id === 'string' ? res.data.data.id : `${result.label}-${Date.now()}`);
+            setPhase('result');
+        } catch (err: any) {
+            await minDelay;
+            toast.error(err.response?.status === 429
+                ? 'Monthly AI token limit reached'
+                : 'Mindmap generation failed. Please try again.');
+            setPhase('input');
+        }
+    };
+
+    return (
+        <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
+            className="w-full h-full flex flex-col overflow-hidden relative" style={{ background: '#000' }}>
+            {loadingAnim && (
+                <div className={`absolute inset-x-0 bottom-0 z-40 flex items-center justify-center transition-opacity duration-150 ${phase === 'loading' ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                    style={{ background: '#000', top: '45px', opacity: phase === 'loading' ? 1 : 0 }}>
+                    <div className="relative" style={{ width: 118, height: 66.4 }}>
+                        <Lottie animationData={loadingAnim} loop autoplay style={{ width: 118, height: 66.4 }} />
+                        {showLoadingText && (
+                            <p className="absolute left-1/2 -translate-x-1/2 top-full mt-2 whitespace-nowrap text-sm text-white/50">
+                                Generating mindmap...
+                            </p>
+                        )}
+                    </div>
+                </div>
+            )}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 relative" style={{ background: '#000' }}>
+                <p className="text-sm font-bold flex items-center gap-2 text-white">
+                    <Network size={14} style={{ color: '#2563EB' }} /> AI Mindmap
+                </p>
+                <div className="flex items-center gap-2">
+                    <button onClick={openSavedList}
+                        className="h-6 px-2 rounded-lg text-[10.5px] font-medium text-white/60 border border-white/15 hover:bg-white/10 transition-all flex items-center gap-1">
+                        <FolderOpen size={10} /> Saved
+                    </button>
+                    {phase === 'result' && (
+                        <>
+                            <button onClick={handleExportImage} disabled={exporting}
+                                className="h-6 px-2 rounded-lg text-[10.5px] font-medium text-white/60 border border-white/15 hover:bg-white/10 transition-all flex items-center gap-1 disabled:opacity-40">
+                                {exporting ? <Loader2 size={10} className="animate-spin" /> : <Download size={10} />} Export
+                            </button>
+                            <button onClick={() => setPhase('input')}
+                                className="h-6 px-2 rounded-lg text-[10.5px] font-medium text-white/60 border border-white/15 hover:bg-white/10 transition-all flex items-center gap-1">
+                                <RefreshCw size={10} /> New
+                            </button>
+                        </>
+                    )}
+                    <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all">
+                        <X size={14} />
+                    </button>
+                </div>
+
+                {showSaved && (
+                    <div className="absolute right-4 top-11 z-50 w-64 max-h-72 overflow-y-auto rounded-xl border border-white/15 shadow-xl"
+                        style={{ background: '#111' }}>
+                        {loadingSaved ? (
+                            <div className="p-4 flex justify-center"><Loader2 size={14} className="animate-spin text-white/40" /></div>
+                        ) : savedList.length === 0 ? (
+                            <p className="p-4 text-[11px] text-white/40 text-center">No saved mindmaps yet</p>
+                        ) : (
+                            savedList.map(m => (
+                                <button key={m.id} onClick={() => openSaved(m.id)}
+                                    className="w-full flex items-center justify-between gap-2 px-3 py-2.5 text-left hover:bg-white/5 transition-all border-b border-white/5 last:border-0">
+                                    <span className="text-xs text-white/80 truncate">{m.title}</span>
+                                    <Trash2 size={12} className="text-white/30 hover:text-red-400 shrink-0" onClick={(e) => deleteSaved(m.id, e)} />
+                                </button>
+                            ))
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {phase === 'input' && (
+                <div className="flex-1 flex flex-col overflow-hidden" style={{ background: '#000' }}>
+                    {isPdf && totalPages > 0 && (
+                        <div className="shrink-0 px-4 pt-2 pb-2" style={{ background: '#000' }}>
+                            <p className="text-xs font-bold mb-1 text-white flex items-center gap-1.5">
+                                <CheckCircle2 size={12} style={{ color: '#2563EB' }} /> Selected Pages
+                                <span className="text-[9px] font-semibold italic px-1.5 py-0.5 rounded-full flex items-center gap-0.5 whitespace-nowrap"
+                                    style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.5)' }}>
+                                    <FileText size={9} />
+                                    Max {MAX_SELECTABLE_PAGES} pages
+                                </span>
+                            </p>
+                            <p className="text-[11px] text-white/60">
+                                Use the page nav on the left to select the pages, they&apos;ll show up here.
+                            </p>
+                        </div>
+                    )}
+
+                    <div className="flex-1 overflow-hidden pr-1" style={{ background: '#000' }}>
+                        <div className="h-full overflow-y-auto pl-4 pr-2 pt-1 pb-4"
+                            style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                            {isPdf && totalPages > 0 ? (
+                                selectedPages.length === 0 ? (
+                                    <div className="rounded-xl border border-dashed border-white/20 py-6 flex flex-col items-center gap-1.5">
+                                        <Network size={16} className="text-white/30" />
+                                        <p className="text-[11px] text-white/40">No pages selected yet</p>
+                                    </div>
+                                ) : (
+                                    <Document file={doc!.url} loading={null}>
+                                        <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, 220px)' }}>
+                                            {[...selectedPages].sort((a, b) => a - b).map(pageNum => (
+                                                <div key={pageNum}
+                                                    onClick={() => onNavigateToPage?.(pageNum)}
+                                                    className="relative rounded-lg overflow-hidden border-2 w-fit leading-[0] cursor-pointer hover:opacity-90 transition-opacity"
+                                                    style={{ borderColor: '#2563EB' }}
+                                                    title="Go to this page">
+                                                    <Page pageNumber={pageNum} width={220} renderTextLayer={false} renderAnnotationLayer={false} />
+                                                    <span className="absolute bottom-0 inset-x-0 text-[10px] text-center py-1 text-white"
+                                                        style={{ background: '#2563EB' }}>
+                                                        {pageNum}
+                                                    </span>
+                                                    <button onClick={(e) => { e.stopPropagation(); onTogglePage(pageNum); }}
+                                                        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 flex items-center justify-center hover:bg-black transition-all">
+                                                        <X size={11} className="text-white" />
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </Document>
+                                )
+                            ) : !doc ? (
+                                <div className="rounded-xl border border-dashed border-white/20 py-6 flex flex-col items-center gap-1.5">
+                                    <Network size={16} className="text-white/30" />
+                                    <p className="text-[11px] text-white/40 text-center px-4">Load a document on the blackboard to start</p>
+                                </div>
+                            ) : (
+                                <p className="text-[11px] text-white/50 pt-4">
+                                    Page selection isn&apos;t available for this document type — the whole document will be used.
+                                </p>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="shrink-0 px-4 pt-3 pb-4 border-t border-white/10 flex flex-col gap-3 mb-7" style={{ background: '#000' }}>
+                        <div className="-mb-2.5">
+                            <p className="text-[11px] text-white/50 mb-1.5">Instructions (optional)</p>
+                            <textarea
+                                value={instructions}
+                                onChange={e => setInstructions(e.target.value)}
+                                placeholder="e.g. Focus on the main causes and effects"
+                                rows={1}
+                                className="w-full px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-primary/50 placeholder:text-white/30 resize-none"
+                            />
+                        </div>
+
+                        <div className="border-t border-white/10 -mb-2" />
+
+                        <div className="space-y-1.5">
+                            <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">
+                                Depth: <span style={{ color: '#2563EB' }}>{depth} level{depth > 1 ? 's' : ''}</span>
+                            </label>
+                            <div className="flex gap-2">
+                                {[1, 2, 3].map(d => (
+                                    <button key={d} onClick={() => setDepth(d)}
+                                        className="flex-1 py-2 rounded-xl text-[11px] font-semibold transition-all"
+                                        style={depth === d
+                                            ? { background: 'rgba(37,99,235,0.15)', border: '1px solid rgba(37,99,235,0.5)', color: '#60A5FA' }
+                                            : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
+                                        {d}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <button
+                            onClick={handleGenerate}
+                            disabled={!canGenerate}
+                            className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
+                            style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 50%, #1D4ED8 100%)' }}>
+                            <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
+                            {!doc ? 'Load a Document First' : isPdf && totalPages > 0 ? 'Generate Mindmap from Selected Pages' : 'Generate Mindmap'}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {phase === 'result' && mindmap && (
+                <div className="flex-1 overflow-auto p-6" style={{ background: '#000' }}>
+                    <div ref={exportRef} className="inline-block">
+                        <MindmapView
+                            key={mindmapSeed || mindmap.label}
+                            node={mindmap}
+                            seed={mindmapSeed || mindmap.label}
+                        />
+                    </div>
+                </div>
+            )}
+        </motion.div>
+    );
+}
+
 // ── Floating QubeEx Button ────────────────────────────────────────────────────
 function FloatingAIButton({ activeMode, onSelect, showControls }: {
     activeMode: AIMode;
@@ -1517,6 +2328,7 @@ function FloatingAIButton({ activeMode, onSelect, showControls }: {
         { key: 'scan' as AIMode, icon: ScanLine, label: 'AI Scan', color: 'var(--primary)', iconSize: 13 },
         { key: 'prompt' as AIMode, icon: Bot, label: 'AI Prompt', color: '#DA7756', iconSize: 15 },
         { key: 'quiz' as AIMode, icon: HelpCircle, label: 'AI Quiz', color: '#059669', iconSize: 13 },
+        { key: 'mindmap' as AIMode, icon: Network, label: 'AI Mindmap', color: '#2563EB', iconSize: 13 },
     ];
 
     return (
@@ -1594,11 +2406,14 @@ export default function BlackboardPage() {
     // kept as a separate selection so switching between Scan/Quiz doesn't clash.
     const [selectedQuizPages, setSelectedQuizPages] = usePersisted<number[]>('selectedQuizPages', []);
 
+    // Same pattern again for AI Mindmap.
+    const [selectedMindmapPages, setSelectedMindmapPages] = usePersisted<number[]>('selectedMindmapPages', []);
+
     // Which selection array/setter the page-nav "select page" controls should
     // drive, based on whichever AI panel is currently open.
-    const pageSelectMode = activeMode === 'scan' || activeMode === 'quiz';
-    const activeSelectedPages = activeMode === 'quiz' ? selectedQuizPages : selectedScanPages;
-    const setActiveSelectedPages = activeMode === 'quiz' ? setSelectedQuizPages : setSelectedScanPages;
+    const pageSelectMode = activeMode === 'scan' || activeMode === 'quiz' || activeMode === 'mindmap';
+    const activeSelectedPages = activeMode === 'quiz' ? selectedQuizPages : activeMode === 'mindmap' ? selectedMindmapPages : selectedScanPages;
+    const setActiveSelectedPages = activeMode === 'quiz' ? setSelectedQuizPages : activeMode === 'mindmap' ? setSelectedMindmapPages : setSelectedScanPages;
 
     // Shared by every "select page" control (toolbar toggle, AI panel's page
     // picker) so the 10-page cap applies no matter which UI the teacher uses.
@@ -2656,6 +3471,24 @@ export default function BlackboardPage() {
                                         totalPages={totalPages}
                                         selectedPages={selectedQuizPages}
                                         onTogglePage={(page) => setSelectedQuizPages(prev => {
+                                            if (prev.includes(page)) return prev.filter(p => p !== page);
+                                            if (prev.length >= MAX_SELECTABLE_PAGES) {
+                                                toast.error(`You can select up to ${MAX_SELECTABLE_PAGES} pages at a time`);
+                                                return prev;
+                                            }
+                                            return [...prev, page];
+                                        })}
+                                        onNavigateToPage={setCurrentPage}
+                                    />
+                                )}
+                                {activeMode === 'mindmap' && (
+                                    <AIMindmapPanel
+                                        onClose={() => setActiveMode(null)}
+                                        docName={doc?.name}
+                                        doc={doc ? { url: doc.url, type: doc.type } : null}
+                                        totalPages={totalPages}
+                                        selectedPages={selectedMindmapPages}
+                                        onTogglePage={(page) => setSelectedMindmapPages(prev => {
                                             if (prev.includes(page)) return prev.filter(p => p !== page);
                                             if (prev.length >= MAX_SELECTABLE_PAGES) {
                                                 toast.error(`You can select up to ${MAX_SELECTABLE_PAGES} pages at a time`);
