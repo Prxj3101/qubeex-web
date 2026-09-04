@@ -40,38 +40,14 @@ const VISIBLE_PATH = '/admin/insights/analytics';
 // bottom and reflows automatically on window resize.
 const BOTTOM_GAP_PX = 5;
 
-const CHAT_STORAGE_KEY = 'ai_school_pa_chat_v1';
-const CHAT_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-
-function loadPersistedChat(): ChatMessage[] | null {
-    try {
-        const raw = localStorage.getItem(CHAT_STORAGE_KEY);
-        if (!raw) return null;
-        const { messages, savedAt } = JSON.parse(raw) as { messages: ChatMessage[]; savedAt: number };
-        if (Date.now() - savedAt > CHAT_TTL_MS) {
-            localStorage.removeItem(CHAT_STORAGE_KEY);
-            return null;
-        }
-        return messages;
-    } catch {
-        return null;
-    }
-}
-
-function persistChat(messages: ChatMessage[]) {
-    try {
-        localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify({ messages, savedAt: Date.now() }));
-    } catch {}
-}
-
-function clearPersistedChat() {
-    try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch {}
-}
+// Chat history lives server-side (AiChatMessage, keyed to the logged-in
+// user) so the same conversation follows the admin across devices/browsers —
+// not tied to this one browser's localStorage.
 
 export default function AiSchoolPA() {
     const pathname = usePathname();
     const [open, setOpen] = useState(false);
-    const [messages, setMessages] = useState<ChatMessage[]>(() => loadPersistedChat() ?? []);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState('');
     const [loading, setLoading] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
@@ -132,12 +108,19 @@ export default function AiSchoolPA() {
         return () => clearInterval(id);
     }, [open]);
 
-    // Chat survives refresh/close (like Blackboard's AI chat) — persisted to
-    // localStorage and restored on mount, cleared only via the explicit
-    // clear button.
+    // Chat survives refresh/close AND follows the admin across devices —
+    // loaded once from the backend on mount rather than localStorage.
     useEffect(() => {
-        if (messages.length > 0) persistChat(messages);
-    }, [messages]);
+        let cancelled = false;
+        api.get('/admin/insights/assistant/history')
+            .then(res => {
+                if (cancelled) return;
+                const history: ChatMessage[] = res.data?.data?.messages ?? [];
+                if (history.length > 0) setMessages(history);
+            })
+            .catch(() => { /* history is best-effort — chat still works without it */ });
+        return () => { cancelled = true; };
+    }, []);
 
     // Auto-dismiss the greeting bubble 5s after the page loads.
     useEffect(() => {
@@ -153,8 +136,8 @@ export default function AiSchoolPA() {
     }, [open]);
 
     const handleClear = () => {
-        clearPersistedChat();
         setMessages([]);
+        api.delete('/admin/insights/assistant/history').catch(() => { /* best-effort */ });
     };
 
     if (pathname !== VISIBLE_PATH) return null;
