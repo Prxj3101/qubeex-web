@@ -536,7 +536,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                             type="range"
                                             min={0}
                                             max={softLimitSliderMaxM}
-                                            step={0.5}
+                                            step={0.1}
                                             value={softLimitInput}
                                             onChange={e => setSoftLimitInput(e.target.value)}
                                             className="flex-1 accent-[#7C3AED] h-1.5 cursor-pointer"

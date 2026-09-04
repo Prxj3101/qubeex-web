@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
+import AiSchoolPA from '../AiSchoolPA';
 
 // Fires once, the first time the referenced element scrolls into the
 // viewport, and then stays true — used to defer chart-entrance animations
@@ -101,6 +102,7 @@ const AI_FEATURE_LABELS: Record<string, string> = {
     BLACKBOARD_QUIZ: 'Quiz Generation',
     BLACKBOARD_MINDMAP: 'Mindmap Generation',
     TASK_QUESTION_GENERATION: 'Question Bank',
+    SCHOOL_ASSISTANT: 'Jarvis',
     OTHERS: 'Others',
 };
 // Fixed color per feature (not by sort/render order) so e.g. AI Scan is
@@ -112,6 +114,7 @@ const AI_FEATURE_COLORS: Record<string, string> = {
     BLACKBOARD_QUIZ: '#059669',
     BLACKBOARD_MINDMAP: '#2563EB',
     TASK_QUESTION_GENERATION: '#0891B2',
+    SCHOOL_ASSISTANT: '#F59E0B',
     OTHERS: '#64748B',
 };
 const AI_FEATURE_COLOR_FALLBACK = '#64748B';
@@ -120,7 +123,7 @@ const AI_FEATURE_COLOR_FALLBACK = '#64748B';
 // into a single "Others" bucket instead of getting its own bar. Keeps the
 // card from accumulating a long tail of one-off features over time.
 const MAIN_AI_FEATURES = new Set(
-    ['BLACKBOARD_CONTEXT', 'BLACKBOARD_SCAN', 'BLACKBOARD_CHAT', 'BLACKBOARD_QUIZ', 'BLACKBOARD_MINDMAP', 'TASK_QUESTION_GENERATION']
+    ['BLACKBOARD_CONTEXT', 'BLACKBOARD_SCAN', 'BLACKBOARD_CHAT', 'BLACKBOARD_QUIZ', 'BLACKBOARD_MINDMAP', 'TASK_QUESTION_GENERATION', 'SCHOOL_ASSISTANT']
 );
 // Friendly names for whatever ends up folded into "Others" — add new small
 // features here as they're introduced so the tooltip stays readable instead
@@ -981,6 +984,9 @@ export default function AdminAnalyticsPage() {
     // FEE_FORECAST, which have no teacherId and so never show up inside
     // aiTeachers' per-teacher byFeature breakdown).
     const [aiByFeature, setAiByFeature] = useState<{ feature: string; totalTokens: number; requests: number }[]>([]);
+    // Today's (IST calendar day) token usage — resets to 0 at 12am, separate
+    // from the monthly pool figure above it.
+    const [todayTokensUsed, setTodayTokensUsed] = useState(0);
     const [expandedAiTeachers, setExpandedAiTeachers] = useState<Set<string>>(new Set());
     // Click-to-enlarge for the "Per teacher" avatar photos — null when no
     // preview is open.
@@ -1022,6 +1028,7 @@ export default function AdminAnalyticsPage() {
                 const raw: (Omit<AiTeacherUsage, 'used'> & { used: number })[] = aiRes.value.data.data ?? [];
                 setAiTeachers(raw.map(t => ({ ...t, used: t.used / 1_000_000 })));
                 setAiByFeature(aiRes.value.data.institutionByFeature ?? []);
+                setTodayTokensUsed(aiRes.value.data.todayTokensUsed ?? 0);
             }
         } catch {
             setError(true);
@@ -1132,10 +1139,7 @@ export default function AdminAnalyticsPage() {
                             {overview.institution.name}
                         </p>
                     </div>
-                    <Button variant="outline" size="icon"
-                        onClick={() => { fetchedRef.current = false; fetchAll(); }} disabled={loading}>
-                        <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-                    </Button>
+                    <AiSchoolPA />
                 </div>
                 <div className="h-px bg-border/60 mt-2" />
             </div>
@@ -1228,11 +1232,18 @@ export default function AdminAnalyticsPage() {
                             <p className="text-sm font-semibold">AI Usage</p>
                         </div>
                         <div className="flex items-center justify-between -mt-2">
-                            <div>
+                            <div className="max-w-[55%]">
                                 <p className="text-xs text-muted-foreground">Institution token pool</p>
                                 <p className="text-lg font-semibold">
                                     {formatTokens(institutionTokensUsed)}
                                     <span className="text-sm font-normal text-muted-foreground"> / {formatTokens(institutionTokensLimit)} tokens</span>
+                                </p>
+                            </div>
+                            <div className="pl-3 border-l border-border/50">
+                                <p className="text-xs text-muted-foreground">Today</p>
+                                <p className="text-lg font-semibold">
+                                    {formatTokens(todayTokensUsed)}
+                                    <span className="text-sm font-normal text-muted-foreground"> tokens</span>
                                 </p>
                             </div>
                             <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center">

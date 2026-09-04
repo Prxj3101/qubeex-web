@@ -35,6 +35,7 @@ const AI_FEATURE_LABELS: Record<string, string> = {
     TASK_QUESTION_GENERATION: 'Question Bank',
     FEE_FORECAST: 'AI Forecast',
     ATTENDANCE_SUMMARY: 'AI Attendance Insight',
+    SCHOOL_ASSISTANT: 'Jarvis',
 };
 // Fixed color per feature (not by sort/render order) so e.g. AI Scan is
 // always the same pink everywhere — superadmin AND admin analytics.
@@ -47,6 +48,7 @@ const AI_FEATURE_COLORS: Record<string, string> = {
     TASK_QUESTION_GENERATION: '#0891B2',
     FEE_FORECAST: '#DA7756',
     ATTENDANCE_SUMMARY: '#DC2626',
+    SCHOOL_ASSISTANT: '#F59E0B',
 };
 const AI_FEATURE_COLOR_FALLBACK = '#64748B';
 
@@ -224,6 +226,9 @@ export default function AIUsagePage() {
                                     <div className="flex justify-between mt-1">
                                         <span className="text-[10px] text-muted-foreground">{formatTokens(f.totalTokens)} tokens</span>
                                         <span className="text-[10px] text-muted-foreground">{f.requests} requests</span>
+                                        <span className="text-[10px] text-muted-foreground">
+                                            {f.requests > 0 ? formatTokens(Math.round(f.totalTokens / f.requests)) : '0'} avg/req
+                                        </span>
                                     </div>
                                 </div>
                             );
