@@ -185,8 +185,37 @@ function stripExtension(name: string) {
 // react-pdf already loads for rendering — no extra dependency needed.
 const PAGE_TEXT_CHAR_LIMIT = 7500;
 
-async function extractPdfPageText(fileUrl: string, pages: number[]): Promise<string> {
-    if (pages.length === 0) return '';
+/** Text sent to the AI, plus how much of the teacher's selection actually fit. */
+interface ExtractedText {
+    text: string;
+    /** Pages/slides whose text made it in whole. */
+    included: number;
+    /** Pages/slides the teacher picked. */
+    requested: number;
+}
+
+// Fills the budget a whole page at a time rather than slicing the joined
+// string blind. A blind slice cut the last page off mid-sentence and — worse —
+// gave no way to tell the teacher that pages they'd chosen never reached the
+// AI at all. This stops at the last page that fits and reports the count.
+function joinWithinLimit(chunks: string[]): { text: string; included: number } {
+    let text = '';
+    let included = 0;
+    for (const chunk of chunks) {
+        const next = text ? `${text}\n\n${chunk}` : chunk;
+        if (next.length > PAGE_TEXT_CHAR_LIMIT) break;
+        text = next;
+        included++;
+    }
+    // A single page bigger than the whole budget still has to send something.
+    if (included === 0 && chunks.length > 0) {
+        return { text: chunks[0].slice(0, PAGE_TEXT_CHAR_LIMIT), included: 1 };
+    }
+    return { text, included };
+}
+
+async function extractPdfPageText(fileUrl: string, pages: number[]): Promise<{ text: string; included: number }> {
+    if (pages.length === 0) return { text: '', included: 0 };
     const { pdfjs } = await loadPdfjs();
     const pdf = await pdfjs.getDocument({ url: fileUrl, ...PDF_LOAD_OPTIONS }).promise;
     const textByPage = new Map<number, string>();
@@ -247,7 +276,7 @@ async function extractPdfPageText(fileUrl: string, pages: number[]): Promise<str
     const chunks = [...textByPage.entries()]
         .sort(([a], [b]) => a - b)
         .map(([pageNum, text]) => `[Page ${pageNum}]\n${text}`);
-    return chunks.join('\n\n').slice(0, PAGE_TEXT_CHAR_LIMIT);
+    return joinWithinLimit(chunks);
 }
 
 // .pptx is a zip archive of XML parts — one `ppt/slides/slideN.xml` per
@@ -258,7 +287,7 @@ async function extractPdfPageText(fileUrl: string, pages: number[]): Promise<str
 // just the filename. Legacy binary .ppt (pre-2007, not a zip) isn't
 // supported by this approach; callers should only call this for the modern
 // OOXML `application/vnd.openxmlformats-officedocument.presentationml.presentation` type.
-async function extractPptxSlideText(fileUrl: string): Promise<string> {
+async function extractPptxSlideText(fileUrl: string): Promise<{ text: string; included: number; total: number }> {
     const JSZip = (await import('jszip')).default;
     const res = await fetch(fileUrl);
     if (!res.ok) throw new Error(`Failed to fetch .pptx file: ${res.status}`);
@@ -286,18 +315,37 @@ async function extractPptxSlideText(fileUrl: string): Promise<string> {
             .trim();
         if (text) chunks.push(`[Slide ${num}]\n${text}`);
     }
-    return chunks.join('\n\n').slice(0, PAGE_TEXT_CHAR_LIMIT);
+    return { ...joinWithinLimit(chunks), total: chunks.length };
 }
 
-/** Dispatches to the right client-side extractor based on document type; returns '' for unsupported types. */
-async function extractDocumentText(doc: { url: string; type: string }, selectedPages: number[]): Promise<string> {
+/** Dispatches to the right client-side extractor; empty result for unsupported types. */
+async function extractDocumentText(doc: { url: string; type: string }, selectedPages: number[]): Promise<ExtractedText> {
     if (doc.type === 'application/pdf') {
-        return selectedPages.length > 0 ? extractPdfPageText(doc.url, selectedPages) : '';
+        if (selectedPages.length === 0) return { text: '', included: 0, requested: 0 };
+        const { text, included } = await extractPdfPageText(doc.url, selectedPages);
+        return { text, included, requested: selectedPages.length };
     }
     if (doc.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
-        return extractPptxSlideText(doc.url);
+        const { text, included, total } = await extractPptxSlideText(doc.url);
+        return { text, included, requested: total };
     }
-    return '';
+    return { text: '', included: 0, requested: 0 };
+}
+
+/**
+ * Warns when part of the teacher's selection didn't fit the character budget.
+ * Without this the extra pages were dropped silently and the map/quiz simply
+ * ignored them, which looks like the AI missing content rather than a limit.
+ */
+function warnIfTruncated(result: ExtractedText, noun: 'page' | 'slide' = 'page') {
+    if (result.requested > result.included && result.included > 0) {
+        const dropped = result.requested - result.included;
+        toast.warning(
+            `Only the first ${result.included} of ${result.requested} ${noun}s fit — ` +
+            `${dropped} ${dropped === 1 ? `${noun} was` : `${noun}s were`} left out. Generate again with fewer for full coverage.`,
+            { duration: 6000 },
+        );
+    }
 }
 
 /** Host shown under each image — lets a teacher judge the source at a glance. */
@@ -490,7 +538,9 @@ function AIScanPanel({
             // instead of having the AI guess from just labels + instructions.
             let pageText = '';
             try {
-                pageText = await extractDocumentText(doc!, sorted);
+                const extracted = await extractDocumentText(doc!, sorted);
+                pageText = extracted.text;
+                warnIfTruncated(extracted);
                 if (pageText) {
                     console.log(`[AI Scan] Extracted ${pageText.length} chars. Preview: "${pageText.slice(0, 150)}..."`);
                 } else {
@@ -905,7 +955,7 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
         let cancelled = false;
         if (!doc) { setPageText(''); return; }
         extractDocumentText(doc, contextPages)
-            .then(text => {
+            .then(({ text }) => {
                 if (cancelled) return;
                 if (!text) console.warn(`[AI Prompt] No text extracted for page(s) ${contextPagesKey} — the assistant will answer without document context.`);
                 setPageText(text);
@@ -1260,7 +1310,9 @@ function AIQuizPanel({
             // called the PDF-only path, leaving PowerPoint quizzes ungrounded.
             let pageText = '';
             try {
-                pageText = await extractDocumentText(doc!, sorted);
+                const extracted = await extractDocumentText(doc!, sorted);
+                pageText = extracted.text;
+                warnIfTruncated(extracted);
                 if (!pageText) console.warn('[AI Quiz] No text extracted — questions will not be grounded in the document.');
             } catch (extractErr) {
                 console.error('[AI Quiz] Document text extraction failed, falling back to topic-only:', extractErr);
@@ -1751,14 +1803,18 @@ interface MindmapRecipe {
     fill: CardFill;
 }
 
-// Subject constrains the palette; everything else comes from a different slice
-// of the id hash so the axes vary independently. Same id always resolves the
-// same way, so a saved map reopens exactly as the student left it.
-function pickMindmapDesign(node: MindmapNode, seed: string): MindmapRecipe {
+// Every palette is in play for every map. Keying colour to the subject meant a
+// teacher working through one chapter got the same green every single time,
+// which read as "the design never changes" — the whole point of these axes is
+// that a fresh generation looks fresh.
+const ALL_DOODLE_THEMES: DoodleTheme[] = Object.values(SUBJECT_THEMES).flat();
+
+// Each axis comes off a different slice of the hash so they vary
+// independently. The seed is the mindmap's own id, so a generation gets a new
+// look while reopening a saved map reproduces exactly what was made.
+function pickMindmapDesign(seed: string): MindmapRecipe {
     const h = hashString(seed);
-    const subject = (node.subject ?? 'general') as MindmapSubject;
-    const options = SUBJECT_THEMES[subject] ?? SUBJECT_THEMES.general;
-    const theme = options[h % options.length];
+    const theme = ALL_DOODLE_THEMES[h % ALL_DOODLE_THEMES.length];
     return {
         theme,
         layout: DOODLE_LAYOUTS[Math.floor(h / 7) % DOODLE_LAYOUTS.length],
@@ -2140,7 +2196,7 @@ function MindmapView({ node, seed, onHeight }: {
 }) {
     // Callers pass key={seed}, so a different mindmap remounts this rather
     // than needing a reset effect.
-    const recipe = useMemo(() => pickMindmapDesign(node, seed), [node, seed]);
+    const recipe = useMemo(() => pickMindmapDesign(seed), [seed]);
 
     // The map paints its own ruled paper, sized to whatever the layout needs.
     return (
@@ -2288,7 +2344,9 @@ function AIMindmapPanel({
         try {
             let pageText = '';
             try {
-                pageText = await extractDocumentText(doc!, sorted);
+                const extracted = await extractDocumentText(doc!, sorted);
+                pageText = extracted.text;
+                warnIfTruncated(extracted);
             } catch (extractErr) {
                 console.error('[AI Mindmap] Document text extraction failed, falling back to topic-only:', extractErr);
             }
@@ -2409,7 +2467,7 @@ function AIMindmapPanel({
                                         <p className="text-[11px] text-white/40">No pages selected yet</p>
                                     </div>
                                 ) : (
-                                    <Document file={doc!.url} loading={null}>
+                                    <Document file={doc!.url} loading={null} options={PDF_LOAD_OPTIONS}>
                                         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, 220px)' }}>
                                             {[...selectedPages].sort((a, b) => a - b).map(pageNum => (
                                                 <div key={pageNum}
