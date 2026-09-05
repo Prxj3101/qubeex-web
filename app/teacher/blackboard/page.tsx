@@ -8,7 +8,7 @@ import {
     Maximize2, Minimize2, X, Sparkles, MessageSquare,
     HelpCircle, Scan, Send, ZoomIn, ZoomOut,
     FolderOpen, ChevronDown, RotateCw, GripVertical, Pencil, Pen, Highlighter, Eraser, Undo2, Redo2,
-    Loader2, RefreshCw, Check, ScanLine, Layers, CheckCircle2, Bot, Copy, ThumbsUp, ThumbsDown, Zap,
+    Loader2, RefreshCw, Check, ScanLine, Layers, CheckCircle2, Bot, Copy, ThumbsUp, ThumbsDown, Zap, RotateCcw,
     FileText, FileImage, FileVideo, Presentation, Network, Trash2, Download,
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -919,6 +919,7 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
     }, [doc, contextPagesKey]); // eslint-disable-line react-hooks/exhaustive-deps
     const [restoredAt, setRestoredAt] = useState<Date | null>(null);
     const [thinkingWordIdx, setThinkingWordIdx] = useState(0);
+    const [confirmingClear, setConfirmingClear] = useState(false);
     const [showThinkingText, setShowThinkingText] = useState(false);
     const loadingAnim = useScanLoadingAnim();
     const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
@@ -990,12 +991,16 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
         clearPersistedChat();
         setMessages([WELCOME_MESSAGE]);
         setRestoredAt(null);
+        setConfirmingClear(false);
     };
 
-    const handleSend = async () => {
-        if (!input.trim() || aiLoading) return;
-        const userText = input.trim();
-        setInput('');
+    // `textOverride` lets retry() re-send an earlier message's text as a
+    // brand-new message appended at the end — same as retyping and hitting
+    // send, never touches/removes anything already in the chat.
+    const handleSend = async (textOverride?: string) => {
+        const userText = (textOverride ?? input).trim();
+        if (!userText || aiLoading) return;
+        if (textOverride === undefined) setInput('');
 
         const updatedMessages = [...messages, { role: 'user' as const, text: userText, timestamp: Date.now() }];
         setMessages(updatedMessages);
@@ -1031,6 +1036,15 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
         }
     };
 
+    // Re-asks a given user message — appends its text as a brand-new message
+    // at the end, same as retyping and hitting send, never truncates/removes
+    // anything already in the chat.
+    const retryMessage = (i: number) => {
+        const original = messages[i];
+        if (!original || original.role !== 'user' || aiLoading) return;
+        handleSend(original.text);
+    };
+
     return (
         <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }}
             className="w-full h-full flex flex-col overflow-hidden" style={{ background: '#000' }}>
@@ -1039,12 +1053,25 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
                     <Bot size={18} style={{ color: '#DA7756' }} /> AI Prompt
                 </p>
                 <div className="flex items-center gap-1.5">
-                    {messages.length > 1 && (
-                        <button onClick={handleClear}
+                    {messages.length > 1 && !confirmingClear && (
+                        <button onClick={() => setConfirmingClear(true)}
                             title="Clear chat history"
                             className="text-[10px] text-white/50 hover:text-red-400 transition-colors px-2 py-0.5 rounded-md hover:bg-white/10">
                             Clear
                         </button>
+                    )}
+                    {confirmingClear && (
+                        <div className="flex items-center gap-1 text-[10px]">
+                            <span className="text-white/50 mr-0.5">Clear all?</span>
+                            <button onClick={handleClear}
+                                className="text-red-400 hover:text-red-300 transition-colors px-1.5 py-0.5 rounded-md hover:bg-white/10 font-medium">
+                                Yes
+                            </button>
+                            <button onClick={() => setConfirmingClear(false)}
+                                className="text-white/50 hover:text-white transition-colors px-1.5 py-0.5 rounded-md hover:bg-white/10">
+                                No
+                            </button>
+                        </div>
                     )}
                     <button onClick={onClose} className="w-6 h-6 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-all">
                         <X size={14} />
@@ -1058,9 +1085,23 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
                     <p className="text-[10px]" style={{ color: 'rgba(218,119,86,0.8)' }}>
                         Restored from {restoredAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                     </p>
-                    <button onClick={handleClear} className="text-[10px] text-white/50 hover:text-red-400 transition-colors">
-                        Clear
-                    </button>
+                    {!confirmingClear ? (
+                        <button onClick={() => setConfirmingClear(true)} className="text-[10px] text-white/50 hover:text-red-400 transition-colors">
+                            Clear
+                        </button>
+                    ) : (
+                        <div className="flex items-center gap-1 text-[10px]">
+                            <span className="text-white/50 mr-0.5">Clear all?</span>
+                            <button onClick={handleClear}
+                                className="text-red-400 hover:text-red-300 transition-colors px-1.5 py-0.5 rounded-md hover:bg-white/10 font-medium">
+                                Yes
+                            </button>
+                            <button onClick={() => setConfirmingClear(false)}
+                                className="text-white/50 hover:text-white transition-colors px-1.5 py-0.5 rounded-md hover:bg-white/10">
+                                No
+                            </button>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -1074,12 +1115,12 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
                             </span>
                         )}
                         <div className={`max-w-[80%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.role === 'user'
-                            ? 'text-white rounded-br-sm'
+                            ? 'rounded-br-sm'
                             : 'text-white/85 rounded-bl-sm'
                             }`}
                             style={msg.role === 'user'
-                                ? { background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }
-                                : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                                ? { background: '#E8CBB5', color: '#3A322C' }
+                                : { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.06)' }}>
                             {msg.role === 'ai' && msg.streaming ? (
                                 <StreamingText text={msg.text}
                                     onUpdate={() => messagesEndRef.current?.scrollIntoView({ behavior: 'auto' })}
@@ -1092,6 +1133,20 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
                                 <Markdown text={msg.text} />
                             ) : msg.text}
                         </div>
+                        {msg.role === 'user' && (
+                            <div className="flex items-center gap-0 pr-1">
+                                {!aiLoading && (
+                                    <button onClick={() => retryMessage(i)} title="Retry"
+                                        className="w-6 h-6 rounded-md flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors">
+                                        <RotateCcw size={13} className="block" strokeWidth={2.5} style={{ display: 'block' }} />
+                                    </button>
+                                )}
+                                <button onClick={() => handleCopy(i, msg.text)} title="Copy"
+                                    className="w-6 h-6 rounded-md flex items-center justify-center text-white/40 hover:text-white hover:bg-white/10 transition-colors">
+                                    {copiedIdx === i ? <Check size={13} className="text-green-400 block" strokeWidth={2.5} style={{ display: 'block' }} /> : <Copy size={13} className="block" strokeWidth={2.5} style={{ display: 'block' }} />}
+                                </button>
+                            </div>
+                        )}
                         {msg.role === 'ai' && !msg.streaming && msg !== WELCOME_MESSAGE && (
                             <div className="flex items-center gap-0 pl-1">
                                 <button onClick={() => handleCopy(i, msg.text)} title="Copy"

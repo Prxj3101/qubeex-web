@@ -1247,22 +1247,11 @@ export default function StaffroomPage() {
                     </div>
                   ) : (
                     messages.map((msg) => {
-                      const color = msg.isMe
-                        ? "bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300"
-                        : getAvatarColor(activeDm.teacherUserId);
-                      const initials = msg.isMe
-                        ? myInitials || "AD"
-                        : getInitials(activeDm.name);
                       return (
                         <div
                           key={msg.id}
                           className={`flex gap-2 group ${msg.isMe ? "flex-row-reverse" : "flex-row"}`}
                         >
-                          <div
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold shrink-0 mt-1 ${color}`}
-                          >
-                            {initials}
-                          </div>
                           <div
                             className={`flex flex-col max-w-[75%] ${msg.isMe ? "items-end" : "items-start"}`}
                             style={{ width: "100%" }}

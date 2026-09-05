@@ -58,6 +58,7 @@ export default function AiSchoolPA() {
     const [isHovering, setIsHovering] = useState(false);
     const [panelPos, setPanelPos] = useState<{ top: number; right: number } | null>(null);
     const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+    const [confirmingClear, setConfirmingClear] = useState(false);
 
     // Anchored to the button's actual on-screen position (not its layout
     // parent) so switching to `fixed` positioning — needed for the panel to
@@ -135,8 +136,15 @@ export default function AiSchoolPA() {
         return () => window.removeEventListener('keydown', onKey);
     }, [open]);
 
+    // Don't leave the "Clear all?" confirmation stuck open if the panel gets
+    // closed mid-confirm.
+    useEffect(() => {
+        if (!open) setConfirmingClear(false);
+    }, [open]);
+
     const handleClear = () => {
         setMessages([]);
+        setConfirmingClear(false);
         api.delete('/admin/insights/assistant/history').catch(() => { /* best-effort */ });
     };
 
@@ -280,13 +288,26 @@ export default function AiSchoolPA() {
                                         </p>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1">
-                                    {messages.length > 0 && (
-                                        <button onClick={handleClear}
+                                <div className="flex items-center gap-1 relative">
+                                    {messages.length > 0 && !confirmingClear && (
+                                        <button onClick={() => setConfirmingClear(true)}
                                             title="Clear chat history"
                                             className="text-[10px] text-white/50 hover:text-red-400 transition-colors px-2 py-0.5 rounded-md hover:bg-white/10">
                                             Clear
                                         </button>
+                                    )}
+                                    {confirmingClear && (
+                                        <div className="flex items-center gap-1 text-[10px]">
+                                            <span className="text-white/50 mr-0.5">Clear all?</span>
+                                            <button onClick={handleClear}
+                                                className="text-red-400 hover:text-red-300 transition-colors px-1.5 py-0.5 rounded-md hover:bg-white/10 font-medium">
+                                                Yes
+                                            </button>
+                                            <button onClick={() => setConfirmingClear(false)}
+                                                className="text-white/50 hover:text-white transition-colors px-1.5 py-0.5 rounded-md hover:bg-white/10">
+                                                No
+                                            </button>
+                                        </div>
                                     )}
                                     <button onClick={() => setOpen(false)} className="w-6 h-6 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 transition-colors">
                                         <X size={13} />
