@@ -8,9 +8,10 @@ import {
   Hash, Globe, BookOpen, School, GraduationCap,
   Users, Zap, FileText, CheckCircle, ShieldCheck,
   Pencil, X, Check, Camera, ChevronRight, Info,
-  User as UserIcon, Database,
+  User as UserIcon, Database, Palette, Lock, ArrowUpRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
@@ -70,7 +71,21 @@ type InstData = {
   } | null;
   isTrial?: boolean;
   dbConfig?: { mode?: string | null } | null;
+  themeColor?: string;
+  themeCustomizationEligible?: boolean;
 };
+
+// Swatch hex mirrors each preset's light-mode --primary in globals.css —
+// keep these in sync manually if a preset's color ever changes there.
+const THEME_PRESETS: { id: string; label: string; swatch: string }[] = [
+  { id: 'purple', label: 'Purple', swatch: '#7C3AED' },
+  { id: 'blue', label: 'Blue', swatch: '#2563EB' },
+  { id: 'teal', label: 'Teal', swatch: '#0D9488' },
+  { id: 'amber', label: 'Amber', swatch: '#D97706' },
+  { id: 'rose', label: 'Rose', swatch: '#E11D48' },
+  { id: 'indigo', label: 'Indigo', swatch: '#4F46E5' },
+  { id: 'slate', label: 'Slate', swatch: '#475569' },
+];
 
 // ── Verified Badge ────────────────────────────────────────────────────────────
 function VerifiedBadge() {
@@ -285,6 +300,7 @@ type SubAdminSelfData = {
 };
 
 export default function AdminProfilePage() {
+  const router = useRouter();
   const { user, setUser } = useAuthStore();
   const isSubAdmin = user?.role === 'SUB_ADMIN';
   const setUserAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
@@ -302,6 +318,7 @@ export default function AdminProfilePage() {
   const [adminAvatarPreview, setAdminAvatarPreview] = useState<string | null>(null);
   const adminAvatarRef = useRef<HTMLInputElement>(null);
   const fetchedRef = useRef(false);
+  const [themeSaving, setThemeSaving] = useState<string | null>(null);
 
   useEffect(() => {
     // Wait for the persisted auth store to actually hydrate before deciding
@@ -464,6 +481,34 @@ export default function AdminProfilePage() {
       toast.success('Changes saved');
     } catch {
       toast.error('Failed to save changes');
+    }
+  };
+
+  // Theme customization — PRO + TRIAL only (server re-checks eligibility on
+  // every write regardless of what this button lets through, see
+  // isThemeCustomizationEligible in themeColor.service.ts). BASIC admins see
+  // the exact same swatch grid but get an upgrade prompt instead of a save.
+  const handleThemeSelect = async (id: string) => {
+    if (!inst || isSubAdmin) return;
+    if (id === (inst.themeColor ?? 'purple')) return;
+    if (!inst.themeCustomizationEligible) {
+      toast.error('Theme customization needs Pro', {
+        description: 'Upgrade to Pro (or start a trial) to change your accent color.',
+        action: { label: 'Upgrade', onClick: () => router.push('/admin/insights/subscription') },
+      });
+      return;
+    }
+    setThemeSaving(id);
+    try {
+      await api.patch('/admin/institution', { themeColor: id });
+      setInst((prev) => (prev ? { ...prev, themeColor: id } : prev));
+      if (id === 'purple') document.documentElement.removeAttribute('data-theme');
+      else document.documentElement.setAttribute('data-theme', id);
+      toast.success('Theme updated');
+    } catch {
+      toast.error('Failed to update theme');
+    } finally {
+      setThemeSaving(null);
     }
   };
 
@@ -986,6 +1031,69 @@ export default function AdminProfilePage() {
               </>
             )}
           </SectionCard>
+
+          {/* Theme — PRO/TRIAL self-service accent color, admin-only */}
+          {!isSubAdmin && (
+            <SectionCard
+              title={
+                <span className="flex items-center gap-1.5">
+                  Theme
+                  {!inst.themeCustomizationEligible && (
+                    <Lock size={11} className="text-muted-foreground" />
+                  )}
+                </span>
+              }
+            >
+              <p className="text-[11px] text-muted-foreground mb-3 -mt-1">
+                {inst.themeCustomizationEligible
+                  ? 'Pick an accent color for your admin, teacher and student app.'
+                  : 'Upgrade to Pro (or a trial) to customize your accent color.'}
+              </p>
+              <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-7">
+                {THEME_PRESETS.map((preset) => {
+                  const active = (inst.themeColor ?? 'purple') === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => handleThemeSelect(preset.id)}
+                      disabled={themeSaving !== null}
+                      title={preset.label}
+                      className="flex flex-col items-center gap-1 group"
+                    >
+                      <span
+                        className="w-8 h-8 rounded-full flex items-center justify-center ring-2 transition-all"
+                        style={{
+                          background: preset.swatch,
+                          borderColor: active ? preset.swatch : 'transparent',
+                          boxShadow: active ? `0 0 0 2px var(--card), 0 0 0 4px ${preset.swatch}` : 'none',
+                        }}
+                      >
+                        {themeSaving === preset.id ? (
+                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : active ? (
+                          <Check size={13} className="text-white" />
+                        ) : !inst.themeCustomizationEligible ? (
+                          <Lock size={11} className="text-white/80" />
+                        ) : null}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">
+                        {preset.label}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {!inst.themeCustomizationEligible && (
+                <button
+                  onClick={() => router.push('/admin/insights/subscription')}
+                  className="mt-3 flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                >
+                  <Palette size={11} /> Upgrade to Pro <ArrowUpRight size={11} />
+                </button>
+              )}
+            </SectionCard>
+          )}
 
           {/* Platform Stats */}
           <SectionCard title="Platform Stats">

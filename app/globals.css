@@ -64,15 +64,15 @@
 }
 
 .dark {
-  --background: #0F0A1E;
+  --background: #000000;
   --foreground: #F1F5F9;
-  --card: #1A1030;
+  --card: #0A0A0A;
   --card-foreground: #F1F5F9;
   --primary: #A78BFA;
   --primary-foreground: #FFFFFF;
-  --muted: #2D1F50;
+  --muted: #171717;
   --muted-foreground: #94A3B8;
-  --border: #2D1F50;
+  --border: #1F1F1F;
 
   --purple: #A78BFA;
   --purple-light: #2D1F50;
@@ -116,15 +116,165 @@
    matched a same-element pairing. */
 .dark .theme-college,
 .dark.theme-college {
-  --background: #080B16 !important;
-  --card: #0E1222 !important;
+  --background: #000000 !important;
+  --card: #0A0A0A !important;
   --card-foreground: #F1F5F9 !important;
   --primary: #6495ED !important;
   --primary-foreground: #0B1B2A !important;
-  --muted: #12182A !important;
+  --muted: #171717 !important;
   --muted-foreground: #94A3B8 !important;
-  --border: #12182A !important;
+  --border: #1F1F1F !important;
   --hero-accent: #3557AB !important;
+}
+
+/* ── Self-service theme-color presets (PRO/TRIAL admin setting, see
+   themeColor.service.ts on the backend) — applied via a `data-theme`
+   attribute on <html> (set server-side from the qubeex_theme cookie, same
+   flash-avoidance pattern as .theme-college above). "purple" is the default
+   and needs no override block since it's already :root/.dark above.
+   Dark mode intentionally stays the same near-black surfaces
+   (--background/--card/--muted/--border) across every preset — only
+   --primary/--primary-foreground/--hero-accent change per family, matching
+   the "purple stays an accent, not a surface tint" decision made for the
+   default theme's own dark mode. Semantic status colors (--red/--green/
+   --amber/--blue used for success/error/warning, not branding) are
+   deliberately left untouched by every preset below. ── */
+[data-theme="blue"] {
+  --background: #EFF6FF;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --primary: #2563EB;
+  --primary-foreground: #FFFFFF;
+  --muted: #DBEAFE;
+  --muted-foreground: #64748B;
+  --border: #93C5FD;
+  --hero-accent: #2563EB;
+}
+.dark[data-theme="blue"] {
+  --background: #000000;
+  --card: #0A0A0A;
+  --card-foreground: #F1F5F9;
+  --primary: #60A5FA;
+  --primary-foreground: #0B1B2A;
+  --muted: #171717;
+  --muted-foreground: #94A3B8;
+  --border: #1F1F1F;
+  --hero-accent: #1D4ED8;
+}
+
+[data-theme="teal"] {
+  --background: #F0FDFA;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --primary: #0D9488;
+  --primary-foreground: #FFFFFF;
+  --muted: #CCFBF1;
+  --muted-foreground: #64748B;
+  --border: #5EEAD4;
+  --hero-accent: #0D9488;
+}
+.dark[data-theme="teal"] {
+  --background: #000000;
+  --card: #0A0A0A;
+  --card-foreground: #F1F5F9;
+  --primary: #2DD4BF;
+  --primary-foreground: #042F2E;
+  --muted: #171717;
+  --muted-foreground: #94A3B8;
+  --border: #1F1F1F;
+  --hero-accent: #0F766E;
+}
+
+[data-theme="amber"] {
+  --background: #FFFBEB;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --primary: #D97706;
+  --primary-foreground: #FFFFFF;
+  --muted: #FEF3C7;
+  --muted-foreground: #64748B;
+  --border: #FCD34D;
+  --hero-accent: #D97706;
+}
+.dark[data-theme="amber"] {
+  --background: #000000;
+  --card: #0A0A0A;
+  --card-foreground: #F1F5F9;
+  --primary: #FBBF24;
+  --primary-foreground: #45280A;
+  --muted: #171717;
+  --muted-foreground: #94A3B8;
+  --border: #1F1F1F;
+  --hero-accent: #B45309;
+}
+
+[data-theme="rose"] {
+  --background: #FFF1F2;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --primary: #E11D48;
+  --primary-foreground: #FFFFFF;
+  --muted: #FFE4E6;
+  --muted-foreground: #64748B;
+  --border: #FDA4AF;
+  --hero-accent: #E11D48;
+}
+.dark[data-theme="rose"] {
+  --background: #000000;
+  --card: #0A0A0A;
+  --card-foreground: #F1F5F9;
+  --primary: #FB7185;
+  --primary-foreground: #4C0519;
+  --muted: #171717;
+  --muted-foreground: #94A3B8;
+  --border: #1F1F1F;
+  --hero-accent: #9F1239;
+}
+
+[data-theme="indigo"] {
+  --background: #EEF2FF;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --primary: #4F46E5;
+  --primary-foreground: #FFFFFF;
+  --muted: #E0E7FF;
+  --muted-foreground: #64748B;
+  --border: #A5B4FC;
+  --hero-accent: #4F46E5;
+}
+.dark[data-theme="indigo"] {
+  --background: #000000;
+  --card: #0A0A0A;
+  --card-foreground: #F1F5F9;
+  --primary: #818CF8;
+  --primary-foreground: #1E1B4B;
+  --muted: #171717;
+  --muted-foreground: #94A3B8;
+  --border: #1F1F1F;
+  --hero-accent: #3730A3;
+}
+
+[data-theme="slate"] {
+  --background: #F8FAFC;
+  --card: #FFFFFF;
+  --card-foreground: #0F172A;
+  --primary: #475569;
+  --primary-foreground: #FFFFFF;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --border: #CBD5E1;
+  --hero-accent: #475569;
+}
+.dark[data-theme="slate"] {
+  --background: #000000;
+  --card: #0A0A0A;
+  --card-foreground: #F1F5F9;
+  --primary: #94A3B8;
+  --primary-foreground: #0F172A;
+  --muted: #171717;
+  --muted-foreground: #94A3B8;
+  --border: #1F1F1F;
+  --hero-accent: #334155;
 }
 
 @layer base {

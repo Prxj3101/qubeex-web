@@ -16,7 +16,7 @@ const NAV_ITEMS = [
 ];
 
 const Spinner = () => (
-    <div className="min-h-screen flex items-center justify-center" style={{ background: '#0F0A1E' }}>
+    <div className="min-h-screen flex items-center justify-center" style={{ background: '#000000' }}>
         <div className="w-8 h-8 border-2 border-[#DA7756]/30 border-t-[#DA7756] rounded-full animate-spin" />
     </div>
 );

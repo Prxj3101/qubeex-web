@@ -12,10 +12,12 @@ export type CachedBranding = {
     brandName: string;
     logoUrl: string;
     faviconUrl: string;
+    themeColor: string;
 };
 
 const CACHE_KEY = 'qubeex:branding';
 const COOKIE_KEY = 'qubeex_branding';
+const THEME_COOKIE_KEY = 'qubeex_theme';
 
 export const QUBEEX_DEFAULT_BRANDING: CachedBranding = {
     enabled: false,
@@ -25,13 +27,15 @@ export const QUBEEX_DEFAULT_BRANDING: CachedBranding = {
     // browser tab — this PNG (already used as the logo everywhere else) is
     // transparent and matches the actual brand mark.
     faviconUrl: '/QubeEx_darkmode_DA7756.png',
+    themeColor: 'purple',
 };
 
 export function isCachedBranding(v: unknown): v is CachedBranding {
     if (!v || typeof v !== 'object') return false;
     const b = v as Record<string, unknown>;
     return typeof b.enabled === 'boolean' && typeof b.brandName === 'string'
-        && typeof b.logoUrl === 'string' && typeof b.faviconUrl === 'string';
+        && typeof b.logoUrl === 'string' && typeof b.faviconUrl === 'string'
+        && typeof b.themeColor === 'string';
 }
 
 export function readCachedBranding(): CachedBranding {
@@ -59,6 +63,12 @@ export function writeCachedBranding(b: CachedBranding) {
         // title, which already worked reliably this way.
         const payload = b.enabled ? JSON.stringify({ n: b.brandName, f: b.faviconUrl }) : '';
         document.cookie = `${COOKIE_KEY}=${encodeURIComponent(payload)}; path=/; max-age=31536000; SameSite=Lax`;
+        // Separate plain-string cookie (mirrors qubeex_inst_type) so the root
+        // layout Server Component can render the right data-theme attribute
+        // on <html> from byte one — same flash-avoidance reasoning as above,
+        // kept independent of the brandName/favicon cookie since themeColor
+        // applies regardless of white-label enabled state.
+        document.cookie = `${THEME_COOKIE_KEY}=${encodeURIComponent(b.themeColor)}; path=/; max-age=31536000; SameSite=Lax`;
     } catch { /* ignore */ }
 }
 
@@ -66,5 +76,6 @@ export function clearCachedBranding() {
     try {
         window.localStorage.removeItem(CACHE_KEY);
         document.cookie = `${COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
+        document.cookie = `${THEME_COOKIE_KEY}=; path=/; max-age=0; SameSite=Lax`;
     } catch { /* ignore */ }
 }

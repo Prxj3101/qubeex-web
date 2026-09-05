@@ -63,6 +63,19 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
             .catch(() => { /* not logged in yet, or request failed — keep default/cached */ });
     }, [isPublic]);
 
+    // Reflect the resolved theme color on <html> immediately client-side —
+    // covers the very first visit (no qubeex_theme cookie yet for the
+    // server-rendered layout to read) and instant feedback right after the
+    // admin picks a new theme, without needing a full page reload.
+    useEffect(() => {
+        const effective = isPublic ? QUBEEX_DEFAULT_BRANDING : branding;
+        if (effective.themeColor && effective.themeColor !== 'purple') {
+            document.documentElement.setAttribute('data-theme', effective.themeColor);
+        } else {
+            document.documentElement.removeAttribute('data-theme');
+        }
+    }, [branding, isPublic]);
+
     // Update the document title client-side too, for the very first paint
     // right after login (before the branding cookie exists yet, since it's
     // only written once the /branding fetch above resolves). The favicon

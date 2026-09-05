@@ -63,7 +63,7 @@ function getBadge(type: string | null) {
 function FileViewer({ file, onClose }: { file: FeedFile; onClose: () => void }) {
     return (
         <div className="fixed inset-0 z-50 flex flex-col bg-black/95">
-            <div className="flex items-center justify-between px-4 py-3 bg-[#1A1030] border-b border-white/10 shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#0A0A0A] border-b border-white/10 shrink-0">
                 <div className="flex items-center gap-3">
                     <div className="text-[11px] font-bold px-2 py-0.5 rounded-md text-white shrink-0"
                         style={{ background: getBadge(file.attachmentType).bg }}>

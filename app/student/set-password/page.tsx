@@ -70,7 +70,7 @@ export default function StudentSetPasswordPage() {
 
     if (done) {
         return (
-            <div className="min-h-screen flex items-center justify-center" style={{ background: '#0F0A1E' }}>
+            <div className="min-h-screen flex items-center justify-center" style={{ background: '#000000' }}>
                 <div className="fixed inset-0 pointer-events-none overflow-hidden">
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full opacity-15"
                         style={{ background: 'radial-gradient(circle, #10b981, transparent 70%)' }} />
@@ -94,7 +94,7 @@ export default function StudentSetPasswordPage() {
     }
 
     return (
-        <div className="h-full flex items-center justify-center px-4 py-4" style={{ background: '#0F0A1E' }}>
+        <div className="h-full flex items-center justify-center px-4 py-4" style={{ background: '#000000' }}>
             <div className="fixed inset-0 pointer-events-none overflow-hidden" style={{ zIndex: 8 }}>
                 <div className="absolute -top-40 -left-40 w-[500px] h-[500px] rounded-full opacity-20"
                     style={{ background: 'radial-gradient(circle, #7C3AED, transparent 70%)' }} />

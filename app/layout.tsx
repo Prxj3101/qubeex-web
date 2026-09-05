@@ -57,12 +57,20 @@ export const dynamic = 'force-dynamic';
 // directly in the server-rendered HTML — correct from byte one, no script,
 // no race, no flash. (First-ever visit before any cookie exists still
 // briefly shows the default violet look same as it always would.)
+// Valid self-service theme presets — see themeColor.service.ts on the
+// backend (single source of truth there); kept in sync manually since this
+// is a Server Component that can't import backend code. "purple" needs no
+// data-theme attribute at all since it's the :root/.dark default.
+const VALID_THEME_COLORS = ['blue', 'teal', 'amber', 'rose', 'indigo', 'slate'];
+
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = await cookies();
   const isCollege = cookieStore.get('qubeex_inst_type')?.value?.toUpperCase() === 'COLLEGE';
+  const themeColorCookie = cookieStore.get('qubeex_theme')?.value;
+  const dataTheme = themeColorCookie && VALID_THEME_COLORS.includes(themeColorCookie) ? themeColorCookie : undefined;
 
   return (
-    <html lang="en" suppressHydrationWarning className={isCollege ? 'theme-college' : undefined}>
+    <html lang="en" suppressHydrationWarning className={isCollege ? 'theme-college' : undefined} data-theme={dataTheme}>
       <body suppressHydrationWarning>
         <ThemeProvider
           attribute="class"

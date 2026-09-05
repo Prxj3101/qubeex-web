@@ -1829,7 +1829,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook }: {
                                                             <XAxis dataKey="name" tick={{ fontSize: 9, fill: '#94A3B8' }} />
                                                             <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#94A3B8' }} unit="%" />
                                                             <Tooltip
-                                                                contentStyle={{ background: '#1A1030', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, fontSize: 11 }}
+                                                                contentStyle={{ background: '#0A0A0A', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 8, fontSize: 11 }}
                                                                 labelStyle={{ color: '#F1F5F9' }}
                                                                 formatter={(val: unknown) => [`${val}%`, 'Score']}
                                                                 itemStyle={{ color: trendColor }}

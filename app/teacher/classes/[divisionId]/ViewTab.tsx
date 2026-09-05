@@ -65,7 +65,7 @@ function formatDateTime(iso: string) {
 function MaterialPreview({ ann, onClose }: { ann: DivAnnouncement; onClose: () => void }) {
     return (
         <div className="fixed inset-0 z-[999] flex flex-col bg-black/95">
-            <div className="flex items-center justify-between px-4 py-3 bg-[#1A1030] border-b border-white/10 shrink-0">
+            <div className="flex items-center justify-between px-4 py-3 bg-[#0A0A0A] border-b border-white/10 shrink-0">
                 <p className="text-sm font-semibold text-white truncate max-w-md">{ann.title}</p>
                 <button onClick={onClose} className="text-white/60 hover:text-white transition-colors p-1">
                     <X size={20} />

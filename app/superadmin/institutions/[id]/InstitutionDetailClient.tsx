@@ -1468,7 +1468,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
       return (
         <div
           className="px-3 py-2 rounded-xl shadow-xl"
-          style={{ background: "#1A1030", border: "1px solid #2D1F50" }}
+          style={{ background: "#0A0A0A", border: "1px solid #1F1F1F" }}
         >
           <div className="flex items-center gap-2">
             <div
@@ -3469,7 +3469,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
       return (
         <div
           className="px-3 py-2 rounded-xl shadow-xl"
-          style={{ background: "#1A1030", border: "1px solid #2D1F50" }}
+          style={{ background: "#0A0A0A", border: "1px solid #1F1F1F" }}
         >
           <div className="flex items-center gap-2">
             <div
