@@ -1197,7 +1197,7 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
                     placeholder="Ask anything..."
                     disabled={aiLoading}
                     className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-primary/50 placeholder:text-white/30 disabled:opacity-60" />
-                <button onClick={handleSend} disabled={!input.trim() || aiLoading}
+                <button onClick={() => handleSend()} disabled={!input.trim() || aiLoading}
                     className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
                     style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                     <Send size={14} />
