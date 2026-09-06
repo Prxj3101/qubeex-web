@@ -135,6 +135,24 @@ interface ScanResult {
     images?: { url: string; caption: string }[];
     /** Only present when the scan was run in "Detailed Notes" mode. */
     detailedNotes?: unknown;
+    /** Structured form of the notes — headings follow the material's own subtopics. */
+    noteSections?: unknown;
+    /** Set when the model hit its output ceiling and the response was salvaged. */
+    truncated?: boolean;
+}
+
+/** Coerces the LLM-sourced noteSections into renderable sections. */
+function toSections(value: unknown): { heading: string; body: string }[] {
+    if (!Array.isArray(value)) return [];
+    return value
+        .map(item => {
+            if (!item || typeof item !== 'object') return null;
+            const o = item as Record<string, unknown>;
+            const heading = typeof o.heading === 'string' ? o.heading.trim() : '';
+            const body = typeof o.body === 'string' ? o.body.trim() : '';
+            return heading || body ? { heading, body } : null;
+        })
+        .filter((x): x is { heading: string; body: string } => x !== null);
 }
 
 /** Coerces an LLM-sourced value into bullet strings, whatever shape it arrived in. */
@@ -764,16 +782,41 @@ function AIScanPanel({
                         </div>
                     )}
 
-                    {/* Detailed Notes — only present when scanned in Detailed Notes mode */}
-                    {toParagraphs(result.detailedNotes).length > 0 && (
+                    {/* Detailed Notes — only present when scanned in Detailed Notes mode.
+                        Sectioned when the model returned headings; the flat paragraph
+                        rendering stays as the fallback so an older-shaped response
+                        (or one that ignored the section format) still displays. */}
+                    {(toSections(result.noteSections).length > 0 || toParagraphs(result.detailedNotes).length > 0) && (
                         <div>
                             <p className="text-[10px] font-semibold text-white/50 uppercase tracking-wide mb-1.5">Detailed Notes</p>
-                            <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2">
-                                {toParagraphs(result.detailedNotes).map((para, i) => (
-                                    <p key={i} className="text-xs text-white/80 leading-relaxed whitespace-pre-line">{para}</p>
-                                ))}
-                            </div>
+                            {toSections(result.noteSections).length > 0 ? (
+                                <div className="space-y-2">
+                                    {toSections(result.noteSections).map((sec, i) => (
+                                        <div key={i} className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                            {sec.heading && (
+                                                <p className="text-[11px] font-bold text-white mb-1.5">{sec.heading}</p>
+                                            )}
+                                            {toParagraphs(sec.body).map((para, j) => (
+                                                <p key={j} className="text-xs text-white/80 leading-relaxed whitespace-pre-line mb-1 last:mb-0">{para}</p>
+                                            ))}
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div className="p-3 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                                    {toParagraphs(result.detailedNotes).map((para, i) => (
+                                        <p key={i} className="text-xs text-white/80 leading-relaxed whitespace-pre-line">{para}</p>
+                                    ))}
+                                </div>
+                            )}
                         </div>
+                    )}
+
+                    {/* Salvaged from a response that hit the output ceiling. */}
+                    {result.truncated && (
+                        <p className="text-[10px] text-amber-300/70 leading-relaxed">
+                            This answer reached its length limit, so the end may be missing. Select fewer pages for complete notes.
+                        </p>
                     )}
 
                     {/* Images */}
