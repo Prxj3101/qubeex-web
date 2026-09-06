@@ -239,7 +239,7 @@ export default function TeacherNotepad() {
                 {/* Divider */}
                 <div className="h-px w-full sm:h-auto sm:w-px bg-border/40 shrink-0" />
 
-                {/*  RIGHT Notes */}
+                {/* RIGHT Notes */}
                 <div className="flex-1 flex flex-col min-w-0 min-h-0">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-1.5">
