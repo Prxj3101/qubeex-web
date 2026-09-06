@@ -179,11 +179,17 @@ function stripExtension(name: string) {
 }
 
 // The backend's aiScan/aiQuiz endpoints accept an optional `pageText` field
-// (capped at 8000 chars server-side) to ground the AI in what's actually on
-// the selected pages, instead of having it improvise from just the page
-// numbers + instructions. We extract that text client-side via pdf.js, which
-// react-pdf already loads for rendering — no extra dependency needed.
-const PAGE_TEXT_CHAR_LIMIT = 7500;
+// (capped at PAGE_TEXT_MAX_CHARS = 34,000 server-side) to ground the AI in
+// what's actually on the selected pages, instead of having it improvise from
+// just the page numbers + instructions. We extract that text client-side via
+// pdf.js, which react-pdf already loads for rendering — no extra dependency.
+//
+// Sized so a full MAX_SELECTABLE_PAGES selection fits: a textbook page runs
+// 2,500-3,500 characters, so 10 pages is ~30,000. The previous 7,500 meant a
+// teacher could select ten pages and have the AI actually read two or three
+// of them. Kept just under the server cap so a valid selection is never
+// rejected by validation.
+const PAGE_TEXT_CHAR_LIMIT = 32000;
 
 /** Text sent to the AI, plus how much of the teacher's selection actually fit. */
 interface ExtractedText {
