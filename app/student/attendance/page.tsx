@@ -285,7 +285,7 @@ export default function AttendanceDetailsPage() {
                                                             <div
                                                                 className="absolute z-50 left-1/2 -translate-x-1/2 px-2.5 py-1.5 rounded-lg whitespace-nowrap shadow-lg pointer-events-none"
                                                                 style={{
-                                                                    background: '#0A0A0A',
+                                                                    background: '#141414',
                                                                     border: '1px solid rgba(148,163,184,0.2)',
                                                                     ...(m === monthData[0] ? { top: 'calc(100% + 6px)' } : { bottom: 'calc(100% + 6px)' }),
                                                                 }}
