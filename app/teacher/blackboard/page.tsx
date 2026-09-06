@@ -3327,15 +3327,15 @@ export default function BlackboardPage() {
                                                         {/* Trailing glow — sits above the line when moving down, below when moving up */}
                                                         <div className="absolute inset-x-0 h-20 pointer-events-none"
                                                             style={scanGoingDown
-                                                                ? { bottom: '100%', background: 'linear-gradient(180deg, transparent, rgba(219,39,119,0.35))' }
-                                                                : { top: '100%', background: 'linear-gradient(0deg, transparent, rgba(219,39,119,0.35))' }} />
+                                                                ? { bottom: '100%', background: 'linear-gradient(180deg, transparent, rgba(218,119,86,0.35))' }
+                                                                : { top: '100%', background: 'linear-gradient(0deg, transparent, rgba(218,119,86,0.35))' }} />
                                                         {/* Scan line */}
-                                                        <div className="absolute inset-0" style={{ background: '#DB2777', boxShadow: '0 0 14px 3px rgba(219,39,119,1)' }} />
+                                                        <div className="absolute inset-0" style={{ background: '#DA7756', boxShadow: '0 0 14px 3px rgba(218,119,86,1)' }} />
                                                         {/* End dots */}
                                                         <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
-                                                            style={{ background: '#DB2777', boxShadow: '0 0 6px 1px rgba(219,39,119,0.9)' }} />
+                                                            style={{ background: '#DA7756', boxShadow: '0 0 6px 1px rgba(218,119,86,0.9)' }} />
                                                         <div className="absolute -right-1.5 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full"
-                                                            style={{ background: '#DB2777', boxShadow: '0 0 6px 1px rgba(219,39,119,0.9)' }} />
+                                                            style={{ background: '#DA7756', boxShadow: '0 0 6px 1px rgba(218,119,86,0.9)' }} />
                                                     </motion.div>
                                                 </motion.div>
                                             )}
