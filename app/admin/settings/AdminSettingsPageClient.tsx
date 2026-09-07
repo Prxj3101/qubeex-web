@@ -6,7 +6,7 @@ import {
     User, Mail, KeyRound, Eye, EyeOff, Check, X,
     Calendar, Clock, Monitor, MapPin, LogOut, AlertTriangle,
     Edit3, Save, RefreshCw, ShieldCheck, Hash,
-    Activity, Lock, Settings,
+    Activity, Lock, Settings, Palette, ArrowUpRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -47,6 +47,18 @@ function calculateStrength(password: string): { level: PasswordStrength; score: 
     else level = 'very-strong';
     return { level, score, checks };
 }
+
+// Swatch hex mirrors each preset's light-mode --primary in globals.css —
+// keep these in sync manually if a preset's color ever changes there.
+const THEME_PRESETS: { id: string; label: string; swatch: string }[] = [
+    { id: 'purple', label: 'Purple', swatch: '#7C3AED' },
+    { id: 'blue', label: 'Blue', swatch: '#2563EB' },
+    { id: 'teal', label: 'Teal', swatch: '#0D9488' },
+    { id: 'amber', label: 'Amber', swatch: '#D97706' },
+    { id: 'rose', label: 'Rose', swatch: '#E11D48' },
+    { id: 'indigo', label: 'Indigo', swatch: '#4F46E5' },
+    { id: 'slate', label: 'Slate', swatch: '#475569' },
+];
 
 const strengthConfig = {
     weak: { label: 'Weak', color: 'bg-red-500', text: 'text-red-500', width: '25%' },
@@ -155,7 +167,8 @@ function PasswordInput({ value, onChange, placeholder, show, onToggleShow, disab
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function AdminSettingsPageClient() {
-    const { clearAuth } = useAuthStore();
+    const { clearAuth, user } = useAuthStore();
+    const isSubAdmin = user?.role === 'SUB_ADMIN';
     const router = useRouter();
 
     // ── Profile data ──
@@ -163,6 +176,11 @@ export default function AdminSettingsPageClient() {
     const [name, setName] = useState('');
     const [email, setEmail] = useState('');
     const [profileCreatedAt, setProfileCreatedAt] = useState<string | null>(null);
+
+    // ── Theme customization — PRO + TRIAL only, admin-only (not sub-admins) ──
+    const [themeColor, setThemeColor] = useState('purple');
+    const [themeCustomizationEligible, setThemeCustomizationEligible] = useState(false);
+    const [themeSaving, setThemeSaving] = useState<string | null>(null);
 
     // ── Personal details edit ──
     const [editing, setEditing] = useState(false);
@@ -238,6 +256,20 @@ export default function AdminSettingsPageClient() {
         load();
     }, []);
 
+    // Sub-admins never see the theme picker, so skip the fetch entirely for them.
+    const fetchedTheme = useRef(false);
+    useEffect(() => {
+        if (isSubAdmin || fetchedTheme.current) return;
+        fetchedTheme.current = true;
+        api.get('/admin/me')
+            .then((res) => {
+                const d = res.data?.data ?? res.data;
+                setThemeColor(d?.themeColor ?? 'purple');
+                setThemeCustomizationEligible(!!d?.themeCustomizationEligible);
+            })
+            .catch(() => { /* non-critical */ });
+    }, [isSubAdmin]);
+
     // ── Handlers ──
 
     const handleStartEdit = () => {
@@ -286,6 +318,30 @@ export default function AdminSettingsPageClient() {
         clearAuth();
         router.replace('/login');
         api.post('/auth/logout').catch(() => {});
+    };
+
+    const handleThemeSelect = async (id: string) => {
+        if (isSubAdmin) return;
+        if (id === themeColor) return;
+        if (!themeCustomizationEligible) {
+            toast.error('Theme customization needs Pro', {
+                description: 'Upgrade to Pro (or start a trial) to change your accent color.',
+                action: { label: 'Upgrade', onClick: () => router.push('/admin/insights/subscription') },
+            });
+            return;
+        }
+        setThemeSaving(id);
+        try {
+            await api.patch('/admin/institution', { themeColor: id });
+            setThemeColor(id);
+            if (id === 'purple') document.documentElement.removeAttribute('data-theme');
+            else document.documentElement.setAttribute('data-theme', id);
+            toast.success('Theme updated');
+        } catch {
+            toast.error('Failed to update theme');
+        } finally {
+            setThemeSaving(null);
+        }
     };
 
     return (
@@ -378,6 +434,63 @@ export default function AdminSettingsPageClient() {
                                 )}
                             </SectionCard>
                         </motion.div>
+
+                        {/* Theme — PRO/TRIAL self-service accent color, admin-only */}
+                        {!isSubAdmin && (
+                            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.3 }}>
+                                <SectionCard
+                                    title="Theme"
+                                    icon={Palette}
+                                    description={themeCustomizationEligible
+                                        ? 'Pick an accent color for your admin, teacher and student app'
+                                        : 'Upgrade to Pro to customize your accent color'}
+                                >
+                                    <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-7">
+                                        {THEME_PRESETS.map((preset) => {
+                                            const active = themeColor === preset.id;
+                                            return (
+                                                <button
+                                                    key={preset.id}
+                                                    type="button"
+                                                    onClick={() => handleThemeSelect(preset.id)}
+                                                    disabled={themeSaving !== null}
+                                                    title={preset.label}
+                                                    className="flex flex-col items-center gap-1 group"
+                                                >
+                                                    <span
+                                                        className="w-8 h-8 rounded-full flex items-center justify-center ring-2 transition-all"
+                                                        style={{
+                                                            background: preset.swatch,
+                                                            borderColor: active ? preset.swatch : 'transparent',
+                                                            boxShadow: active ? `0 0 0 2px var(--card), 0 0 0 4px ${preset.swatch}` : 'none',
+                                                        }}
+                                                    >
+                                                        {themeSaving === preset.id ? (
+                                                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                        ) : active ? (
+                                                            <Check size={13} className="text-white" />
+                                                        ) : !themeCustomizationEligible ? (
+                                                            <Lock size={11} className="text-white/80" />
+                                                        ) : null}
+                                                    </span>
+                                                    <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">
+                                                        {preset.label}
+                                                    </span>
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                    {!themeCustomizationEligible && (
+                                        <button
+                                            onClick={() => router.push('/admin/insights/subscription')}
+                                            className="mt-3 flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-all"
+                                        >
+                                            <Palette size={11} /> Upgrade to Pro <ArrowUpRight size={11} />
+                                        </button>
+                                    )}
+                                </SectionCard>
+                            </motion.div>
+                        )}
                     </div>
 
                     {/* ── RIGHT COLUMN ── */}

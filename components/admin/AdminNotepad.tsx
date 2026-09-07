@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, Check, StickyNote, ClipboardList, Pin, Pencil } from 'lucide-react';
+import { Plus, X, Check, StickyNote, ClipboardList, Pin, Pencil, Clock } from 'lucide-react';
 import api from '@/lib/api';
 
 interface Note {
@@ -16,6 +16,26 @@ interface Task {
     id: string;
     text: string;
     done: boolean;
+    // Set manually or, more often, by Jarvis (the AI School PA) when the
+    // admin asks it to remind them of something at a specific time — null
+    // for a plain task with no particular deadline.
+    dueAt: string | null;
+}
+
+// "Overdue" / "Today, 12:00 PM" / "Tomorrow, 12:00 PM" / "8 Sep, 12:00 PM" —
+// keeps a Jarvis-created reminder scannable at a glance without needing to
+// open it, and lets overdue ones stand out in red.
+function formatDue(dueAtIso: string): { label: string; overdue: boolean; dueToday: boolean } {
+    const due = new Date(dueAtIso);
+    const now = new Date();
+    const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    const dayDiff = Math.round((startOfDay(due) - startOfDay(now)) / 86400000);
+    const time = due.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+    const overdue = due.getTime() < now.getTime();
+    if (dayDiff === 0) return { label: `Today, ${time}`, overdue, dueToday: true };
+    if (dayDiff === 1) return { label: `Tomorrow, ${time}`, overdue: false, dueToday: false };
+    const dateLabel = due.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+    return { label: `${dateLabel}, ${time}`, overdue, dueToday: false };
 }
 
 const NOTE_COLORS = [
@@ -41,7 +61,7 @@ export default function AdminNotepad() {
             .then(res => {
                 const { notes: n, tasks: t } = res.data.data as {
                     notes: { id: string; text: string; color: string; createdAt: string }[];
-                    tasks: { id: string; text: string; done: boolean }[];
+                    tasks: { id: string; text: string; done: boolean; dueAt: string | null }[];
                 };
                 setNotes(n.map(x => ({
                     id: x.id,
@@ -49,7 +69,7 @@ export default function AdminNotepad() {
                     color: x.color,
                     createdAt: new Date(x.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }),
                 })));
-                setTasks(t.map(x => ({ id: x.id, text: x.text, done: x.done })));
+                setTasks(t.map(x => ({ id: x.id, text: x.text, done: x.done, dueAt: x.dueAt })));
             })
             .catch(() => { /* leave notepad empty on failure — non-critical widget */ });
     }, []);
@@ -79,8 +99,8 @@ export default function AdminNotepad() {
         setShowTaskInput(false);
         api.post('/admin/notepad/tasks', { text })
             .then(res => {
-                const created = res.data.data as { id: string; text: string; done: boolean };
-                setTasks(prev => [...prev, { id: created.id, text: created.text, done: created.done }]);
+                const created = res.data.data as { id: string; text: string; done: boolean; dueAt: string | null };
+                setTasks(prev => [...prev, { id: created.id, text: created.text, done: created.done, dueAt: created.dueAt }]);
             })
             .catch(() => {});
     };
@@ -105,6 +125,15 @@ export default function AdminNotepad() {
 
     const pending = tasks.filter(t => !t.done).length;
     const done = tasks.filter(t => t.done).length;
+    // Due-soon tasks (most often Jarvis reminders) bubble to the top so a
+    // time-sensitive one doesn't get buried under older, undated tasks.
+    // Array.sort is stable, so two tasks with no dueAt keep their relative order.
+    const pendingSorted = tasks.filter(t => !t.done).sort((a, b) => {
+        if (a.dueAt && b.dueAt) return new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime();
+        if (a.dueAt) return -1;
+        if (b.dueAt) return 1;
+        return 0;
+    });
 
     const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
     const [editingTaskText, setEditingTaskText] = useState('');
@@ -161,7 +190,7 @@ export default function AdminNotepad() {
                     <p className="text-[11px] text-muted-foreground mb-1.5">{pending} pending · <span className="text-emerald-500">{done} done</span></p>
 
                     <div className="flex-1 overflow-y-auto space-y-1">
-                        {tasks.filter(t => !t.done).map((task, i) => (
+                        {pendingSorted.map((task, i) => (
                             <motion.div key={task.id}
                                 initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}
                                 className="flex items-center gap-2 py-1.5 group">
@@ -183,7 +212,22 @@ export default function AdminNotepad() {
                                         </button>
                                     </div>
                                 ) : (
-                                    <p className="text-[12px] flex-1 leading-tight">{task.text}</p>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-[12px] leading-tight">{task.text}</p>
+                                        {task.dueAt && (() => {
+                                            const due = formatDue(task.dueAt);
+                                            return (
+                                                <span className={`inline-flex items-center gap-1 mt-1 text-[9.5px] font-semibold px-1.5 py-0.5 rounded-full ${due.overdue
+                                                    ? 'bg-red-500/15 text-red-500'
+                                                    : due.dueToday
+                                                        ? 'bg-amber-500/15 text-amber-600'
+                                                        : 'bg-muted text-muted-foreground'}`}>
+                                                    <Clock size={9} />
+                                                    {due.overdue ? 'Overdue · ' : ''}{due.label}
+                                                </span>
+                                            );
+                                        })()}
+                                    </div>
                                 )}
                                 {editingTaskId !== task.id && (
                                     <button onClick={() => { setEditingTaskId(task.id); setEditingTaskText(task.text); }}
