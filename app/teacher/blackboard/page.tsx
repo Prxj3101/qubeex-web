@@ -9,7 +9,7 @@ import {
     HelpCircle, Scan, Send, ZoomIn, ZoomOut,
     FolderOpen, ChevronDown, RotateCw, GripVertical, Pencil, Pen, Highlighter, Eraser, Undo2, Redo2,
     Loader2, RefreshCw, Check, ScanLine, Layers, CheckCircle2, Bot, Copy, ThumbsUp, ThumbsDown, Zap, RotateCcw,
-    FileText, FileImage, FileVideo, Presentation, Network, Trash2, Download,
+    FileText, FileImage, FileVideo, Presentation, Network, Trash2, Download, Info,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
@@ -342,12 +342,30 @@ async function extractPptxSlideText(fileUrl: string): Promise<{ text: string; in
     return { ...joinWithinLimit(chunks), total: chunks.length };
 }
 
+/**
+ * A "From Computer" doc's blob: URL briefly points at nothing right after a
+ * page reload — the persisted doc hydrates with the old (now-dead) blob URL
+ * for one render before a sibling effect swaps in a freshly-minted one from
+ * IndexedDB. pdf.js surfaces that dead URL as ResponseException("Unexpected
+ * server response (0)..."), which looks like a real failure but isn't: the
+ * caller re-runs this extraction as soon as the fresh URL lands a moment
+ * later. Treat it as "not ready yet" rather than a hard error.
+ */
+function isDeadBlobUrlError(err: unknown): boolean {
+    return err instanceof Error && /blob:/.test(err.message) && /unexpected server response/i.test(err.message);
+}
+
 /** Dispatches to the right client-side extractor; empty result for unsupported types. */
 async function extractDocumentText(doc: { url: string; type: string }, selectedPages: number[]): Promise<ExtractedText> {
     if (doc.type === 'application/pdf') {
         if (selectedPages.length === 0) return { text: '', included: 0, requested: 0 };
-        const { text, included } = await extractPdfPageText(doc.url, selectedPages);
-        return { text, included, requested: selectedPages.length };
+        try {
+            const { text, included } = await extractPdfPageText(doc.url, selectedPages);
+            return { text, included, requested: selectedPages.length };
+        } catch (err) {
+            if (isDeadBlobUrlError(err)) return { text: '', included: 0, requested: selectedPages.length };
+            throw err;
+        }
     }
     if (doc.type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation') {
         const { text, included, total } = await extractPptxSlideText(doc.url);
@@ -714,7 +732,7 @@ function AIScanPanel({
                     </div>
 
                     {/* Sticky footer — instructions + scan button never scroll */}
-                    <div className="shrink-0 px-4 pt-3 pb-4 border-t border-white/10 flex flex-col gap-3 mb-7" style={{ background: '#000' }}>
+                    <div className="shrink-0 px-4 pt-3 pb-4 border-t border-white/10 flex flex-col gap-3 -mb-1" style={{ background: '#000' }}>
                         <div>
                             <p className="text-[11px] text-white/50 mb-1.5">Output</p>
                             <div className="flex gap-2">
@@ -730,7 +748,7 @@ function AIScanPanel({
                             </div>
                         </div>
 
-                        <div>
+                        <div className="-mb-2.5">
                             <p className="text-[11px] text-white/50 mb-1.5">Instructions (optional)</p>
                             <textarea
                                 value={instructions}
@@ -749,6 +767,7 @@ function AIScanPanel({
                             <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
                             {!doc ? 'Load a Document First' : isPdf && totalPages > 0 ? 'Scan Selected Pages' : 'Scan Document'}
                         </button>
+                        <AiDisclaimer />
                     </div>
                 </div>
             )}
@@ -977,6 +996,16 @@ const WELCOME_MESSAGE: ChatMessage = {
     role: 'ai',
     text: 'Hello! Ask me anything about your current topic. I can help with explanations, definitions, examples, and more.',
 };
+
+/** Shown under the action button/input of every AI panel (Scan, Prompt, Quiz, Mindmap). */
+function AiDisclaimer() {
+    return (
+        <p className="flex items-center justify-center gap-1 text-[10px] text-white/30 shrink-0">
+            <Info size={11} className="shrink-0" />
+            AI can make mistakes. Please verify important information.
+        </p>
+    );
+}
 
 // ── AI Prompt Panel ───────────────────────────────────────────────────────────
 const THINKING_WORDS = ['Thinking', 'Working on it', 'Analyzing', 'Reasoning', 'Putting it together'];
@@ -1290,17 +1319,20 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
                 )}
                 <div ref={messagesEndRef} />
             </div>
-            <div className="border-t border-white/10 px-3 py-2.5 flex items-center gap-2" style={{ background: '#000' }}>
-                <input ref={chatInputRef} value={input} onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
-                    placeholder="Ask anything..."
-                    disabled={aiLoading}
-                    className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-primary/50 placeholder:text-white/30 disabled:opacity-60" />
-                <button onClick={() => handleSend()} disabled={!input.trim() || aiLoading}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
-                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                    <Send size={14} />
-                </button>
+            <div className="border-t border-white/10 px-3 pt-2.5 pb-2 flex flex-col gap-1.5" style={{ background: '#000' }}>
+                <div className="flex items-center gap-2">
+                    <input ref={chatInputRef} value={input} onChange={e => setInput(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSend(); }}
+                        placeholder="Ask anything..."
+                        disabled={aiLoading}
+                        className="flex-1 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-xs text-white focus:outline-none focus:border-primary/50 placeholder:text-white/30 disabled:opacity-60" />
+                    <button onClick={() => handleSend()} disabled={!input.trim() || aiLoading}
+                        className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
+                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                        <Send size={14} />
+                    </button>
+                </div>
+                <AiDisclaimer />
             </div>
         </motion.div>
     );
@@ -1520,7 +1552,7 @@ function AIQuizPanel({
                     </div>
 
                     {/* Sticky footer — instructions, question count, difficulty & generate button */}
-                    <div className="shrink-0 px-4 pt-3 pb-4 border-t border-white/10 flex flex-col gap-3 mb-7" style={{ background: '#000' }}>
+                    <div className="shrink-0 px-4 pt-3 pb-4 border-t border-white/10 flex flex-col gap-3 -mb-1" style={{ background: '#000' }}>
                         <div className="-mb-2.5">
                             <p className="text-[11px] text-white/50 mb-1.5">Instructions (optional)</p>
                             <textarea
@@ -1534,41 +1566,41 @@ function AIQuizPanel({
 
                         <div className="border-t border-white/10 -mb-2" />
 
-                        <div className="space-y-1.5 -mb-2.5">
-                            <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">
-                                Questions: <span style={{ color: '#059669' }}>{count}</span>
-                            </label>
-                            <input type="range" min={1} max={10} value={count}
-                                onChange={e => setCount(Number(e.target.value))}
-                                className="w-full h-1 cursor-pointer" style={{ accentColor: '#059669' }} />
-                            <div className="flex justify-between text-[10px] text-white/30">
-                                <span>1</span><span>10</span>
+                        <div className="flex gap-3">
+                            <div className="flex-1 space-y-1.5">
+                                <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">
+                                    Questions: <span style={{ color: '#059669' }}>{count}</span>
+                                </label>
+                                <input type="range" min={1} max={10} value={count}
+                                    onChange={e => setCount(Number(e.target.value))}
+                                    className="w-full h-1 cursor-pointer" style={{ accentColor: '#059669' }} />
+                                <div className="flex justify-between text-[10px] text-white/30">
+                                    <span>1</span><span>10</span>
+                                </div>
                             </div>
-                        </div>
 
-                        <div className="border-t border-white/10 -mb-2" />
-
-                        <div className="space-y-1.5">
-                            <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">Difficulty</label>
-                            <div className="flex gap-2">
-                                {([
-                                    { key: 'easy' as const, color: '#10B981' },
-                                    { key: 'medium' as const, color: '#F59E0B' },
-                                    { key: 'hard' as const, color: '#EF4444' },
-                                ]).map(({ key: d, color }) => {
-                                    const isActive = difficulty === d;
-                                    return (
-                                        <button key={d} onClick={() => setDifficulty(d)}
-                                            className="flex-1 py-2 rounded-xl text-[11px] font-semibold capitalize flex flex-col items-center gap-1 transition-all"
-                                            style={isActive
-                                                ? { background: `${color}26`, border: `1px solid ${color}80`, color }
-                                                : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
-                                            <span className="w-1.5 h-1.5 rounded-full transition-all"
-                                                style={{ background: isActive ? color : 'rgba(255,255,255,0.25)' }} />
-                                            {d}
-                                        </button>
-                                    );
-                                })}
+                            <div className="flex-1 space-y-1.5">
+                                <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">Difficulty</label>
+                                <div className="flex gap-1.5">
+                                    {([
+                                        { key: 'easy' as const, color: '#10B981' },
+                                        { key: 'medium' as const, color: '#F59E0B' },
+                                        { key: 'hard' as const, color: '#EF4444' },
+                                    ]).map(({ key: d, color }) => {
+                                        const isActive = difficulty === d;
+                                        return (
+                                            <button key={d} onClick={() => setDifficulty(d)}
+                                                className="flex-1 py-2 rounded-xl text-[10px] font-semibold capitalize flex flex-col items-center gap-1 transition-all"
+                                                style={isActive
+                                                    ? { background: `${color}26`, border: `1px solid ${color}80`, color }
+                                                    : { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
+                                                <span className="w-1.5 h-1.5 rounded-full transition-all"
+                                                    style={{ background: isActive ? color : 'rgba(255,255,255,0.25)' }} />
+                                                {d}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         </div>
 
@@ -1580,6 +1612,7 @@ function AIQuizPanel({
                             <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
                             {!doc ? 'Load a Document First' : isPdf && totalPages > 0 ? 'Generate Quiz from Selected Pages' : 'Generate Quiz'}
                         </button>
+                        <AiDisclaimer />
                     </div>
                 </div>
             )}
@@ -2551,7 +2584,7 @@ function AIMindmapPanel({
                         </div>
                     </div>
 
-                    <div className="shrink-0 px-4 pt-3 pb-4 border-t border-white/10 flex flex-col gap-3 mb-7" style={{ background: '#000' }}>
+                    <div className="shrink-0 px-4 pt-3 pb-4 border-t border-white/10 flex flex-col gap-3 -mb-1" style={{ background: '#000' }}>
                         <div className="-mb-2.5">
                             <p className="text-[11px] text-white/50 mb-1.5">Instructions (optional)</p>
                             <textarea
@@ -2571,6 +2604,7 @@ function AIMindmapPanel({
                             <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
                             {!doc ? 'Load a Document First' : isPdf && totalPages > 0 ? 'Generate Mindmap from Selected Pages' : 'Generate Mindmap'}
                         </button>
+                        <AiDisclaimer />
                     </div>
                 </div>
             )}
@@ -2977,6 +3011,11 @@ export default function BlackboardPage() {
         const handleKey = (e: KeyboardEvent) => {
             if (isPageJumpFocused) return; // don't hijack arrow keys while typing a page number
             if (imageViewerActive) return; // an AI Scan image is expanded — it owns Left/Right for now
+            // Don't hijack Left/Right while the teacher is typing anywhere else either —
+            // e.g. moving the cursor inside the AI Scan/Mindmap/Quiz/Prompt instruction
+            // box was flipping blackboard pages underneath it at the same time.
+            const active = document.activeElement as HTMLElement | null;
+            if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
             if (e.key === 'ArrowRight') setCurrentPage(p => Math.min(totalPages, p + 1));
             if (e.key === 'ArrowLeft') setCurrentPage(p => Math.max(1, p - 1));
         };

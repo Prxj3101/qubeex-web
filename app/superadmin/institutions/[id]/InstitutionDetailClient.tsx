@@ -91,6 +91,27 @@ import {
   InlineEditActions,
 } from "./institution-detail.ui";
 
+// Image ranking (picking which retrieved images make it into an AI Scan
+// result) is billed under its own AiFeature purely for backend cost-tracking
+// — fold it into AI Scan so it doesn't show up as a confusing extra row
+// wherever a raw byFeature breakdown gets rendered.
+function mergeImageRankIntoScan<T extends { feature: string; requests: number; successRequests: number; failedRequests: number; totalTokens: number }>(byFeature: T[]): T[] {
+  const merged = new Map<string, T>();
+  byFeature.forEach((f) => {
+    const key = f.feature === "BLACKBOARD_IMAGE_RANK" ? "BLACKBOARD_SCAN" : f.feature;
+    const cur = merged.get(key);
+    merged.set(key, {
+      ...f,
+      feature: key,
+      requests: (cur?.requests ?? 0) + f.requests,
+      successRequests: (cur?.successRequests ?? 0) + f.successRequests,
+      failedRequests: (cur?.failedRequests ?? 0) + f.failedRequests,
+      totalTokens: (cur?.totalTokens ?? 0) + f.totalTokens,
+    });
+  });
+  return Array.from(merged.values());
+}
+
 // ── Verified Badge ────────────────────────────────────────────────────────────
 function VerifiedBadge() {
   return (
@@ -2014,7 +2035,7 @@ function ManagePlanTab({ inst, onPatch, onRefetch }: { inst: InstData; onPatch?:
                   <p className="text-[11px] font-semibold text-muted-foreground">
                     AI Usage by Feature (last 30 days)
                   </p>
-                  {aiUsageDetail.byFeature.map((f) => (
+                  {mergeImageRankIntoScan(aiUsageDetail.byFeature).map((f) => (
                     <div
                       key={f.feature}
                       className="flex items-center justify-between text-xs"

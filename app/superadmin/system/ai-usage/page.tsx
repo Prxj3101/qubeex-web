@@ -52,6 +52,25 @@ const AI_FEATURE_COLORS: Record<string, string> = {
 };
 const AI_FEATURE_COLOR_FALLBACK = '#64748B';
 
+// Image ranking (picking which retrieved images make it into a scan result)
+// runs as part of the AI Scan pipeline and is billed under its own AiFeature
+// on the backend purely for cost-tracking — merge it back into AI Scan here
+// so it doesn't show up as a confusing extra row in "Usage by Feature".
+function normalizeAiFeature(feature: string): string {
+    return feature === 'BLACKBOARD_IMAGE_RANK' ? 'BLACKBOARD_SCAN' : feature;
+}
+function mergeFeatureBreakdown(map: Map<string, FeatureBreakdown>, f: FeatureBreakdown) {
+    const key = normalizeAiFeature(f.feature);
+    const cur = map.get(key) ?? { feature: key, requests: 0, successRequests: 0, failedRequests: 0, totalTokens: 0 };
+    map.set(key, {
+        feature: key,
+        requests: cur.requests + f.requests,
+        successRequests: cur.successRequests + f.successRequests,
+        failedRequests: cur.failedRequests + f.failedRequests,
+        totalTokens: cur.totalTokens + f.totalTokens,
+    });
+}
+
 const DATE_FILTERS = ['7D', '1M', '3M', '6M', 'YTD'];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -201,7 +220,7 @@ export default function AIUsagePage() {
                     <p className="text-sm font-semibold">Usage by Feature</p>
                     {(() => {
                         const byFeatureMap = new Map(Object.keys(AI_FEATURE_LABELS).map(f => [f, { feature: f, requests: 0, successRequests: 0, failedRequests: 0, totalTokens: 0 }]));
-                        (usage?.byFeature ?? []).forEach(f => byFeatureMap.set(f.feature, f));
+                        (usage?.byFeature ?? []).forEach(f => mergeFeatureBreakdown(byFeatureMap, f));
                         const rows = Array.from(byFeatureMap.values()).sort((a, b) => b.totalTokens - a.totalTokens);
                         const total = rows.reduce((s, x) => s + x.totalTokens, 0) || 1;
                         // Split into two columns — first half left, second half
@@ -378,7 +397,7 @@ export default function AIUsagePage() {
                                                 )}
                                                 {!loadingMonthly[inst.institutionId] && (() => {
                                                     const byFeatureMap = new Map(Object.keys(AI_FEATURE_LABELS).map(f => [f, { feature: f, requests: 0, successRequests: 0, failedRequests: 0, totalTokens: 0 }]));
-                                                    (byFeatureByInst[inst.institutionId] ?? []).forEach(f => byFeatureMap.set(f.feature, f));
+                                                    (byFeatureByInst[inst.institutionId] ?? []).forEach(f => mergeFeatureBreakdown(byFeatureMap, f));
                                                     const rows = Array.from(byFeatureMap.values()).sort((a, b) => b.totalTokens - a.totalTokens);
                                                     const total = rows.reduce((s, x) => s + x.totalTokens, 0) || 1;
                                                     return (

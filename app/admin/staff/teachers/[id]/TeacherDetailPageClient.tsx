@@ -668,7 +668,8 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         </p>
                     </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1"
+                        style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
                         {Object.entries(grouped).map(([level1, assignments]) => (
                             <div key={level1}>
                                 <div className="flex items-center gap-2 mb-2">

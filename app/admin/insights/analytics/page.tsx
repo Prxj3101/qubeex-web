@@ -129,11 +129,30 @@ const MAIN_AI_FEATURES = new Set(
 // features here as they're introduced so the tooltip stays readable instead
 // of showing raw backend feature keys.
 const OTHER_FEATURE_LABELS: Record<string, string> = {
-    FEE_FORECAST: 'AI Forecast',
-    ATTENDANCE_SUMMARY: 'AI Attendance Insight',
+    FEE_FORECAST: 'AI Fee Analysis',
+    ATTENDANCE_SUMMARY: 'AI Attendance Analysis',
 };
 function featureColor(feature: string) {
     return AI_FEATURE_COLORS[feature] ?? AI_FEATURE_COLOR_FALLBACK;
+}
+// Image ranking (picking which retrieved images make it into a scan result)
+// runs as part of the AI Scan pipeline and is billed under its own AiFeature
+// purely for backend cost-tracking — fold it into AI Scan wherever a raw
+// byFeature breakdown is rendered, so it never shows up as its own row.
+function mergeImageRankIntoScan(byFeature: AiFeatureBreakdown[]): AiFeatureBreakdown[] {
+    const merged = new Map<string, AiFeatureBreakdown>();
+    byFeature.forEach(f => {
+        const key = f.feature === 'BLACKBOARD_IMAGE_RANK' ? 'BLACKBOARD_SCAN' : f.feature;
+        const cur = merged.get(key) ?? { feature: key, requests: 0, successRequests: 0, failedRequests: 0, totalTokens: 0 };
+        merged.set(key, {
+            feature: key,
+            requests: cur.requests + f.requests,
+            successRequests: cur.successRequests + f.successRequests,
+            failedRequests: cur.failedRequests + f.failedRequests,
+            totalTokens: cur.totalTokens + f.totalTokens,
+        });
+    });
+    return Array.from(merged.values());
 }
 
 // ── CIBIL-style semicircle gauge helpers (used by the AI Fee Health Score) ──
@@ -1107,9 +1126,14 @@ export default function AdminAnalyticsPage() {
     // info-tooltip — only features with nonzero usage, not the whole known set.
     const othersIncluded: string[] = [];
     aiByFeature.forEach(f => {
+        // Image ranking (picking which retrieved images make it into a scan
+        // result) runs as part of the AI Scan pipeline and is billed under its
+        // own AiFeature purely for backend cost-tracking — fold it into the
+        // AI Scan bar instead of letting it fall through to "Others".
+        const normalizedFeature = f.feature === 'BLACKBOARD_IMAGE_RANK' ? 'BLACKBOARD_SCAN' : f.feature;
         // Anything outside the main known set (e.g. FEE_FORECAST) rolls up
         // into "Others" rather than getting its own bar.
-        const key = MAIN_AI_FEATURES.has(f.feature) ? f.feature : 'OTHERS';
+        const key = MAIN_AI_FEATURES.has(normalizedFeature) ? normalizedFeature : 'OTHERS';
         if (key === 'OTHERS' && f.totalTokens > 0) {
             othersIncluded.push(OTHER_FEATURE_LABELS[f.feature] ?? f.feature);
         }
@@ -1370,7 +1394,7 @@ export default function AdminAnalyticsPage() {
                                     : usagePct < 1
                                         ? `${usagePct.toFixed(2)}%`
                                         : `${Math.round(usagePct)}%`;
-                                const orderedFeatures = [...t.byFeature].sort(
+                                const orderedFeatures = mergeImageRankIntoScan(t.byFeature).sort(
                                     (a, b) => featureOrder.indexOf(a.feature) - featureOrder.indexOf(b.feature)
                                 );
                                 const isExpanded = expandedAiTeachers.has(t.teacherId);
