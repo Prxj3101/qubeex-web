@@ -26,7 +26,7 @@
 
 :root {
   --font-poppins: ui-sans-serif, system-ui, sans-serif;
-  --background: #F3F0FA;
+  --background: #F6F5FA;
   --foreground: #0F172A;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
@@ -153,7 +153,7 @@
 /* Matches .theme-college's blue exactly (same institution-facing "blue" the
    COLLEGE hardcoded theme already uses) — see [[project-qubeex-college-theme-colors]]. */
 [data-theme="blue"] {
-  --background: #EFF6FF;
+  --background: #F5F8FA;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
   --primary: #3970E0;
@@ -181,7 +181,7 @@
    own guidelines, filed under green palettes elsewhere since it reads as a
    teal-green) — see https://www.schemecolor.com/siemens-logo-colors.php */
 [data-theme="teal"] {
-  --background: #F0FDFA;
+  --background: #F1F5F3;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
   --primary: #009999;
@@ -211,7 +211,7 @@
    glare, closer to how the other presets' light mode feels muted rather
    than saturated. */
 [data-theme="amber"] {
-  --background: #FDFAF2;
+  --background: #FBF9F4;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
   --primary: #ED9A1F;
@@ -240,7 +240,7 @@
 }
 
 [data-theme="rose"] {
-  --background: #FCF5F4;
+  --background: #F9F7F6;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
   --primary: #DC3D2E;
@@ -265,7 +265,7 @@
 }
 
 [data-theme="indigo"] {
-  --background: #EEF2FF;
+  --background: #F3F4FB;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
   --primary: #5956EB;

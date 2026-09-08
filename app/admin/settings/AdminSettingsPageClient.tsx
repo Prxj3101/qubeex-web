@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     User, Mail, KeyRound, Eye, EyeOff, Check, X,
@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { readCachedBranding, writeCachedBranding } from '@/lib/brandingCache';
+import { readCachedInstType } from '@/lib/instTypeCache';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -222,9 +223,27 @@ export default function AdminSettingsPageClient() {
     const [profileCreatedAt, setProfileCreatedAt] = useState<string | null>(null);
 
     // ── Theme customization — PRO + TRIAL only, admin-only (not sub-admins) ──
+    const [isCollegeInstitution, setIsCollegeInstitution] = useState(false);
     const [themeColor, setThemeColor] = useState('purple');
     const [themeCustomizationEligible, setThemeCustomizationEligible] = useState(false);
     const [themeSaving, setThemeSaving] = useState<string | null>(null);
+
+    // Apply the synchronous localStorage caches (same ones used elsewhere for
+    // FOUC avoidance — see instTypeCache.ts / brandingCache.ts) in a
+    // useLayoutEffect rather than a lazy useState initializer. A lazy
+    // initializer runs during the client's hydration render too, and the
+    // server has no localStorage to match it against — 'purple'/non-college
+    // there vs 'blue'/college here — which is exactly what caused the
+    // "Encountered a script tag" + hydration-mismatch errors on this page.
+    // useLayoutEffect runs after hydration reconciles (so no mismatch) but
+    // before the browser paints (so no visible flash) — same fix already
+    // applied to BrandingContext.tsx for the same class of bug.
+    useLayoutEffect(() => {
+        const cachedIsCollege = readCachedInstType() === 'COLLEGE';
+        const cachedTheme = readCachedBranding().themeColor || 'purple';
+        setIsCollegeInstitution(cachedIsCollege);
+        setThemeColor(cachedIsCollege && cachedTheme === 'purple' ? 'blue' : cachedTheme);
+    }, []);
 
     // ── Personal details edit ──
     const [editing, setEditing] = useState(false);
@@ -308,11 +327,38 @@ export default function AdminSettingsPageClient() {
         api.get('/admin/me')
             .then((res) => {
                 const d = res.data?.data ?? res.data;
-                setThemeColor(d?.themeColor ?? 'purple');
+                // College institutions render blue by default via the
+                // `.theme-college` CSS class, applied unconditionally
+                // regardless of the `themeColor` DB field (which defaults to
+                // the string "purple" for every institution, college or not
+                // — see prisma schema.prisma). So a college that's never
+                // touched this picker actually SHOWS blue, but the field
+                // read literally says "purple" — highlighting Purple here
+                // would contradict what's on screen. Only treat that
+                // untouched-default case as blue; once a college admin
+                // explicitly picks a color themselves, respect it as-is.
+                const rawTheme = d?.themeColor ?? 'purple';
+                const isCollege = String(d?.type ?? '').toUpperCase() === 'COLLEGE';
+                setIsCollegeInstitution(isCollege);
+                setThemeColor(isCollege && rawTheme === 'purple' ? 'blue' : rawTheme);
                 setThemeCustomizationEligible(!!d?.themeCustomizationEligible);
             })
             .catch(() => { /* non-critical */ });
     }, [isSubAdmin]);
+
+    // College institutions default to Blue (see .theme-college in
+    // globals.css), so Blue should lead the picker for them with Purple
+    // second — the reverse of every other institution type, where Purple
+    // (the actual app-wide default) leads.
+    const orderedThemePresets = useMemo(() => {
+        if (!isCollegeInstitution) return THEME_PRESETS;
+        const purpleIdx = THEME_PRESETS.findIndex(p => p.id === 'purple');
+        const blueIdx = THEME_PRESETS.findIndex(p => p.id === 'blue');
+        if (purpleIdx === -1 || blueIdx === -1) return THEME_PRESETS;
+        const swapped = [...THEME_PRESETS];
+        [swapped[purpleIdx], swapped[blueIdx]] = [swapped[blueIdx], swapped[purpleIdx]];
+        return swapped;
+    }, [isCollegeInstitution]);
 
     // ── Handlers ──
 
@@ -496,7 +542,7 @@ export default function AdminSettingsPageClient() {
                                         : 'Upgrade to Pro to customize your accent color'}
                                 >
                                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                                        {THEME_PRESETS.map((preset) => {
+                                        {orderedThemePresets.map((preset) => {
                                             const active = themeColor === preset.id;
                                             return (
                                                 <button
