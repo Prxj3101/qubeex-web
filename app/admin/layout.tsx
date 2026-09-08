@@ -172,7 +172,7 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             />
             <main
                 className="flex-1 overflow-y-auto overflow-x-hidden px-2 outline-none bg-background visible-scrollbar"
-                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.25) transparent' }}
+                style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb-strong) transparent' }}
                 tabIndex={-1}
             >
                 {children}

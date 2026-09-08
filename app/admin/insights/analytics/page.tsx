@@ -1296,7 +1296,7 @@ export default function AdminAnalyticsPage() {
                         <div className="flex flex-col gap-3">
                             <p className="text-sm font-semibold">Usage by Feature <span className="text-xs font-normal text-muted-foreground">(this month)</span></p>
                             <div className="h-[222px] overflow-y-auto pr-1"
-                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                 {featureBreakdown.length === 0 ? (
                                     <p className="text-xs text-muted-foreground">No AI usage recorded yet.</p>
                                 ) : (() => {
@@ -1360,7 +1360,7 @@ export default function AdminAnalyticsPage() {
                     <div className="lg:w-[40%] flex flex-col min-h-0">
                         <p className="text-[11px] font-semibold text-foreground uppercase tracking-wider mb-3">Per teacher <span className="normal-case font-normal text-muted-foreground">(this month)</span></p>
                         <div className="space-y-3 h-[350px] overflow-y-auto pr-1"
-                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                         {aiTeachers.length === 0 && (
                             <p className="text-[11px] text-muted-foreground/60 italic">No AI usage recorded yet</p>
                         )}
@@ -1575,7 +1575,7 @@ export default function AdminAnalyticsPage() {
                             {visible.length === 0 ? (
                                 <p className="text-xs text-muted-foreground/70 leading-snug py-1">No disengaged student matches &quot;{parentEngagementSearch}&quot;.</p>
                             ) : (
-                                <div className="flex flex-wrap gap-2 overflow-y-auto pb-1 max-h-[170px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                <div className="flex flex-wrap gap-2 overflow-y-auto pb-1 max-h-[170px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                     {visible.map((f) => (
                                         <button key={f.studentId}
                                             onClick={() => router.push(`/admin/campus/classes/${f.standardId}/${f.divisionId}?tab=attendance`)}

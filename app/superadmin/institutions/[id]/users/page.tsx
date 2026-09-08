@@ -269,7 +269,7 @@ export default function SuperadminInstitutionUsersPage() {
                         </div>
 
                         {/* Scrollable body */}
-                        <div className="overflow-auto flex-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent', scrollbarGutter: 'stable' }}>
+                        <div className="overflow-auto flex-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent', scrollbarGutter: 'stable' }}>
                             <table className="w-full text-xs table-fixed">
                                 <colgroup>
                                     <col className="w-10" />

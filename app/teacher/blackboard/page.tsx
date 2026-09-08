@@ -688,7 +688,7 @@ function AIScanPanel({
 
                     {/* Scrollable page picker */}
                     <div className="flex-1 overflow-hidden pr-1" style={{ background: '#000' }}>
-                        <div className="h-full overflow-y-auto pl-4 pr-2 pt-1 pb-4" style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                        <div className="h-full overflow-y-auto pl-4 pr-2 pt-1 pb-4" style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                             {isPdf && totalPages > 0 ? (
                                 selectedPages.length === 0 ? (
                                     <div className="rounded-xl border border-dashed border-white/20 py-6 flex flex-col items-center gap-1.5">
@@ -1234,7 +1234,7 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
             )}
 
             <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3.5 min-h-0"
-                style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                 {messages.map((msg, i) => (
                     <div key={i} className={`group flex flex-col gap-1 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                         {msg.timestamp && (
@@ -1508,7 +1508,7 @@ function AIQuizPanel({
                     {/* Scrollable page picker */}
                     <div className="flex-1 overflow-hidden pr-1" style={{ background: '#000' }}>
                         <div className="h-full overflow-y-auto pl-4 pr-2 pt-1 pb-4"
-                            style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                            style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                             {isPdf && totalPages > 0 ? (
                                 selectedPages.length === 0 ? (
                                     <div className="rounded-xl border border-dashed border-white/20 py-6 flex flex-col items-center gap-1.5">
@@ -2541,7 +2541,7 @@ function AIMindmapPanel({
 
                     <div className="flex-1 overflow-hidden pr-1" style={{ background: '#000' }}>
                         <div className="h-full overflow-y-auto pl-4 pr-2 pt-1 pb-4"
-                            style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                            style={{ background: '#000', scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                             {isPdf && totalPages > 0 ? (
                                 selectedPages.length === 0 ? (
                                     <div className="rounded-xl border border-dashed border-white/20 py-6 flex flex-col items-center gap-1.5">

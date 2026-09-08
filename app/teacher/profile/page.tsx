@@ -105,7 +105,7 @@ function PhoneEditField({ value, onChange }: { value: string; onChange: (v: stri
                         {code} <ChevronRight size={10} className="text-muted-foreground rotate-90" />
                     </button>
                     {open && typeof document !== 'undefined' && createPortal(
-                        <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                        <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
                             className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
                             {PHONE_CODES.map(c => (
                                 <button key={c.code} type="button"

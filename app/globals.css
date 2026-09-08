@@ -61,6 +61,17 @@
      --foreground in light mode, but overridden to a softer grey in dark
      mode below, since near-white against the dark card felt too stark. */
   --gauge-ink: var(--foreground);
+  /* Custom-scrollbar thumb tint used all over the app (`scrollbarColor:
+     'rgba(139,92,246,0.15) transparent'` etc, previously hardcoded violet
+     everywhere, same value in both light AND dark mode for the default
+     purple theme — kept pinned to that exact violet-500 here via
+     --scrollbar-accent, rather than --primary, since --primary itself
+     differs slightly (#7C3AED) and between light/dark. Every data-theme
+     preset below overrides --scrollbar-accent to its own --primary, so
+     picking a different color re-tints the scrollbar to match it. */
+  --scrollbar-accent: #8B5CF6;
+  --scrollbar-thumb: color-mix(in srgb, var(--scrollbar-accent) 15%, transparent);
+  --scrollbar-thumb-strong: color-mix(in srgb, var(--scrollbar-accent) 25%, transparent);
 }
 
 .dark {
@@ -139,108 +150,131 @@
    default theme's own dark mode. Semantic status colors (--red/--green/
    --amber/--blue used for success/error/warning, not branding) are
    deliberately left untouched by every preset below. ── */
+/* Matches .theme-college's blue exactly (same institution-facing "blue" the
+   COLLEGE hardcoded theme already uses) — see [[project-qubeex-college-theme-colors]]. */
 [data-theme="blue"] {
   --background: #EFF6FF;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
-  --primary: #2563EB;
+  --primary: #3970E0;
   --primary-foreground: #FFFFFF;
   --muted: #DBEAFE;
   --muted-foreground: #64748B;
   --border: #93C5FD;
-  --hero-accent: #2563EB;
+  --hero-accent: #2F6AE6;
+  --scrollbar-accent: var(--primary);
 }
 .dark[data-theme="blue"] {
   --background: #000000;
   --card: #141414;
   --card-foreground: #F1F5F9;
-  --primary: #60A5FA;
+  --primary: #6495ED;
   --primary-foreground: #0B1B2A;
   --muted: #1E1E1E;
   --muted-foreground: #94A3B8;
   --border: #2A2A2A;
-  --hero-accent: #1D4ED8;
+  --hero-accent: #3557AB;
+  --scrollbar-accent: var(--primary);
 }
 
+/* Siemens' official brand color — #009999 ("Traditional Turquoise" in their
+   own guidelines, filed under green palettes elsewhere since it reads as a
+   teal-green) — see https://www.schemecolor.com/siemens-logo-colors.php */
 [data-theme="teal"] {
   --background: #F0FDFA;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
-  --primary: #0D9488;
+  --primary: #009999;
   --primary-foreground: #FFFFFF;
   --muted: #CCFBF1;
   --muted-foreground: #64748B;
   --border: #5EEAD4;
-  --hero-accent: #0D9488;
+  --hero-accent: #008080;
+  --scrollbar-accent: var(--primary);
 }
 .dark[data-theme="teal"] {
   --background: #000000;
   --card: #141414;
   --card-foreground: #F1F5F9;
-  --primary: #2DD4BF;
-  --primary-foreground: #042F2E;
+  --primary: #33CCCC;
+  --primary-foreground: #003333;
   --muted: #1E1E1E;
   --muted-foreground: #94A3B8;
   --border: #2A2A2A;
-  --hero-accent: #0F766E;
+  --hero-accent: #006666;
+  --scrollbar-accent: var(--primary);
 }
 
+/* Softened from the original bright-yellow set (#FFFBEB bg / #FCD34D border) —
+   that combo read as harsh highlighter-yellow across nav/hero/background
+   together. Warmer cream/tan tones here keep the amber family without the
+   glare, closer to how the other presets' light mode feels muted rather
+   than saturated. */
 [data-theme="amber"] {
-  --background: #FFFBEB;
+  --background: #FDFAF2;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
-  --primary: #D97706;
+  --primary: #ED9A1F;
   --primary-foreground: #FFFFFF;
-  --muted: #FEF3C7;
+  --muted: #F5EBD8;
   --muted-foreground: #64748B;
-  --border: #FCD34D;
-  --hero-accent: #D97706;
+  --border: #E8D5B0;
+  --hero-accent: #ED9A1F;
+  --scrollbar-accent: var(--primary);
 }
 .dark[data-theme="amber"] {
   --background: #000000;
   --card: #141414;
   --card-foreground: #F1F5F9;
-  --primary: #FBBF24;
+  --primary: #F0B01A;
   --primary-foreground: #45280A;
   --muted: #1E1E1E;
   --muted-foreground: #94A3B8;
   --border: #2A2A2A;
-  --hero-accent: #B45309;
+  /* Kept in the same amber family as --primary (#FBBF24, navbar — untouched),
+     just one step deeper (amber-500 vs amber-400) so it reads as a background
+     rather than identical to the navbar, without jumping to a different hue
+     like the earlier orange attempt did. */
+  --hero-accent: #D6890F;
+  --scrollbar-accent: var(--primary);
 }
 
 [data-theme="rose"] {
-  --background: #FFF1F2;
+  --background: #FCF5F4;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
-  --primary: #E11D48;
+  --primary: #DC3D2E;
   --primary-foreground: #FFFFFF;
-  --muted: #FFE4E6;
+  --muted: #FEE2E2;
   --muted-foreground: #64748B;
-  --border: #FDA4AF;
-  --hero-accent: #E11D48;
+  --border: #FCA5A5;
+  --hero-accent: #DC3D2E;
+  --scrollbar-accent: var(--primary);
 }
 .dark[data-theme="rose"] {
   --background: #000000;
   --card: #141414;
   --card-foreground: #F1F5F9;
-  --primary: #FB7185;
-  --primary-foreground: #4C0519;
+  --primary: #F47676;
+  --primary-foreground: #450A0A;
   --muted: #1E1E1E;
   --muted-foreground: #94A3B8;
   --border: #2A2A2A;
-  --hero-accent: #9F1239;
+  --hero-accent: #B54444;
+  --scrollbar-accent: var(--primary);
 }
 
 [data-theme="indigo"] {
   --background: #EEF2FF;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
-  --primary: #4F46E5;
+  --primary: #5956EB;
   --primary-foreground: #FFFFFF;
   --muted: #E0E7FF;
   --muted-foreground: #64748B;
   --border: #A5B4FC;
-  --hero-accent: #4F46E5;
+  --hero-accent: #5956EB;
+  --scrollbar-accent: var(--primary);
 }
 .dark[data-theme="indigo"] {
   --background: #000000;
@@ -252,18 +286,20 @@
   --muted-foreground: #94A3B8;
   --border: #2A2A2A;
   --hero-accent: #3730A3;
+  --scrollbar-accent: var(--primary);
 }
 
 [data-theme="slate"] {
   --background: #F8FAFC;
   --card: #FFFFFF;
   --card-foreground: #0F172A;
-  --primary: #475569;
+  --primary: #64748B;
   --primary-foreground: #FFFFFF;
   --muted: #F1F5F9;
   --muted-foreground: #64748B;
   --border: #CBD5E1;
-  --hero-accent: #475569;
+  --hero-accent: #64748B;
+  --scrollbar-accent: var(--primary);
 }
 .dark[data-theme="slate"] {
   --background: #000000;
@@ -275,6 +311,7 @@
   --muted-foreground: #94A3B8;
   --border: #2A2A2A;
   --hero-accent: #334155;
+  --scrollbar-accent: var(--primary);
 }
 
 @layer base {

@@ -295,7 +295,7 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                         <div className="border-t border-border/40 px-4 pt-0 pb-1 flex flex-col gap-2">
                             <div
                                 className="max-h-[285px] overflow-y-auto space-y-4 pr-1 pt-1 pb-3 border-b border-border/40"
-                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
                             >
                                 <div className="p-3 bg-muted/30 rounded-xl">
                                     <p className="text-[11px] font-semibold text-muted-foreground mb-1">Description</p>

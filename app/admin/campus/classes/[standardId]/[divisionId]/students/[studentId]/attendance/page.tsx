@@ -176,7 +176,7 @@ export default function AdminStudentAttendanceDetailsPage() {
 
                 {/* ── RIGHT — Month-wise + Attendance Sheet (this side scrolls) ── */}
                 <div className="w-full flex-1 min-w-0 self-stretch flex flex-col gap-3 min-h-0 overflow-visible lg:overflow-y-auto pr-0 lg:pr-2"
-                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
 
                     <div className="flex flex-col sm:flex-row gap-3 shrink-0">
                         <div className="flex flex-row sm:flex-col gap-3 w-full lg:w-[140px] shrink-0">

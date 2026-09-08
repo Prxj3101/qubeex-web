@@ -108,7 +108,7 @@ function PhoneField({ label, value, onChange }: { label: string; value: string; 
                         {code} <ChevronDown size={10} className="text-muted-foreground" />
                     </button>
                     {open && typeof document !== 'undefined' && createPortal(
-                        <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                        <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
                             className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
                             {COUNTRY_CODES.map(c => (
                                 <button key={c.code} type="button"
@@ -154,7 +154,7 @@ function EditDropdown({ label, value, options, onChange }: {
                 </button>
                 {open && (
                     <div className="absolute top-9 left-0 z-50 w-full bg-card border border-border rounded-xl shadow-xl py-1 max-h-[145px] overflow-y-auto"
-                        style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                        style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                         {options.map(o => (
                             <button key={o.value} type="button"
                                 onClick={() => { onChange(o.value); setOpen(false); }}
@@ -450,7 +450,7 @@ export default function StudentDetailPage() {
 
             {/* ── RIGHT — Detail Sections (scrollable) ── */}
             <div className="w-full lg:w-[70%] min-w-0 space-y-3 lg:overflow-y-auto pb-6 lg:pr-2"
-                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
 
                 {/* ROW 1 — Student Info + Academic Details */}
                 <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">

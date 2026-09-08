@@ -702,7 +702,7 @@ export default function TeacherStudentFeesPage() {
                         <p className="text-sm font-bold">Pay Fees</p>
                     </div>
                     <div className="flex-1 overflow-y-auto bg-background px-4 py-3 space-y-3 divide-y divide-border/30"
-                        style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                        style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
 
                         {/* Bank Details */}
                         <div className="pb-3">

@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect } from 'react';
 import { usePathname } from 'next/navigation';
 import api from '@/lib/api';
 import {
@@ -40,7 +40,13 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     // in an effect (after hydration, a plain client-side update is fine).
     const [branding, setBranding] = useState<CachedBranding>(QUBEEX_DEFAULT_BRANDING);
 
-    useEffect(() => {
+    // useLayoutEffect (not useEffect) for both the cache read below and the
+    // data-theme attribute sync further down — these run synchronously before
+    // the browser paints, so the brief window where `branding` sits at its
+    // default value never actually reaches the screen. useEffect would still
+    // paint that in-between frame, which is exactly what showed up as a
+    // purple flash even after the cache started carrying the right value.
+    useLayoutEffect(() => {
         // Public marketing/login pages never have an institution context —
         // a stale cache from a previously-tested white-labeled institution
         // must not leak the wrong name/favicon onto them.
@@ -50,7 +56,18 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
         }
 
         const cached = readCachedBranding();
-        if (cached.enabled) setBranding(cached);
+        if (cached.enabled) {
+            setBranding(cached);
+        } else if (cached.themeColor && cached.themeColor !== QUBEEX_DEFAULT_BRANDING.themeColor) {
+            // White-labeling itself isn't cached as enabled, but a custom accent
+            // color is — apply just that piece immediately. Without this, `branding`
+            // sits at the default 'purple' until the /branding fetch below resolves,
+            // and the data-theme effect right below reacts to that default first —
+            // stripping the color the server already rendered correctly from the
+            // qubeex_theme cookie — producing a purple flash on every single load,
+            // not just the first one after changing the color.
+            setBranding(prev => ({ ...prev, themeColor: cached.themeColor }));
+        }
 
         api.get('/branding')
             .then((r) => {
@@ -67,7 +84,7 @@ export function BrandingProvider({ children }: { children: React.ReactNode }) {
     // covers the very first visit (no qubeex_theme cookie yet for the
     // server-rendered layout to read) and instant feedback right after the
     // admin picks a new theme, without needing a full page reload.
-    useEffect(() => {
+    useLayoutEffect(() => {
         const effective = isPublic ? QUBEEX_DEFAULT_BRANDING : branding;
         if (effective.themeColor && effective.themeColor !== 'purple') {
             document.documentElement.setAttribute('data-theme', effective.themeColor);

@@ -234,7 +234,7 @@ export default function AdminStudentDetailPage() {
 
                 {/* RIGHT — Detail Sections */}
                 <div className="w-full lg:w-[70%] min-w-0 space-y-3 lg:overflow-y-auto pb-6 lg:pr-2"
-                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
 
                     {/* ROW 1 — Student Info + Academic Details */}
                     <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">

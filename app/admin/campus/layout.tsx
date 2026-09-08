@@ -315,7 +315,7 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
                             {showResults && searchInput.trim() && (
                                 <div
                                     className="absolute right-0 top-[calc(100%+6px)] z-50 w-[420px] max-h-[70vh] overflow-y-auto rounded-2xl border border-border/50 bg-background shadow-lg p-2 space-y-2"
-                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
                                 >
                                     {searching && (
                                         <p className="text-xs text-muted-foreground text-center py-4">Searching...</p>

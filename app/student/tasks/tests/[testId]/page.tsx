@@ -345,7 +345,7 @@ export default function TakeTestPage() {
             <div className={`rounded-2xl border border-border bg-card p-5 flex flex-col ${isAppWebView ? 'mb-3 h-[400px]' : 'mb-4 h-[380px]'}`}>
                 <p className="text-base font-medium leading-relaxed mb-5">{index + 1}. {q.questionText}</p>
 
-                <div className="flex-1 overflow-y-auto pr-2 visible-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.25) transparent' }}>
+                <div className="flex-1 overflow-y-auto pr-2 visible-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb-strong) transparent' }}>
                 {(q.images ?? []).length > 0 && (
                     <div className="mb-3 flex flex-wrap gap-2">
                         {(q.images ?? []).map((url, ii) => (

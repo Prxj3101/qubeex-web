@@ -248,7 +248,7 @@ function TicketCard({ ticket, index, onReply, onStatusChange }: {
                         <div className="border-t border-border/40 px-4 pt-0 pb-1 flex flex-col gap-2">
                             <div
                                 className="max-h-[285px] overflow-y-auto space-y-4 pr-1 pt-1 pb-3 border-b border-border/40"
-                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
                             >
                                 {/* Description */}
                                 <div className="p-3 bg-muted/30 rounded-xl">

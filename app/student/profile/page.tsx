@@ -255,7 +255,7 @@ export default function StudentProfile() {
                                     </tr>
                                 </thead>
                             </table>
-                            <div className="overflow-y-auto max-h-[344px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent', willChange: 'transform', transform: 'translateZ(0)' }}>
+                            <div className="overflow-y-auto max-h-[344px]" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent', willChange: 'transform', transform: 'translateZ(0)' }}>
                                 <table className="text-xs w-full" style={{ tableLayout: 'fixed' }}>
                                     <colgroup>
                                         <col style={{ width: '18%' }} />

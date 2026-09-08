@@ -1461,7 +1461,7 @@ export default function DivisionDetailPage() {
                                                 <textarea value={postBody} onChange={e => setPostBody(e.target.value)}
                                                     placeholder="Write description (optional)..." rows={2}
                                                     className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none resize-none max-h-24 overflow-y-auto py-0.5"
-                                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }} />
+                                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }} />
                                                 {uploadingAttachment && (
                                                     <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px] text-muted-foreground">
                                                         <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />

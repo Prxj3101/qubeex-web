@@ -226,7 +226,7 @@ function ViewTab({ data }: { data: ClassData }) {
                 </div>
 
                 {/* CENTER + RIGHT — single scroll wrapper, grid layout */}
-                <div className="flex-1 min-w-0 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                <div className="flex-1 min-w-0 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-3 lg:[grid-template-rows:repeat(2,380px)]">
 
                         {/* Timetable (col 1, row 1) */}
@@ -311,7 +311,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                 <GraduationCap size={16} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Teachers</p>
                             </div>
-                            <div className="overflow-y-auto flex-1 min-h-0" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                            <div className="overflow-y-auto flex-1 min-h-0" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                 {division?.classTeacherName && (
                                     <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border/40 transition-colors hover:bg-muted/40">
                                         <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#F59E0B' }} />
@@ -341,7 +341,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                 <FileText size={13} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Results &amp; Materials</p>
                             </div>
-                            <div className="overflow-y-auto flex-1 min-h-0 px-3 py-2 space-y-1.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                            <div className="overflow-y-auto flex-1 min-h-0 px-3 py-2 space-y-1.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                 {resultFiles.length === 0 && (generalMaterials?.length ?? 0) === 0
                                     ? <p className="text-[10px] text-muted-foreground py-4 text-center">No results or materials uploaded yet</p>
                                     : (
@@ -452,7 +452,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                     <span className="text-sm">🏆</span>
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{subject.name} — Top 5</p>
                                 </div>
-                                <div className="flex-1 overflow-y-auto min-h-0 px-3 py-2 space-y-1.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                <div className="flex-1 overflow-y-auto min-h-0 px-3 py-2 space-y-1.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                     {leaderboard.length === 0
                                         ? <p className="text-[10px] text-muted-foreground py-8 text-center">No results yet</p>
                                         : leaderboard.map((e, i) => {
@@ -501,7 +501,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                 </div>
                                 <div className="flex-1 min-h-0">
                                     {centerTab === 'materials' ? (
-                                        <div className="h-full p-4 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                        <div className="h-full p-4 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                             {materials.length === 0
                                                 ? <div className="flex items-center justify-center h-full"><p className="text-[11px] text-muted-foreground">No materials uploaded yet</p></div>
                                                 : materials.map(m => <FileRow key={m.id} file={m} onView={setViewFile} />)
@@ -563,7 +563,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                             {/* Right — My Results */}
                                             <div className="w-full lg:w-[220px] shrink-0 flex flex-col px-3" style={{ paddingTop: 36, paddingBottom: 16 }}>
                                                 <p className="text-[12px] font-bold text-foreground mb-3 shrink-0">My Results</p>
-                                                <div className="overflow-y-auto space-y-2.5 border-b border-border/30" style={{ height: 308, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                                <div className="overflow-y-auto space-y-2.5 border-b border-border/30" style={{ height: 308, scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                                     {modeColumns.length === 0
                                                         ? <p className="text-[10px] text-muted-foreground text-center pt-8">
                                                             {lbMode === 'online' ? 'No completed tests yet' : lbMode === 'offline' ? 'No offline marks yet' : 'No marks published yet'}

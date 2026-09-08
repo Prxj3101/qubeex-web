@@ -91,7 +91,7 @@ function AdminPhoneField({ value, onChange }: { value: string; onChange: (v: str
                     {code} <ChevronDown size={10} className="text-muted-foreground" />
                 </button>
                 {open && typeof document !== 'undefined' && createPortal(
-                    <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}
+                    <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
                         className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
                         {COUNTRY_CODES.map(c => (
                             <button key={c.code} type="button"
@@ -146,7 +146,7 @@ function AdminGenderDropdown({ value, onChange }: { value: string; onChange: (v:
             </button>
             {open && (
                 <div className="absolute top-9 left-0 z-[9999] w-full bg-card border border-border rounded-xl shadow-xl py-1"
-                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                     {ADMIN_GENDERS.map(o => (
                         <button key={o.value} type="button"
                             onClick={() => { onChange(o.value); setOpen(false); }}

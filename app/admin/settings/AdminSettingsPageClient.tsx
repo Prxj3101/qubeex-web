@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
+import { readCachedBranding, writeCachedBranding } from '@/lib/brandingCache';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,10 +53,10 @@ function calculateStrength(password: string): { level: PasswordStrength; score: 
 // keep these in sync manually if a preset's color ever changes there.
 const THEME_PRESETS: { id: string; label: string; swatch: string }[] = [
     { id: 'purple', label: 'Purple', swatch: '#7C3AED' },
-    { id: 'blue', label: 'Blue', swatch: '#2563EB' },
-    { id: 'teal', label: 'Teal', swatch: '#0D9488' },
-    { id: 'amber', label: 'Amber', swatch: '#D97706' },
-    { id: 'rose', label: 'Rose', swatch: '#E11D48' },
+    { id: 'blue', label: 'Blue', swatch: '#3970E0' },
+    { id: 'teal', label: 'Teal', swatch: '#009999' },
+    { id: 'amber', label: 'Amber', swatch: '#ED9A1F' },
+    { id: 'rose', label: 'Rose', swatch: '#DC2626' },
     { id: 'indigo', label: 'Indigo', swatch: '#4F46E5' },
     { id: 'slate', label: 'Slate', swatch: '#475569' },
 ];
@@ -129,6 +130,49 @@ function FieldRow({ icon: Icon, label, value, editing, onChange, type = 'text', 
             ) : (
                 <span className="text-[13px] font-medium truncate flex-1">{value || '—'}</span>
             )}
+        </div>
+    );
+}
+
+// Miniature 1:1 mockup of the real app chrome (Topbar.tsx's rounded header +
+// pill nav row) plus a couple of SectionCard-style content blocks, tinted
+// with the preset's accent color — same idea as Slack's sidebar-theme picker
+// cards, just built to mirror our own layout instead of a generic one.
+function ThemeMiniPreview({ color }: { color: string }) {
+    return (
+        <div className="w-full aspect-[4/3] rounded-xl bg-background p-1.5 flex flex-col gap-1 overflow-hidden">
+            {/* main topbar — neutral logo spot + brand line on the left, bell/toggle/avatar spot on the right (no accent here, same as the real Topbar) */}
+            <div className="h-4 rounded-full bg-card flex items-center justify-between px-1.5 shrink-0">
+                <div className="flex items-center gap-1 min-w-0">
+                    <span className="w-2 h-2 rounded-[3px] shrink-0 bg-muted-foreground/30" />
+                    <span className="h-[3px] w-6 rounded-full bg-foreground/25 shrink-0" />
+                </div>
+                <div className="flex items-center gap-0.5 shrink-0">
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/25" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground/25" />
+                    <span className="w-2 h-2 rounded-full bg-muted-foreground/30" />
+                </div>
+            </div>
+            {/* pill nav — only the active item gets an accent pill; the rest are plain
+                muted text, same as the real Topbar (one bg-primary chip, everything
+                else transparent) */}
+            <div className="h-3.5 rounded-full bg-foreground/[0.07] flex items-center px-1 shrink-0 w-[60%] overflow-hidden">
+                <span className="h-2 w-6 rounded-full shrink-0" style={{ background: color }} />
+            </div>
+            {/* secondary pill nav — same style, half the width, active chip on the right */}
+            <div className="h-3.5 rounded-full bg-foreground/[0.07] flex items-center justify-end px-1 shrink-0 w-[30%] overflow-hidden">
+                <span className="h-2 w-4 rounded-full shrink-0" style={{ background: color }} />
+            </div>
+            {/* content — two SectionCard-style blocks: icon chip + text lines */}
+            <div className="flex-1 grid grid-cols-2 gap-1">
+                {[0, 1].map((i) => (
+                    <div key={i} className="rounded-lg bg-card shadow-sm p-1 flex flex-col gap-1 justify-center">
+                        <span className="w-2 h-2 rounded-[3px] shrink-0" style={{ background: `${color}40` }} />
+                        <span className="h-[3px] w-full rounded-full bg-muted-foreground/20" />
+                        <span className="h-[3px] w-2/3 rounded-full bg-muted-foreground/15" />
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
@@ -336,6 +380,12 @@ export default function AdminSettingsPageClient() {
             setThemeColor(id);
             if (id === 'purple') document.documentElement.removeAttribute('data-theme');
             else document.documentElement.setAttribute('data-theme', id);
+            // Persist to the qubeex_theme cookie immediately — BrandingContext only
+            // re-fetches /branding once per session (on mount), so without this the
+            // cookie stays stale until that next fetch happens to land, and every
+            // refresh in between renders the OLD theme color first (visible flash)
+            // before client JS catches up and flips it. Writing it here closes that gap.
+            writeCachedBranding({ ...readCachedBranding(), themeColor: id });
             toast.success('Theme updated');
         } catch {
             toast.error('Failed to update theme');
@@ -445,7 +495,7 @@ export default function AdminSettingsPageClient() {
                                         ? 'Pick an accent color for your admin, teacher and student app'
                                         : 'Upgrade to Pro to customize your accent color'}
                                 >
-                                    <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-7">
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                                         {THEME_PRESETS.map((preset) => {
                                             const active = themeColor === preset.id;
                                             return (
@@ -454,27 +504,36 @@ export default function AdminSettingsPageClient() {
                                                     type="button"
                                                     onClick={() => handleThemeSelect(preset.id)}
                                                     disabled={themeSaving !== null}
-                                                    title={preset.label}
-                                                    className="flex flex-col items-center gap-1 group"
+                                                    className="flex flex-col items-center gap-1.5 group text-left"
                                                 >
-                                                    <span
-                                                        className="w-8 h-8 rounded-full flex items-center justify-center ring-2 transition-all"
+                                                    <div
+                                                        className="relative w-full rounded-xl p-0.5 transition-all"
                                                         style={{
-                                                            background: preset.swatch,
-                                                            borderColor: active ? preset.swatch : 'transparent',
-                                                            boxShadow: active ? `0 0 0 2px var(--card), 0 0 0 4px ${preset.swatch}` : 'none',
+                                                            boxShadow: active ? `0 0 0 2px ${preset.swatch}` : '0 0 0 1px var(--border)',
                                                         }}
                                                     >
-                                                        {themeSaving === preset.id ? (
-                                                            <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                                        ) : active ? (
-                                                            <Check size={13} className="text-white" />
-                                                        ) : !themeCustomizationEligible ? (
-                                                            <Lock size={11} className="text-white/80" />
-                                                        ) : null}
-                                                    </span>
-                                                    <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">
-                                                        {preset.label}
+                                                        <ThemeMiniPreview color={preset.swatch} />
+                                                        {themeSaving === preset.id && (
+                                                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center rounded-xl">
+                                                                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                                            </div>
+                                                        )}
+                                                        {!themeCustomizationEligible && !active && themeSaving === null && (
+                                                            <div className="absolute inset-0 bg-black/10 flex items-center justify-center rounded-xl opacity-0 group-hover:opacity-100 transition-opacity">
+                                                                <Lock size={14} className="text-white drop-shadow" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    <span className="flex items-center gap-1.5">
+                                                        <span
+                                                            className="w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors"
+                                                            style={{ borderColor: active ? preset.swatch : 'var(--border)' }}
+                                                        >
+                                                            {active && <span className="w-1.5 h-1.5 rounded-full" style={{ background: preset.swatch }} />}
+                                                        </span>
+                                                        <span className="text-[11px] font-medium text-muted-foreground group-hover:text-foreground transition-colors">
+                                                            {preset.label}
+                                                        </span>
                                                     </span>
                                                 </button>
                                             );

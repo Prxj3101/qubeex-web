@@ -1186,7 +1186,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                     </button>
                                 </div>
                                 <div className="h-[260px] overflow-y-auto px-4 py-3 space-y-2"
-                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                     {feeStructures.length === 0 && (
                                         <div className="text-center py-8">
                                             <Tag size={24} className="mx-auto text-muted-foreground/30 mb-2" />

@@ -736,7 +736,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                 <textarea value={postBody} onChange={e => setPostBody(e.target.value)}
                                     placeholder="Write description (optional)..." rows={2}
                                     className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none resize-none max-h-24 overflow-y-auto py-0.5"
-                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }} />
+                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }} />
                                 {attachments.length > 0 && (
                                     <div className="flex items-center gap-1 ml-2">
                                         {attachments.map((file, i) => (
@@ -778,7 +778,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                         </p>
                     </div>
                     <div className="px-4 py-2 divide-y divide-border/20 overflow-y-auto"
-                        style={{ maxHeight: 7 * 37, scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                        style={{ maxHeight: 7 * 37, scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                         {division.subjects.length === 0 && (
                             <p className="text-xs text-muted-foreground/60 italic py-3 text-center">No subjects yet</p>
                         )}
@@ -960,7 +960,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             <FolderOpen size={14} /> Materials
                         </p>
                     </div>
-                    <div className="px-4 py-2 space-y-2 flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                    <div className="px-4 py-2 space-y-2 flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                         {postsLoading ? (
                             <div className="flex items-center justify-center py-6">
                                 <span className="w-4 h-4 rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground animate-spin" />
@@ -1042,7 +1042,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             e.target.value = '';
                         }} />
 
-                    <div className="px-4 py-2 space-y-2 flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                    <div className="px-4 py-2 space-y-2 flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                         {postsLoading ? (
                             <div className="flex items-center justify-center py-6">
                                 <span className="w-4 h-4 rounded-full border-2 border-muted-foreground/20 border-t-muted-foreground animate-spin" />

@@ -1720,7 +1720,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                 </div>
                             </div>
                             <div className="h-[260px] overflow-y-auto px-4 py-3 space-y-2"
-                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                 {(() => {
                                     const visibleStructures = feeStructures.filter(fs => {
                                         if (structureViewFilter === 'default') return fs.type === 'BUS' || fs.type === 'LATE_FEE';
@@ -2325,7 +2325,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                             </div>
                                         </div>
                                         <div className="flex-1 overflow-y-auto px-5 pb-4 space-y-2"
-                                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                             {(() => {
                                                 const filteredSelectable = selectableStructures.filter(fs => (fs.origin ?? 'setup') === addModalStructureFilter);
                                                 if (filteredSelectable.length === 0) {
@@ -2356,7 +2356,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                     <div className="w-full md:w-1/2 flex flex-col min-h-0 border-t md:border-t-0 border-border/50">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-5 pt-3 pb-2 shrink-0">Create New Structure</p>
                                         <div className="flex-1 overflow-y-auto px-5 pb-4 flex flex-col min-h-0"
-                                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                             <FeeStructureForm compact
                                                 excludeTypes={['BUS', 'LATE_FEE']}
                                                 defaultOrigin="student"
@@ -2493,7 +2493,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                 <p className="text-xs italic text-muted-foreground mb-4">No fee months set up yet.</p>
                             ) : (
                                 <div className="flex flex-wrap gap-1.5 mb-5 max-h-64 overflow-y-auto"
-                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                     {feeMonths.map(m => {
                                         const active = busMonthsSelection.includes(m.id);
                                         return (

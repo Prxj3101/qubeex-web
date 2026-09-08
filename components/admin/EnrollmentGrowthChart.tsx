@@ -7,15 +7,18 @@ import {
     CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import type { AdminOverview, InstitutionType } from '@/types';
-import { getInstitutionAccent } from '@/lib/getInstitutionAccent';
+import { useThemeAccent } from '@/hooks/useThemeAccent';
 
 interface EnrollmentGrowthChartProps {
     data: AdminOverview['enrollmentGrowth'];
     institutionType: InstitutionType;
 }
 
-export function EnrollmentGrowthChart({ data, institutionType }: EnrollmentGrowthChartProps) {
-    const accent = getInstitutionAccent(institutionType);
+export function EnrollmentGrowthChart({ data }: EnrollmentGrowthChartProps) {
+    // Students bar follows whatever accent color the admin picked in Settings
+    // (was previously hardcoded per institution type, so it never matched a
+    // custom theme pick).
+    const accentColor = useThemeAccent('--primary');
 
     return (
         <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5 h-full w-full overflow-hidden flex flex-col">
@@ -26,7 +29,7 @@ export function EnrollmentGrowthChart({ data, institutionType }: EnrollmentGrowt
                 </div>
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <span className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: accent.bg }} />
+                        <span className="w-2.5 h-2.5 rounded-sm inline-block" style={{ background: accentColor }} />
                         Students
                     </span>
                     <span className="flex items-center gap-1.5">
@@ -63,7 +66,7 @@ export function EnrollmentGrowthChart({ data, institutionType }: EnrollmentGrowt
                     />
                     <Bar
                         dataKey="students"
-                        fill={accent.bg}
+                        fill={accentColor}
                         radius={[6, 6, 0, 0]}
                         maxBarSize={28}
                         opacity={0.9}

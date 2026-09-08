@@ -1270,7 +1270,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
             </AnimatePresence>
 
             {/* Tab content */}
-            <div className="flex-1 min-h-0 overflow-y-auto py-3 pr-2 space-y-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+            <div className="flex-1 min-h-0 overflow-y-auto py-3 pr-2 space-y-3" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                 {/* ── QUESTIONS TAB ── */}
                 {subTab === 'questions' && !selectedContainerId && (
                     <>
@@ -5283,7 +5283,7 @@ function PaperBuilder({ testId, approvedQuestions, modules, lockedPaperType, ent
                                         {isExpanded ? <ChevronUp size={12} className="text-muted-foreground shrink-0" /> : <ChevronDown size={12} className="text-muted-foreground shrink-0" />}
                                     </button>
                                     {isExpanded && (
-                                        <div className="border-t border-border/40 bg-white dark:bg-black/20 max-h-[420px] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(139,92,246,0.15) transparent' }}>
+                                        <div className="border-t border-border/40 bg-white dark:bg-black/20 max-h-[420px] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                                             {mod.questions.length === 0 ? (
                                                 <p className="text-[11px] text-muted-foreground px-4 py-3">No questions in this module.</p>
                                             ) : mod.questions.map(mq => {

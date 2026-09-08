@@ -2,6 +2,7 @@
 
 import type { InstitutionType } from '@/types';
 import { getInstitutionAccent } from '@/lib/getInstitutionAccent';
+import { useThemeAccent } from '@/hooks/useThemeAccent';
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { isTodayBirthday } from '@/components/shared/BirthdayBanner';
@@ -64,17 +65,13 @@ interface OverviewHeroProps {
 }
 
 export function OverviewHero({ adminName, institutionName, institutionType, adminDob, institutionEstablishedOn }: OverviewHeroProps) {
+    // Emoji/label still come from institution type, but the actual color now
+    // follows whatever accent the admin picked in Settings (--hero-accent
+    // already resolves per light/dark and per data-theme preset via the
+    // cascade in globals.css) instead of a color hardcoded per institution type.
     const accent = getInstitutionAccent(institutionType);
-    const [isDark, setIsDark] = useState(false);
+    const heroColor = useThemeAccent('--hero-accent');
     const [currentChar, setCurrentChar] = useState(0);
-
-    useEffect(() => {
-        const check = () => setIsDark(document.documentElement.classList.contains('dark'));
-        check();
-        const observer = new MutationObserver(check);
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
-        return () => observer.disconnect();
-    }, []);
 
     useEffect(() => {
         const iv = setInterval(() => setCurrentChar(p => (p + 1) % CHARACTERS.length), 7000);
@@ -100,7 +97,7 @@ export function OverviewHero({ adminName, institutionName, institutionType, admi
     return (
         <div
             className="-mx-4 relative overflow-hidden rounded-b-[30px] sm:rounded-b-[45px] lg:rounded-b-[65px] px-5 sm:px-8 lg:px-13 py-5 flex items-center justify-between min-h-[160px]"
-            style={{ background: isDark ? accent.bgDark : accent.bg }}
+            style={{ background: heroColor }}
         >
             {/* Orbs */}
             <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
