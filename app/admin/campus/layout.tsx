@@ -8,6 +8,7 @@ import { useMockInstType } from '@/context/MockInstTypeContext';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { useThemeAccent } from '@/hooks/useThemeAccent';
 
 interface StudentSearchResult {
     id: string;
@@ -26,6 +27,11 @@ interface StudentSearchResult {
 
 function StudentSearchCard({ student }: { student: StudentSearchResult }) {
     const router = useRouter();
+    // This card is styled as a fixed light card regardless of dark mode
+    // (white bg, dark text) — but the purple accent inside it was still
+    // hardcoded, so it never reflected the institution's chosen theme color.
+    const accent = useThemeAccent('--primary');
+    const heroAccent = useThemeAccent('--hero-accent');
     const dobDate = student.dob ? new Date(student.dob) : null;
     const dobValid = !!dobDate && !isNaN(dobDate.getTime());
     const age = dobValid ? new Date().getFullYear() - dobDate!.getFullYear() : null;
@@ -52,10 +58,10 @@ function StudentSearchCard({ student }: { student: StudentSearchResult }) {
     ];
 
     return (
-        <div className="rounded-[20px] border border-[#EDE9FE] bg-white overflow-hidden shadow-sm">
+        <div className="rounded-[20px] border bg-white overflow-hidden shadow-sm" style={{ borderColor: `color-mix(in srgb, ${accent} 20%, transparent)` }}>
             <div
                 className="flex items-center justify-between gap-2.5 px-4 py-2"
-                style={{ background: 'linear-gradient(to right, #7C3AED, #5B21B6)' }}
+                style={{ background: `linear-gradient(to right, ${heroAccent}, color-mix(in srgb, ${heroAccent} 65%, black))` }}
             >
                 <div className="flex items-center gap-2.5 min-w-0">
                     {student.institutionLogoUrl && (
@@ -88,7 +94,7 @@ function StudentSearchCard({ student }: { student: StudentSearchResult }) {
                     >
                         <div
                             className="w-[52px] h-[52px] rounded-[12px] flex items-center justify-center overflow-hidden"
-                            style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}
+                            style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 55%, white), ${accent})` }}
                         >
                             {student.avatarUrl ? (
                                 // eslint-disable-next-line @next/next/no-img-element
@@ -120,16 +126,16 @@ function StudentSearchCard({ student }: { student: StudentSearchResult }) {
                             </div>
                         </div>
                     )}
-                    <div className="rounded-full bg-[#EDE9FE] px-2 pt-0 pb-[3px] whitespace-nowrap leading-none">
-                        <span className="text-[9px] font-semibold text-[#7C3AED] leading-none relative -top-[1px]">{classNum ? `Class ${classNum}` : '—'}</span>
+                    <div className="rounded-full px-2 pt-0 pb-[3px] whitespace-nowrap leading-none" style={{ background: `color-mix(in srgb, ${accent} 15%, transparent)` }}>
+                        <span className="text-[9px] font-semibold leading-none relative -top-[1px]" style={{ color: accent }}>{classNum ? `Class ${classNum}` : '—'}</span>
                     </div>
                 </div>
                 <div className="flex-1 min-w-0">
                     <p className="text-[14px] font-bold text-[#0F172A] leading-tight truncate">{student.name}</p>
-                    <p className="text-[11px] font-semibold text-[#7C3AED]">
+                    <p className="text-[11px] font-semibold" style={{ color: accent }}>
                         {student.standard?.name ?? ''} {student.standard && student.division ? '·' : ''} {student.division ? `Division ${divLetter}` : ''}
                     </p>
-                    <div className="h-px bg-[#EDE9FE] my-1.5" />
+                    <div className="h-px my-1.5" style={{ background: `color-mix(in srgb, ${accent} 15%, transparent)` }} />
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
                         {rows.map((r) => (
                             <div key={r.label} className="min-w-0">
@@ -140,7 +146,7 @@ function StudentSearchCard({ student }: { student: StudentSearchResult }) {
                     </div>
                 </div>
             </div>
-            <div className="flex items-center gap-1.5 border-t border-[#EDE9FE] bg-[#EDE9FE] px-4 py-1.5">
+            <div className="flex items-center gap-1.5 border-t px-4 py-1.5" style={{ background: `color-mix(in srgb, ${accent} 10%, transparent)`, borderColor: `color-mix(in srgb, ${accent} 20%, transparent)` }}>
                 <Hash size={13} className="text-[#94A3B8]" />
                 <span className="flex-1 text-[13px] font-mono font-semibold tracking-wide" style={{ color: '#DA7756' }}>
                     {student.studentId}

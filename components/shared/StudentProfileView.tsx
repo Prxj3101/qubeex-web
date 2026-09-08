@@ -14,6 +14,7 @@ import {
 } from 'recharts';
 import { FlagItem } from '@/lib/flags';
 import { colorForSubject } from '@/lib/subjectColors';
+import { useThemeAccent } from '@/hooks/useThemeAccent';
 
 type MarksMode = 'offline' | 'online' | 'combined';
 
@@ -124,6 +125,15 @@ export default function StudentProfileView({
     onBack, onViewDetail, onViewReportCard, onViewAttendanceDetails, onViewAllFlags, standalone = true,
     feesSlot, projectsSlot, ptmNotesSlot,
 }: StudentProfileViewProps) {
+    // This ID card / rank / subject-performance styling was hardcoded to the
+    // violet default everywhere, so a school on a different theme preset
+    // (see Admin Settings → Theme) never saw it reflected on the student's
+    // own "My Profile" page, only the admin/teacher dashboards. Reading the
+    // live accent here — same hook OverviewHero/EnrollmentGrowthChart
+    // already use — keeps this component (shared across admin/teacher/
+    // student views of a student) in sync with whatever the institution picked.
+    const accent = useThemeAccent('--primary');
+    const heroAccent = useThemeAccent('--hero-accent');
     const [photoExpanded, setPhotoExpanded] = useState(false);
     // Default to offline — matches what the student's own dashboard "Overall
     // Score" tile shows (that card has no toggle at all, it's always the
@@ -209,8 +219,8 @@ export default function StudentProfileView({
         <>
                 {/* ── ID Card ── */}
                 <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg">
-                    <div className="px-4 py-4 flex items-center justify-between gap-2 lg:px-6 dark:[background:linear-gradient(135deg,#4C1D95,#2D1F50)]"
-                        style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}>
+                    <div className="px-4 py-4 flex items-center justify-between gap-2 lg:px-6"
+                        style={{ background: `linear-gradient(135deg, ${heroAccent}, color-mix(in srgb, ${heroAccent} 65%, black))` }}>
                         <div className="flex items-center gap-2.5 min-w-0">
                             {institutionLogoUrl && (
                                 <div className="w-12 h-12 rounded-lg overflow-hidden bg-white/15 shrink-0 flex items-center justify-center">
@@ -240,7 +250,7 @@ export default function StudentProfileView({
                             <div className="relative w-20 h-20">
                                 <div
                                     className={`relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden${photo ? ' cursor-pointer' : ''}`}
-                                    style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}
+                                    style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 55%, white), ${accent})` }}
                                     onClick={() => photo && setPhotoExpanded(true)}
                                 >
                                     {photo
@@ -276,7 +286,8 @@ export default function StudentProfileView({
                                 )}
                             </AnimatePresence>
                             <div className="mt-2 text-center">
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 font-semibold">
+                                <span className="text-[10px] px-2 py-0.5 rounded-full font-semibold"
+                                    style={{ background: `color-mix(in srgb, ${accent} 15%, transparent)`, color: accent }}>
                                     {standard}
                                 </span>
                             </div>
@@ -292,7 +303,7 @@ export default function StudentProfileView({
                                     </span>
                                 </div>
                             </div>
-                            <p className="text-xs text-violet-600 dark:text-violet-400 font-semibold mt-0.5">
+                            <p className="text-xs font-semibold mt-0.5" style={{ color: accent }}>
                                 {standard} · Division {division.split('-').pop() ?? division}
                             </p>
                             <div className="h-px bg-border/50 my-3" />
@@ -306,7 +317,8 @@ export default function StudentProfileView({
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-1.5 px-5 py-2.5 bg-violet-50 dark:bg-violet-950/30 border-t border-violet-200/50 dark:border-violet-900/50">
+                    <div className="flex items-center gap-1.5 px-5 py-2.5 border-t"
+                        style={{ background: `color-mix(in srgb, ${accent} 6%, transparent)`, borderColor: `color-mix(in srgb, ${accent} 20%, transparent)` }}>
                         <Hash size={14} className="text-muted-foreground shrink-0" />
                         <span className="font-mono text-sm font-semibold tracking-wider flex-1" style={{ color: '#DA7756' }}>{studentIdCode}</span>
                         <button onClick={handleCopy}
@@ -325,13 +337,7 @@ export default function StudentProfileView({
                                 <Trophy size={14} className="text-amber-500" />
                                 <p className="text-xs font-semibold text-muted-foreground">Overall Rank</p>
                             </div>
-                            <p className="text-4xl font-black" style={{
-                                color: overallRank === null ? 'var(--muted-foreground)' :
-                                    overallRank === 1 ? '#F59E0B' :
-                                        overallRank <= 3 ? '#7C3AED' :
-                                            overallRank <= 10 ? 'var(--blue)' :
-                                                'var(--muted-foreground)'
-                            }}>
+                            <p className="text-4xl font-black" style={{ color: getPct(avg).color }}>
                                 {overallRank === null ? '—' : `#${overallRank}`}
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">Overall rank</p>
@@ -341,13 +347,13 @@ export default function StudentProfileView({
                                 <Star size={14} className="text-amber-500 fill-amber-500" />
                                 <p className="text-xs font-semibold text-muted-foreground">Overall Score</p>
                             </div>
-                            <p className="text-4xl font-black text-violet-600 dark:text-violet-400">{avg}%</p>
+                            <p className="text-4xl font-black" style={{ color: getPct(avg).color }}>{avg}%</p>
                             <p className="text-xs text-muted-foreground mt-1">across all subjects</p>
                         </div>
                     </div>
 
                     <div className="col-span-1 lg:col-span-2 h-full">
-                        <SectionCard title="Subject Performance" icon={BarChart2} iconColor="#7C3AED"
+                        <SectionCard title="Subject Performance" icon={BarChart2} iconColor={accent}
                             titleExtra={
                                 <div className="flex flex-wrap bg-muted/50 rounded-xl p-0.5 border border-border/50 ml-1">
                                     {([
@@ -407,8 +413,8 @@ export default function StudentProfileView({
                                         </BarChart>
                                     </ResponsiveContainer>
                                     <div className="flex items-center gap-2 mt-1">
-                                        <div className="flex-1 border-t-2 border-dashed border-violet-500/50" />
-                                        <span className="text-[11px] font-semibold text-violet-600 dark:text-violet-400">Avg {avg}%</span>
+                                        <div className="flex-1 border-t-2 border-dashed" style={{ borderColor: `color-mix(in srgb, ${accent} 50%, transparent)` }} />
+                                        <span className="text-[11px] font-semibold" style={{ color: accent }}>Avg {avg}%</span>
                                     </div>
                                 </>
                             )}

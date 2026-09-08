@@ -7,6 +7,7 @@ import Link from 'next/link';
 import api from '@/lib/api';
 import { BirthdayBanner, isTodayBirthday } from '@/components/shared/BirthdayBanner';
 import { SillyStringOverlay } from '@/components/shared/SillyStringOverlay';
+import { useThemeAccent } from '@/hooks/useThemeAccent';
 
 interface OverviewData {
     student: { name: string; rollNo: string; divisionName: string; standardName: string };
@@ -84,6 +85,8 @@ export default function StudentOverview() {
     const [currentChar, setCurrentChar] = useState(0);
     const [studentDob, setStudentDob] = useState<string | null>(null);
 
+    const heroColor = useThemeAccent('--hero-accent');
+
     useEffect(() => {
         const iv = setInterval(() => setCurrentChar(p => (p + 1) % STUDENT_CHARACTERS.length), 7000);
         return () => clearInterval(iv);
@@ -135,7 +138,7 @@ export default function StudentOverview() {
         <div className="space-y-5 pb-8">
 
             {/* ── Greeting Banner ── */}
-            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] bg-[#7C3AED] dark:bg-[#4C1D95] px-5 py-6 sm:px-8 sm:py-8 lg:px-13 lg:py-5 flex items-center justify-between min-h-[160px]">
+            <div className="-mx-4 relative overflow-hidden rounded-b-[65px] px-5 py-6 sm:px-8 sm:py-8 lg:px-13 lg:py-5 flex items-center justify-between min-h-[160px]" style={{ background: heroColor }}>
                 <div className="absolute w-40 h-40 rounded-full bg-white/5 -top-10 -right-8" />
                 <div className="absolute w-20 h-20 rounded-full bg-white/5 top-16 right-10" />
                 <div className="absolute w-1.5 h-1.5 rounded-full bg-white/70 top-5 left-16 animate-pulse" />

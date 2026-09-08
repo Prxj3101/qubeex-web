@@ -114,6 +114,7 @@ export default function TeacherStudentProfilePage() {
     const [standardName, setStandardName] = useState('');
     const [divisionName, setDivisionName] = useState('');
     const [institutionName, setInstitutionName] = useState('');
+    const [institutionLogoUrl, setInstitutionLogoUrl] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
     const [marksheetData, setMarksheetData] = useState<ProfileViewMarksheet | null>(null);
@@ -141,7 +142,10 @@ export default function TeacherStudentProfilePage() {
             .finally(() => setLoading(false));
 
         api.get('/teacher/overview')
-            .then(res => setInstitutionName(res.data.data?.teacher?.institutionName ?? ''))
+            .then(res => {
+                setInstitutionName(res.data.data?.teacher?.institutionName ?? '');
+                setInstitutionLogoUrl(res.data.data?.teacher?.institutionLogoUrl ?? null);
+            })
             .catch(() => {});
     }, [divisionId, studentId]);
 
@@ -355,6 +359,7 @@ export default function TeacherStudentProfilePage() {
     return (
         <StudentProfileView
             institutionName={institutionName}
+            institutionLogoUrl={institutionLogoUrl}
             studentName={student.user.name ?? '—'}
             studentIdCode={student.studentId}
             standard={standardName}

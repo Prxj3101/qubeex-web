@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { createPortal } from 'react-dom';
 import { useStudentStore } from '@/store/studentStore';
 import { toTitleCase } from '@/lib/utils';
+import { useThemeAccent } from '@/hooks/useThemeAccent';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -227,6 +228,11 @@ function SectionHeader({ icon: Icon, label, editing, saving, onEdit, onSave, onC
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function StudentDetailPage() {
     const router = useRouter();
+    // This page has its own hardcoded-purple header/panel styling, separate
+    // from StudentProfileView.tsx's ID card (already theme-aware) — the
+    // "View" button on that card lands here, so this needed the same fix.
+    const accent = useThemeAccent('--primary');
+    const heroAccent = useThemeAccent('--hero-accent');
     const [photoExpanded, setPhotoExpanded] = useState(false);
     const [copied, setCopied] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -325,14 +331,14 @@ export default function StudentDetailPage() {
                     <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg">
                         {/* Gradient banner */}
                         <div
-                            className="px-5 pt-7 pb-6 flex flex-col items-center gap-3 dark:[background:linear-gradient(135deg,#4C1D95,#2D1F50)]"
-                            style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}
+                            className="px-5 pt-7 pb-6 flex flex-col items-center gap-3"
+                            style={{ background: `linear-gradient(135deg, ${heroAccent}, color-mix(in srgb, ${heroAccent} 65%, black))` }}
                         >
                             {/* Avatar */}
                             <div className="relative">
                                 <div
                                     className={`relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden${store.photo ? ' cursor-pointer' : ''}`}
-                                    style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}
+                                    style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 55%, white), ${accent})` }}
                                     onClick={() => store.photo && setPhotoExpanded(true)}
                                 >
                                     {store.photo
@@ -400,7 +406,8 @@ export default function StudentDetailPage() {
                         </div>
 
                         {/* UID strip */}
-                        <div className="flex items-center gap-1 px-4 py-2.5 bg-violet-50 dark:bg-violet-950/30 border-t border-violet-200/50 dark:border-violet-900/50">
+                        <div className="flex items-center gap-1 px-4 py-2.5 border-t"
+                            style={{ background: `color-mix(in srgb, ${accent} 6%, transparent)`, borderColor: `color-mix(in srgb, ${accent} 20%, transparent)` }}>
                             <Hash size={13} className="text-muted-foreground shrink-0" />
                             <span className="font-mono text-xs font-semibold tracking-wider flex-1 truncate" style={{ color: '#DA7756' }}>
                                 {store.studentId}
@@ -439,9 +446,10 @@ export default function StudentDetailPage() {
                     </div>
 
                     {/* Privacy note */}
-                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200/50 dark:border-violet-900/50">
-                        <Shield size={12} className="text-violet-500 shrink-0" />
-                        <p className="text-[10px] text-violet-600 dark:text-violet-400 leading-relaxed">
+                    <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border"
+                        style={{ background: `color-mix(in srgb, ${accent} 6%, transparent)`, borderColor: `color-mix(in srgb, ${accent} 20%, transparent)` }}>
+                        <Shield size={12} className="shrink-0" style={{ color: accent }} />
+                        <p className="text-[10px] leading-relaxed" style={{ color: accent }}>
                             Your data is encrypted and only visible to you and authorized staff.
                         </p>
                     </div>
@@ -461,7 +469,7 @@ export default function StudentDetailPage() {
                             editing={editingInfo} onEdit={startEdit} onSave={saveEdit} onCancel={cancelEdit} />
                         <div className="flex items-center gap-3 mb-2">
                             <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden"
-                                style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}>
+                                style={{ background: `linear-gradient(135deg, color-mix(in srgb, ${accent} 55%, white), ${accent})` }}>
                                 {store.photo
                                     ? <img src={store.photo} alt="profile" className="w-full h-full object-cover" />
                                     : getInitials(editingInfo ? draft.name : data.name)

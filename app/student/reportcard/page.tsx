@@ -194,12 +194,15 @@ export default function ReportCardPage() {
                 {/* ── RIGHT — Report Card ── */}
                 <div className="flex-1 min-w-0 min-h-[420px] lg:min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex flex-col gap-2 lg:grid lg:grid-cols-3 items-center shrink-0">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider self-start lg:justify-self-start">Report Card</p>
+                        <p className="text-[12px] font-semibold text-muted-foreground uppercase tracking-wider self-start lg:justify-self-start mt-1">Report Card</p>
                         <div className="flex items-baseline gap-2 lg:justify-self-center">
                             <span className="text-[12px] font-semibold text-foreground">{studentName}</span>
                             <span className="text-[11px] text-muted-foreground">Roll No. {rollNo}</span>
                         </div>
-                        <div className="flex gap-0.5 bg-muted/60 rounded-lg p-0.5 border border-border/40 lg:justify-self-end">
+                        {/* Neutral gray track — bg-muted/60 resolves to a theme-tinted
+                            color per preset (e.g. purple's --muted is lavender),
+                            which made this look colored regardless of institution theme. */}
+                        <div className="flex gap-0.5 bg-black/5 dark:bg-white/5 rounded-lg p-0.5 border border-border/40 lg:justify-self-end">
                             {(['offline', 'online'] as const).map(t => (
                                 <button key={t} onClick={() => setTab(t)}
                                     className={`px-2.5 py-0.5 rounded-md text-[10px] font-semibold capitalize transition-all ${tab === t ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>

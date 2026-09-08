@@ -152,12 +152,12 @@ export default function AdminStudentDetailPage() {
                     <div className="space-y-3">
                         <div className="rounded-2xl overflow-hidden border border-border/50 shadow-lg">
                             <div
-                                className="px-5 pt-7 pb-6 flex flex-col items-center gap-3 dark:[background:linear-gradient(135deg,#4C1D95,#2D1F50)]"
-                                style={{ background: 'linear-gradient(135deg, #7C3AED, #5B21B6)' }}
+                                className="px-5 pt-7 pb-6 flex flex-col items-center gap-3"
+                                style={{ background: 'linear-gradient(135deg, var(--hero-accent), color-mix(in srgb, var(--hero-accent), black 25%))' }}
                             >
                                 <div
                                     className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-2xl font-black text-white overflow-hidden"
-                                    style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}
+                                    style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary), white 35%), var(--primary))' }}
                                 >
                                     {student.avatarUrl
                                         ? <img src={student.avatarUrl} alt="profile" className="w-full h-full object-cover" />
@@ -187,7 +187,8 @@ export default function AdminStudentDetailPage() {
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-1 px-4 py-2.5 bg-violet-50 dark:bg-violet-950/30 border-t border-violet-200/50 dark:border-violet-900/50">
+                            <div className="flex items-center gap-1 px-4 py-2.5 border-t"
+                                style={{ background: 'color-mix(in srgb, var(--primary) 6%, transparent)', borderColor: 'color-mix(in srgb, var(--primary) 20%, transparent)' }}>
                                 <Hash size={13} className="text-muted-foreground shrink-0" />
                                 <span className="font-mono text-xs font-semibold tracking-wider flex-1 truncate" style={{ color: '#DA7756' }}>
                                     {student.studentId}
@@ -223,9 +224,10 @@ export default function AdminStudentDetailPage() {
                             </div>
                         </div>
 
-                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-violet-50 dark:bg-violet-950/30 border border-violet-200/50 dark:border-violet-900/50">
-                            <Shield size={12} className="text-violet-500 shrink-0" />
-                            <p className="text-[10px] text-violet-600 dark:text-violet-400 leading-relaxed">
+                        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border"
+                            style={{ background: 'color-mix(in srgb, var(--primary) 6%, transparent)', borderColor: 'color-mix(in srgb, var(--primary) 20%, transparent)' }}>
+                            <Shield size={12} className="shrink-0" style={{ color: 'var(--primary)' }} />
+                            <p className="text-[10px] leading-relaxed" style={{ color: 'var(--primary)' }}>
                                 {`Read-only view. ${institutionName || 'Your institution'} manages this student's record.`}
                             </p>
                         </div>
@@ -242,7 +244,7 @@ export default function AdminStudentDetailPage() {
                             <SectionLabel icon={User} label="Student Info" />
                             <div className="flex items-center gap-3 mb-2">
                                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold text-white shrink-0 overflow-hidden"
-                                    style={{ background: 'linear-gradient(135deg, #A78BFA, #7C3AED)' }}>
+                                    style={{ background: 'linear-gradient(135deg, color-mix(in srgb, var(--primary), white 35%), var(--primary))' }}>
                                     {student.avatarUrl
                                         ? <img src={student.avatarUrl} alt="profile" className="w-full h-full object-cover" />
                                         : getInitials(name)
