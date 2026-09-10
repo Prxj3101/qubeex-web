@@ -460,7 +460,7 @@ export default function TeacherOverviewPage() {
                     <div className="flex items-center gap-2 mb-4">
                         <Sparkles size={15} className="text-muted-foreground" />
                         <p className="text-sm font-medium">AI Token Usage</p>
-                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">Last 30 Days</span>
+                        <span className="ml-auto text-[10px] font-medium text-muted-foreground/50 uppercase tracking-wide">This Month</span>
                     </div>
                     <div className="p-4 space-y-2">
                         <div>

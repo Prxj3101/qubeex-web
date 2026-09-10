@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, Check, StickyNote, ClipboardList, Pin, Pencil } from 'lucide-react';
 import api from '@/lib/api';
+import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 
 interface Note {
     id: string;
@@ -92,10 +93,12 @@ export default function TeacherNotepad() {
         api.post('/teacher/notepad/tasks', { text })
             .then(res => {
                 const created = res.data.data as { id: string; text: string; done: boolean };
-                setTasks(prev => [...prev, { id: created.id, text: created.text, done: created.done }]);
+                setTasks(prev => [{ id: created.id, text: created.text, done: created.done }, ...prev]);
             })
             .catch(() => { });
     };
+
+    const [confirmDelete, setConfirmDelete] = useState<{ type: 'task' | 'note'; id: string; text: string } | null>(null);
 
     const toggleTask = (id: string) => {
         const current = tasks.find(t => t.id === id);
@@ -113,6 +116,13 @@ export default function TeacherNotepad() {
     const deleteNote = (id: string) => {
         setNotes(prev => prev.filter(n => n.id !== id));
         api.delete(`/teacher/notepad/notes/${id}`).catch(() => { });
+    };
+
+    const confirmDeleteNow = () => {
+        if (!confirmDelete) return;
+        if (confirmDelete.type === 'task') deleteTask(confirmDelete.id);
+        else deleteNote(confirmDelete.id);
+        setConfirmDelete(null);
     };
 
     const pending = tasks.filter(t => !t.done).length;
@@ -203,7 +213,7 @@ export default function TeacherNotepad() {
                                         <Pencil size={11} />
                                     </button>
                                 )}
-                                <button onClick={() => deleteTask(task.id)}
+                                <button onClick={() => setConfirmDelete({ type: 'task', id: task.id, text: task.text })}
                                     className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-red-500">
                                     <X size={11} />
                                 </button>
@@ -301,7 +311,7 @@ export default function TeacherNotepad() {
                                     </button>
                                 )}
                                 {editingNoteId !== note.id && (
-                                    <button onClick={() => deleteNote(note.id)}
+                                    <button onClick={() => setConfirmDelete({ type: 'note', id: note.id, text: note.text })}
                                         className="absolute top-1.5 right-1.5 ...">
                                         <X size={9} style={{ color: colorCfg.text }} />
                                     </button>
@@ -341,6 +351,15 @@ export default function TeacherNotepad() {
                     </div>
                 </div>
             </div>
+
+            <DeleteConfirmDialog
+                open={confirmDelete !== null}
+                onOpenChange={(open) => { if (!open) setConfirmDelete(null); }}
+                label={confirmDelete?.type === 'task' ? 'task' : 'note'}
+                name={confirmDelete?.text ?? ''}
+                onConfirm={confirmDeleteNow}
+                description="This action cannot be undone."
+            />
         </div>
     );
 }

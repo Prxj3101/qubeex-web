@@ -7,7 +7,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
     Hash, Mail, Phone, MapPin, Calendar, User,
     GraduationCap, Briefcase, Edit2, Check, X,
-    BookOpen, Camera, Tag, ChevronRight,
+    BookOpen, Camera, Tag, ChevronRight, Layers,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -16,13 +16,17 @@ import { useUserAvatarStore } from '@/store/userAvatarStore';
 import { useUserTitleStore } from '@/store/userTitleStore';
 import { useAuthStore } from '@/store/authStore';
 import NextImage from 'next/image';
+import { colorForSubject } from '@/lib/subjectColors';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface TeacherAssignment {
     id: string;
+    level1Id: string;
     level1Name: string;
+    level2Id: string;
     level2Name: string;
     level3Name: string;
+    subjectColor?: string | null;
     role: 'CLASS_TEACHER' | 'SUBJECT_TEACHER';
 }
 
@@ -239,13 +243,16 @@ export default function TeacherProfilePage() {
                 // Map divisionAssignments → assignments
                 const assignments: TeacherAssignment[] = (d.assignments ?? []).map((a: {
                     id: string;
-                    division: { name: string; standard: { name: string } };
-                    subject: { name: string } | null;
+                    division: { name: string; standard: { id: string; name: string } };
+                    subject: { id: string; name: string; color?: string | null } | null;
                 }) => ({
                     id: a.id,
+                    level1Id: a.division.standard.id,
                     level1Name: a.division.standard.name,
+                    level2Id: a.subject?.id ?? '',
                     level2Name: a.subject?.name ?? '',
                     level3Name: a.division.name,
+                    subjectColor: a.subject?.color ?? null,
                     role: a.subject ? 'SUBJECT_TEACHER' : 'CLASS_TEACHER',
                 }));
                 const t: TeacherData = { ...d, assignments };
@@ -661,7 +668,7 @@ export default function TeacherProfilePage() {
                     </SectionCard>
                 </div>
 
-                {/* Assignments */}
+                {/* Assignments — exact copy of admin Staff → Teacher detail page's Assignments card */}
                 <SectionCard title={`Assignments (${teacher.assignments.length})`} contentClassName="p-5">
                     {teacher.assignments.length === 0 ? (
                         <div className="flex flex-col items-center justify-center py-10 text-center">
@@ -671,55 +678,51 @@ export default function TeacherProfilePage() {
                             <p className="text-sm font-medium text-muted-foreground">No assignments yet</p>
                         </div>
                     ) : (
-                        <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
-                            {teacher.assignments.filter(a => a.role === 'CLASS_TEACHER').length > 0 && (
-                                <div>
+                        <div className="space-y-4 max-h-[350px] overflow-y-auto pr-1"
+                            style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
+                            {Object.entries(
+                                teacher.assignments.reduce((acc: Record<string, TeacherAssignment[]>, a) => {
+                                    (acc[a.level1Name] ??= []).push(a);
+                                    return acc;
+                                }, {})
+                            ).map(([level1, assignments]) => (
+                                <div key={level1}>
                                     <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                        <p className="text-xs font-semibold text-muted-foreground">Class Teacher</p>
+                                        <Layers size={13} className="text-muted-foreground" />
+                                        <p className="text-xs font-semibold text-muted-foreground">{level1}</p>
                                     </div>
-                                    <div className="space-y-1.5">
-                                        {teacher.assignments.filter(a => a.role === 'CLASS_TEACHER').map(a => (
-                                            <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border/50 bg-muted/20">
-                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-amber-100 dark:bg-amber-950">
-                                                    <GraduationCap size={13} className="text-amber-600 dark:text-amber-400" />
+                                    <div className="space-y-1.5 pl-4">
+                                        {assignments.map(a => {
+                                            const subjectColor = a.role === 'SUBJECT_TEACHER'
+                                                ? colorForSubject({ id: a.level2Id, color: a.subjectColor })
+                                                : null;
+                                            return (
+                                                <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border/50 bg-muted/20">
+                                                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${a.role === 'CLASS_TEACHER' ? 'bg-amber-100 dark:bg-amber-950' : ''}`}
+                                                        style={subjectColor ? { background: subjectColor + '20' } : undefined}>
+                                                        {a.role === 'CLASS_TEACHER'
+                                                            ? <GraduationCap size={12} className="text-amber-700 dark:text-amber-300" />
+                                                            : <BookOpen size={12} style={{ color: subjectColor ?? undefined }} />
+                                                        }
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-xs font-semibold">
+                                                            {a.role === 'SUBJECT_TEACHER' ? `${a.level2Name} · ${a.level3Name}` : a.level3Name}
+                                                        </p>
+                                                        <p className="text-[11px] text-muted-foreground">
+                                                            {a.role === 'CLASS_TEACHER' ? 'Class Teacher' : 'Subject Teacher'}
+                                                        </p>
+                                                    </div>
+                                                    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${a.role === 'CLASS_TEACHER' ? 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' : ''}`}
+                                                        style={subjectColor ? { background: subjectColor + '20', color: subjectColor } : undefined}>
+                                                        {a.role === 'CLASS_TEACHER' ? 'Class Teacher' : 'Subject Teacher'}
+                                                    </span>
                                                 </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-semibold">{a.level3Name}</p>
-                                                    <p className="text-[11px] text-muted-foreground">{a.level1Name}</p>
-                                                </div>
-                                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                                                    Class Teacher
-                                                </span>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
-                            )}
-                            {teacher.assignments.filter(a => a.role === 'SUBJECT_TEACHER').length > 0 && (
-                                <div>
-                                    <div className="flex items-center gap-2 mb-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-[var(--muted)]0" />
-                                        <p className="text-xs font-semibold text-muted-foreground">Subject Teacher</p>
-                                    </div>
-                                    <div className="space-y-1.5">
-                                        {teacher.assignments.filter(a => a.role === 'SUBJECT_TEACHER').map(a => (
-                                            <div key={a.id} className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border/50 bg-muted/20">
-                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 bg-[var(--muted)]">
-                                                    <BookOpen size={13} className="text-[var(--primary)]" />
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-xs font-semibold">{a.level3Name}</p>
-                                                    <p className="text-[11px] text-muted-foreground">{a.level2Name}</p>
-                                                </div>
-                                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[var(--muted)] text-[var(--primary)] bg-[var(--muted)] text-[var(--primary)]">
-                                                    Subject Teacher
-                                                </span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
+                            ))}
                         </div>
                     )}
                 </SectionCard>

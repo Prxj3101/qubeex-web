@@ -527,7 +527,7 @@ export default function TeacherSettingsPageClient() {
                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
                                     <div className="min-w-0">
                                         <p className="text-sm font-medium">Sign out from all devices</p>
-                                        <p className="text-[11px] text-muted-foreground">Invalidates your session everywhere — you&apos;ll need to sign in again</p>
+                                        <p className="text-[11px] text-muted-foreground">Invalidates your session everywhere - you&apos;ll need to sign in again</p>
                                     </div>
                                     <button
                                         onClick={() => setShowSignOutAllConfirm(true)}
