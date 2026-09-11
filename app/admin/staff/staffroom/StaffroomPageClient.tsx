@@ -20,6 +20,7 @@ import {
   Trash2,
   Loader2,
   ArrowDown,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/lib/api";
@@ -50,9 +51,7 @@ interface PostComment {
 interface FeedPost {
   id: string;
   text: string;
-  attachmentUrl: string | null;
-  attachmentType: string | null;
-  attachmentName: string | null;
+  attachments: { url: string; type: string; name: string }[];
   createdAt: string;
   author: PostAuthor;
   likeCount: number;
@@ -78,9 +77,7 @@ interface DmMessage {
   id: string;
   isMe: boolean;
   text: string | null;
-  attachmentUrl: string | null;
-  attachmentType: string | null;
-  attachmentName: string | null;
+  attachments: { url: string; type: string; name: string }[];
   createdAt: string;
 }
 
@@ -88,11 +85,13 @@ interface PendingAttachment {
   url: string;
   name: string;
   type: "image" | "file";
+  localUrl?: string;
 }
 
 // ── Avatar helpers ────────────────────────────────────────────────────────────
 
 const UNSEND_WINDOW_MS = 60 * 60 * 1000;
+const MAX_ATTACHMENTS = 10;
 function canUnsend(msg: DmMessage) { return msg.isMe && Date.now() - new Date(msg.createdAt).getTime() < UNSEND_WINDOW_MS; }
 
 const AVATAR_COLORS = [
@@ -140,6 +139,13 @@ function fmtDateTime(iso: string) {
   if (diffDays === 1) return `Yesterday, ${time}`;
   return `${d.toLocaleDateString("en-IN", { day: "numeric", month: "short" })}, ${time}`;
 }
+// WhatsApp-style oversized emoji: a message that's only emoji (no other
+// text) renders much bigger, without the chat-bubble background.
+const EMOJI_ONLY_REGEX = /^[\p{Extended_Pictographic}‍️\s]+$/u;
+function isEmojiOnlyMessage(text?: string | null) {
+  if (!text || !text.trim()) return false;
+  return EMOJI_ONLY_REGEX.test(text.trim());
+}
 
 // ── Attachment preview chip ───────────────────────────────────────────────────
 
@@ -148,26 +154,43 @@ function AttachmentChip({
   dark,
   onRemove,
 }: {
-  attachment: PendingAttachment | { url: string; name: string; type: string };
+  attachment: PendingAttachment | { url: string; name: string; type: string; localUrl?: string };
   dark?: boolean;
   onRemove?: () => void;
 }) {
   const isImage = attachment.type === "image";
+  if (isImage) {
+    // Small thumbnail preview above the composer — prefer the local
+    // object URL (instant) over the remote uploaded URL.
+    const localUrl = (attachment as { localUrl?: string }).localUrl;
+    return (
+      <div className="relative w-14 h-14 shrink-0">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={localUrl || attachment.url}
+          alt={attachment.name}
+          className="w-14 h-14 object-cover rounded-lg"
+        />
+        {onRemove && (
+          <button
+            type="button"
+            onClick={onRemove}
+            className="absolute -top-1.5 -right-1.5 w-4.5 h-4.5 rounded-full bg-black/60 flex items-center justify-center hover:bg-black/80"
+          >
+            <X size={10} className="text-white" />
+          </button>
+        )}
+      </div>
+    );
+  }
   return (
     <div
       className={`flex items-center gap-2 px-3 py-1.5 rounded-xl w-fit max-w-[220px] ${dark ? "bg-white/20" : "bg-muted/50 border border-border/40"}`}
     >
-      {isImage ? (
-        <ImageIcon
-          size={12}
-          className={dark ? "text-white/80" : "text-muted-foreground"}
-        />
-      ) : (
-        <FileText
-          size={12}
-          className={dark ? "text-white/80" : "text-muted-foreground"}
-        />
-      )}
+      <FileText
+        size={12}
+        className={dark ? "text-white/80" : "text-muted-foreground"}
+      />
       <span
         className={`text-[11px] font-medium truncate flex-1 ${dark ? "text-white/90" : "text-muted-foreground"}`}
       >
@@ -292,24 +315,34 @@ function PostCard({
 
         {/* Bubble */}
         <div
-          className={`px-3 py-2.5 rounded-2xl text-sm leading-relaxed ${
-            isMe
-              ? "text-white rounded-tr-sm"
-              : "bg-card border border-border/40 text-foreground rounded-tl-sm"
-          }`}
-          style={isMe ? { background: "#7C3AED" } : {}}
+          className={
+            isEmojiOnlyMessage(post.text) && !(post.attachments?.length)
+              ? "px-0.5 py-0.5"
+              : `px-3 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
+                  isMe
+                    ? "rounded-tr-sm"
+                    : "bg-card border border-border/40 text-foreground rounded-tl-sm"
+                }`
+          }
+          style={
+            isEmojiOnlyMessage(post.text) && !(post.attachments?.length)
+              ? {}
+              : isMe ? { background: "#E8CBB5", color: "#3A322C" } : {}
+          }
         >
           <LinkifiedText
             text={post.text}
-            className={isMe ? "text-white underline decoration-white/70 hover:opacity-80 break-all" : "text-primary underline hover:opacity-80 break-all"}
+            className={
+              isEmojiOnlyMessage(post.text) && !(post.attachments?.length)
+                ? "text-[40px] leading-[48px]"
+                : isMe ? "text-[#3A322C] underline decoration-[#3A322C]/70 hover:opacity-80 break-all" : "text-primary underline hover:opacity-80 break-all"
+            }
           />
-          {post.attachmentUrl && post.attachmentName && post.attachmentType && (
-            <div className="mt-2">
-              <AttachmentPreview
-                attachment={{ url: post.attachmentUrl, name: post.attachmentName, type: post.attachmentType }}
-                dark={isMe}
-                compact
-              />
+          {post.attachments?.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {post.attachments.map((att, i) => (
+                <AttachmentPreview key={i} attachment={att} dark={false} compact />
+              ))}
             </div>
           )}
         </div>
@@ -446,8 +479,9 @@ export default function StaffroomPage() {
   const [posts, setPosts] = useState<FeedPost[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
   const [postInput, setPostInput] = useState("");
-  const [postAttachment, setPostAttachment] =
-    useState<PendingAttachment | null>(null);
+  const [postAttachments, setPostAttachments] = useState<PendingAttachment[]>(
+    [],
+  );
   const [postUploading, setPostUploading] = useState(false);
   const [postSubmitting, setPostSubmitting] = useState(false);
   const [feedSearch, setFeedSearch] = useState("");
@@ -461,9 +495,7 @@ export default function StaffroomPage() {
   const [messages, setMessages] = useState<DmMessage[]>([]);
   const [messagesLoading, setMessagesLoading] = useState(false);
   const [dmInput, setDmInput] = useState("");
-  const [dmAttachment, setDmAttachment] = useState<PendingAttachment | null>(
-    null,
-  );
+  const [dmAttachments, setDmAttachments] = useState<PendingAttachment[]>([]);
   const [dmUploading, setDmUploading] = useState(false);
   const [dmSubmitting, setDmSubmitting] = useState(false);
   const [dmSearch, setDmSearch] = useState("");
@@ -484,7 +516,20 @@ export default function StaffroomPage() {
   const [showFeedScrollDown, setShowFeedScrollDown] = useState(false);
   const [showDmScrollDown, setShowDmScrollDown] = useState(false);
   const postFileRef = useRef<HTMLInputElement>(null);
+  const postImageFileRef = useRef<HTMLInputElement>(null);
   const dmFileRef = useRef<HTMLInputElement>(null);
+  const dmImageFileRef = useRef<HTMLInputElement>(null);
+  const postInputRef = useRef<HTMLTextAreaElement>(null);
+  const dmInputRef = useRef<HTMLTextAreaElement>(null);
+
+  // Composer textareas grow with content up to ~5 lines, then scroll —
+  // Enter inserts a newline like a normal text box; only the Send button
+  // actually submits.
+  const MAX_COMPOSER_HEIGHT = 110;
+  const autoGrowTextarea = (el: HTMLTextAreaElement) => {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, MAX_COMPOSER_HEIGHT) + "px";
+  };
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const threadPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -649,8 +694,6 @@ export default function StaffroomPage() {
     if (err) { toast.error(err); return; }
 
     const setUploading = context === "post" ? setPostUploading : setDmUploading;
-    const setAttachment =
-      context === "post" ? setPostAttachment : setDmAttachment;
     setUploading(true);
 
     try {
@@ -661,11 +704,13 @@ export default function StaffroomPage() {
         form,
         { headers: { "Content-Type": "multipart/form-data" } },
       );
-      setAttachment({
+      const uploaded = {
         url: res.data.data.url,
         name: res.data.data.name,
         type: res.data.data.type,
-      });
+      };
+      if (context === "post") setPostAttachments((prev) => [...prev, uploaded]);
+      else setDmAttachments((prev) => [...prev, uploaded]);
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: string } } })
         ?.response?.data?.error;
@@ -675,20 +720,162 @@ export default function StaffroomPage() {
     }
   };
 
+  // Images support multi-select for the DM composer too — same instant
+  // local-preview + background-upload pattern as the announcement composer.
+  const handleDmImagesSelect = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+    const valid: File[] = [];
+    for (const file of files) {
+      const err = validateAttachment(file);
+      if (err) { toast.error(err); continue; }
+      valid.push(file);
+    }
+    if (!valid.length) return;
+    const room = MAX_ATTACHMENTS - dmAttachments.length;
+    if (room <= 0) { toast.error(`You can only send up to ${MAX_ATTACHMENTS} attachments at once`); return; }
+    if (valid.length > room) { toast.error(`You can only send up to ${MAX_ATTACHMENTS} attachments at once`); valid.length = room; }
+    const localEntries = valid.map((file) => ({
+      url: "",
+      localUrl: URL.createObjectURL(file),
+      name: file.name,
+      type: "image" as const,
+      file,
+    }));
+    setDmAttachments((prev) => [
+      ...prev,
+      ...localEntries.map(({ file: _file, ...rest }) => rest),
+    ]);
+    setDmUploading(true);
+    try {
+      await Promise.all(
+        localEntries.map(async ({ localUrl, file }) => {
+          try {
+            const form = new FormData();
+            form.append("file", file);
+            const res = await api.post(
+              "/admin/staffroom/upload?context=dm",
+              form,
+              { headers: { "Content-Type": "multipart/form-data" } },
+            );
+            setDmAttachments((prev) =>
+              prev.map((a) =>
+                a.localUrl === localUrl
+                  ? {
+                      url: res.data.data.url,
+                      name: res.data.data.name,
+                      type: res.data.data.type,
+                      localUrl,
+                    }
+                  : a,
+              ),
+            );
+          } catch {
+            setDmAttachments((prev) =>
+              prev.filter((a) => a.localUrl !== localUrl),
+            );
+            toast.error(`Failed to upload ${file.name}`);
+          }
+        }),
+      );
+    } finally {
+      setDmUploading(false);
+    }
+  };
+
+  // Images support multi-select for the announcement composer — each file
+  // gets an instant local object-URL preview immediately, then uploads in
+  // the background and swaps in the real remote URL once it lands.
+  const handlePostImagesSelect = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length) return;
+    const valid: File[] = [];
+    for (const file of files) {
+      const err = validateAttachment(file);
+      if (err) { toast.error(err); continue; }
+      valid.push(file);
+    }
+    if (!valid.length) return;
+    const room = MAX_ATTACHMENTS - postAttachments.length;
+    if (room <= 0) { toast.error(`You can only send up to ${MAX_ATTACHMENTS} attachments at once`); return; }
+    if (valid.length > room) { toast.error(`You can only send up to ${MAX_ATTACHMENTS} attachments at once`); valid.length = room; }
+    const localEntries = valid.map((file) => ({
+      url: "",
+      localUrl: URL.createObjectURL(file),
+      name: file.name,
+      type: "image" as const,
+      file,
+    }));
+    setPostAttachments((prev) => [
+      ...prev,
+      ...localEntries.map(({ file: _file, ...rest }) => rest),
+    ]);
+    setPostUploading(true);
+    try {
+      await Promise.all(
+        localEntries.map(async ({ localUrl, file }) => {
+          try {
+            const form = new FormData();
+            form.append("file", file);
+            const res = await api.post(
+              "/admin/staffroom/upload?context=post",
+              form,
+              { headers: { "Content-Type": "multipart/form-data" } },
+            );
+            setPostAttachments((prev) =>
+              prev.map((a) =>
+                a.localUrl === localUrl
+                  ? {
+                      url: res.data.data.url,
+                      name: res.data.data.name,
+                      type: res.data.data.type,
+                      localUrl,
+                    }
+                  : a,
+              ),
+            );
+          } catch {
+            setPostAttachments((prev) =>
+              prev.filter((a) => a.localUrl !== localUrl),
+            );
+            toast.error(`Failed to upload ${file.name}`);
+          }
+        }),
+      );
+    } finally {
+      setPostUploading(false);
+    }
+  };
+
   // ── Post ──
   const handlePost = async () => {
-    if ((!postInput.trim() && !postAttachment) || postSubmitting) return;
+    const readyAttachments = postAttachments.filter((a) => a.url);
+    if (
+      (!postInput.trim() && readyAttachments.length === 0) ||
+      postSubmitting ||
+      postUploading
+    )
+      return;
     setPostSubmitting(true);
     try {
       const res = await api.post("/admin/staffroom/posts", {
-        text: postInput.trim() || (postAttachment ? postAttachment.name : ""),
-        attachmentUrl: postAttachment?.url,
-        attachmentType: postAttachment?.type,
-        attachmentName: postAttachment?.name,
+        text: postInput.trim() || readyAttachments[0]?.name || "",
+        attachments: readyAttachments.map((a) => ({
+          url: a.url,
+          type: a.type,
+          name: a.name,
+        })),
       });
       setPosts((prev) => [...prev, res.data.data]);
       setPostInput("");
-      setPostAttachment(null);
+      setPostAttachments([]);
+      if (postInputRef.current) postInputRef.current.style.height = "auto";
     } catch {
       toast.error("Failed to post");
     } finally {
@@ -756,16 +943,25 @@ export default function StaffroomPage() {
 
   // ── Send DM ──
   const handleSendDm = async () => {
-    if ((!dmInput.trim() && !dmAttachment) || !activeDm || dmSubmitting) return;
+    const readyDmAttachments = dmAttachments.filter((a) => a.url);
+    if (
+      (!dmInput.trim() && readyDmAttachments.length === 0) ||
+      !activeDm ||
+      dmSubmitting ||
+      dmUploading
+    )
+      return;
     setDmSubmitting(true);
     try {
       const res = await api.post(
         `/admin/staffroom/dms/${activeDm.teacherUserId}`,
         {
           text: dmInput.trim() || undefined,
-          attachmentUrl: dmAttachment?.url,
-          attachmentType: dmAttachment?.type,
-          attachmentName: dmAttachment?.name,
+          attachments: readyDmAttachments.map((a) => ({
+            url: a.url,
+            type: a.type,
+            name: a.name,
+          })),
         },
       );
       const newMsg: DmMessage = res.data.data;
@@ -776,7 +972,7 @@ export default function StaffroomPage() {
             ? {
                 ...t,
                 lastMessage:
-                  newMsg.text ?? newMsg.attachmentName ?? "Attachment",
+                  newMsg.text ?? newMsg.attachments?.[0]?.name ?? "Attachment",
                 lastMessageAt: newMsg.createdAt,
                 lastMessageIsMe: true,
               }
@@ -784,7 +980,8 @@ export default function StaffroomPage() {
         ),
       );
       setDmInput("");
-      setDmAttachment(null);
+      setDmAttachments([]);
+      if (dmInputRef.current) dmInputRef.current.style.height = "auto";
     } catch {
       toast.error("Failed to send message");
     } finally {
@@ -807,7 +1004,8 @@ export default function StaffroomPage() {
     setActiveDm(thread);
     setMessages([]);
     setDmInput("");
-    setDmAttachment(null);
+    setDmAttachments([]);
+    if (dmInputRef.current) dmInputRef.current.style.height = "auto";
   };
 
   const filteredPosts = feedSearch.trim()
@@ -909,7 +1107,8 @@ export default function StaffroomPage() {
           </div>
 
           {/* Feed messages */}
-          <div ref={feedScrollRef} className="flex-1 overflow-y-auto min-h-0 bg-background flex flex-col-reverse">
+          <div ref={feedScrollRef} className="flex-1 overflow-y-auto min-h-0 bg-background flex flex-col-reverse"
+            style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.15) transparent' }}>
             <div className="px-4 py-3 space-y-4">
             {feedLoading ? (
               <div className="flex items-center justify-center py-16">
@@ -963,35 +1162,35 @@ export default function StaffroomPage() {
             )}
           </AnimatePresence>
 
-          {/* Pending attachment preview */}
-          {postAttachment && (
-            <div className="px-4 pb-1 shrink-0">
-              <AttachmentChip
-                attachment={postAttachment}
-                onRemove={() => setPostAttachment(null)}
-              />
+          {/* Pending attachment previews */}
+          {postAttachments.length > 0 && (
+            <div className="px-4 pt-2 pb-1 shrink-0 flex flex-wrap gap-1.5">
+              {postAttachments.map((att, i) => (
+                <AttachmentChip
+                  key={att.localUrl || att.url || i}
+                  attachment={att}
+                  onRemove={() =>
+                    setPostAttachments((prev) => prev.filter((_, idx) => idx !== i))
+                  }
+                />
+              ))}
             </div>
           )}
 
           {/* Composer */}
           <div className="border-t border-border/40 px-3 py-1.5 shrink-0">
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-950 flex items-center justify-center text-[10px] font-bold text-violet-700 dark:text-violet-300 shrink-0">
+            <div className="flex items-end gap-2">
+              <div className="self-center w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-950 flex items-center justify-center text-[10px] font-bold text-violet-700 dark:text-violet-300 shrink-0">
                 {myInitials || "AD"}
               </div>
-              <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
-                <input
-                  type="text"
+              <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                <textarea
+                  ref={postInputRef}
                   value={postInput}
-                  onChange={(e) => setPostInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      e.preventDefault();
-                      handlePost();
-                    }
-                  }}
+                  onChange={(e) => { setPostInput(e.target.value); autoGrowTextarea(e.target); }}
+                  rows={1}
                   placeholder="Write an announcement..."
-                  className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground/60 focus:outline-none"
+                  className="flex-1 bg-transparent text-sm placeholder:text-muted-foreground/60 focus:outline-none resize-none leading-5 overflow-y-auto"
                 />
                 <div className="flex items-center gap-1 shrink-0">
                   <button
@@ -1008,12 +1207,7 @@ export default function StaffroomPage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      if (postFileRef.current) {
-                        postFileRef.current.accept = "image/*";
-                        postFileRef.current.click();
-                      }
-                    }}
+                    onClick={() => postImageFileRef.current?.click()}
                     disabled={postUploading}
                     className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50"
                   >
@@ -1024,11 +1218,12 @@ export default function StaffroomPage() {
               <button
                 onClick={handlePost}
                 disabled={
-                  (!postInput.trim() && !postAttachment) ||
+                  (!postInput.trim() &&
+                    postAttachments.filter((a) => a.url).length === 0) ||
                   postSubmitting ||
                   postUploading
                 }
-                className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:opacity-90 shrink-0"
+                className="self-center w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:opacity-90 shrink-0"
                 style={{
                   background:
                     "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)",
@@ -1048,6 +1243,14 @@ export default function StaffroomPage() {
             accept={ATTACHMENT_ACCEPT}
             className="hidden"
             onChange={(e) => handleFileSelect(e, "post")}
+          />
+          <input
+            ref={postImageFileRef}
+            type="file"
+            accept="image/*"
+            multiple
+            className="hidden"
+            onChange={handlePostImagesSelect}
           />
         </div>
 
@@ -1097,15 +1300,10 @@ export default function StaffroomPage() {
             </AnimatePresence>
           </div>
 
-          <AnimatePresence mode="wait">
-            {!activeDm ? (
-              /* Thread list */
-              <motion.div
-                key="list"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex-1 overflow-y-auto min-h-0"
+          <div className="relative flex-1 min-h-0 overflow-hidden">
+              <div
+                className="absolute inset-0 overflow-y-auto"
+                style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.15) transparent' }}
               >
                 {threadsLoading ? (
                   <div className="flex items-center justify-center py-12">
@@ -1176,15 +1374,17 @@ export default function StaffroomPage() {
                     </button>
                   ))
                 )}
-              </motion.div>
-            ) : (
+              </div>
+            <AnimatePresence>
+              {activeDm && (
               /* Chat view */
               <motion.div
                 key="chat"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="flex-1 flex flex-col min-h-0"
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'tween', duration: 0.25, ease: 'easeOut' }}
+                className="absolute inset-0 bg-card flex flex-col"
               >
                 {/* Chat header */}
                 <div className="flex items-center gap-3 px-3 py-2.5 border-b border-border/40 shrink-0">
@@ -1226,8 +1426,9 @@ export default function StaffroomPage() {
                 </div>
 
                 {/* Messages */}
-                <div ref={dmScrollCallbackRef} className="flex-1 overflow-y-auto min-h-0 bg-background flex flex-col-reverse">
-                  <div className="px-3 py-3 space-y-3">
+                <div ref={dmScrollCallbackRef} className="flex-1 overflow-y-auto min-h-0 bg-background flex flex-col-reverse"
+                  style={{ scrollbarWidth: 'thin', scrollbarColor: 'rgba(255,255,255,0.15) transparent' }}>
+                  <div className="px-3 py-3 space-y-1.5">
                   {messagesLoading ? (
                     <div className="flex items-center justify-center py-12">
                       <Loader2
@@ -1256,54 +1457,57 @@ export default function StaffroomPage() {
                             className={`flex flex-col max-w-[75%] ${msg.isMe ? "items-end" : "items-start"}`}
                             style={{ width: "100%" }}
                           >
+                            {(() => {
+                              const msgEmojiOnly = isEmojiOnlyMessage(msg.text) && !(msg.attachments?.length);
+                              return (
                             <div
-                              className={`px-3 py-2 rounded-2xl text-xs leading-relaxed ${msg.isMe ? "text-white rounded-tr-sm" : "bg-card border border-border/40 text-foreground rounded-tl-sm"}`}
-                              style={msg.isMe ? { background: "#7C3AED" } : {}}
+                              className={msgEmojiOnly ? "px-0.5 py-0.5" : `px-2.5 py-1.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.isMe ? "rounded-tr-sm" : "bg-card border border-border/40 text-foreground rounded-tl-sm"}`}
+                              style={msgEmojiOnly ? {} : (msg.isMe ? { background: "#E8CBB5", color: "#3A322C" } : {})}
                             >
                               {msg.text && (
-                                <p>
+                                <p className={msgEmojiOnly ? "text-[40px] leading-[48px]" : undefined}>
                                   <LinkifiedText
                                     text={msg.text}
-                                    className={msg.isMe ? "text-white underline decoration-white/70 hover:opacity-80 break-all" : "text-primary underline hover:opacity-80 break-all"}
+                                    className={msgEmojiOnly ? "" : (msg.isMe ? "text-[#3A322C] underline decoration-[#3A322C]/70 hover:opacity-80 break-all" : "text-primary underline hover:opacity-80 break-all")}
                                   />
                                 </p>
                               )}
-                              {msg.attachmentUrl &&
-                                msg.attachmentName &&
-                                msg.attachmentType && (
-                                  <div className={msg.text ? "mt-1.5" : ""}>
+                              {msg.attachments?.length > 0 && (
+                                <div className={`flex flex-wrap gap-1.5 ${msg.text ? "mt-1.5" : ""}`}>
+                                  {msg.attachments.map((att, i) => (
                                     <AttachmentPreview
-                                      attachment={{ url: msg.attachmentUrl, name: msg.attachmentName, type: msg.attachmentType }}
-                                      dark={msg.isMe}
+                                      key={i}
+                                      attachment={att}
+                                      dark={false}
                                       compact
                                     />
-                                  </div>
-                                )}
-                            </div>
-                            <div
-                              className="flex items-center gap-0 mt-0.5 px-1"
-                              style={msg.isMe ? { width: "100%", justifyContent: "flex-end" } : undefined}
-                            >
-                              <p className="text-[10px] text-muted-foreground">
-                                {fmtDateTime(msg.createdAt)}
-                              </p>
-                              {canUnsend(msg) && (
-                                <button
-                                  onClick={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect();
-                                    setMsgMenuAnchor((prev) => prev?.id === msg.id ? null : {
-                                      id: msg.id,
-                                      bottom: rect.bottom,
-                                      x: msg.isMe ? window.innerWidth - rect.right : rect.left,
-                                      alignRight: msg.isMe,
-                                    });
-                                  }}
-                                  className="w-4 h-4 rounded flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
-                                >
-                                  <MoreVertical size={11} />
-                                </button>
+                                  ))}
+                                </div>
                               )}
+                              <div className="flex items-center justify-end gap-0.5 mt-0.5">
+                                <p className={`text-[10px] ${msgEmojiOnly ? "text-muted-foreground" : (msg.isMe ? "text-[#3A322C]/60" : "text-muted-foreground")}`}>
+                                  {fmtDateTime(msg.createdAt)}
+                                </p>
+                                {canUnsend(msg) && (
+                                  <button
+                                    onClick={(e) => {
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setMsgMenuAnchor((prev) => prev?.id === msg.id ? null : {
+                                        id: msg.id,
+                                        bottom: rect.bottom,
+                                        x: msg.isMe ? window.innerWidth - rect.right : rect.left,
+                                        alignRight: msg.isMe,
+                                      });
+                                    }}
+                                    className={`w-4 h-4 rounded flex items-center justify-center hover:bg-muted transition-all ${msgEmojiOnly ? "text-muted-foreground" : (msg.isMe ? "text-[#3A322C]/60 hover:text-[#3A322C]" : "text-muted-foreground hover:text-foreground")}`}
+                                  >
+                                    <MoreVertical size={11} />
+                                  </button>
+                                )}
+                              </div>
                             </div>
+                              );
+                            })()}
                           </div>
                         </div>
                       );
@@ -1329,32 +1533,32 @@ export default function StaffroomPage() {
                   )}
                 </AnimatePresence>
 
-                {/* DM attachment preview */}
-                {dmAttachment && (
-                  <div className="px-3 pb-1 shrink-0">
-                    <AttachmentChip
-                      attachment={dmAttachment}
-                      onRemove={() => setDmAttachment(null)}
-                    />
+                {/* DM attachment previews */}
+                {dmAttachments.length > 0 && (
+                  <div className="px-3 pt-2 pb-1 shrink-0 flex flex-wrap gap-1.5">
+                    {dmAttachments.map((att, i) => (
+                      <AttachmentChip
+                        key={att.localUrl || att.url || i}
+                        attachment={att}
+                        onRemove={() =>
+                          setDmAttachments((prev) => prev.filter((_, idx) => idx !== i))
+                        }
+                      />
+                    ))}
                   </div>
                 )}
 
                 {/* DM Input */}
                 <div className="px-3 py-1.5 border-t border-border/40 shrink-0">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
-                      <input
-                        type="text"
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                      <textarea
+                        ref={dmInputRef}
                         value={dmInput}
-                        onChange={(e) => setDmInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleSendDm();
-                          }
-                        }}
+                        onChange={(e) => { setDmInput(e.target.value); autoGrowTextarea(e.target); }}
+                        rows={1}
                         placeholder={`Message ${activeDm.name}...`}
-                        className="flex-1 bg-transparent text-xs placeholder:text-muted-foreground/60 focus:outline-none"
+                        className="flex-1 bg-transparent text-xs placeholder:text-muted-foreground/60 focus:outline-none resize-none leading-5 overflow-y-auto"
                       />
                       <div className="flex items-center gap-1 shrink-0">
                         <button
@@ -1371,12 +1575,7 @@ export default function StaffroomPage() {
                         </button>
                         <button
                           type="button"
-                          onClick={() => {
-                            if (dmFileRef.current) {
-                              dmFileRef.current.accept = "image/*";
-                              dmFileRef.current.click();
-                            }
-                          }}
+                          onClick={() => dmImageFileRef.current?.click()}
                           disabled={dmUploading}
                           className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted transition-all disabled:opacity-50"
                         >
@@ -1387,11 +1586,12 @@ export default function StaffroomPage() {
                     <button
                       onClick={handleSendDm}
                       disabled={
-                        (!dmInput.trim() && !dmAttachment) ||
+                        (!dmInput.trim() &&
+                          dmAttachments.filter((a) => a.url).length === 0) ||
                         dmSubmitting ||
                         dmUploading
                       }
-                      className="w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:opacity-90 shrink-0"
+                      className="self-center w-8 h-8 rounded-xl flex items-center justify-center text-white disabled:opacity-40 transition-all hover:opacity-90 shrink-0"
                       style={{
                         background:
                           "linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)",
@@ -1412,9 +1612,18 @@ export default function StaffroomPage() {
                   className="hidden"
                   onChange={(e) => handleFileSelect(e, "dm")}
                 />
+                <input
+                  ref={dmImageFileRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleDmImagesSelect}
+                />
               </motion.div>
-            )}
-          </AnimatePresence>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
       </div>
 
@@ -1428,6 +1637,17 @@ export default function StaffroomPage() {
               ...(msgMenuAnchor.alignRight ? { right: msgMenuAnchor.x } : { left: msgMenuAnchor.x }),
             }}
           >
+            {(() => {
+              const menuMsg = messages.find((m) => m.id === msgMenuAnchor.id);
+              return menuMsg?.text ? (
+                <button
+                  onClick={() => { navigator.clipboard.writeText(menuMsg.text as string).catch(() => {}); setMsgMenuAnchor(null); }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
+                >
+                  <Copy size={11} /> Copy
+                </button>
+              ) : null;
+            })()}
             <button
               onClick={() => { const id = msgMenuAnchor.id; setMsgMenuAnchor(null); setConfirmUnsendId(id); }}
               className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-red-500 hover:bg-muted transition-colors"

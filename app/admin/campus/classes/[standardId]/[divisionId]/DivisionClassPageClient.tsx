@@ -848,6 +848,13 @@ export default function DivisionDetailPage() {
     const [announcements, setAnnouncements] = useState<DivAnnouncement[]>([]);
     const [postLoading, setPostLoading] = useState(false);
     const [postBody, setPostBody] = useState('');
+    const bodyTextareaRef = useRef<HTMLTextAreaElement>(null);
+    // Description box grows with content up to 5 lines, then stays fixed and
+    // scrolls internally instead of growing further.
+    const autoGrowBody = (el: HTMLTextAreaElement) => {
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 96) + 'px';
+    };
     const [postAttachment, setPostAttachment] = useState<{ url: string; name: string; type: string; mimeType: string } | null>(null);
     const [uploadingAttachment, setUploadingAttachment] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
@@ -977,6 +984,9 @@ export default function DivisionDetailPage() {
             setAnnouncements(prev => [res.data.data, ...prev]);
             setPostInput('');
             setPostBody('');
+            requestAnimationFrame(() => {
+                if (bodyTextareaRef.current) bodyTextareaRef.current.style.height = 'auto';
+            });
             setPostSubject('');
             setPostAttachment(null);
             toast.success('Posted!');
@@ -1450,8 +1460,9 @@ export default function DivisionDetailPage() {
                                         {/* Row 2 — Body + Attach + Send */}
                                         <div className="flex items-center gap-2">
                                             <div className="flex-1 flex items-start px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
-                                                <textarea value={postBody} onChange={e => setPostBody(e.target.value)}
-                                                    placeholder="Write description (optional)..." rows={2}
+                                                <textarea ref={bodyTextareaRef} value={postBody}
+                                                    onChange={e => { setPostBody(e.target.value); autoGrowBody(e.target); }}
+                                                    placeholder="Write description (optional)..." rows={1}
                                                     className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none resize-none max-h-24 overflow-y-auto py-0.5"
                                                     style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }} />
                                                 {uploadingAttachment && (
