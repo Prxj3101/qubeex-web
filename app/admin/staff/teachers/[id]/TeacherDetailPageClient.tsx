@@ -216,6 +216,70 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
             .finally(() => setAiUsageLoading(false));
     }, [teacher?.id]);
 
+    interface LineItem { label: string; amount: number; }
+    interface SalaryTemplateOption { id: string; name: string; earnings: LineItem[]; deductions: LineItem[]; }
+    interface TeacherSalaryStructureData {
+        id: string; templateId: string | null;
+        earnings: LineItem[]; deductions: LineItem[];
+        bankDetails: { accountName: string; accountNumber: string; ifsc: string; bankName: string } | null;
+        effectiveFrom: string;
+    }
+
+    const [salaryStructure, setSalaryStructure] = useState<TeacherSalaryStructureData | null>(null);
+    const [salaryLoading, setSalaryLoading] = useState(true);
+    const [salaryTemplates, setSalaryTemplates] = useState<SalaryTemplateOption[]>([]);
+    const [editingSalary, setEditingSalary] = useState(false);
+    const [salaryDraft, setSalaryDraft] = useState<{ templateId: string | null; earnings: LineItem[]; deductions: LineItem[]; bankDetails: { accountName: string; accountNumber: string; ifsc: string; bankName: string } } | null>(null);
+    const [savingSalary, setSavingSalary] = useState(false);
+
+    useEffect(() => {
+        if (!teacher?.id) return;
+        api.get(`/admin/payroll/teachers/${teacher.id}/structure`)
+            .then(res => setSalaryStructure(res.data.data))
+            .catch(() => setSalaryStructure(null))
+            .finally(() => setSalaryLoading(false));
+        api.get('/admin/payroll/templates')
+            .then(res => setSalaryTemplates(res.data.data ?? []))
+            .catch(() => {});
+    }, [teacher?.id]);
+
+    const startEditSalary = () => {
+        setSalaryDraft({
+            templateId: salaryStructure?.templateId ?? null,
+            earnings: salaryStructure?.earnings ?? [],
+            deductions: salaryStructure?.deductions ?? [],
+            bankDetails: salaryStructure?.bankDetails ?? { accountName: '', accountNumber: '', ifsc: '', bankName: '' },
+        });
+        setEditingSalary(true);
+    };
+
+    const applyTemplate = (templateId: string) => {
+        const tpl = salaryTemplates.find(t => t.id === templateId);
+        if (!tpl || !salaryDraft) return;
+        setSalaryDraft({ ...salaryDraft, templateId, earnings: tpl.earnings, deductions: tpl.deductions });
+    };
+
+    const saveSalaryStructure = async () => {
+        if (!salaryDraft || !teacher?.id) return;
+        setSavingSalary(true);
+        try {
+            const res = await api.put(`/admin/payroll/teachers/${teacher.id}/structure`, {
+                templateId: salaryDraft.templateId,
+                earnings: salaryDraft.earnings,
+                deductions: salaryDraft.deductions,
+                bankDetails: salaryDraft.bankDetails,
+                effectiveFrom: new Date().toISOString(),
+            });
+            setSalaryStructure(res.data.data);
+            setEditingSalary(false);
+            toast.success('Salary structure saved');
+        } catch (err: unknown) {
+            toast.error(getErrorMessage(err, 'Failed to save salary structure'));
+        } finally {
+            setSavingSalary(false);
+        }
+    };
+
     const [personalDraft, setPersonalDraft] = useState({
         name: teacher.name, dob: teacher.dob ?? '', gender: teacher.gender ?? '',
     });
@@ -611,6 +675,77 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         </div>
 
                     </div>
+                </SectionCard>
+
+                {/* Salary */}
+                <SectionCard title="Salary" contentClassName="p-5">
+                    {salaryLoading ? (
+                        <div className="h-16 rounded-xl bg-muted/40 animate-pulse" />
+                    ) : !editingSalary ? (
+                        <div className="space-y-3">
+                            {salaryStructure ? (
+                                <>
+                                    <div className="grid grid-cols-2 gap-2 text-xs">
+                                        <div>
+                                            <p className="text-muted-foreground mb-1">Earnings</p>
+                                            {salaryStructure.earnings.map((e, i) => (
+                                                <p key={i}>{e.label}: ₹{e.amount.toLocaleString('en-IN')}</p>
+                                            ))}
+                                        </div>
+                                        <div>
+                                            <p className="text-muted-foreground mb-1">Deductions</p>
+                                            {salaryStructure.deductions.length === 0
+                                                ? <p className="text-muted-foreground/60">None</p>
+                                                : salaryStructure.deductions.map((d, i) => (
+                                                    <p key={i}>{d.label}: ₹{d.amount.toLocaleString('en-IN')}</p>
+                                                ))}
+                                        </div>
+                                    </div>
+                                    <button onClick={startEditSalary} className="text-xs font-semibold text-primary">Edit salary structure</button>
+                                </>
+                            ) : (
+                                <div className="flex items-center justify-between">
+                                    <p className="text-xs text-muted-foreground">No salary structure assigned yet</p>
+                                    <button onClick={startEditSalary} className="text-xs font-semibold text-primary">Assign salary structure</button>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {salaryTemplates.length > 0 && (
+                                <select
+                                    className="w-full h-8 px-2 rounded-lg border border-border bg-background text-xs"
+                                    value={salaryDraft?.templateId ?? ''}
+                                    onChange={e => e.target.value && applyTemplate(e.target.value)}
+                                >
+                                    <option value="">Start from a template…</option>
+                                    {salaryTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                </select>
+                            )}
+                            <div className="grid grid-cols-2 gap-3 text-xs">
+                                <input placeholder="Account Name" className="h-8 px-2 rounded-lg border border-border bg-background"
+                                    value={salaryDraft?.bankDetails.accountName ?? ''}
+                                    onChange={e => salaryDraft && setSalaryDraft({ ...salaryDraft, bankDetails: { ...salaryDraft.bankDetails, accountName: e.target.value } })} />
+                                <input placeholder="Account Number" className="h-8 px-2 rounded-lg border border-border bg-background"
+                                    value={salaryDraft?.bankDetails.accountNumber ?? ''}
+                                    onChange={e => salaryDraft && setSalaryDraft({ ...salaryDraft, bankDetails: { ...salaryDraft.bankDetails, accountNumber: e.target.value } })} />
+                                <input placeholder="IFSC" className="h-8 px-2 rounded-lg border border-border bg-background"
+                                    value={salaryDraft?.bankDetails.ifsc ?? ''}
+                                    onChange={e => salaryDraft && setSalaryDraft({ ...salaryDraft, bankDetails: { ...salaryDraft.bankDetails, ifsc: e.target.value } })} />
+                                <input placeholder="Bank Name" className="h-8 px-2 rounded-lg border border-border bg-background"
+                                    value={salaryDraft?.bankDetails.bankName ?? ''}
+                                    onChange={e => salaryDraft && setSalaryDraft({ ...salaryDraft, bankDetails: { ...salaryDraft.bankDetails, bankName: e.target.value } })} />
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <button onClick={() => setEditingSalary(false)} className="h-8 px-3 rounded-lg text-xs border border-border">Cancel</button>
+                                <button onClick={saveSalaryStructure} disabled={savingSalary}
+                                    className="h-8 px-3 rounded-lg text-xs font-semibold text-white disabled:opacity-60"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                    {savingSalary ? 'Saving…' : 'Save'}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </SectionCard>
 
                 {/* Professional */}
