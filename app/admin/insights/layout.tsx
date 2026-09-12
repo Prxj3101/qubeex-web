@@ -4,28 +4,32 @@ import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { BarChart2, CreditCard, Lock } from 'lucide-react';
+import { BarChart2, CreditCard, Wallet, Lock } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 
 const INSIGHTS_TABS = [
-    { label: 'Analytics', href: '/admin/insights/analytics', icon: BarChart2, permKey: 'INSIGHTS_ANALYTICS' },
-    { label: 'Subscription', href: '/admin/insights/subscription', icon: CreditCard, permKey: 'INSIGHTS_SUBSCRIPTION' },
+    { label: 'Analytics', href: '/admin/insights/analytics', icon: BarChart2, permKey: 'INSIGHTS_ANALYTICS' as string | null },
+    { label: 'Subscription', href: '/admin/insights/subscription', icon: CreditCard, permKey: 'INSIGHTS_SUBSCRIPTION' as string | null },
+    // adminOnly: true — hidden from Sub-Admins entirely (not merely locked),
+    // same rule as the rest of Payroll's access model. permKey is null since
+    // no Sub-Admin permission can ever unlock this tab.
+    { label: 'Payroll', href: '/admin/payroll/runs', icon: Wallet, permKey: null as string | null, adminOnly: true },
 ];
 
-function TabBar({ isTabLocked }: { isTabLocked: (permKey: string) => boolean }) {
+function TabBar({ isTabLocked, isSubAdmin }: { isTabLocked: (permKey: string) => boolean; isSubAdmin: boolean }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const from = searchParams.get('from');
 
     return (
         <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
-            {INSIGHTS_TABS.map((tab) => {
+            {INSIGHTS_TABS.filter(tab => !(tab.adminOnly && isSubAdmin)).map((tab) => {
                 const isActive = pathname === tab.href
                     || pathname.startsWith(tab.href + '/')
                     || (pathname === '/admin/insights/users' && from === tab.href.split('/').pop());
                 const Icon = tab.icon;
-                const locked = isTabLocked(tab.permKey);
+                const locked = tab.permKey ? isTabLocked(tab.permKey) : false;
 
                 if (locked) {
                     return (
@@ -64,14 +68,19 @@ function TabBar({ isTabLocked }: { isTabLocked: (permKey: string) => boolean }) 
     );
 }
 
-function RedirectGuard({ isTabLocked }: { isTabLocked: (permKey: string) => boolean }) {
+function RedirectGuard({ isTabLocked, isSubAdmin }: { isTabLocked: (permKey: string) => boolean; isSubAdmin: boolean }) {
     const pathname = usePathname();
     const router = useRouter();
 
     useEffect(() => {
-        const current = INSIGHTS_TABS.find(t => pathname === t.href || pathname.startsWith(t.href + '/'));
-        if (current && isTabLocked(current.permKey)) {
-            const first = INSIGHTS_TABS.find(t => !isTabLocked(t.permKey));
+        // Only guards tabs actually nested under /admin/insights — Payroll's
+        // own /admin/payroll/* prefix is independently redirect-guarded for
+        // Sub-Admins by the root admin layout's LOCKED_PREFIX_TO_KEYS, so it's
+        // excluded here to avoid ever picking it as a Sub-Admin fallback.
+        const visibleTabs = INSIGHTS_TABS.filter(t => !(t.adminOnly && isSubAdmin));
+        const current = visibleTabs.find(t => pathname === t.href || pathname.startsWith(t.href + '/'));
+        if (current && current.permKey && isTabLocked(current.permKey)) {
+            const first = visibleTabs.find(t => !t.permKey || !isTabLocked(t.permKey));
             router.replace(first ? first.href : '/admin/overview');
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -95,8 +104,8 @@ export default function InsightsLayout({ children }: { children: React.ReactNode
             {/* Tab bar */}
             <div className="shrink-0 pt-0 pb-2 px-1">
                 <Suspense fallback={<div className="h-9" />}>
-                    <TabBar isTabLocked={isTabLocked} />
-                    <RedirectGuard isTabLocked={isTabLocked} />
+                    <TabBar isTabLocked={isTabLocked} isSubAdmin={isSubAdmin} />
+                    <RedirectGuard isTabLocked={isTabLocked} isSubAdmin={isSubAdmin} />
                 </Suspense>
             </div>
 

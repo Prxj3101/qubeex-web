@@ -14,7 +14,6 @@ import {
     LineChart,
     Headset,
     ScrollText,
-    Wallet,
 } from 'lucide-react';
 import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
 
@@ -24,10 +23,6 @@ const ALL_NAV_ITEMS = [
     { label: 'Staff',      href: '/admin/staff',              icon: Users,           childKeys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
     { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { label: 'Insights',   href: '/admin/insights',           icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION'] },
-    // adminOnly: true — hidden from Sub-Admins entirely (not merely locked),
-    // since salary data is more sensitive than any module with a Sub-Admin
-    // delegation path. See Global Constraints.
-    { label: 'Payroll',    href: '/admin/payroll/runs',       icon: Wallet,          activePath: '/admin/payroll',  childKeys: [] as string[], adminOnly: true },
     { label: 'Support',    href: '/admin/support/tickets',    icon: Headset,         activePath: '/admin/support',  childKeys: ['SUPPORT'] },
     { label: 'Audit Logs', href: '/admin/audit-logs',         icon: ScrollText,      childKeys: ['AUDIT_LOGS'] },
 ];

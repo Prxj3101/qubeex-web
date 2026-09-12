@@ -9,7 +9,7 @@ import { getErrorMessage } from '@/lib/error';
 
 interface LineItem { label: string; amount: number; }
 interface Payslip {
-    id: string; teacherId: string; teacherName: string;
+    id: string; staffId: string; staffName: string; staffType: 'TEACHER' | 'ADMIN' | 'SUB_ADMIN' | 'HELPER' | 'OTHER'; staffDesignation: string | null;
     earnings: LineItem[]; deductions: LineItem[];
     grossPay: number; netPay: number;
     status: 'PENDING' | 'PAID'; pdfUrl: string | null;
@@ -90,7 +90,10 @@ export default function PayrollRunDetailPage() {
                 {run.payslips.map(p => (
                     <div key={p.id} className="flex items-center justify-between px-4 py-3">
                         <div>
-                            <p className="text-sm font-medium">{p.teacherName}</p>
+                            <p className="text-sm font-medium flex items-center gap-1.5">
+                                {p.staffName}
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground">{p.staffType}</span>
+                            </p>
                             <p className="text-[11px] text-muted-foreground">Gross ₹{p.grossPay.toLocaleString('en-IN')} · Net ₹{p.netPay.toLocaleString('en-IN')}</p>
                         </div>
                         <div className="flex items-center gap-2">

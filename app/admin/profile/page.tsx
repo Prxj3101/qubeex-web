@@ -345,6 +345,38 @@ export default function AdminProfilePage() {
     }
   }, [user, isSubAdmin]);
 
+  interface MyPayslip { id: string; grossPay: number; netPay: number; status: 'PENDING' | 'PAID'; payrollRun: { month: string; publishedAt: string } }
+  const [myPayslips, setMyPayslips] = useState<MyPayslip[]>([]);
+  const [payslipsLoading, setPayslipsLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.get('/admin/payroll/my-payslips')
+      .then(res => setMyPayslips(res.data.data ?? []))
+      .catch(() => setMyPayslips([]))
+      .finally(() => setPayslipsLoading(false));
+  }, []);
+
+  const downloadMyPayslip = async (id: string) => {
+    setDownloadingId(id);
+    try {
+      const res = await api.get(`/admin/payroll/my-payslips/${id}/pdf`, { responseType: 'blob' });
+      const blob = res.data as Blob;
+      const url = URL.createObjectURL(blob);
+      window.open(url, '_blank');
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch {
+      toast.error('Failed to download payslip');
+    } finally {
+      setDownloadingId(null);
+    }
+  };
+
+  function monthLabel(month: string): string {
+    const [y, m] = month.split('-').map(Number);
+    return new Date(y, m - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
+  }
+
   // ── Edit state ────────────────────────────────────────────────────────────
   const [editingSection, setEditingSection] = useState<string | null>(null);
   const editingSectionRef = useRef<string | null>(null);
@@ -996,6 +1028,35 @@ export default function AdminProfilePage() {
             <InfoRow icon={FileText} label="Tests Conducted" value="—" />
             <InfoRow icon={Zap} label="Last Active" value="—" />
             <InfoRow icon={Calendar} label="Last Updated (IST)" value={toIST(inst.updatedAt)} />
+          </SectionCard>
+
+          {/* My Payslips */}
+          <SectionCard title="My Payslips">
+            {payslipsLoading ? (
+              <div className="h-16 rounded-xl bg-muted/40 animate-pulse" />
+            ) : myPayslips.length === 0 ? (
+              <p className="text-xs text-muted-foreground py-4 text-center">No payslips published yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {myPayslips.map(p => (
+                  <div key={p.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border/40">
+                    <div>
+                      <p className="text-sm font-medium">{monthLabel(p.payrollRun.month)}</p>
+                      <p className="text-[11px] text-muted-foreground">Net Pay: ₹{p.netPay.toLocaleString('en-IN')}</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${p.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
+                        {p.status === 'PAID' ? 'Paid' : 'Pending'}
+                      </span>
+                      <button onClick={() => downloadMyPayslip(p.id)} disabled={downloadingId === p.id}
+                        className="h-7 px-2.5 rounded-lg border border-border text-[11px] font-semibold disabled:opacity-60">
+                        {downloadingId === p.id ? '…' : 'PDF'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </SectionCard>
 
         </div>

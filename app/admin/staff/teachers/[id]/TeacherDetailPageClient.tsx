@@ -8,7 +8,7 @@ import {
     ArrowLeft, ChevronRight, Hash, Mail, Phone, MapPin,
     Calendar, User, GraduationCap, Briefcase, Edit2,
     Check, X, PowerOff, Power, BookOpen, Layers,
-    CheckCircle2, Circle, Tag,
+    CheckCircle2, Circle, Tag, Plus,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { Teacher, InstitutionType } from '@/types';
@@ -20,6 +20,41 @@ import { formatDisplayName } from '@/lib/displayName';
 import { getErrorMessage } from '@/lib/error';
 import { formatTokens } from '@/lib/utils';
 
+// ── Salary line-item editor (earnings/deductions), shared by the Salary section below ──
+interface SalaryLineItem { label: string; amount: number; }
+function SalaryLineItemEditor({ items, onChange, label }: { items: SalaryLineItem[]; onChange: (items: SalaryLineItem[]) => void; label: string }) {
+    return (
+        <div className="space-y-2">
+            <p className="text-[11px] font-semibold text-muted-foreground">{label}</p>
+            {items.map((item, i) => (
+                <div key={i} className="flex items-center gap-2">
+                    <input
+                        className="flex-1 h-8 px-2 rounded-lg border border-border bg-background text-xs"
+                        placeholder="Label (e.g. Basic)"
+                        value={item.label}
+                        onChange={e => onChange(items.map((it, idx) => idx === i ? { ...it, label: e.target.value } : it))}
+                    />
+                    <input
+                        type="number"
+                        className="w-24 h-8 px-2 rounded-lg border border-border bg-background text-xs"
+                        placeholder="Amount"
+                        value={item.amount}
+                        onChange={e => onChange(items.map((it, idx) => idx === i ? { ...it, amount: Number(e.target.value) || 0 } : it))}
+                    />
+                    <button onClick={() => onChange(items.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-red-500">
+                        <X size={13} />
+                    </button>
+                </div>
+            ))}
+            <button
+                onClick={() => onChange([...items, { label: '', amount: 0 }])}
+                className="text-[11px] font-semibold text-primary flex items-center gap-1"
+            >
+                <Plus size={11} /> Add line item
+            </button>
+        </div>
+    );
+}
 
 // ── Mock teacher data ─────────────────────────────────────────────────────────
 const MOCK_TEACHERS: (Teacher & {
@@ -216,69 +251,19 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
             .finally(() => setAiUsageLoading(false));
     }, [teacher?.id]);
 
-    interface LineItem { label: string; amount: number; }
-    interface SalaryTemplateOption { id: string; name: string; earnings: LineItem[]; deductions: LineItem[]; }
-    interface TeacherSalaryStructureData {
-        id: string; templateId: string | null;
-        earnings: LineItem[]; deductions: LineItem[];
-        bankDetails: { accountName: string; accountNumber: string; ifsc: string; bankName: string } | null;
-        effectiveFrom: string;
-    }
-
-    const [salaryStructure, setSalaryStructure] = useState<TeacherSalaryStructureData | null>(null);
-    const [salaryLoading, setSalaryLoading] = useState(true);
-    const [salaryTemplates, setSalaryTemplates] = useState<SalaryTemplateOption[]>([]);
-    const [editingSalary, setEditingSalary] = useState(false);
-    const [salaryDraft, setSalaryDraft] = useState<{ templateId: string | null; earnings: LineItem[]; deductions: LineItem[]; bankDetails: { accountName: string; accountNumber: string; ifsc: string; bankName: string } } | null>(null);
-    const [savingSalary, setSavingSalary] = useState(false);
+    const [linkedStaff, setLinkedStaff] = useState<{ id: string; salaryStructure: { earnings: { label: string; amount: number }[]; deductions: { label: string; amount: number }[] } | null } | null>(null);
+    const [staffLoading, setStaffLoading] = useState(true);
 
     useEffect(() => {
-        if (!teacher?.id) return;
-        api.get(`/admin/payroll/teachers/${teacher.id}/structure`)
-            .then(res => setSalaryStructure(res.data.data))
-            .catch(() => setSalaryStructure(null))
-            .finally(() => setSalaryLoading(false));
-        api.get('/admin/payroll/templates')
-            .then(res => setSalaryTemplates(res.data.data ?? []))
-            .catch(() => {});
-    }, [teacher?.id]);
-
-    const startEditSalary = () => {
-        setSalaryDraft({
-            templateId: salaryStructure?.templateId ?? null,
-            earnings: salaryStructure?.earnings ?? [],
-            deductions: salaryStructure?.deductions ?? [],
-            bankDetails: salaryStructure?.bankDetails ?? { accountName: '', accountNumber: '', ifsc: '', bankName: '' },
-        });
-        setEditingSalary(true);
-    };
-
-    const applyTemplate = (templateId: string) => {
-        const tpl = salaryTemplates.find(t => t.id === templateId);
-        if (!tpl || !salaryDraft) return;
-        setSalaryDraft({ ...salaryDraft, templateId, earnings: tpl.earnings, deductions: tpl.deductions });
-    };
-
-    const saveSalaryStructure = async () => {
-        if (!salaryDraft || !teacher?.id) return;
-        setSavingSalary(true);
-        try {
-            const res = await api.put(`/admin/payroll/teachers/${teacher.id}/structure`, {
-                templateId: salaryDraft.templateId,
-                earnings: salaryDraft.earnings,
-                deductions: salaryDraft.deductions,
-                bankDetails: salaryDraft.bankDetails,
-                effectiveFrom: new Date().toISOString(),
-            });
-            setSalaryStructure(res.data.data);
-            setEditingSalary(false);
-            toast.success('Salary structure saved');
-        } catch (err: unknown) {
-            toast.error(getErrorMessage(err, 'Failed to save salary structure'));
-        } finally {
-            setSavingSalary(false);
-        }
-    };
+        if (!teacher?.email) return;
+        api.get('/admin/payroll/staff')
+            .then(res => {
+                const all: { id: string; email: string; salaryStructure: { earnings: { label: string; amount: number }[]; deductions: { label: string; amount: number }[] } | null }[] = res.data.data ?? [];
+                setLinkedStaff(all.find(s => s.email === teacher.email) ?? null);
+            })
+            .catch(() => setLinkedStaff(null))
+            .finally(() => setStaffLoading(false));
+    }, [teacher?.email]);
 
     const [personalDraft, setPersonalDraft] = useState({
         name: teacher.name, dob: teacher.dob ?? '', gender: teacher.gender ?? '',
@@ -679,71 +664,32 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
 
                 {/* Salary */}
                 <SectionCard title="Salary" contentClassName="p-5">
-                    {salaryLoading ? (
+                    {staffLoading ? (
                         <div className="h-16 rounded-xl bg-muted/40 animate-pulse" />
-                    ) : !editingSalary ? (
+                    ) : linkedStaff?.salaryStructure ? (
                         <div className="space-y-3">
-                            {salaryStructure ? (
-                                <>
-                                    <div className="grid grid-cols-2 gap-2 text-xs">
-                                        <div>
-                                            <p className="text-muted-foreground mb-1">Earnings</p>
-                                            {salaryStructure.earnings.map((e, i) => (
-                                                <p key={i}>{e.label}: ₹{e.amount.toLocaleString('en-IN')}</p>
-                                            ))}
-                                        </div>
-                                        <div>
-                                            <p className="text-muted-foreground mb-1">Deductions</p>
-                                            {salaryStructure.deductions.length === 0
-                                                ? <p className="text-muted-foreground/60">None</p>
-                                                : salaryStructure.deductions.map((d, i) => (
-                                                    <p key={i}>{d.label}: ₹{d.amount.toLocaleString('en-IN')}</p>
-                                                ))}
-                                        </div>
-                                    </div>
-                                    <button onClick={startEditSalary} className="text-xs font-semibold text-primary">Edit salary structure</button>
-                                </>
-                            ) : (
-                                <div className="flex items-center justify-between">
-                                    <p className="text-xs text-muted-foreground">No salary structure assigned yet</p>
-                                    <button onClick={startEditSalary} className="text-xs font-semibold text-primary">Assign salary structure</button>
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                                <div>
+                                    <p className="text-muted-foreground mb-1">Earnings</p>
+                                    {linkedStaff.salaryStructure.earnings.map((e, i) => (
+                                        <p key={i}>{e.label}: ₹{e.amount.toLocaleString('en-IN')}</p>
+                                    ))}
                                 </div>
-                            )}
+                                <div>
+                                    <p className="text-muted-foreground mb-1">Deductions</p>
+                                    {linkedStaff.salaryStructure.deductions.length === 0
+                                        ? <p className="text-muted-foreground/60">None</p>
+                                        : linkedStaff.salaryStructure.deductions.map((d, i) => (
+                                            <p key={i}>{d.label}: ₹{d.amount.toLocaleString('en-IN')}</p>
+                                        ))}
+                                </div>
+                            </div>
+                            <a href="/admin/payroll/staff" className="text-xs font-semibold text-primary">Manage in Staff Payroll →</a>
                         </div>
                     ) : (
-                        <div className="space-y-3">
-                            {salaryTemplates.length > 0 && (
-                                <select
-                                    className="w-full h-8 px-2 rounded-lg border border-border bg-background text-xs"
-                                    value={salaryDraft?.templateId ?? ''}
-                                    onChange={e => e.target.value && applyTemplate(e.target.value)}
-                                >
-                                    <option value="">Start from a template…</option>
-                                    {salaryTemplates.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                                </select>
-                            )}
-                            <div className="grid grid-cols-2 gap-3 text-xs">
-                                <input placeholder="Account Name" className="h-8 px-2 rounded-lg border border-border bg-background"
-                                    value={salaryDraft?.bankDetails.accountName ?? ''}
-                                    onChange={e => salaryDraft && setSalaryDraft({ ...salaryDraft, bankDetails: { ...salaryDraft.bankDetails, accountName: e.target.value } })} />
-                                <input placeholder="Account Number" className="h-8 px-2 rounded-lg border border-border bg-background"
-                                    value={salaryDraft?.bankDetails.accountNumber ?? ''}
-                                    onChange={e => salaryDraft && setSalaryDraft({ ...salaryDraft, bankDetails: { ...salaryDraft.bankDetails, accountNumber: e.target.value } })} />
-                                <input placeholder="IFSC" className="h-8 px-2 rounded-lg border border-border bg-background"
-                                    value={salaryDraft?.bankDetails.ifsc ?? ''}
-                                    onChange={e => salaryDraft && setSalaryDraft({ ...salaryDraft, bankDetails: { ...salaryDraft.bankDetails, ifsc: e.target.value } })} />
-                                <input placeholder="Bank Name" className="h-8 px-2 rounded-lg border border-border bg-background"
-                                    value={salaryDraft?.bankDetails.bankName ?? ''}
-                                    onChange={e => salaryDraft && setSalaryDraft({ ...salaryDraft, bankDetails: { ...salaryDraft.bankDetails, bankName: e.target.value } })} />
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <button onClick={() => setEditingSalary(false)} className="h-8 px-3 rounded-lg text-xs border border-border">Cancel</button>
-                                <button onClick={saveSalaryStructure} disabled={savingSalary}
-                                    className="h-8 px-3 rounded-lg text-xs font-semibold text-white disabled:opacity-60"
-                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                    {savingSalary ? 'Saving…' : 'Save'}
-                                </button>
-                            </div>
+                        <div className="flex items-center justify-between">
+                            <p className="text-xs text-muted-foreground">No salary structure assigned yet</p>
+                            <a href="/admin/payroll/staff" className="text-xs font-semibold text-primary">Assign in Staff Payroll →</a>
                         </div>
                     )}
                 </SectionCard>
