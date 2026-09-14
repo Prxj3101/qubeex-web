@@ -62,6 +62,7 @@ type TokenData = {
   userDisplayId?: string;
   role?: string;
   valid: boolean;
+  expiryLabel?: string;
 };
 
 // Label for the pre-filled login ID, based on the invited user's role.
@@ -209,9 +210,18 @@ function SetPasswordContent() {
               Link Expired
             </h1>
             <p className="text-sm text-white/50 leading-relaxed">
-              This invite link is no longer valid. Invite links expire after{" "}
-              <span className="text-white/70 font-medium">1 hour</span> for
-              security reasons.
+              {tokenData?.expiryLabel ? (
+                <>
+                  This invite link is no longer valid. Invite links expire
+                  after{" "}
+                  <span className="text-white/70 font-medium">
+                    {tokenData.expiryLabel}
+                  </span>{" "}
+                  for security reasons.
+                </>
+              ) : (
+                "This invite link is no longer valid, or has already been used."
+              )}
             </p>
             <p className="text-sm text-white/40 mt-3">
               Please contact your QubeEx administrator to resend the invite.

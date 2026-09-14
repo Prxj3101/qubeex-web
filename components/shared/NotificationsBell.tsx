@@ -107,12 +107,11 @@ export function NotificationsBell({ restrictNav, lockMessage, disabled }: { rest
     const [loading, setLoading] = useState(false);
 
     const isSuperAdmin = pathname.startsWith('/superadmin');
-    // Teachers don't get notifications — the bell is hidden for them entirely.
-    const isTeacher = pathname.startsWith('/teacher');
-    // Admin and student share one institution-scoped notification API, with real
-    // per-recipient read state on the backend.
+    // Admin, teacher, and student all share one institution-scoped notification
+    // API, with real per-recipient read state on the backend.
     const roleBase =
         pathname.startsWith('/admin')   ? '/admin'   :
+        pathname.startsWith('/teacher') ? '/teacher' :
         pathname.startsWith('/student') ? '/student' :
         null;
 
@@ -229,13 +228,10 @@ export function NotificationsBell({ restrictNav, lockMessage, disabled }: { rest
     const handleViewAll = () => {
         handleClose();
         if (isSuperAdmin) router.push('/superadmin/notifications');
-        else if (roleBase === '/admin') router.push('/admin/notifications');
+        else if (roleBase) router.push(`${roleBase}/notifications`);
     };
 
-    const hasViewAllPage = isSuperAdmin || roleBase === '/admin';
-
-    // Teachers have no notifications — don't render the bell at all.
-    if (isTeacher) return null;
+    const hasViewAllPage = isSuperAdmin || !!roleBase;
 
     // App WebView's assignment paper view: the topbar shows purely as a
     // brand strip there, only the theme toggle should still do anything —
