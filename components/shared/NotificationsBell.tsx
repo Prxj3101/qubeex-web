@@ -63,6 +63,7 @@ export const ICON_CFG: Record<string, { icon: React.ElementType; iconBg: string;
     TEST_PUBLISHED:        { icon: BookOpen,     iconBg: 'bg-violet-100 dark:bg-[#7C3AED]/20',  iconColor: 'text-violet-600 dark:text-violet-400' },
     PLAN_EXPIRY_ADMIN:     { icon: CreditCard,   iconBg: 'bg-orange-100 dark:bg-orange-950/50', iconColor: 'text-orange-500' },
     ASSIGNMENT_SUBMITTED:  { icon: ClipboardList,iconBg: 'bg-violet-100 dark:bg-[#7C3AED]/20',  iconColor: 'text-violet-600 dark:text-violet-400' },
+    ASSIGNMENT_PUBLISHED:  { icon: ClipboardList,iconBg: 'bg-violet-100 dark:bg-[#7C3AED]/20',  iconColor: 'text-violet-600 dark:text-violet-400' },
     TEST_SCHEDULED:        { icon: Calendar,     iconBg: 'bg-blue-100 dark:bg-blue-950/50',     iconColor: 'text-blue-500' },
     STUDENT_FLAGGED:       { icon: AlertTriangle,iconBg: 'bg-red-100 dark:bg-red-950/50',       iconColor: 'text-red-500' },
     EXAM_REMINDER:         { icon: Calendar,     iconBg: 'bg-red-100 dark:bg-red-950/50',       iconColor: 'text-red-500' },
