@@ -498,6 +498,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
         el.style.height = Math.min(el.scrollHeight, 96) + 'px';
     };
     const [postSubjectId, setPostSubjectId] = useState<string>(restrictToSubjectId ?? '');
+    const [subjectPickerOpen, setSubjectPickerOpen] = useState(false);
     const [attachments, setAttachments] = useState<File[]>([]);
     const [announcements, setAnnouncements] = useState<DivAnnouncement[]>([]);
     const [postsLoading, setPostsLoading] = useState(true);
@@ -723,13 +724,40 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                 {restrictToSubjectId ? (
                                     <span className="text-xs text-muted-foreground whitespace-nowrap px-1">{restrictToSubjectName}</span>
                                 ) : (
-                                    <select value={postSubjectId} onChange={e => setPostSubjectId(e.target.value)}
-                                        className="w-32 bg-transparent text-xs text-muted-foreground focus:outline-none">
-                                        <option value="">General (no subject)</option>
-                                        {division.subjects.map(s => (
-                                            <option key={s.id} value={s.id}>{s.name}</option>
-                                        ))}
-                                    </select>
+                                    <div className="relative">
+                                        <button
+                                            type="button"
+                                            onClick={() => setSubjectPickerOpen(v => !v)}
+                                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground focus:outline-none whitespace-nowrap"
+                                        >
+                                            <span className="max-w-24 truncate">{division.subjects.find(s => s.id === postSubjectId)?.name ?? 'General'}</span>
+                                            {subjectPickerOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                                        </button>
+                                        {subjectPickerOpen && (
+                                            <>
+                                                <div className="fixed inset-0 z-10" onClick={() => setSubjectPickerOpen(false)} />
+                                                <div className="absolute bottom-full right-0 mb-1.5 min-w-40 rounded-xl border border-border bg-popover shadow-lg py-1 z-20">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => { setPostSubjectId(''); setSubjectPickerOpen(false); }}
+                                                        className="w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-muted whitespace-nowrap"
+                                                    >
+                                                        General (no subject)
+                                                    </button>
+                                                    {division.subjects.map(s => (
+                                                        <button
+                                                            key={s.id}
+                                                            type="button"
+                                                            onClick={() => { setPostSubjectId(s.id); setSubjectPickerOpen(false); }}
+                                                            className="w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-muted whitespace-nowrap"
+                                                        >
+                                                            {s.name}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 )}
                             </div>
                             <div className="flex items-center gap-1 shrink-0">

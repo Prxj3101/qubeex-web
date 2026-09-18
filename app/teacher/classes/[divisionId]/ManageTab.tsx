@@ -17,6 +17,7 @@ import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { colorForSubject } from '@/lib/subjectColors';
 import { formatDisplayName } from '@/lib/displayName';
+import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Guardian { name: string; number: string; relation: string }
@@ -205,7 +206,7 @@ function ReadField({ label, value, multiline }: { label: string; value: string; 
         <div>
             <p className="text-[11px] text-muted-foreground mb-1 font-medium">{label}</p>
             <div className={`px-3 rounded-md border border-border/50 bg-muted flex ${multiline ? 'min-h-8 py-2 items-start' : 'h-8 items-center'}`}>
-                <span className="text-xs text-foreground leading-relaxed">{value || '—'}</span>
+                <span className="text-xs text-foreground leading-relaxed">{value || '-'}</span>
             </div>
         </div>
     );
@@ -288,6 +289,7 @@ export default function ManageTab({ division, isClassTeacher }: {
         studentInfo: false, academic: false, medical: false, address: false, guardians: false,
     });
     const [editDraft, setEditDraft] = useState<Partial<Student & { name: string; email: string }>>({});
+    const [confirmDeleteGuardianIdx, setConfirmDeleteGuardianIdx] = useState<number | null>(null);
     const [showPassword, setShowPassword] = useState(false);
     const [resettingPassword, setResettingPassword] = useState(false);
     const [resetResult, setResetResult] = useState<string | null>(null);
@@ -635,7 +637,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                         }
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="text-xs font-semibold truncate">{student.user.name ?? '—'}</p>
+                                        <p className="text-xs font-semibold truncate">{student.user.name ?? '-'}</p>
                                         <p className="text-[10px] text-muted-foreground">{student.studentId}{student.rollNo ? ` · Roll ${student.rollNo}` : ''}</p>
                                     </div>
                                     <div className="flex items-center gap-3 shrink-0">
@@ -652,7 +654,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                             )}
                                         </div>
                                         <div className="text-right">
-                                            <p className="text-[11px] font-bold" style={{ color: 'var(--primary)' }}>{lb ? `#${lb.rank}` : '—'}</p>
+                                            <p className="text-[11px] font-bold" style={{ color: 'var(--primary)' }}>{lb ? `#${lb.rank}` : '-'}</p>
                                             <p className="text-[9px] text-muted-foreground/60">rank</p>
                                         </div>
                                         <div className="text-right">
@@ -661,7 +663,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     : lb.attendancePct >= 65 ? 'text-amber-600'
                                                         : 'text-red-500'
                                                 }`}>
-                                                {lb?.attendancePct != null ? `${lb.attendancePct}%` : '—'}
+                                                {lb?.attendancePct != null ? `${lb.attendancePct}%` : '-'}
                                             </div>
                                             <p className="text-[9px] text-muted-foreground/60">attend.</p>
                                         </div>
@@ -800,7 +802,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                             {[
                                                 {
                                                     label: 'Class Rank',
-                                                    value: loadingStats ? '…' : (studentStats?.classRank != null ? `#${studentStats.classRank}` : '—'),
+                                                    value: loadingStats ? '…' : (studentStats?.classRank != null ? `#${studentStats.classRank}` : '-'),
                                                     sub: 'by score',
                                                     color: studentStats?.classRank == null ? undefined :
                                                         studentStats.classRank === 1 ? '#F59E0B' :
@@ -810,7 +812,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                 },
                                                 {
                                                     label: 'Score %',
-                                                    value: loadingStats ? '…' : (studentStats?.score.pct != null ? `${studentStats.score.pct}%` : '—'),
+                                                    value: loadingStats ? '…' : (studentStats?.score.pct != null ? `${studentStats.score.pct}%` : '-'),
                                                     sub: 'overall',
                                                     // Same thresholds/colors as the marksheet's own scoreColor() —
                                                     // ≥75 green, 35–74 amber, <35 red (not the 75/65 split used for
@@ -821,7 +823,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                 },
                                                 {
                                                     label: 'Attendance',
-                                                    value: loadingStats ? '…' : (studentStats?.attendance.pct != null ? `${studentStats.attendance.pct}%` : '—'),
+                                                    value: loadingStats ? '…' : (studentStats?.attendance.pct != null ? `${studentStats.attendance.pct}%` : '-'),
                                                     sub: 'overall',
                                                     color: studentStats?.attendance.pct == null ? undefined :
                                                         studentStats.attendance.pct >= 75 ? '#10B981' :
@@ -840,13 +842,13 @@ export default function ManageTab({ division, isClassTeacher }: {
                                         {selectedStudent.hasLoggedIn ? (
                                             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-                                                <p className="text-[11px] text-green-700 dark:text-green-300 font-medium">Active — student has logged in</p>
+                                                <p className="text-[11px] text-green-700 dark:text-green-300 font-medium">Active - student has logged in</p>
                                             </div>
                                         ) : (
                                             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
                                                 <div className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0" />
                                                 <p className="text-[11px] text-amber-700 dark:text-amber-300 font-medium">
-                                                    Awaiting first login — student hasn&apos;t logged in yet
+                                                    Awaiting first login - student hasn&apos;t logged in yet
                                                 </p>
                                             </div>
                                         )}
@@ -887,7 +889,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                             <input value={dName()} onChange={e => setEditDraft(p => ({ ...p, name: e.target.value }))}
                                                                 className="text-sm font-bold bg-transparent border-b border-primary/50 focus:outline-none" />
                                                         ) : (
-                                                            <p className="text-sm font-bold">{selectedStudent.user.name ?? '—'}</p>
+                                                            <p className="text-sm font-bold">{selectedStudent.user.name ?? '-'}</p>
                                                         )}
                                                     </div>
                                                 </div>
@@ -987,7 +989,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     <div className="h-8 px-3 rounded-md border border-border/40 bg-muted/40 flex items-center justify-between gap-2">
                                                         <span className="text-sm font-mono flex-1" style={{ color: selectedStudent.user.mustChangePassword ? '#DA7756' : undefined }}>
                                                             {selectedStudent.user.mustChangePassword
-                                                                ? (showPassword ? (selectedStudent.tempPassword ?? '—') : '••••••••••')
+                                                                ? (showPassword ? (selectedStudent.tempPassword ?? '-') : '••••••••••')
                                                                 : '(changed by student)'}
                                                         </span>
                                                         {selectedStudent.user.mustChangePassword && (
@@ -1037,7 +1039,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                             <Heart size={18} className="text-red-500 shrink-0" />
                                                             <div>
                                                                 <p className="text-[10px] text-red-400 font-medium">Blood Group</p>
-                                                                <p className="text-xl font-black text-red-500">{d('bloodGroup') || '—'}</p>
+                                                                <p className="text-xl font-black text-red-500">{d('bloodGroup') || '-'}</p>
                                                             </div>
                                                         </div>
                                                         <ReadField label="Aadhar No" value={d('aadharNo')} />
@@ -1121,7 +1123,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                             </p>
                                                             {editingSections.guardians && (
                                                                 <button type="button"
-                                                                    onClick={() => setEditDraft(p => ({ ...p, guardians: (p.guardians ?? []).filter((_, gi) => gi !== i) }))}
+                                                                    onClick={() => setConfirmDeleteGuardianIdx(i)}
                                                                     className="w-7 h-7 rounded-lg flex items-center justify-center text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 border border-border/50 transition-all">
                                                                     <Trash2 size={12} />
                                                                 </button>
@@ -1163,6 +1165,18 @@ export default function ManageTab({ division, isClassTeacher }: {
                                 )}
                             </motion.div>
                         )}
+
+                        <DeleteConfirmDialog
+                            open={confirmDeleteGuardianIdx !== null}
+                            onOpenChange={(open) => { if (!open) setConfirmDeleteGuardianIdx(null); }}
+                            label={(editDraft.guardians ?? selectedStudent?.guardians ?? [])[confirmDeleteGuardianIdx ?? -1]?.relation?.toLowerCase() === 'guardian' ? 'guardian' : 'parent'}
+                            name={(editDraft.guardians ?? selectedStudent?.guardians ?? [])[confirmDeleteGuardianIdx ?? -1]?.name || `Entry ${(confirmDeleteGuardianIdx ?? 0) + 1}`}
+                            description="This entry will be removed once you save."
+                            onConfirm={() => {
+                                setEditDraft(p => ({ ...p, guardians: (p.guardians ?? []).filter((_, gi) => gi !== confirmDeleteGuardianIdx) }));
+                                setConfirmDeleteGuardianIdx(null);
+                            }}
+                        />
                     </AnimatePresence>
 
                     {/* Confirm toggle dialog */}
