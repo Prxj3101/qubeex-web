@@ -589,6 +589,23 @@ function MarkSheet({
         : (mode === 'online' && onlineMarksheetHook) ? onlineMarksheetHook.students : students;
     const saveStatus = (mode === 'offline' && marksheetHook) ? marksheetHook.saveStatus : 'idle';
 
+    // Student Name column sizes itself to the longest name actually on this
+    // sheet (measured with canvas — exact, unlike a per-character estimate),
+    // instead of a fixed min-w that clips a long name like "Mohammad Siraj".
+    // Applies to both Offline and Online, since both render through this one
+    // MarkSheet component.
+    const nameColW = useMemo(() => {
+        const FALLBACK = 130;
+        if (typeof document === 'undefined') return FALLBACK;
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return FALLBACK;
+        ctx.font = '500 11px sans-serif';
+        const widest = displayStudents.reduce((max, s) => Math.max(max, ctx.measureText(s.name || '').width), 0);
+        const AVATAR_SPACE = 20 + 6 + 24; // avatar (w-5 h-5) + gap-1.5 + px-3 padding both sides
+        return Math.min(280, Math.max(FALLBACK, Math.ceil(widest + AVATAR_SPACE + 8)));
+    }, [displayStudents]);
+
     const effectiveGradedSubjects = (mode === 'offline' && marksheetHook) ? marksheetHook.gradedSubjects : [];
     const effectiveGradedScores = (mode === 'offline' && marksheetHook) ? marksheetHook.gradedScores : {};
     const effectiveGradedSectionTitle = (mode === 'offline' && marksheetHook) ? marksheetHook.gradedSectionTitle : 'Graded Subjects';
@@ -862,8 +879,8 @@ function MarkSheet({
                                 style={{ background: msColors.hdrBg, border: `0.5px solid ${msColors.hdrBorder}`, color: msColors.hdrText, fontWeight: 700, verticalAlign: 'middle' }}>
                                 Roll No.
                             </th>
-                            <th rowSpan={2} className="sticky left-[60px] z-[70] px-3 text-left whitespace-nowrap min-w-[130px]"
-                                style={{ background: msColors.hdrBg, border: `0.5px solid ${msColors.hdrBorder}`, color: msColors.hdrText, fontWeight: 700, verticalAlign: 'middle' }}>
+                            <th rowSpan={2} className="sticky left-[60px] z-[70] px-3 text-left whitespace-nowrap"
+                                style={{ width: nameColW, minWidth: nameColW, background: msColors.hdrBg, border: `0.5px solid ${msColors.hdrBorder}`, color: msColors.hdrText, fontWeight: 700, verticalAlign: 'middle' }}>
                                 Student Name
                             </th>
                             {subjects.map(sub => {
@@ -1088,7 +1105,7 @@ function MarkSheet({
                                         {student.rollNo}
                                     </td>
                                     <td className="sticky left-[60px] z-10 px-3 py-1.5 whitespace-nowrap"
-                                        style={{ background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10' }}>
+                                        style={{ width: nameColW, minWidth: nameColW, background: rowBg, border: `1px solid ${msColors.cellBorder}`, color: '#2A1F10' }}>
                                         <div className="flex items-center gap-1.5">
                                             <div onClick={() => student.avatarUrl && setExpandedPhoto({ url: student.avatarUrl, name: student.name })}
                                                 className={`w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[9px] font-bold text-white shrink-0 relative ${student.avatarUrl ? 'cursor-pointer' : ''}`}
@@ -1172,11 +1189,11 @@ function MarkSheet({
                                                     <td style={{ background: rowBg, borderLeft: `0.5px dashed ${msColors.cellBorder}`, borderRight: `0.5px dashed ${msColors.cellBorder}`, borderTop: `1px solid ${msColors.cellBorder}`, borderBottom: `1px solid ${msColors.cellBorder}`, width: '28px' }} />
                                                 )}
                                                 <td className="px-1 py-2 text-center"
-                                                    style={{ background: msColors.rowAlt, border: `1px solid ${msColors.cellBorder}`, color: subRestricted ? msColors.cellBorder : '#2A1F10', fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                                    style={{ background: msColors.summaryBg + '80', border: `1px solid ${msColors.cellBorder}`, color: subRestricted ? msColors.cellBorder : '#2A1F10', fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                                     {subRestricted ? '—' : `${scored}/${total}`}
                                                 </td>
                                                 <td className="px-1 py-2 text-center"
-                                                    style={{ background: msColors.rowAlt, border: `1px solid ${msColors.cellBorder}`, color: subRestricted ? msColors.cellBorder : (subPct !== null ? scoreColor(subPct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
+                                                    style={{ background: msColors.summaryBg + '80', border: `1px solid ${msColors.cellBorder}`, color: subRestricted ? msColors.cellBorder : (subPct !== null ? scoreColor(subPct) : msColors.cellBorder), fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>
                                                     {subRestricted ? '—' : (subPct !== null ? `${subPct}%` : '—')}
                                                 </td>
                                             </React.Fragment>

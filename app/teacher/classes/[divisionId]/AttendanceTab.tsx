@@ -281,7 +281,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                         <CalendarDays size={14} /> {divisionName} Attendance Sheet
                     </p>
                     <p className="px-6 text-[10.5px] text-muted-foreground">
-                        Academic Year {academicYear}
+                        Academic Year {academicYear} · {MONTHS[activeMonth]}
                     </p>
                 </div>
 
@@ -1250,7 +1250,9 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                 });
                 setAttendance(newAtt);
                 setGlobalRemark(dateNote ?? '');
-                if (dateNote) setDateRemarks(prev => ({ ...prev, [currentDk]: dateNote }));
+                // Always sync (not just when truthy) — otherwise a cleared
+                // note leaves the stale old text in dateRemarks.
+                setDateRemarks(prev => ({ ...prev, [currentDk]: dateNote ?? '' }));
             })
             .catch(() => {
                 setAttendance(Object.fromEntries(students.map(s => [s.id, { status: null as AttendanceStatus, remark: '' }])));
@@ -1323,10 +1325,15 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                     status: attendance[s.id].status as 'P' | 'A' | 'L',
                     remark: attendance[s.id].remark ?? '',
                 }));
+            // Always send dateNote as the real string (even ''), never
+            // `|| undefined` — the backend only touches the day note when
+            // the key is present at all (`if (dateNote !== undefined)`), so
+            // dropping the key for a cleared remark left the old note
+            // untouched in the DB and it would reappear on refetch.
             await api.post(`/teacher/attendance/${divisionId}/daily`, {
                 date: currentDk,
                 records,
-                dateNote: globalRemark || undefined,
+                dateNote: globalRemark,
             });
             setSaveStatus('saved');
             setRefreshKey(k => k + 1);
@@ -1465,7 +1472,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
 
                         {!readOnly && (
                             <button onClick={markAllPresent} disabled={isCurrentDayHoliday || isCurrentDaySunday || students.length === 0}
-                                className="flex items-center gap-1 h-8 px-2.5 rounded-xl text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40 hover:opacity-80 transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed">
+                                className="flex items-center gap-1 h-8 px-2.5 rounded-xl text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950/40 border border-emerald-300/70 dark:border-emerald-800/60 shadow-sm hover:opacity-80 transition-all shrink-0 disabled:opacity-30 disabled:cursor-not-allowed">
                                 <CheckCircle2 size={11} /> All P
                             </button>
                         )}
