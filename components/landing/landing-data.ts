@@ -100,6 +100,10 @@ export const MODULES: Module[] = [
 ];
 
 /* ---------------- Pricing (School — live) ---------------- */
+// Pricing section is hidden on the landing page for now (section, nav link
+// and footer link). Code is kept as-is - flip this to true to show it again.
+export const SHOW_PRICING = false;
+
 export interface PlanCard {
     name: string;
     tagline: string;

@@ -12,6 +12,7 @@ import Pricing from './Pricing';
 import FAQ from './FAQ';
 import CTAFooter from './CTAFooter';
 import DemoModal from './DemoModal';
+import { SHOW_PRICING } from './landing-data';
 
 export default function LandingPage() {
     const [demoOpen, setDemoOpen] = useState(false);
@@ -24,7 +25,7 @@ export default function LandingPage() {
             <VelocityMarquee />
             <Features />
             <Modules />
-            <Pricing onDemo={openDemo} />
+            {SHOW_PRICING && <Pricing onDemo={openDemo} />}
             <FAQ />
             <CTAFooter onDemo={openDemo} />
             <DemoModal open={demoOpen} onClose={() => setDemoOpen(false)} />

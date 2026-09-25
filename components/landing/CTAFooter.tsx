@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { Reveal, SplitWords, DISPLAY } from './motion';
+import { SHOW_PRICING } from './landing-data';
 
 export default function CTAFooter({ onDemo }: { onDemo: () => void }) {
     return (
@@ -61,7 +62,7 @@ export default function CTAFooter({ onDemo }: { onDemo: () => void }) {
                     </div>
                     <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-[#6B6480]">
                         <a href="#features" className="transition-colors hover:text-[#1D1433]">Features</a>
-                        <a href="#pricing" className="transition-colors hover:text-[#1D1433]">Pricing</a>
+                        {SHOW_PRICING && <a href="#pricing" className="transition-colors hover:text-[#1D1433]">Pricing</a>}
                         <a href="#faq" className="transition-colors hover:text-[#1D1433]">FAQ</a>
                         <Link href="/login" className="transition-colors hover:text-[#1D1433]">Login</Link>
                         {/* TODO: point to real pages once legal docs are ready (Privacy Policy, ToS, DPA) */}

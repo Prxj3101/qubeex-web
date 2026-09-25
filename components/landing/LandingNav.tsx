@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { motion, useScroll, useSpring } from 'framer-motion';
 import { EASE } from './motion';
+import { SHOW_PRICING } from './landing-data';
 
 /**
  * Logo + brand lockup — brand visibility is driven by the nav's scroll
@@ -45,7 +46,7 @@ const LINKS = [
     { label: 'Modules', href: '#modules', id: 'modules' },
     { label: 'Pricing', href: '#pricing', id: 'pricing' },
     { label: 'FAQ', href: '#faq', id: 'faq' },
-];
+].filter((l) => SHOW_PRICING || l.id !== 'pricing');
 
 export default function LandingNav({ onDemo }: { onDemo: () => void }) {
     const [active, setActive] = useState<string | null>(null);

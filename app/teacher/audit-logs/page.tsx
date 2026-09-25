@@ -1,44 +1,48 @@
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
-    ScrollText, Search, X, ChevronLeft, ChevronRight,
+    RefreshCw, ScrollText, Search, X, ChevronLeft, ChevronRight,
     ChevronDown, Check, Shield, Activity,
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import api from '@/lib/api';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type LogEntry = {
     id: string;
     action: string;
-    category: 'ACTIVITY' | 'SECURITY';
+    category: string;
     severity: string;
-    details: string;
-    ip: string;
+    details?: string | null;
+    ip?: string | null;
     createdAt: string;
 };
 
-type Tab = 'ACTIVITY' | 'SECURITY';
+type Pagination = { total: number; page: number; limit: number; pages: number };
+type Tab = 'ADMIN_ACTION' | 'SECURITY';
 
-// ─── Action Config ────────────────────────────────────────────────────────────
+// ─── Action Config — only actions this teacher's own actions can actually
+// produce (mirrors what the backend's logAudit calls emit for actorRole
+// TEACHER: students, attendance, results, remarks, feed posts, and their
+// own login/security events). ──────────────────────────────────────────────────
 const ACTION_CONFIG: Record<string, { label: string; cls: string; dot: string }> = {
     // Students
-    STUDENT_ADDED: { label: 'Student Added', cls: 'bg-[var(--muted)] text-[var(--primary)] bg-[var(--muted)] text-[var(--primary)]', dot: 'bg-[var(--muted)]0' },
+    STUDENT_ADDED: { label: 'Student Added', cls: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400', dot: 'bg-violet-500' },
     STUDENT_UPDATED: { label: 'Student Updated', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400', dot: 'bg-blue-500' },
     STUDENT_DEACTIVATED: { label: 'Student Deactivated', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
     STUDENT_ACTIVATED: { label: 'Student Activated', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
-    // Posts
-    POST_CREATED: { label: 'Post Created', cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400', dot: 'bg-emerald-500' },
-    POST_DELETED: { label: 'Post Deleted', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
+    STUDENT_REPORTED: { label: 'Student Reported', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400', dot: 'bg-rose-500' },
+    STUDENT_REPORT_DELETED: { label: 'Report Deleted', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
     // Attendance
     ATTENDANCE_MARKED: { label: 'Attendance Marked', cls: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-400', dot: 'bg-sky-500' },
-    // Timetable
-    TIMETABLE_UPLOADED: { label: 'Timetable Uploaded', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400', dot: 'bg-amber-500' },
     // Results
-    RESULT_UPLOADED: { label: 'Result Uploaded', cls: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-400', dot: 'bg-pink-500' },
-    // Calendar
-    CALENDAR_EVENT_ADDED: { label: 'Calendar Event Added', cls: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-400', dot: 'bg-indigo-500' },
-    CALENDAR_EVENT_DELETED: { label: 'Calendar Event Deleted', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400', dot: 'bg-orange-500' },
+    RESULT_UPLOADED: { label: 'Results Published', cls: 'bg-pink-100 text-pink-700 dark:bg-pink-950 dark:text-pink-400', dot: 'bg-pink-500' },
+    // Feed
+    ANNOUNCEMENT_POSTED: { label: 'Announcement Posted', cls: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-400', dot: 'bg-orange-500' },
+    POST_DELETED: { label: 'Post Deleted', cls: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400', dot: 'bg-red-500' },
     // Security
     LOGIN_SUCCESS: { label: 'Login', cls: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400', dot: 'bg-slate-400' },
     LOGIN_FAILED: { label: 'Login Failed', cls: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-400', dot: 'bg-rose-500' },
@@ -49,31 +53,6 @@ const SECURITY_ACTIONS = ['LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED'];
 const ACTIVITY_ACTIONS = Object.keys(ACTION_CONFIG).filter(k => !SECURITY_ACTIONS.includes(k));
 
 const PAGE_SIZE = 15;
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-const MOCK_LOGS: LogEntry[] = [
-    { id: '1', action: 'LOGIN_SUCCESS', category: 'SECURITY', severity: 'INFO', details: 'Teacher logged in successfully', ip: '192.168.1.1', createdAt: '2026-05-29T08:30:00Z' },
-    { id: '2', action: 'POST_CREATED', category: 'ACTIVITY', severity: 'INFO', details: 'Posted announcement: PTM this Saturday', ip: '192.168.1.1', createdAt: '2026-05-29T09:15:00Z' },
-    { id: '3', action: 'STUDENT_ADDED', category: 'ACTIVITY', severity: 'INFO', details: 'Added student Aarav Mehta to Class 10-A', ip: '192.168.1.1', createdAt: '2026-05-29T10:00:00Z' },
-    { id: '4', action: 'ATTENDANCE_MARKED', category: 'ACTIVITY', severity: 'INFO', details: 'Marked attendance for Class 10-A (42 students)', ip: '192.168.1.2', createdAt: '2026-05-28T08:45:00Z' },
-    { id: '5', action: 'TIMETABLE_UPLOADED', category: 'ACTIVITY', severity: 'INFO', details: 'Uploaded timetable for Class 10-A', ip: '192.168.1.2', createdAt: '2026-05-28T11:20:00Z' },
-    { id: '6', action: 'RESULT_UPLOADED', category: 'ACTIVITY', severity: 'INFO', details: 'Uploaded Unit Test 1 results for Class 10-A', ip: '192.168.1.1', createdAt: '2026-05-27T14:30:00Z' },
-    { id: '7', action: 'CALENDAR_EVENT_ADDED', category: 'ACTIVITY', severity: 'INFO', details: 'Added event: Unit Test 3 on 20 May', ip: '192.168.1.1', createdAt: '2026-05-27T10:00:00Z' },
-    { id: '8', action: 'STUDENT_UPDATED', category: 'ACTIVITY', severity: 'INFO', details: 'Updated details for Priya Singh', ip: '192.168.1.3', createdAt: '2026-05-26T09:00:00Z' },
-    { id: '9', action: 'POST_DELETED', category: 'ACTIVITY', severity: 'INFO', details: 'Deleted post: Old notice', ip: '192.168.1.1', createdAt: '2026-05-26T11:00:00Z' },
-    { id: '10', action: 'STUDENT_DEACTIVATED', category: 'ACTIVITY', severity: 'WARNING', details: 'Deactivated student Karan Joshi', ip: '192.168.1.2', createdAt: '2026-05-25T14:00:00Z' },
-    { id: '11', action: 'LOGIN_FAILED', category: 'SECURITY', severity: 'CRITICAL', details: 'Failed login attempt', ip: '203.0.113.10', createdAt: '2026-05-25T07:30:00Z' },
-    { id: '12', action: 'CALENDAR_EVENT_DELETED', category: 'ACTIVITY', severity: 'INFO', details: 'Removed event: Sports Day', ip: '192.168.1.1', createdAt: '2026-05-24T16:00:00Z' },
-    { id: '13', action: 'PASSWORD_CHANGED', category: 'SECURITY', severity: 'WARNING', details: 'Teacher changed account password', ip: '192.168.1.1', createdAt: '2026-05-24T12:00:00Z' },
-    { id: '14', action: 'ATTENDANCE_MARKED', category: 'ACTIVITY', severity: 'INFO', details: 'Marked attendance for Class 9-B (38 students)', ip: '192.168.1.2', createdAt: '2026-05-23T08:50:00Z' },
-    { id: '15', action: 'POST_CREATED', category: 'ACTIVITY', severity: 'INFO', details: 'Posted material: Chapter 5 Notes', ip: '192.168.1.1', createdAt: '2026-05-23T10:30:00Z' },
-    { id: '16', action: 'STUDENT_ADDED', category: 'ACTIVITY', severity: 'INFO', details: 'Added student Meera Sharma to Class 10-A', ip: '192.168.1.1', createdAt: '2026-05-22T09:00:00Z' },
-    { id: '17', action: 'RESULT_UPLOADED', category: 'ACTIVITY', severity: 'INFO', details: 'Uploaded Mid Term results for Class 9-B', ip: '192.168.1.2', createdAt: '2026-05-22T15:00:00Z' },
-    { id: '18', action: 'LOGIN_SUCCESS', category: 'SECURITY', severity: 'INFO', details: 'Teacher logged in successfully', ip: '192.168.1.1', createdAt: '2026-05-21T08:00:00Z' },
-    { id: '19', action: 'CALENDAR_EVENT_ADDED', category: 'ACTIVITY', severity: 'INFO', details: 'Added event: Parent Teacher Meeting', ip: '192.168.1.1', createdAt: '2026-05-21T11:00:00Z' },
-    { id: '20', action: 'STUDENT_ACTIVATED', category: 'ACTIVITY', severity: 'INFO', details: 'Activated student Ishaan Verma', ip: '192.168.1.1', createdAt: '2026-05-20T14:00:00Z' },
-    { id: '21', action: 'LOGIN_FAILED', category: 'SECURITY', severity: 'CRITICAL', details: 'Multiple failed login attempts from unknown IP', ip: '198.51.100.5', createdAt: '2026-05-20T02:15:00Z' },
-];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function toIST(iso: string) {
@@ -151,12 +130,21 @@ function DateInput({ label, value, onChange }: { label: string; value: string; o
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function TeacherAuditLogsPage() {
-    const [activeTab, setActiveTab] = useState<Tab>('ACTIVITY');
+    const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [pagination, setPagination] = useState<Pagination>({ total: 0, page: 1, limit: PAGE_SIZE, pages: 1 });
+    const [loading, setLoading] = useState(false);
+    const [activeTab, setActiveTab] = useState<Tab>('ADMIN_ACTION');
     const [search, setSearch] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [actionFilter, setActionFilter] = useState('All Action Types');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
     const [page, setPage] = useState(1);
+
+    useEffect(() => {
+        const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 400);
+        return () => clearTimeout(t);
+    }, [search]);
 
     // Reset action filter on tab change
     useEffect(() => {
@@ -164,52 +152,69 @@ export default function TeacherAuditLogsPage() {
         setPage(1);
     }, [activeTab]);
 
-    const actionList = activeTab === 'ACTIVITY'
+    const actionList = activeTab === 'ADMIN_ACTION'
         ? ['All Action Types', ...ACTIVITY_ACTIONS]
         : ['All Action Types', ...SECURITY_ACTIONS];
 
-    const filtered = useMemo(() => {
-        return MOCK_LOGS.filter(l => {
-            const matchTab = l.category === activeTab;
-            const matchSearch = !search.trim() ||
-                l.action.toLowerCase().includes(search.toLowerCase()) ||
-                l.details.toLowerCase().includes(search.toLowerCase());
-            const matchAction = actionFilter === 'All Action Types' || l.action === actionFilter;
-            const matchFrom = !fromDate || new Date(l.createdAt) >= new Date(fromDate);
-            const matchTo = !toDate || new Date(l.createdAt) <= new Date(toDate + 'T23:59:59');
-            return matchTab && matchSearch && matchAction && matchFrom && matchTo;
-        });
-    }, [activeTab, search, actionFilter, fromDate, toDate]);
+    const fetchLogs = useCallback(async (currentPage = page) => {
+        try {
+            setLoading(true);
+            const params = new URLSearchParams();
+            params.set('page', String(currentPage));
+            params.set('limit', String(PAGE_SIZE));
+            params.set('category', activeTab);
+            if (actionFilter !== 'All Action Types') params.set('action', actionFilter);
+            if (fromDate) params.set('from', fromDate);
+            if (toDate) params.set('to', toDate + 'T23:59:59');
+            if (debouncedSearch.trim()) params.set('search', debouncedSearch.trim());
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-    const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
-    const hasFilters = search || actionFilter !== 'All Action Types' || fromDate || toDate;
+            const res = await api.get(`/teacher/audit-logs?${params.toString()}`);
+            const { logs: rawLogs, pagination: pg } = res.data.data;
+            setLogs(rawLogs ?? []);
+            setPagination(pg ?? { total: 0, page: currentPage, limit: PAGE_SIZE, pages: 1 });
+        } catch {
+            toast.error('Failed to load audit logs');
+            setLogs([]);
+            setPagination({ total: 0, page: currentPage, limit: PAGE_SIZE, pages: 1 });
+        } finally {
+            setLoading(false);
+        }
+    }, [page, activeTab, actionFilter, fromDate, toDate, debouncedSearch]);
+
+    useEffect(() => { fetchLogs(page); }, [page, activeTab, actionFilter, fromDate, toDate, debouncedSearch]);
 
     const clearFilters = () => {
         setSearch(''); setActionFilter('All Action Types');
         setFromDate(''); setToDate(''); setPage(1);
     };
 
+    const hasFilters = search || actionFilter !== 'All Action Types' || fromDate || toDate;
+
     return (
         <div className="flex flex-col h-full overflow-hidden">
 
             {/* Header */}
             <div className="sticky top-0 z-20 bg-background pb-2 pt-0 space-y-2">
-                <div className="flex items-center justify-between px-1">
+                <div className="flex items-center justify-between flex-wrap gap-2 px-1">
                     <div>
                         <h1 className="text-xl font-bold flex items-center gap-2">
                             <ScrollText size={21} /> Audit Logs
                         </h1>
                         <p className="text-[13px] text-muted-foreground">
-                            {filtered.length} events · All times in IST
+                            {pagination.total > 0
+                                ? `${pagination.total.toLocaleString('en-IN')} events · All times in IST`
+                                : 'Track your own activity'}
                         </p>
                     </div>
+                    <Button variant="outline" size="icon" onClick={() => fetchLogs(page)} disabled={loading}>
+                        <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
+                    </Button>
                 </div>
 
                 {/* Tabs */}
                 <div className="flex items-center gap-1 border-b border-border/60">
                     {([
-                        { key: 'ACTIVITY' as Tab, label: 'Activity', icon: Activity },
+                        { key: 'ADMIN_ACTION' as Tab, label: 'Activity', icon: Activity },
                         { key: 'SECURITY' as Tab, label: 'Security', icon: Shield },
                     ]).map(({ key, label, icon: Icon }) => (
                         <button key={key} onClick={() => setActiveTab(key)}
@@ -226,7 +231,7 @@ export default function TeacherAuditLogsPage() {
                 <div className="flex items-center gap-2 flex-wrap">
                     <div className="relative w-full sm:w-auto">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                        <input type="text" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
+                        <input type="text" value={search} onChange={e => setSearch(e.target.value)}
                             placeholder="Search logs..."
                             className="w-full sm:w-64 h-9 pl-9 pr-8 rounded-4xl border border-border bg-muted/40 text-sm placeholder:text-muted-foreground/60 focus:outline-none focus:border-primary/50 focus:bg-background transition-all" />
                         {search && (
@@ -261,17 +266,25 @@ export default function TeacherAuditLogsPage() {
                             <p key={h} className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{h}</p>
                         ))}
                     </div>
-                        {paginated.length === 0 ? (
+                        {loading ? (
+                            <div>
+                                {[...Array(8)].map((_, i) => (
+                                    <div key={i} className="grid grid-cols-[140px_200px_1fr_120px] gap-4 px-5 py-4 border-b border-border/40 last:border-none animate-pulse">
+                                        {[...Array(4)].map((_, j) => <div key={j} className="h-4 bg-muted rounded" />)}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : logs.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-20 text-center">
                                 <ScrollText size={32} className="text-muted-foreground/30 mb-3" />
                                 <p className="text-sm font-medium text-muted-foreground">
                                     {hasFilters ? 'No logs match your filters' : 'No logs yet'}
                                 </p>
                                 <p className="text-xs text-muted-foreground/60 mt-1">
-                                    {hasFilters ? 'Try adjusting your search or filters' : 'Actions will appear here'}
+                                    {hasFilters ? 'Try adjusting your search or filters' : 'Your actions will appear here'}
                                 </p>
                             </div>
-                        ) : paginated.map((log, i) => {
+                        ) : logs.map((log, i) => {
                             const { date, time } = toIST(log.createdAt);
                             const actionCfg = ACTION_CONFIG[log.action] ?? {
                                 label: log.action.replace(/_/g, ' '),
@@ -303,12 +316,14 @@ export default function TeacherAuditLogsPage() {
 
                                     {/* Details */}
                                     <div>
-                                        <p className="text-xs text-foreground leading-relaxed">{log.details}</p>
+                                        <p className="text-xs text-foreground leading-relaxed">
+                                            {log.details ?? <span className="text-muted-foreground/50 italic">No details</span>}
+                                        </p>
                                     </div>
 
                                     {/* IP */}
                                     <div>
-                                        <p className="text-[11px] font-mono text-muted-foreground">{log.ip}</p>
+                                        <p className="text-[11px] font-mono text-muted-foreground">{log.ip ?? '—'}</p>
                                     </div>
                                 </motion.div>
                             );
@@ -321,15 +336,17 @@ export default function TeacherAuditLogsPage() {
                 {/* Pagination */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-2 mt-4 px-1">
                     <p className="text-[11px] text-muted-foreground">
-                        Page {page} of {totalPages} · {filtered.length} total logs
+                        {pagination.total > 0
+                            ? `Page ${pagination.page} of ${pagination.pages} · ${pagination.total.toLocaleString('en-IN')} total logs`
+                            : 'No logs'}
                     </p>
                     <div className="flex items-center gap-1">
                         <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
                             className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                             <ChevronLeft size={14} />
                         </button>
-                        {Array.from({ length: totalPages }, (_, i) => i + 1)
-                            .filter(p => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                        {Array.from({ length: pagination.pages }, (_, i) => i + 1)
+                            .filter(p => p === 1 || p === pagination.pages || Math.abs(p - page) <= 1)
                             .reduce<(number | '...')[]>((acc, p, i, arr) => {
                                 if (i > 0 && typeof arr[i - 1] === 'number' && (p as number) - (arr[i - 1] as number) > 1) acc.push('...');
                                 acc.push(p);
@@ -343,7 +360,7 @@ export default function TeacherAuditLogsPage() {
                                     {p}
                                 </button>
                             ))}
-                        <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages}
+                        <button onClick={() => setPage(p => Math.min(pagination.pages, p + 1))} disabled={page === pagination.pages}
                             className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-all">
                             <ChevronRight size={14} />
                         </button>
