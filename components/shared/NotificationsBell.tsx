@@ -178,10 +178,12 @@ export function NotificationsBell({ restrictNav, lockMessage, disabled }: { rest
     }, [isSuperAdmin, roleBase, fetchSANotifs, fetchInstitutionNotifs]);
 
     // Initial fetch + poll so the unread dot surfaces everywhere when a new
-    // notification arrives, without needing a page navigation/reload.
+    // notification arrives, without needing a page navigation/reload. 60s, not
+    // 30s: every poll costs a Redis auth lookup, and the free Upstash budget
+    // (~11.5 commands/min) can't absorb 2/min per open tab.
     useEffect(() => {
         void refresh();
-        const interval = setInterval(() => { void refresh(); }, 30000);
+        const interval = setInterval(() => { void refresh(); }, 60000);
         return () => clearInterval(interval);
     }, [refresh]);
 
