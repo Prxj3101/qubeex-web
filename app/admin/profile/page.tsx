@@ -10,9 +10,11 @@ import {
   Pencil, X, Check, Camera, ChevronRight, Info,
   User as UserIcon, Database,
 } from 'lucide-react';
+import { FaFilePdf } from 'react-icons/fa';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
+import { formatINR } from '@/lib/payroll';
 import { useAuthStore } from '@/store/authStore';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
 import { useUserTitleStore } from '@/store/userTitleStore';
@@ -1042,15 +1044,15 @@ export default function AdminProfilePage() {
                   <div key={p.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border/40">
                     <div>
                       <p className="text-sm font-medium">{monthLabel(p.payrollRun.month)}</p>
-                      <p className="text-[11px] text-muted-foreground">Net Pay: ₹{p.netPay.toLocaleString('en-IN')}</p>
+                      <p className="text-[11px] text-muted-foreground">Net Pay: {formatINR(p.netPay)}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${p.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
                         {p.status === 'PAID' ? 'Paid' : 'Pending'}
                       </span>
-                      <button onClick={() => downloadMyPayslip(p.id)} disabled={downloadingId === p.id}
-                        className="h-7 px-2.5 rounded-lg border border-border text-[11px] font-semibold disabled:opacity-60">
-                        {downloadingId === p.id ? '…' : 'PDF'}
+                      <button onClick={() => downloadMyPayslip(p.id)} disabled={downloadingId === p.id} title="Download payslip PDF"
+                        className="w-7 h-7 rounded-lg border border-border flex items-center justify-center hover:bg-muted/50 disabled:opacity-60">
+                        {downloadingId === p.id ? <span className="text-[11px] text-muted-foreground">…</span> : <FaFilePdf size={16} className="text-red-600 dark:text-red-400" />}
                       </button>
                     </div>
                   </div>

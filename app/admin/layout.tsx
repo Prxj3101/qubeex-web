@@ -13,7 +13,7 @@ import {
     Users,
     LineChart,
     Headset,
-    ScrollText,
+    Wallet,
 } from 'lucide-react';
 import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
 
@@ -22,9 +22,11 @@ const ALL_NAV_ITEMS = [
     { label: 'Overview',   href: '/admin/overview',           icon: LayoutDashboard, childKeys: [] as string[] },
     { label: 'Staff',      href: '/admin/staff',              icon: Users,           childKeys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
     { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
-    { label: 'Insights',   href: '/admin/insights',           icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION'] },
+    { label: 'Insights',   href: '/admin/insights',           icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION', 'AUDIT_LOGS'] },
     { label: 'Support',    href: '/admin/support/tickets',    icon: Headset,         activePath: '/admin/support',  childKeys: ['SUPPORT'] },
-    { label: 'Audit Logs', href: '/admin/audit-logs',         icon: ScrollText,      childKeys: ['AUDIT_LOGS'] },
+    // Sub-Admins (e.g. the school accountant) get in via the PAYROLL permission.
+    // Audit Logs moved into Insights.
+    { label: 'Payroll',    href: '/admin/payroll/runs',       icon: Wallet,          activePath: '/admin/payroll',  childKeys: ['PAYROLL'] },
 ];
 
 // Which permission keys gate each path prefix — ordered most-specific first,
@@ -33,7 +35,7 @@ const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/staff/teachers',        keys: ['STAFF_TEACHERS'] },
     { prefix: '/admin/staff/staffroom',       keys: ['STAFF_STAFFROOM'] },
     { prefix: '/admin/staff/subadmins',       keys: ['STAFF_SUBADMINS'] },
-    { prefix: '/admin/payroll',               keys: [] },
+    { prefix: '/admin/payroll',               keys: ['PAYROLL'] },
     { prefix: '/admin/campus/classes',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { prefix: '/admin/campus/courses',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     // Bare '/admin/campus' (the Feed page) is intentionally NOT gated here —
@@ -43,6 +45,7 @@ const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     // won, sometimes bouncing a sub-admin with real Classes access all the
     // way out to Overview. If they end up on Classes/Courses without any
     // class permission either, the rule above still catches that.
+    { prefix: '/admin/insights/audit-logs',   keys: ['AUDIT_LOGS'] },
     { prefix: '/admin/insights/analytics',    keys: ['INSIGHTS_ANALYTICS'] },
     { prefix: '/admin/insights/subscription', keys: ['INSIGHTS_SUBSCRIPTION'] },
     { prefix: '/admin/insights/users',        keys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION'] },

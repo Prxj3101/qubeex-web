@@ -1,8 +1,10 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Download, Wallet } from 'lucide-react';
+import { Loader2, Wallet } from 'lucide-react';
+import { FaFilePdf } from 'react-icons/fa';
 import api from '@/lib/api';
+import { formatINR } from '@/lib/payroll';
 
 interface Payslip {
     id: string; grossPay: number; netPay: number; status: 'PENDING' | 'PAID';
@@ -57,7 +59,7 @@ export default function MyPayslipsPage() {
                         <div key={p.id} className="flex items-center justify-between px-4 py-3">
                             <div>
                                 <p className="text-sm font-medium">{monthLabel(p.payrollRun.month)}</p>
-                                <p className="text-[11px] text-muted-foreground">Net Pay: ₹{p.netPay.toLocaleString('en-IN')}</p>
+                                <p className="text-[11px] text-muted-foreground">Net Pay: {formatINR(p.netPay)}</p>
                             </div>
                             <div className="flex items-center gap-2">
                                 <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${p.status === 'PAID' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400'}`}>
@@ -66,9 +68,10 @@ export default function MyPayslipsPage() {
                                 <button
                                     onClick={() => handleDownloadPdf(p.id)}
                                     disabled={downloadingId === p.id}
-                                    className="h-7 px-2.5 rounded-lg border border-border text-[11px] font-semibold flex items-center gap-1 hover:bg-muted/50 disabled:opacity-50"
+                                    title="Download payslip PDF"
+                                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center hover:bg-muted/50 disabled:opacity-50"
                                 >
-                                    <Download size={12} /> PDF
+                                    {downloadingId === p.id ? <Loader2 size={13} className="animate-spin text-muted-foreground" /> : <FaFilePdf size={16} className="text-red-600 dark:text-red-400" />}
                                 </button>
                             </div>
                         </div>

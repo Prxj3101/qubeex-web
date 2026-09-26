@@ -10,6 +10,7 @@ import { useAuthStore } from '@/store/authStore';
 const INSIGHTS_TABS_PRIORITY = [
     { href: '/admin/insights/analytics', permKey: 'INSIGHTS_ANALYTICS' },
     { href: '/admin/insights/subscription', permKey: 'INSIGHTS_SUBSCRIPTION' },
+    { href: '/admin/insights/audit-logs', permKey: 'AUDIT_LOGS' },
 ];
 
 export default function InsightsIndexPage() {

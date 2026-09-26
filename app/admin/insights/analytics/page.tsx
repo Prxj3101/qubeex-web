@@ -130,6 +130,7 @@ const MAIN_AI_FEATURES = new Set(
 // of showing raw backend feature keys.
 const OTHER_FEATURE_LABELS: Record<string, string> = {
     FEE_FORECAST: 'AI Fee Analysis',
+    PAYROLL_REVIEW: 'AI Payroll Review',
     ATTENDANCE_SUMMARY: 'AI Attendance Analysis',
 };
 function featureColor(feature: string) {
@@ -1333,7 +1334,6 @@ export default function AdminAnalyticsPage() {
                                                 </div>
                                                 <div className="flex justify-between mt-1">
                                                     <span className="text-[10px] text-muted-foreground">{formatTokens(f.totalTokens)} tokens</span>
-                                                    <span className="text-[10px] text-muted-foreground">{f.requests} requests</span>
                                                 </div>
                                             </div>
                                         );
@@ -1490,9 +1490,6 @@ export default function AdminAnalyticsPage() {
                                                                     </div>
                                                                     <span className="text-[10px] font-medium text-foreground shrink-0 w-14 text-right">
                                                                         {formatTokens(f.totalTokens)}
-                                                                    </span>
-                                                                    <span className="text-[9.5px] text-muted-foreground shrink-0 w-16 text-right">
-                                                                        {f.requests} req
                                                                     </span>
                                                                 </div>
                                                             );

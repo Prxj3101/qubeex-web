@@ -4,17 +4,15 @@ import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { BarChart2, CreditCard, Wallet, Lock } from 'lucide-react';
+import { BarChart2, CreditCard, ScrollText, Lock } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 
 const INSIGHTS_TABS = [
     { label: 'Analytics', href: '/admin/insights/analytics', icon: BarChart2, permKey: 'INSIGHTS_ANALYTICS' as string | null },
     { label: 'Subscription', href: '/admin/insights/subscription', icon: CreditCard, permKey: 'INSIGHTS_SUBSCRIPTION' as string | null },
-    // adminOnly: true — hidden from Sub-Admins entirely (not merely locked),
-    // same rule as the rest of Payroll's access model. permKey is null since
-    // no Sub-Admin permission can ever unlock this tab.
-    { label: 'Payroll', href: '/admin/payroll/runs', icon: Wallet, permKey: null as string | null, adminOnly: true },
+    // Moved here from the main nav (Payroll took its old spot there).
+    { label: 'Audit Logs', href: '/admin/insights/audit-logs', icon: ScrollText, permKey: 'AUDIT_LOGS' as string | null, adminOnly: false },
 ];
 
 function TabBar({ isTabLocked, isSubAdmin }: { isTabLocked: (permKey: string) => boolean; isSubAdmin: boolean }) {
@@ -73,10 +71,6 @@ function RedirectGuard({ isTabLocked, isSubAdmin }: { isTabLocked: (permKey: str
     const router = useRouter();
 
     useEffect(() => {
-        // Only guards tabs actually nested under /admin/insights — Payroll's
-        // own /admin/payroll/* prefix is independently redirect-guarded for
-        // Sub-Admins by the root admin layout's LOCKED_PREFIX_TO_KEYS, so it's
-        // excluded here to avoid ever picking it as a Sub-Admin fallback.
         const visibleTabs = INSIGHTS_TABS.filter(t => !(t.adminOnly && isSubAdmin));
         const current = visibleTabs.find(t => pathname === t.href || pathname.startsWith(t.href + '/'));
         if (current && current.permKey && isTabLocked(current.permKey)) {

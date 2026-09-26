@@ -1,83 +1,49 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Plus, Trash2, Edit2, X, Save } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { FileText, Plus, Pencil, Trash2 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/error';
-
-interface LineItem { label: string; amount: number; }
-interface SalaryTemplate {
-    id: string; name: string;
-    earnings: LineItem[]; deductions: LineItem[];
-}
-
-function LineItemEditor({ items, onChange, label }: { items: LineItem[]; onChange: (items: LineItem[]) => void; label: string }) {
-    return (
-        <div className="space-y-2">
-            <p className="text-xs font-semibold text-muted-foreground">{label}</p>
-            {items.map((item, i) => (
-                <div key={i} className="flex items-center gap-2">
-                    <input
-                        className="flex-1 h-8 px-2 rounded-lg border border-border bg-background text-sm"
-                        placeholder="Label (e.g. Basic)"
-                        value={item.label}
-                        onChange={e => onChange(items.map((it, idx) => idx === i ? { ...it, label: e.target.value } : it))}
-                    />
-                    <input
-                        type="number"
-                        className="w-28 h-8 px-2 rounded-lg border border-border bg-background text-sm"
-                        placeholder="Amount"
-                        value={item.amount}
-                        onChange={e => onChange(items.map((it, idx) => idx === i ? { ...it, amount: Number(e.target.value) || 0 } : it))}
-                    />
-                    <button onClick={() => onChange(items.filter((_, idx) => idx !== i))} className="text-muted-foreground hover:text-red-500">
-                        <X size={14} />
-                    </button>
-                </div>
-            ))}
-            <button
-                onClick={() => onChange([...items, { label: '', amount: 0 }])}
-                className="text-xs font-semibold text-primary flex items-center gap-1"
-            >
-                <Plus size={12} /> Add line item
-            </button>
-        </div>
-    );
-}
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
+import { SalaryComponent, SalaryTemplate, StructureItem, formatINR, previewMonthly } from '@/lib/payroll';
+import { PageHeader, PrimaryButton, SecondaryButton, EmptyState, Field, inputCls } from '../_components/ui';
+import { SalaryItemsEditor } from '../_components/SalaryItemsEditor';
 
 export default function SalaryTemplatesPage() {
     const [templates, setTemplates] = useState<SalaryTemplate[]>([]);
+    const [components, setComponents] = useState<SalaryComponent[]>([]);
     const [loading, setLoading] = useState(true);
-    const [editing, setEditing] = useState<{ id: string | null; name: string; earnings: LineItem[]; deductions: LineItem[] } | null>(null);
+    const [editing, setEditing] = useState<{ id?: string; name: string; items: StructureItem[] } | null>(null);
     const [saving, setSaving] = useState(false);
+    const [toDelete, setToDelete] = useState<SalaryTemplate | null>(null);
+    const [deleting, setDeleting] = useState(false);
 
-    const fetchTemplates = useCallback(() => {
-        setLoading(true);
-        api.get('/admin/payroll/templates')
-            .then(res => setTemplates(res.data.data ?? []))
-            .catch(() => setTemplates([]))
+    const fetchAll = useCallback(() => {
+        Promise.all([api.get('/admin/payroll/templates'), api.get('/admin/payroll/components')])
+            .then(([t, c]) => { setTemplates(t.data.data ?? []); setComponents(c.data.data ?? []); })
+            .catch(() => {})
             .finally(() => setLoading(false));
     }, []);
+    useEffect(() => { fetchAll(); }, [fetchAll]);
 
-    useEffect(() => { fetchTemplates(); }, [fetchTemplates]);
-
-    const startNew = () => setEditing({ id: null, name: '', earnings: [], deductions: [] });
-    const startEdit = (t: SalaryTemplate) => setEditing({ id: t.id, name: t.name, earnings: t.earnings, deductions: t.deductions });
+    const startNew = () => {
+        const basic = components.find(c => c.isBasic);
+        setEditing({ name: '', items: basic ? [{ componentId: basic.id, value: basic.defaultValue }] : [] });
+    };
 
     const save = async () => {
-        if (!editing || !editing.name.trim()) { toast.error('Template name is required'); return; }
+        if (!editing) return;
+        if (!editing.name.trim()) { toast.error('Give the template a name'); return; }
         setSaving(true);
         try {
-            const payload = { name: editing.name.trim(), earnings: editing.earnings, deductions: editing.deductions };
-            if (editing.id) {
-                await api.patch(`/admin/payroll/templates/${editing.id}`, payload);
-            } else {
-                await api.post('/admin/payroll/templates', payload);
-            }
-            toast.success('Template saved');
+            const payload = { name: editing.name.trim(), items: editing.items };
+            if (editing.id) await api.patch(`/admin/payroll/templates/${editing.id}`, payload);
+            else await api.post('/admin/payroll/templates', payload);
+            toast.success(editing.id ? 'Template updated' : 'Template created');
             setEditing(null);
-            fetchTemplates();
+            fetchAll();
         } catch (err: unknown) {
             toast.error(getErrorMessage(err, 'Failed to save template'));
         } finally {
@@ -85,78 +51,96 @@ export default function SalaryTemplatesPage() {
         }
     };
 
-    const remove = async (id: string) => {
+    const confirmDelete = async () => {
+        if (!toDelete) return;
+        setDeleting(true);
         try {
-            await api.delete(`/admin/payroll/templates/${id}`);
+            await api.delete(`/admin/payroll/templates/${toDelete.id}`);
             toast.success('Template deleted');
-            fetchTemplates();
+            setToDelete(null);
+            fetchAll();
         } catch (err: unknown) {
             toast.error(getErrorMessage(err, 'Failed to delete template'));
+        } finally {
+            setDeleting(false);
         }
     };
 
+    const nameOf = (id: string) => components.find(c => c.id === id)?.name;
+
     return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h1 className="text-xl font-bold">Salary Templates</h1>
-                    <p className="text-muted-foreground text-[13px]">Reusable earnings/deductions bundles to assign to teachers</p>
-                </div>
-                <button onClick={startNew} className="flex items-center gap-1.5 h-9 px-4 rounded-lg text-sm font-semibold text-white"
-                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                    <Plus size={14} /> New Template
-                </button>
-            </div>
+        <div className="space-y-3">
+            <PageHeader title="Salary Templates" subtitle="Ready-made salary setups (like “Primary Teacher”) to assign staff in one click">
+                <PrimaryButton onClick={startNew} disabled={components.length === 0}><Plus size={14} /> New Template</PrimaryButton>
+            </PageHeader>
 
             {loading ? (
-                <div className="space-y-2">{[1, 2].map(i => <div key={i} className="h-16 rounded-xl bg-muted/40 animate-pulse" />)}</div>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[1, 2, 3].map(i => <div key={i} className="h-36 rounded-2xl bg-muted/40 animate-pulse" />)}</div>
             ) : templates.length === 0 ? (
-                <div className="py-12 text-center text-sm text-muted-foreground">No salary templates yet.</div>
+                <EmptyState icon={FileText} title="No templates yet"
+                    text={components.length === 0 ? 'Add salary components first, then build templates from them.' : 'Create one per role (Primary Teacher, Senior Teacher, Support Staff) and reuse it for everyone in that role.'}>
+                    {components.length > 0 && <PrimaryButton onClick={startNew}><Plus size={14} /> Create template</PrimaryButton>}
+                </EmptyState>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    {templates.map(t => (
-                        <div key={t.id} className="bg-card border border-border/50 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-2">
-                                <p className="font-semibold text-sm">{t.name}</p>
-                                <div className="flex items-center gap-2">
-                                    <button onClick={() => startEdit(t)} className="text-muted-foreground hover:text-foreground"><Edit2 size={14} /></button>
-                                    <button onClick={() => remove(t.id)} className="text-muted-foreground hover:text-red-500"><Trash2 size={14} /></button>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {templates.map(t => {
+                        const p = previewMonthly(t.items, components);
+                        return (
+                            <div key={t.id} className="group rounded-2xl border border-border/60 bg-card p-4 hover:border-border hover:shadow-sm transition-all">
+                                <div className="flex items-start justify-between gap-2">
+                                    <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><FileText size={16} /></div>
+                                    <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100">
+                                        <button onClick={() => setEditing({ id: t.id, name: t.name, items: t.items })} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50"><Pencil size={13} /></button>
+                                        <button onClick={() => setToDelete(t)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-500"><Trash2 size={13} /></button>
+                                    </div>
+                                </div>
+                                <p className="text-sm font-semibold mt-3">{t.name}</p>
+                                <p className="text-[11px] text-muted-foreground line-clamp-1">
+                                    {t.items.map(i => nameOf(i.componentId)).filter(Boolean).join(' · ') || 'No components'}
+                                </p>
+                                <div className="flex items-end justify-between mt-3 pt-3 border-t border-border/40">
+                                    <div>
+                                        <p className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold">Take-home</p>
+                                        <p className="text-base font-bold text-primary">{formatINR(p.netPay)}</p>
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground">Gross {formatINR(p.grossPay)}</p>
                                 </div>
                             </div>
-                            <p className="text-xs text-muted-foreground">
-                                {t.earnings.length} earning{t.earnings.length !== 1 ? 's' : ''}, {t.deductions.length} deduction{t.deductions.length !== 1 ? 's' : ''}
-                            </p>
-                        </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
-            {editing && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-                    <div className="bg-card border border-border rounded-2xl max-w-lg w-full mx-4 p-5 space-y-4 max-h-[85vh] overflow-y-auto">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-base font-bold">{editing.id ? 'Edit' : 'New'} Salary Template</h3>
-                            <button onClick={() => setEditing(null)}><X size={16} /></button>
+            <Dialog open={!!editing} onOpenChange={o => !o && setEditing(null)}>
+                <DialogContent className="sm:max-w-2xl bg-card max-h-[90vh] overflow-y-auto" onOpenAutoFocus={e => e.preventDefault()}>
+                    <DialogHeader>
+                        <DialogTitle>{editing?.id ? 'Edit template' : 'New template'}</DialogTitle>
+                    </DialogHeader>
+                    {editing && (
+                        <div className="space-y-4">
+                            <Field label="Template name">
+                                <input className={inputCls} placeholder="e.g. Primary Teacher" value={editing.name}
+                                    onChange={e => setEditing({ ...editing, name: e.target.value })} autoFocus />
+                            </Field>
+                            <SalaryItemsEditor items={editing.items} components={components} onChange={items => setEditing({ ...editing, items })} />
+                            <div className="flex gap-2">
+                                <SecondaryButton className="flex-1" onClick={() => setEditing(null)}>Cancel</SecondaryButton>
+                                <PrimaryButton className="flex-1" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save template'}</PrimaryButton>
+                            </div>
                         </div>
-                        <input
-                            className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm"
-                            placeholder="Template name (e.g. Senior Teacher)"
-                            value={editing.name}
-                            onChange={e => setEditing({ ...editing, name: e.target.value })}
-                        />
-                        <LineItemEditor items={editing.earnings} onChange={earnings => setEditing({ ...editing, earnings })} label="Earnings" />
-                        <LineItemEditor items={editing.deductions} onChange={deductions => setEditing({ ...editing, deductions })} label="Deductions" />
-                        <button
-                            onClick={save}
-                            disabled={saving}
-                            className="w-full h-9 rounded-lg text-sm font-semibold text-white flex items-center justify-center gap-2 disabled:opacity-60"
-                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                        >
-                            <Save size={14} /> {saving ? 'Saving…' : 'Save Template'}
-                        </button>
-                    </div>
-                </div>
-            )}
+                    )}
+                </DialogContent>
+            </Dialog>
+
+            <DeleteConfirmDialog
+                open={!!toDelete}
+                onOpenChange={o => !o && setToDelete(null)}
+                label="template"
+                name={toDelete?.name ?? ''}
+                loading={deleting}
+                onConfirm={confirmDelete}
+                description="Staff already given this salary keep their salary. Only the template is removed."
+            />
         </div>
     );
 }

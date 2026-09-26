@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
     },
   },
   images: {
+    // Next 16 only allows quality 75 unless listed here; avatars use 90
+    // (Teachers list, Payroll staff list) so small photos stay sharp.
+    qualities: [75, 90],
     remotePatterns: [
       {
         protocol: "https",

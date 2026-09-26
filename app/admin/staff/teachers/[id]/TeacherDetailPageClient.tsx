@@ -19,6 +19,9 @@ import { colorForSubject } from '@/lib/subjectColors';
 import { formatDisplayName } from '@/lib/displayName';
 import { getErrorMessage } from '@/lib/error';
 import { formatTokens } from '@/lib/utils';
+import { formatINR } from '@/lib/payroll';
+
+type MonthlySalary = { grossPay: number; netPay: number; earnings: { label: string; amount: number }[]; deductions: { label: string; amount: number }[] };
 
 // ── Salary line-item editor (earnings/deductions), shared by the Salary section below ──
 interface SalaryLineItem { label: string; amount: number; }
@@ -251,15 +254,15 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
             .finally(() => setAiUsageLoading(false));
     }, [teacher?.id]);
 
-    const [linkedStaff, setLinkedStaff] = useState<{ id: string; salaryStructure: { earnings: { label: string; amount: number }[]; deductions: { label: string; amount: number }[] } | null } | null>(null);
+    const [linkedStaff, setLinkedStaff] = useState<{ id: string; monthlySalary: MonthlySalary | null } | null>(null);
     const [staffLoading, setStaffLoading] = useState(true);
 
     useEffect(() => {
         if (!teacher?.email) return;
         api.get('/admin/payroll/staff')
             .then(res => {
-                const all: { id: string; email: string; salaryStructure: { earnings: { label: string; amount: number }[]; deductions: { label: string; amount: number }[] } | null }[] = res.data.data ?? [];
-                setLinkedStaff(all.find(s => s.email === teacher.email) ?? null);
+                const all: { id: string; email: string; userId: string | null; monthlySalary: MonthlySalary | null }[] = res.data.data ?? [];
+                setLinkedStaff(all.find(s => s.userId === teacher.id) ?? all.find(s => s.email === teacher.email) ?? null);
             })
             .catch(() => setLinkedStaff(null))
             .finally(() => setStaffLoading(false));
@@ -666,29 +669,33 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                 <SectionCard title="Salary" contentClassName="p-5">
                     {staffLoading ? (
                         <div className="h-16 rounded-xl bg-muted/40 animate-pulse" />
-                    ) : linkedStaff?.salaryStructure ? (
+                    ) : linkedStaff?.monthlySalary ? (
                         <div className="space-y-3">
-                            <div className="grid grid-cols-2 gap-2 text-xs">
+                            <div className="grid grid-cols-2 gap-3 text-xs">
                                 <div>
                                     <p className="text-muted-foreground mb-1">Earnings</p>
-                                    {linkedStaff.salaryStructure.earnings.map((e, i) => (
-                                        <p key={i}>{e.label}: ₹{e.amount.toLocaleString('en-IN')}</p>
+                                    {linkedStaff.monthlySalary.earnings.map((e, i) => (
+                                        <p key={i} className="flex justify-between gap-2"><span>{e.label}</span><span className="font-medium">{formatINR(e.amount)}</span></p>
                                     ))}
                                 </div>
                                 <div>
                                     <p className="text-muted-foreground mb-1">Deductions</p>
-                                    {linkedStaff.salaryStructure.deductions.length === 0
+                                    {linkedStaff.monthlySalary.deductions.length === 0
                                         ? <p className="text-muted-foreground/60">None</p>
-                                        : linkedStaff.salaryStructure.deductions.map((d, i) => (
-                                            <p key={i}>{d.label}: ₹{d.amount.toLocaleString('en-IN')}</p>
+                                        : linkedStaff.monthlySalary.deductions.map((d, i) => (
+                                            <p key={i} className="flex justify-between gap-2"><span>{d.label}</span><span className="font-medium">{formatINR(d.amount)}</span></p>
                                         ))}
                                 </div>
+                            </div>
+                            <div className="flex items-center justify-between rounded-xl bg-primary/5 border border-primary/15 px-3 py-2 text-xs">
+                                <span className="text-muted-foreground">Take-home / month</span>
+                                <span className="font-bold text-primary">{formatINR(linkedStaff.monthlySalary.netPay)}</span>
                             </div>
                             <a href="/admin/payroll/staff" className="text-xs font-semibold text-primary">Manage in Staff Payroll →</a>
                         </div>
                     ) : (
                         <div className="flex items-center justify-between">
-                            <p className="text-xs text-muted-foreground">No salary structure assigned yet</p>
+                            <p className="text-xs text-muted-foreground">No salary assigned yet</p>
                             <a href="/admin/payroll/staff" className="text-xs font-semibold text-primary">Assign in Staff Payroll →</a>
                         </div>
                     )}

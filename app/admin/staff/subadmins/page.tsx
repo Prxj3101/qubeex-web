@@ -8,7 +8,7 @@ import api from '@/lib/api';
 import {
     Shield, Plus, Search, X, Mail, CalendarDays, Edit2,
     PowerOff, Power, MailCheck, ChevronDown, ChevronRight,
-    Users, Building2, LineChart, Headset, ScrollText,
+    Users, Building2, LineChart, Headset, Wallet,
     User, Phone, Lock, Trash2, Hash,
 } from 'lucide-react';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
@@ -57,10 +57,11 @@ const PERMISSION_TREE: PermNode[] = [
         children: [
             { key: 'INSIGHTS_ANALYTICS',    label: 'Analytics',    description: 'Usage & performance analytics' },
             { key: 'INSIGHTS_SUBSCRIPTION', label: 'Subscription', description: 'Plan & billing info' },
+            { key: 'AUDIT_LOGS',            label: 'Audit Logs',   description: 'Admin activity audit trail' },
         ],
     },
-    { key: 'SUPPORT',    label: 'Support',    icon: Headset,    description: 'Support tickets & reviews' },
-    { key: 'AUDIT_LOGS', label: 'Audit Logs', icon: ScrollText, description: 'Admin activity audit trail' },
+    { key: 'SUPPORT', label: 'Support', icon: Headset, description: 'Support tickets & reviews' },
+    { key: 'PAYROLL', label: 'Payroll', icon: Wallet,  description: 'Staff salaries, payroll runs & payslips' },
 ];
 
 function getLeafKeys(node: PermNode): string[] {

@@ -40,7 +40,7 @@ export function RecentActivityCard({ auditLogs }: RecentAuditLogsCardProps) {
                     <ScrollText size={15} className="text-muted-foreground" />
                     <p className="text-sm font-medium">Recent Audit Logs</p>
                 </div>
-                <Link href="/admin/audit-logs" className="text-xs text-primary hover:underline">
+                <Link href="/admin/insights/audit-logs" className="text-xs text-primary hover:underline">
                     View all →
                 </Link>
             </div>
