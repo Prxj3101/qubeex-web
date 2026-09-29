@@ -16,6 +16,7 @@ export interface SalaryComponent {
     calcType: CalcType;
     isBasic: boolean;
     lopApplicable: boolean;
+    pfApplicable: boolean; // counts towards PF wages (Basic always does)
     defaultValue: number;
     sortOrder: number;
 }
@@ -37,6 +38,13 @@ export interface SalaryVersion {
 
 export interface BankDetails { accountName: string; accountNumber: string; ifsc: string; bankName: string }
 
+// Yearly amounts in paise (old regime deductions / previous job this financial year).
+export interface TaxDeclaration {
+    sec80C?: number; sec80D?: number; hraExempt?: number; otherDeductions?: number;
+    prevEmployerIncome?: number; prevEmployerTds?: number;
+    tdsBeforeQubeex?: number; // TDS this school cut this FY before using QubeEx
+}
+
 export interface StaffMember {
     id: string;
     name: string;
@@ -52,11 +60,21 @@ export interface StaffMember {
     pan: string | null;
     uan: string | null;
     paymentMode: PaymentMode;
+    pfApplicable: boolean; // PF deducted when the school has PF on
+    epsApplicable?: boolean; // false: no EPS (e.g. 58+), full employer 12% to EPF
+    esiApplicable: boolean;
+    ptApplicable: boolean;
+    esiNumber: string | null;
+    tdsApplicable: boolean;
+    taxRegime: 'NEW' | 'OLD';
+    taxDeclaration: TaxDeclaration | null;
     bankDetails: BankDetails | null;
     avatarUrl: string | null; // from the linked QubeEx profile (signed URL)
     profileDesignation: string | null; // teacher title / sub-admin designation from the profile
     salaryStructure: SalaryVersion | null;
     monthlySalary: { grossPay: number; netPay: number; earnings: MoneyLine[]; deductions: MoneyLine[] } | null;
+    /** Only when there's no salary this month but one starts later. */
+    upcomingSalary?: { startsFrom: string; grossPay: number; netPay: number } | null;
     salaryVersions: number;
 }
 

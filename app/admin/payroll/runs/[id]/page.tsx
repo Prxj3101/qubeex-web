@@ -4,9 +4,9 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import NextImage from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Loader2, RotateCcw, Trash2, Send, CheckCircle2, ChevronDown, Users, ClipboardList, ShieldCheck, Undo2, AlertTriangle, Info, MessageSquareWarning, Check, Circle, Download, Sparkles, XCircle } from 'lucide-react';
+import { X, Loader2, RotateCcw, Trash2, Send, CheckCircle2, ChevronDown, Users, ClipboardList, ShieldCheck, Undo2, AlertTriangle, Info, MessageSquareWarning, Check, Circle, Landmark, Sparkles, XCircle } from 'lucide-react';
 // Official brand / file-type icons (react-icons). Install once: pnpm add react-icons
-import { FaWhatsapp, FaFilePdf } from 'react-icons/fa';
+import { FaWhatsapp, FaFilePdf, FaFileExcel } from 'react-icons/fa';
 import api from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
@@ -30,6 +30,8 @@ interface Payslip {
     panMasked: string | null; bank: { bankName: string; last4: string; ifsc: string } | null;
     bonus: number; otherDeduction: number; inputNote: string | null; // LOP / bonus grid inputs (paise)
     prevNetPay: number | null; // take-home in the last published month
+    employerContributions: MoneyLine[] | null; pfWages: number; // PF: school's share (not deducted) + PF wages
+    tdsInfo: { regime: 'NEW' | 'OLD'; estimatedAnnualIncome: number; deductions: number; taxableIncome: number; annualTax: number; alreadyDeducted: number; monthsLeft: number; noPanRule: boolean } | Record<string, never> | null;
 }
 type RunStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED';
 interface AiReview { verdict: 'LOOKS_GOOD' | 'NEEDS_ATTENTION'; summary: string }
@@ -340,7 +342,17 @@ export default function PayrollRunDetailPage() {
                 // Stepper + review scroll away with the list; the table headings stick to the top.
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-2"
                     style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
-                <RunStepper run={run} />
+                {/* Steps, with "Pay salaries" on the right once approved */}
+                {(() => {
+                    const showPay = isApproved || isPublished;
+                    return (
+                        <div className="flex flex-col xl:flex-row gap-2">
+                            {/* Full width on its own; shrinks to fit once "Pay salaries" sits next to it */}
+                            <div className={showPay ? 'xl:shrink-0' : 'flex-1 min-w-0'}><RunStepper run={run} /></div>
+                            {showPay && <div className="flex-1 min-w-0"><PaymentsBar run={run} /></div>}
+                        </div>
+                    );
+                })()}
 
                 {isDraft && run.reviewNote && (
                     <div className="flex items-start gap-2.5 rounded-xl border border-amber-300/60 bg-amber-50 dark:bg-amber-950/40 dark:border-amber-800/60 px-3.5 py-2.5 text-xs">
@@ -356,7 +368,6 @@ export default function PayrollRunDetailPage() {
                     <ReviewPanel run={run} open={showReview} onToggle={() => setReviewOpen(!showReview)} warningCount={warningCount} onAiReviewed={fetchRun} />
                 )}
 
-                {(isApproved || isPublished) && unpaidCount > 0 && <PaymentsBar run={run} />}
 
                 {run.payslips.length === 0 ? (
                 <EmptyState icon={Users} title="No one in this run" text="Nobody had a salary for this month. Set salaries on the Staff tab, then delete this draft and run it again.">
@@ -699,6 +710,40 @@ function PayslipDetail({ p, month, isPublished, stageLabel }: { p: Payslip; mont
                     <Table title="Deductions" tone="text-red-700 dark:text-red-400" lines={p.deductions} totalLabel="Total deductions" total={deductions} />
                 </div>
 
+                {p.tdsInfo && 'annualTax' in p.tdsInfo && (
+                    // How this month's TDS was worked out (whole financial year estimate).
+                    <div className="rounded-xl border border-border/60 bg-card px-4 py-2.5">
+                        <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Income tax (TDS) · {p.tdsInfo.regime === 'OLD' ? 'old' : 'new'} regime
+                        </p>
+                        <div className="mt-1.5 flex flex-wrap gap-x-6 gap-y-1">
+                            <span>Estimated salary this year: <span className="font-semibold tabular-nums">{formatINR(p.tdsInfo.estimatedAnnualIncome)}</span></span>
+                            <span>Deductions: <span className="font-semibold tabular-nums">{formatINR(p.tdsInfo.deductions)}</span></span>
+                            <span>Taxable: <span className="font-semibold tabular-nums">{formatINR(p.tdsInfo.taxableIncome)}</span></span>
+                            <span>Tax for the year: <span className="font-semibold tabular-nums">{formatINR(p.tdsInfo.annualTax)}</span></span>
+                            <span>Already cut: <span className="font-semibold tabular-nums">{formatINR(p.tdsInfo.alreadyDeducted)}</span></span>
+                            <span>Spread over {p.tdsInfo.monthsLeft} month{p.tdsInfo.monthsLeft === 1 ? '' : 's'}</span>
+                            {p.tdsInfo.noPanRule && <span className="text-red-600 dark:text-red-400 font-semibold">No PAN: 20% minimum applied</span>}
+                        </div>
+                    </div>
+                )}
+
+                {(p.employerContributions?.length ?? 0) > 0 && (
+                    // School's PF share etc.: part of the cost, not taken from the salary.
+                    <div className="rounded-xl border border-border/60 bg-card px-4 py-2.5">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Paid by the school (not deducted)</p>
+                            <p className="text-[10px] text-muted-foreground">PF wages {formatINR(p.pfWages)}</p>
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap gap-x-6 gap-y-1">
+                            {p.employerContributions!.map((l, i) => (
+                                <span key={i}>{l.label}: <span className="font-semibold tabular-nums">{formatINR(l.amount)}</span></span>
+                            ))}
+                            <span className="text-muted-foreground">Total cost to school: <span className="font-semibold text-foreground tabular-nums">{formatINR(p.grossPay - (p.deductions.find(l => l.label.startsWith('Loss of Pay'))?.amount ?? 0) + p.employerContributions!.reduce((t, l) => t + l.amount, 0))}</span></span>
+                        </div>
+                    </div>
+                )}
+
                 <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3">
                     <div>
                         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Net pay</p>
@@ -722,7 +767,7 @@ function RunStepper({ run }: { run: RunDetail }) {
         { label: 'Published', meta: run.publishedAt ? formatDate(run.publishedAt) : 'Payslips shared' },
     ];
     return (
-        <div className="flex items-center gap-2 rounded-xl border border-border/60 bg-card px-3 py-2 overflow-x-auto">
+        <div className="h-full flex items-center gap-2 rounded-xl border border-border/60 bg-card px-3 py-2 overflow-x-auto">
             {steps.map((st, i) => {
                 const done = i < current || run.status === 'PUBLISHED';
                 const active = i === current && run.status !== 'PUBLISHED';
@@ -801,7 +846,8 @@ function ReviewPanel({ run, open, onToggle, warningCount, onAiReviewed }: { run:
                         </span>
                     </span>
                 )}
-                <ChevronDown size={13} className={`ml-auto text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+                <span className="ml-auto text-[10px] text-muted-foreground">AI can make mistakes. Please double-check before paying.</span>
+                <ChevronDown size={13} className={`text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
             </button>
             <AnimatePresence initial={false}>
                 {open && (
@@ -1025,20 +1071,23 @@ function PublishProgress({ run, onRetry, retrying }: { run: RunDetail; onRetry: 
 
 // Download the files used to actually pay: bank upload CSV + cash / cheque list.
 function PaymentsBar({ run }: { run: RunDetail }) {
-    const unpaid = run.payslips.filter(p => p.status !== 'PAID');
+    const unpaidAll = run.payslips.filter(p => p.status !== 'PAID');
+    // Stays after everyone is paid: then the files list everyone, as a record.
+    const allPaid = unpaidAll.length === 0;
+    const unpaid = allPaid ? run.payslips : unpaidAll;
     const bank = unpaid.filter(p => p.paymentMode === 'BANK');
     const bankReady = bank.filter(p => p.bank);
     const other = unpaid.filter(p => p.paymentMode !== 'BANK');
     const [busy, setBusy] = useState<string | null>(null);
 
-    const download = async (list: 'bank' | 'other') => {
+    const download = async (list: 'bank' | 'other' | 'pf') => {
         setBusy(list);
         try {
-            const res = await api.get(`/admin/payroll/runs/${run.id}/payments.csv?list=${list}`, { responseType: 'blob' });
+            const res = await api.get(list === 'pf' ? `/admin/payroll/runs/${run.id}/pf-ecr.txt` : `/admin/payroll/runs/${run.id}/payments.csv?list=${list}${allPaid ? '&include=all' : ''}`, { responseType: 'blob' });
             const url = URL.createObjectURL(res.data as Blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `salary-${list === 'bank' ? 'bank' : 'cash-cheque'}-${run.month}.csv`;
+            a.download = list === 'pf' ? `pf-ecr-${run.month}.txt` : `salary-${list === 'bank' ? 'bank' : 'cash-cheque'}-${run.month}.csv`;
             a.click();
             URL.revokeObjectURL(url);
         } catch (err: unknown) {
@@ -1050,24 +1099,38 @@ function PaymentsBar({ run }: { run: RunDetail }) {
 
     const total = (list: Payslip[]) => formatINR(list.reduce((t, p) => t + p.netPay, 0));
     return (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-border/60 bg-card px-3.5 py-2.5 text-xs">
-            <span className="font-semibold">Pay salaries</span>
+        <div className="h-full flex items-center gap-x-3 rounded-xl border border-border/60 bg-card px-3.5 py-2.5 text-xs overflow-hidden">
+            <span className="font-semibold shrink-0">Pay salaries</span>
+            {allPaid && (
+                <span className="shrink-0 whitespace-nowrap flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                    <CheckCircle2 size={12} /> All {run.payslips.length} paid · {total(run.payslips)}
+                </span>
+            )}
             {bankReady.length > 0 && (
-                <SmallButton onClick={() => download('bank')} disabled={!!busy} title="CSV to upload on your bank's bulk payment page">
-                    {busy === 'bank' ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />} Bank file · {bankReady.length} · {total(bankReady)}
+                <SmallButton onClick={() => download('bank')} disabled={!!busy} title="CSV to upload on your bank's bulk payment page" className="shrink-0 whitespace-nowrap">
+                    {busy === 'bank' ? <Loader2 size={11} className="animate-spin" /> : <FaFileExcel size={13} className="text-[#1D6F42]" />} Bank file · {bankReady.length} · {total(bankReady)}
+                </SmallButton>
+            )}
+            {run.payslips.some(p => p.pfWages > 0) && (
+                <SmallButton onClick={() => download('pf')} disabled={!!busy} className="shrink-0 whitespace-nowrap" title="ECR text file to upload on the EPFO portal for this month's PF">
+                    {busy === 'pf' ? <Loader2 size={11} className="animate-spin" /> : <Landmark size={12} />} PF ECR file
                 </SmallButton>
             )}
             {other.length > 0 && (
-                <SmallButton onClick={() => download('other')} disabled={!!busy}>
-                    {busy === 'other' ? <Loader2 size={11} className="animate-spin" /> : <Download size={11} />} Cash / cheque list · {other.length} · {total(other)}
+                <SmallButton onClick={() => download('other')} disabled={!!busy} className="shrink-0 whitespace-nowrap">
+                    {busy === 'other' ? <Loader2 size={11} className="animate-spin" /> : <FaFileExcel size={13} className="text-[#1D6F42]" />} Cash / cheque list · {other.length} · {total(other)}
                 </SmallButton>
             )}
             {bank.length > bankReady.length && (
-                <span className="flex items-center gap-1 text-amber-600 dark:text-amber-400">
+                <span className="shrink-0 whitespace-nowrap flex items-center gap-1 text-amber-600 dark:text-amber-400">
                     <AlertTriangle size={12} /> {bank.length - bankReady.length} not in the bank file (bank details missing)
                 </span>
             )}
-            <span className="text-muted-foreground">After paying, use <b>Mark paid</b> in the table to add the UTR / cheque numbers.</span>
+            {!allPaid && (
+                <span className="text-muted-foreground truncate min-w-0" title="After paying, use Mark paid in the table to add the UTR / cheque numbers.">
+                    After paying, use <b>Mark paid</b> in the table to add the UTR / cheque numbers.
+                </span>
+            )}
         </div>
     );
 }
@@ -1083,6 +1146,20 @@ function PayDialog({ run, onClose, onDone }: { run: RunDetail; onClose: () => vo
 
     const toggle = (id: string) => setSelected(sel => { const n = new Set(sel); if (n.has(id)) n.delete(id); else n.add(id); return n; });
     const chosen = unpaid.filter(p => selected.has(p.id));
+    // The common UTR is a bank batch number, so it only belongs to bank transfers.
+    // Typing one unticks cash / cheque people; clearing it ticks them again.
+    const onCommonChange = (value: string) => {
+        const wasEmpty = !common.trim();
+        const isEmpty = !value.trim();
+        setCommon(value);
+        if (wasEmpty === isEmpty) return;
+        setSelected(sel => {
+            const n = new Set(sel);
+            for (const p of unpaid) if (p.paymentMode !== 'BANK') { if (isEmpty) n.add(p.id); else n.delete(p.id); }
+            return n;
+        });
+    };
+    const refFor = (p: RunDetail['payslips'][number]) => (refs[p.id] ?? '').trim() || (p.paymentMode === 'BANK' ? common.trim() : '') || null;
 
     const save = async () => {
         if (chosen.length === 0) { toast.error('Select at least one person'); return; }
@@ -1090,7 +1167,7 @@ function PayDialog({ run, onClose, onDone }: { run: RunDetail; onClose: () => vo
         try {
             await api.post(`/admin/payroll/runs/${run.id}/mark-paid-bulk`, {
                 paidOn,
-                items: chosen.map(p => ({ payslipId: p.id, paymentRef: (refs[p.id] ?? '').trim() || common.trim() || null })),
+                items: chosen.map(p => ({ payslipId: p.id, paymentRef: refFor(p) })),
             });
             toast.success(`${chosen.length} marked as paid`);
             onDone();
@@ -1116,8 +1193,8 @@ function PayDialog({ run, onClose, onDone }: { run: RunDetail; onClose: () => vo
                                 className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-foreground/30" />
                         </label>
                         <label className="block space-y-1">
-                            <span className="font-semibold text-muted-foreground">Same reference for everyone (optional)</span>
-                            <input value={common} onChange={e => setCommon(e.target.value)} maxLength={100} placeholder="e.g. bank batch / UTR number"
+                            <span className="font-semibold text-muted-foreground">Same UTR for all bank transfers (optional)</span>
+                            <input value={common} onChange={e => onCommonChange(e.target.value)} maxLength={100} placeholder="e.g. bank batch / UTR number"
                                 className="w-full h-9 px-3 rounded-lg border border-border bg-background text-sm focus:outline-none focus:border-foreground/30" />
                         </label>
                     </div>
@@ -1137,7 +1214,7 @@ function PayDialog({ run, onClose, onDone }: { run: RunDetail; onClose: () => vo
                                 </div>
                                 <span className="w-24 text-right font-semibold tabular-nums">{formatINR(p.netPay)}</span>
                                 <input value={refs[p.id] ?? ''} onChange={e => setRefs(r => ({ ...r, [p.id]: e.target.value }))} maxLength={100}
-                                    placeholder={common || (p.paymentMode === 'CASH' ? 'optional' : 'UTR / cheque no.')} disabled={!selected.has(p.id)}
+                                    placeholder={(p.paymentMode === 'BANK' && common) || (p.paymentMode === 'CASH' ? 'optional' : p.paymentMode === 'CHEQUE' ? 'Cheque no.' : 'UTR no.')} disabled={!selected.has(p.id)}
                                     className="w-44 h-8 px-2 rounded-lg border border-border bg-background focus:outline-none focus:border-foreground/30" />
                             </div>
                         ))}

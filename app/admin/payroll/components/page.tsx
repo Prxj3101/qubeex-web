@@ -20,11 +20,12 @@ interface Draft {
     calcType: CalcType;
     isBasic: boolean;
     lopApplicable: boolean;
+    pfApplicable: boolean;
     valueText: string; // rupees or percent, as typed
 }
 
 const emptyDraft = (type: ComponentType): Draft => ({
-    name: '', type, calcType: 'FIXED', isBasic: false, lopApplicable: type === 'EARNING', valueText: '',
+    name: '', type, calcType: 'FIXED', isBasic: false, lopApplicable: type === 'EARNING', pfApplicable: false, valueText: '',
 });
 
 export default function SalaryComponentsPage() {
@@ -62,7 +63,7 @@ export default function SalaryComponentsPage() {
     };
 
     const openEdit = (c: SalaryComponent) => setDraft({
-        id: c.id, name: c.name, type: c.type, calcType: c.calcType, isBasic: c.isBasic, lopApplicable: c.lopApplicable,
+        id: c.id, name: c.name, type: c.type, calcType: c.calcType, isBasic: c.isBasic, lopApplicable: c.lopApplicable, pfApplicable: !!c.pfApplicable,
         valueText: c.calcType === 'PERCENT_OF_BASIC' ? bpToInput(c.defaultValue) : paiseToInput(c.defaultValue),
     });
 
@@ -76,6 +77,7 @@ export default function SalaryComponentsPage() {
             calcType: draft.isBasic ? 'FIXED' : draft.calcType,
             isBasic: draft.type === 'EARNING' && draft.isBasic,
             lopApplicable: draft.lopApplicable,
+            pfApplicable: draft.type === 'EARNING' && !draft.isBasic && draft.pfApplicable,
             defaultValue: draft.calcType === 'PERCENT_OF_BASIC' && !draft.isBasic ? percentToBp(draft.valueText) : rupeesToPaise(draft.valueText),
         };
         try {
@@ -129,6 +131,7 @@ export default function SalaryComponentsPage() {
                                     <p className="text-sm font-medium">{c.name}</p>
                                     {c.isBasic && <Pill tone="primary"><Star size={9} /> Basic</Pill>}
                                     {c.lopApplicable ? <Pill>Cut for LOP</Pill> : <Pill tone="muted">Not cut for LOP</Pill>}
+                                    {c.type === 'EARNING' && (c.isBasic || c.pfApplicable) && <Pill>Counts for PF</Pill>}
                                 </div>
                                 <p className="text-[11px] text-muted-foreground mt-0.5">
                                     {c.calcType === 'PERCENT_OF_BASIC' ? 'Percentage of Basic' : 'Fixed amount'}
@@ -229,6 +232,15 @@ export default function SalaryComponentsPage() {
                                 label="Cut for unpaid leave (LOP)"
                                 hint="Reduce this amount for LOP days. Usually ON for Basic/HRA, OFF for fixed items like Transport or Professional Tax."
                             />
+
+                            {draft.type === 'EARNING' && !draft.isBasic && (
+                                <Toggle
+                                    checked={draft.pfApplicable}
+                                    onChange={pfApplicable => setDraft({ ...draft, pfApplicable })}
+                                    label="Counts for PF"
+                                    hint="Included in PF wages (Basic always is). Usually ON for DA, OFF for HRA, Transport and other allowances."
+                                />
+                            )}
 
                             <div className="flex gap-2 pt-1">
                                 <SecondaryButton className="flex-1" onClick={() => setDraft(null)}>Cancel</SecondaryButton>

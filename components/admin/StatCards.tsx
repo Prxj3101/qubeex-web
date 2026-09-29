@@ -11,7 +11,7 @@ interface StatCardsProps {
 }
 
 export function StatCards({ stats, institutionType, plan }: StatCardsProps) {
-    const activeTeachers = 0; // TODO: real data
+    const activeTeachers = 0;
     const inactiveTeachers = 0;
 
     const items = [

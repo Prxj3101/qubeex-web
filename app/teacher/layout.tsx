@@ -13,7 +13,6 @@ import {
     Monitor,
     ScrollText,
     User,
-    Wallet,
 } from 'lucide-react';
 
 const TEACHER_NAV_ITEMS = [
@@ -22,7 +21,6 @@ const TEACHER_NAV_ITEMS = [
     { label: 'Classes', href: '/teacher/classes', icon: LayoutGrid, activePath: '/teacher/classes' },
     { label: 'Blackboard', href: '/teacher/blackboard', icon: Monitor },
     { label: 'Audit Logs', href: '/teacher/audit-logs', icon: ScrollText },
-    { label: 'Payroll', href: '/teacher/payroll', icon: Wallet },
     { label: 'My Profile', href: '/teacher/profile', icon: User },
 ];
 

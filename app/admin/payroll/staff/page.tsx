@@ -12,10 +12,10 @@ import { getErrorMessage } from '@/lib/error';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import {
-    StaffMember, StaffType, PaymentMode, SalaryComponent, SalaryTemplate, SalaryVersion, StructureItem, BankDetails,
+    StaffMember, StaffType, PaymentMode, TaxDeclaration, SalaryComponent, SalaryTemplate, SalaryVersion, StructureItem, BankDetails,
     STAFF_TYPE_LABEL, PAYMENT_MODE_LABEL, formatINR, formatDate, toDateInput, todayInput, previewMonthly,
 } from '@/lib/payroll';
-import { PageHeader, PrimaryButton, SecondaryButton, SmallButton, EmptyState, Field, inputCls, Pill, Segmented, StatCard, PhoneInput, ThemedSelect, TERRACOTTA } from '../_components/ui';
+import { PageHeader, PrimaryButton, SecondaryButton, SmallButton, EmptyState, Field, inputCls, Pill, Segmented, StatCard, PhoneInput, ThemedSelect, TERRACOTTA, Toggle } from '../_components/ui';
 import { SalaryItemsEditor } from '../_components/SalaryItemsEditor';
 
 interface LinkableProfile { userId: string; name: string; email: string; role: StaffType }
@@ -28,20 +28,36 @@ interface DetailsDraft {
     linked: LinkableProfile | null;
     name: string; email: string; phone: string; designation: string; staffType: StaffType;
     employeeCode: string; joinedAt: string; exitDate: string; pan: string; uan: string;
-    paymentMode: PaymentMode; bank: BankDetails;
+    paymentMode: PaymentMode; bank: BankDetails; pfApplicable: boolean; epsApplicable: boolean; esiApplicable: boolean; ptApplicable: boolean; esiNumber: string;
+    tdsApplicable: boolean; taxRegime: 'NEW' | 'OLD'; tax: Record<TaxKey, string>; // tax declaration in rupees, as typed
 }
 
 const emptyBank: BankDetails = { accountName: '', accountNumber: '', ifsc: '', bankName: '' };
 
 const blankDetails = (): DetailsDraft => ({
     mode: 'new', linked: null, name: '', email: '', phone: '', designation: '', staffType: 'HELPER',
-    employeeCode: '', joinedAt: '', exitDate: '', pan: '', uan: '', paymentMode: 'BANK', bank: { ...emptyBank },
+    employeeCode: '', joinedAt: '', exitDate: '', pan: '', uan: '', paymentMode: 'BANK', bank: { ...emptyBank }, pfApplicable: true, epsApplicable: true, esiApplicable: true, ptApplicable: true, esiNumber: '', tdsApplicable: true, taxRegime: 'NEW', tax: emptyTax(),
 });
 
 // Default "Applies from" for someone already on staff: start of the current month.
 function firstOfThisMonth(): string {
     const n = new Date();
     return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+// Tax declaration fields (yearly, ₹). Old regime ones only count under the old regime.
+type TaxKey = 'sec80C' | 'sec80D' | 'hraExempt' | 'otherDeductions' | 'prevEmployerIncome' | 'prevEmployerTds' | 'tdsBeforeQubeex';
+const TAX_KEYS: TaxKey[] = ['sec80C', 'sec80D', 'hraExempt', 'otherDeductions', 'prevEmployerIncome', 'prevEmployerTds', 'tdsBeforeQubeex'];
+const emptyTax = (): Record<TaxKey, string> => ({ sec80C: '', sec80D: '', hraExempt: '', otherDeductions: '', prevEmployerIncome: '', prevEmployerTds: '', tdsBeforeQubeex: '' });
+function taxToText(t: TaxDeclaration | null | undefined): Record<TaxKey, string> {
+    const out = emptyTax();
+    for (const k of TAX_KEYS) if (t?.[k]) out[k] = String(t[k]! / 100);
+    return out;
+}
+function taxFromText(t: Record<TaxKey, string>): TaxDeclaration {
+    const out: TaxDeclaration = {};
+    for (const k of TAX_KEYS) if (t[k]) out[k] = Math.round(Number(t[k]) * 100);
+    return out;
 }
 
 function initials(name: string) {
@@ -70,8 +86,9 @@ export default function StaffPayrollPage() {
 
     // ── Stats + filtering ──
     const active = staff.filter(s => s.status === 'ACTIVE');
-    const withSalary = active.filter(s => s.monthlySalary);
-    const monthlyTotal = withSalary.reduce((sum, s) => sum + (s.monthlySalary?.netPay ?? 0), 0);
+    // A salary that starts next month (e.g. set now, applies from 1 Oct) counts as assigned.
+    const withSalary = active.filter(s => s.monthlySalary || s.upcomingSalary);
+    const monthlyTotal = withSalary.reduce((sum, s) => sum + (s.monthlySalary?.netPay ?? s.upcomingSalary?.netPay ?? 0), 0);
     const missingBank = active.filter(s => s.paymentMode === 'BANK' && !s.bankDetails).length;
 
     const visible = useMemo(() => {
@@ -79,7 +96,7 @@ export default function StaffPayrollPage() {
         return staff.filter(s => {
             if (filter === 'ACTIVE' && s.status !== 'ACTIVE') return false;
             if (filter === 'INACTIVE' && s.status !== 'INACTIVE') return false;
-            if (filter === 'NO_SALARY' && (s.salaryStructure || s.status !== 'ACTIVE')) return false;
+            if (filter === 'NO_SALARY' && (s.salaryStructure || s.upcomingSalary || s.status !== 'ACTIVE')) return false;
             if (!q) return true;
             return [s.name, s.email, s.designation ?? s.profileDesignation, s.employeeCode].some(v => v?.toLowerCase().includes(q));
         });
@@ -105,7 +122,8 @@ export default function StaffPayrollPage() {
         id: s.id, mode: s.userId ? 'link' : 'new', linked: null,
         name: s.name, email: s.email ?? '', phone: s.phone ?? '', designation: s.designation ?? s.profileDesignation ?? '', staffType: s.staffType,
         employeeCode: s.employeeCode ?? '', joinedAt: toDateInput(s.joinedAt), exitDate: toDateInput(s.exitDate),
-        pan: s.pan ?? '', uan: s.uan ?? '', paymentMode: s.paymentMode, bank: s.bankDetails ?? { ...emptyBank },
+        pan: s.pan ?? '', uan: s.uan ?? '', paymentMode: s.paymentMode, bank: s.bankDetails ?? { ...emptyBank }, pfApplicable: s.pfApplicable !== false, epsApplicable: s.epsApplicable !== false, esiApplicable: s.esiApplicable !== false, ptApplicable: s.ptApplicable !== false, esiNumber: s.esiNumber ?? '',
+        tdsApplicable: s.tdsApplicable !== false, taxRegime: s.taxRegime === 'OLD' ? 'OLD' : 'NEW', tax: taxToText(s.taxDeclaration),
     });
 
     const saveDetails = async () => {
@@ -117,7 +135,8 @@ export default function StaffPayrollPage() {
         setSavingDetails(true);
         const common = {
             phone: d.phone, designation: d.designation, employeeCode: d.employeeCode,
-            joinedAt: d.joinedAt || null, pan: d.pan.trim().toUpperCase(), uan: d.uan, paymentMode: d.paymentMode,
+            joinedAt: d.joinedAt || null, pan: d.pan.trim().toUpperCase(), uan: d.uan, paymentMode: d.paymentMode, pfApplicable: d.pfApplicable, epsApplicable: d.epsApplicable, esiApplicable: d.esiApplicable, ptApplicable: d.ptApplicable, esiNumber: d.esiNumber,
+            tdsApplicable: d.tdsApplicable, taxRegime: d.taxRegime, taxDeclaration: taxFromText(d.tax),
             bankDetails: d.paymentMode === 'BANK' ? { ...d.bank, ifsc: d.bank.ifsc.trim().toUpperCase() } : undefined,
         };
         try {
@@ -242,7 +261,17 @@ export default function StaffPayrollPage() {
             note: s.salaryStructure?.note ?? '',
         });
         setEditorKey(k => k + 1);
-        api.get(`/admin/payroll/staff/${s.id}/structure`).then(r => setHistory(r.data.data?.history ?? [])).catch(() => {});
+        api.get(`/admin/payroll/staff/${s.id}/structure`).then(r => {
+            const list: SalaryVersion[] = r.data.data?.history ?? [];
+            setHistory(list);
+            // No salary this month but one starts later: open that one, so saving
+            // edits it instead of adding a new version from this month.
+            if (!s.salaryStructure && list.length) {
+                const first = [...list].sort((a, b) => new Date(a.effectiveFrom).getTime() - new Date(b.effectiveFrom).getTime())[0];
+                setSalaryDraft({ templateId: first.templateId, items: first.items.map(i => ({ ...i })), effectiveFrom: toDateInput(first.effectiveFrom), note: first.note ?? '' });
+                setEditorKey(k => k + 1);
+            }
+        }).catch(() => {});
     };
 
     // Load a history version (current / upcoming) into the editor above.
@@ -391,13 +420,18 @@ export default function StaffPayrollPage() {
                                         <p className="text-sm font-bold">{formatINR(s.monthlySalary.netPay)}</p>
                                         <p className="text-[10px] text-muted-foreground">take-home / month</p>
                                     </>
+                                ) : s.upcomingSalary ? (
+                                    <>
+                                        <p className="text-sm font-bold">{formatINR(s.upcomingSalary.netPay)}</p>
+                                        <p className="text-[10px] text-muted-foreground">starts {formatDate(s.upcomingSalary.startsFrom)}</p>
+                                    </>
                                 ) : (
                                     <Pill tone="amber">No salary yet</Pill>
                                 )}
                             </div>
                             <div className="flex items-center gap-1">
                                 <SmallButton onClick={() => openSalary(s)} className={''}>
-                                    <IndianRupee size={11} /> {s.salaryStructure ? 'Salary' : 'Set salary'}
+                                    <IndianRupee size={11} /> {s.salaryStructure || s.upcomingSalary ? 'Salary' : 'Set salary'}
                                 </SmallButton>
                                 <button title="Edit details" onClick={() => openEditDetails(s)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50"><Pencil size={13} /></button>
                                 <button title={s.status === 'ACTIVE' ? 'Mark inactive' : 'Mark active'} onClick={() => s.status === 'ACTIVE' ? setToDeactivate(s) : toggleStatus(s)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50">
@@ -480,6 +514,64 @@ export default function StaffPayrollPage() {
                                 )}
                                 <Field label="PAN (optional)"><input className={`${inputCls} uppercase`} maxLength={10} value={details.pan} onChange={e => setDetails({ ...details, pan: e.target.value })} /></Field>
                                 <Field label="UAN / PF no. (optional)"><input className={inputCls} maxLength={12} value={details.uan} onChange={e => setDetails({ ...details, uan: e.target.value })} /></Field>
+                            </div>
+
+                            {/* Statutory deductions for this person (only matter when switched on in Payroll Settings) */}
+                            <div className="rounded-xl border border-border/60 p-3 space-y-3">
+                                <p className="text-xs font-semibold text-muted-foreground">PF, ESI and Professional Tax</p>
+                                <Toggle checked={details.pfApplicable} onChange={pfApplicable => setDetails({ ...details, pfApplicable })}
+                                    label="PF is deducted for this person" hint="Turn off for someone who is not a PF member." />
+                                {details.pfApplicable && (
+                                    <Toggle checked={details.epsApplicable} onChange={epsApplicable => setDetails({ ...details, epsApplicable })}
+                                        label="Pension (EPS) applies" hint="Turn off for staff aged 58 or above (or anyone not in EPS). The school's full 12% then goes to their PF." />
+                                )}
+                                <Toggle checked={details.esiApplicable} onChange={esiApplicable => setDetails({ ...details, esiApplicable })}
+                                    label="ESI applies" hint="Only deducted while their monthly gross is within the ESI limit." />
+                                {details.esiApplicable && (
+                                    <Field label="ESI number (optional)"><input className={inputCls} maxLength={20} value={details.esiNumber} onChange={e => setDetails({ ...details, esiNumber: e.target.value.replace(/[^\dA-Za-z]/g, '') })} /></Field>
+                                )}
+                                <Toggle checked={details.ptApplicable} onChange={ptApplicable => setDetails({ ...details, ptApplicable })}
+                                    label="Professional Tax applies" hint="Turn off for exempt staff (e.g. in Maharashtra, women earning up to ₹25,000 a month)." />
+                                <Toggle checked={details.tdsApplicable} onChange={tdsApplicable => setDetails({ ...details, tdsApplicable })}
+                                    label="Income tax (TDS) is deducted" hint="Only matters when TDS is switched on in Payroll Settings." />
+                                {details.tdsApplicable && (
+                                    <div className="space-y-3 pl-1">
+                                        <div className="space-y-1.5">
+                                            <p className="text-[11px] font-semibold text-muted-foreground">Tax regime</p>
+                                            <Segmented<'NEW' | 'OLD'> value={details.taxRegime} onChange={taxRegime => setDetails({ ...details, taxRegime })}
+                                                options={[{ value: 'NEW', label: 'New regime (default)' }, { value: 'OLD', label: 'Old regime' }]} />
+                                        </div>
+                                        {details.taxRegime === 'OLD' && (
+                                            <div className="grid gap-2 sm:grid-cols-2">
+                                                {([
+                                                    ['sec80C', '80C investments (₹ / year)', 'PPF, LIC, ELSS, tuition fees… Employee PF is added automatically. Max ₹1.5L in total.'],
+                                                    ['sec80D', '80D health insurance (₹ / year)', ''],
+                                                    ['hraExempt', 'HRA exemption (₹ / year)', 'Worked out from rent receipts.'],
+                                                    ['otherDeductions', 'Other deductions (₹ / year)', '80E, 80G, home-loan interest…'],
+                                                ] as [TaxKey, string, string][]).map(([k, label, hint]) => (
+                                                    <Field key={k} label={label} hint={hint || undefined}>
+                                                        <input className={inputCls} inputMode="decimal" value={details.tax[k]}
+                                                            onChange={e => setDetails({ ...details, tax: { ...details.tax, [k]: e.target.value.replace(/[^\d.]/g, '').slice(0, 12) } })} />
+                                                    </Field>
+                                                ))}
+                                            </div>
+                                        )}
+                                        <div className="grid gap-2 sm:grid-cols-2">
+                                            <Field label="Salary from a previous job this year (₹)" hint="If they joined from another job this financial year.">
+                                                <input className={inputCls} inputMode="decimal" value={details.tax.prevEmployerIncome}
+                                                    onChange={e => setDetails({ ...details, tax: { ...details.tax, prevEmployerIncome: e.target.value.replace(/[^\d.]/g, '').slice(0, 12) } })} />
+                                            </Field>
+                                            <Field label="TDS already cut there (₹)">
+                                                <input className={inputCls} inputMode="decimal" value={details.tax.prevEmployerTds}
+                                                    onChange={e => setDetails({ ...details, tax: { ...details.tax, prevEmployerTds: e.target.value.replace(/[^\d.]/g, '').slice(0, 12) } })} />
+                                            </Field>
+                                            <Field label="TDS we cut this year before QubeEx (₹)" hint="Months of this financial year paid outside QubeEx: their salary is assumed automatically, only enter the TDS cut in them.">
+                                                <input className={inputCls} inputMode="decimal" value={details.tax.tdsBeforeQubeex}
+                                                    onChange={e => setDetails({ ...details, tax: { ...details.tax, tdsBeforeQubeex: e.target.value.replace(/[^\d.]/g, '').slice(0, 12) } })} />
+                                            </Field>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div className="space-y-2">
