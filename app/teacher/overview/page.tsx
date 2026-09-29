@@ -10,6 +10,7 @@ import { AlertCircle, Users, LayoutGrid, BookOpen, ScrollText, ClipboardList, Sp
 import { motion, AnimatePresence } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { BirthdayBanner, isTodayBirthday } from '@/components/shared/BirthdayBanner';
+import PayslipReadyBanner from '@/components/teacher/PayslipReadyBanner';
 import { SillyStringOverlay } from '@/components/shared/SillyStringOverlay';
 import { formatDisplayName } from '@/lib/displayName';
 import { formatTokens } from '@/lib/utils';
@@ -378,6 +379,8 @@ export default function TeacherOverviewPage() {
                 role="teacher"
                 dob={teacherDob ?? ''}
             />
+
+            <PayslipReadyBanner />
 
             {/* ── WelcomeBanner equivalent ── */}
             <AnimatePresence>

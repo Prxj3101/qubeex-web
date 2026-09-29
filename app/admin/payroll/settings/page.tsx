@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { CalendarDays, Check, Save, Landmark, HeartPulse, Receipt, Plus, X, Percent } from 'lucide-react';
+import { CalendarDays, Check, Save, Landmark, HeartPulse, Receipt, Plus, X, Percent, CalendarCheck } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
 import { getErrorMessage } from '@/lib/error';
@@ -42,6 +42,10 @@ export default function PayrollSettingsPage() {
     const [ptState, setPtState] = useState<'MAHARASHTRA' | 'CUSTOM'>('MAHARASHTRA');
     const [ptSlabs, setPtSlabs] = useState<{ from: string; amount: string; feb: string }[]>([{ from: '0', amount: '0', feb: '' }]);
 
+    // Staff attendance -> LOP
+    const [att, setAtt] = useState({ lopEnabled: false, officeStart: '08:00', grace: '10', halfDayHours: '4', weeklyOffDays: [0] as number[], offSaturdays: [] as number[], lateRuleEnabled: false, lateRuleCount: '3' });
+    const toggleIn = (list: number[], n: number) => (list.includes(n) ? list.filter(x => x !== n) : [...list, n].sort());
+
     useEffect(() => {
         api.get('/admin/payroll/settings')
             .then(res => {
@@ -52,6 +56,11 @@ export default function PayrollSettingsPage() {
                 if (d.esi) setEsi({ limit: String(d.esi.wageLimit / 100), employee: String(d.esi.employeeRate / 100), employer: String(d.esi.employerRate / 100) });
                 setPtEnabled(!!d.ptEnabled);
                 setTdsEnabled(!!d.tdsEnabled);
+                if (d.attendance) {
+                    const a = d.attendance;
+                    setAtt({ lopEnabled: !!a.lopEnabled, officeStart: a.officeStart, grace: String(a.graceMinutes), halfDayHours: String(a.halfDayMinutes / 60),
+                        weeklyOffDays: a.weeklyOffDays ?? [0], offSaturdays: a.offSaturdays ?? [], lateRuleEnabled: !!a.lateRuleEnabled, lateRuleCount: String(a.lateRuleCount) });
+                }
                 setPtState(d.ptState === 'CUSTOM' ? 'CUSTOM' : 'MAHARASHTRA');
                 if (d.ptState === 'CUSTOM' && d.pt?.slabs?.length) {
                     setPtSlabs(d.pt.slabs.map((sl: { from: number; amount: number; febAmount?: number | null }) => ({
@@ -88,6 +97,11 @@ export default function PayrollSettingsPage() {
                 esiWageLimit: Math.round(Number(esi.limit || 0) * 100),
                 esiEmployeeRate: pct(esi.employee), esiEmployerRate: pct(esi.employer),
                 ptEnabled, ptState, tdsEnabled,
+                attendanceLop: att.lopEnabled, officeStart: att.officeStart || '08:00',
+                graceMinutes: Math.min(180, Math.max(0, Math.round(Number(att.grace || 0)))),
+                halfDayMinutes: Math.min(720, Math.max(30, Math.round(Number(att.halfDayHours || 4) * 60))),
+                weeklyOffDays: att.weeklyOffDays, offSaturdays: att.offSaturdays,
+                lateRuleEnabled: att.lateRuleEnabled, lateRuleCount: Math.min(31, Math.max(1, Math.round(Number(att.lateRuleCount || 3)))),
                 // Maharashtra uses the built-in slabs ([] = preset); Custom sends the table.
                 ptSlabs: ptState === 'CUSTOM'
                     ? ptSlabs.filter(r => r.from !== '').map(r => ({
@@ -278,6 +292,63 @@ export default function PayrollSettingsPage() {
                         <p>New regime (FY 2026-27): no tax up to ₹12.75L salary a year (₹75,000 standard deduction + rebate). Slabs 5% to 30% above ₹4L.</p>
                         <p>Old regime: ₹50,000 standard deduction, PT, 80C (employee PF counts, max ₹1.5L), 80D, HRA and other deductions from the declaration.</p>
                         <p>No PAN: TDS is at least 20%. Staff aged 60+ (old regime special slabs) are not handled yet.</p>
+                    </div>
+                )}
+            </section>
+
+            {/* ── Staff attendance -> LOP ── */}
+            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+                <div className="flex items-center gap-2">
+                    <CalendarCheck size={16} className="text-primary" />
+                    <p className="text-sm font-semibold">Attendance</p>
+                </div>
+                <Toggle checked={att.lopEnabled} onChange={v => setAtt(a => ({ ...a, lopEnabled: v }))} label="Take LOP days from staff attendance"
+                    hint="A new payroll fills each person's LOP from Payroll → Attendance: absent + unpaid leave + half days × 0.5. You can still change the number in LOP & bonus. Days not marked count as present." />
+                <div className="grid gap-3 sm:grid-cols-3">
+                    <Field label="Office starts at" hint="Check-in after this + grace = Late">
+                        <input type="time" className={inputCls} value={att.officeStart} onChange={e => setAtt(a => ({ ...a, officeStart: e.target.value }))} />
+                    </Field>
+                    <Field label="Grace time (minutes)">
+                        <input className={inputCls} inputMode="numeric" value={att.grace} onChange={e => setAtt(a => ({ ...a, grace: e.target.value.replace(/\D/g, '').slice(0, 3) }))} />
+                    </Field>
+                    <Field label="Half day if worked less than (hours)">
+                        <input className={inputCls} inputMode="decimal" value={att.halfDayHours} onChange={e => setAtt(a => ({ ...a, halfDayHours: e.target.value.replace(/[^\d.]/g, '').slice(0, 4) }))} />
+                    </Field>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                        <p className="text-xs font-semibold text-muted-foreground">Weekly off</p>
+                        <div className="flex flex-wrap gap-1.5">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d, i) => {
+                                const on = att.weeklyOffDays.includes(i);
+                                return <button key={d} type="button" onClick={() => setAtt(a => ({ ...a, weeklyOffDays: toggleIn(a.weeklyOffDays, i) }))}
+                                    className={`h-8 px-3 rounded-full text-xs font-semibold border ${on ? 'text-white border-transparent' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                                    style={on ? { background: TERRACOTTA } : undefined}>{d}</button>;
+                            })}
+                        </div>
+                    </div>
+                    {!att.weeklyOffDays.includes(6) && (
+                        <div className="space-y-1.5">
+                            <p className="text-xs font-semibold text-muted-foreground">Saturdays off</p>
+                            <div className="flex flex-wrap gap-1.5">
+                                {[1, 2, 3, 4, 5].map(n => {
+                                    const on = att.offSaturdays.includes(n);
+                                    return <button key={n} type="button" onClick={() => setAtt(a => ({ ...a, offSaturdays: toggleIn(a.offSaturdays, n) }))}
+                                        className={`h-8 px-3 rounded-full text-xs font-semibold border ${on ? 'text-white border-transparent' : 'border-border text-muted-foreground hover:text-foreground'}`}
+                                        style={on ? { background: TERRACOTTA } : undefined}>{['1st', '2nd', '3rd', '4th', '5th'][n - 1]}</button>;
+                                })}
+                            </div>
+                        </div>
+                    )}
+                </div>
+                <p className="text-[11px] text-muted-foreground">School holidays come from Campus → Attendance holidays and are skipped automatically.</p>
+                <Toggle checked={att.lateRuleEnabled} onChange={v => setAtt(a => ({ ...a, lateRuleEnabled: v }))} label="Cut half a day for repeated late coming"
+                    hint={`Every ${att.lateRuleCount || 3} late marks in a month = half day LOP.`} />
+                {att.lateRuleEnabled && (
+                    <div className="max-w-[220px]">
+                        <Field label="Late marks for half a day">
+                            <input className={inputCls} inputMode="numeric" value={att.lateRuleCount} onChange={e => setAtt(a => ({ ...a, lateRuleCount: e.target.value.replace(/\D/g, '').slice(0, 2) }))} />
+                        </Field>
                     </div>
                 )}
             </section>

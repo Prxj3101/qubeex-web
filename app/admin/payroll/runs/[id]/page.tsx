@@ -24,6 +24,8 @@ interface Payslip {
     earnings: MoneyLine[]; deductions: MoneyLine[];
     grossPay: number; netPay: number;
     lopDays: number; paidDays: number; basisDays: number;
+    lopSource?: 'ATTENDANCE' | 'MANUAL' | null; // LOP taken from staff attendance, or typed in the grid
+    attendanceSummary?: { workingDays: number; absent: number; halfDay: number; unpaidLeave: number; late: number; unmarked: number } | null;
     status: 'PENDING' | 'PAID'; pdfUrl: string | null;
     paidAt: string | null; paymentMethod: string | null; paymentRef: string | null;
     joinedAt: string | null; exitDate: string | null;
@@ -976,7 +978,7 @@ function InputsGrid({ run, onClose, onSaved }: { run: RunDetail; onClose: () => 
             <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-border/60">
                 <div>
                     <p className="text-sm font-semibold">LOP &amp; bonus for {monthLabel(run.month)}</p>
-                    <p className="text-[11px] text-muted-foreground">LOP = unpaid leave days (half days like 1.5 are fine). Amounts in ₹. Salaries are recalculated when you save.</p>
+                    <p className="text-[11px] text-muted-foreground">LOP = unpaid leave days (half days like 1.5 are fine). Amounts in ₹. Salaries are recalculated when you save. When attendance is on, LOP comes from Payroll → Attendance; type a number to override it.</p>
                 </div>
                 <div className="flex items-center gap-2">
                     <SecondaryButton onClick={onClose} disabled={saving}>Cancel</SecondaryButton>
@@ -1016,6 +1018,17 @@ function InputsGrid({ run, onClose, onSaved }: { run: RunDetail; onClose: () => 
                                         <input inputMode="decimal" placeholder="0" value={r.lop} title={err ?? undefined}
                                             onChange={e => set(p.id, { lop: e.target.value.replace(/[^\d.]/g, '').slice(0, 4) })}
                                             className={`${cell} ${err ? '!border-red-500' : ''}`} />
+                                        {p.attendanceSummary && (() => {
+                                            const a = p.attendanceSummary;
+                                            const fromAtt = p.lopSource === 'ATTENDANCE' && !dirty;
+                                            const bits = [a.absent && `${a.absent} A`, a.halfDay && `${a.halfDay} half`, a.unpaidLeave && `${a.unpaidLeave} UL`, a.late && `${a.late} late`].filter(Boolean).join(' · ');
+                                            return (
+                                                <p className={`mt-0.5 text-[9.5px] text-right leading-tight ${fromAtt ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}
+                                                    title={`Attendance: ${a.absent} absent, ${a.halfDay} half day, ${a.unpaidLeave} unpaid leave, ${a.late} late, ${a.unmarked} not marked (of ${a.workingDays} working days)`}>
+                                                    {fromAtt ? 'From attendance' : 'Edited'}{bits ? ` · ${bits}` : ''}
+                                                </p>
+                                            );
+                                        })()}
                                     </td>
                                     <td className="px-2 py-1.5">
                                         <input inputMode="decimal" placeholder="0" value={r.bonus} onChange={e => set(p.id, { bonus: e.target.value.replace(/[^\d.]/g, '').slice(0, 10) })} className={cell} />

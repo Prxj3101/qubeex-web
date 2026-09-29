@@ -27,7 +27,7 @@ interface DetailsDraft {
     mode: 'new' | 'link';
     linked: LinkableProfile | null;
     name: string; email: string; phone: string; designation: string; staffType: StaffType;
-    employeeCode: string; joinedAt: string; exitDate: string; pan: string; uan: string;
+    employeeCode: string; machineId: string; joinedAt: string; exitDate: string; pan: string; uan: string;
     paymentMode: PaymentMode; bank: BankDetails; pfApplicable: boolean; epsApplicable: boolean; esiApplicable: boolean; ptApplicable: boolean; esiNumber: string;
     tdsApplicable: boolean; taxRegime: 'NEW' | 'OLD'; tax: Record<TaxKey, string>; // tax declaration in rupees, as typed
 }
@@ -36,7 +36,7 @@ const emptyBank: BankDetails = { accountName: '', accountNumber: '', ifsc: '', b
 
 const blankDetails = (): DetailsDraft => ({
     mode: 'new', linked: null, name: '', email: '', phone: '', designation: '', staffType: 'HELPER',
-    employeeCode: '', joinedAt: '', exitDate: '', pan: '', uan: '', paymentMode: 'BANK', bank: { ...emptyBank }, pfApplicable: true, epsApplicable: true, esiApplicable: true, ptApplicable: true, esiNumber: '', tdsApplicable: true, taxRegime: 'NEW', tax: emptyTax(),
+    employeeCode: '', machineId: '', joinedAt: '', exitDate: '', pan: '', uan: '', paymentMode: 'BANK', bank: { ...emptyBank }, pfApplicable: true, epsApplicable: true, esiApplicable: true, ptApplicable: true, esiNumber: '', tdsApplicable: true, taxRegime: 'NEW', tax: emptyTax(),
 });
 
 // Default "Applies from" for someone already on staff: start of the current month.
@@ -121,7 +121,7 @@ export default function StaffPayrollPage() {
     const openEditDetails = (s: StaffMember) => setDetails({
         id: s.id, mode: s.userId ? 'link' : 'new', linked: null,
         name: s.name, email: s.email ?? '', phone: s.phone ?? '', designation: s.designation ?? s.profileDesignation ?? '', staffType: s.staffType,
-        employeeCode: s.employeeCode ?? '', joinedAt: toDateInput(s.joinedAt), exitDate: toDateInput(s.exitDate),
+        employeeCode: s.employeeCode ?? '', machineId: s.machineId ?? '', joinedAt: toDateInput(s.joinedAt), exitDate: toDateInput(s.exitDate),
         pan: s.pan ?? '', uan: s.uan ?? '', paymentMode: s.paymentMode, bank: s.bankDetails ?? { ...emptyBank }, pfApplicable: s.pfApplicable !== false, epsApplicable: s.epsApplicable !== false, esiApplicable: s.esiApplicable !== false, ptApplicable: s.ptApplicable !== false, esiNumber: s.esiNumber ?? '',
         tdsApplicable: s.tdsApplicable !== false, taxRegime: s.taxRegime === 'OLD' ? 'OLD' : 'NEW', tax: taxToText(s.taxDeclaration),
     });
@@ -134,7 +134,7 @@ export default function StaffPayrollPage() {
         if (!isNewLink && !d.name.trim()) { toast.error('Name is required'); return; }
         setSavingDetails(true);
         const common = {
-            phone: d.phone, designation: d.designation, employeeCode: d.employeeCode,
+            phone: d.phone, designation: d.designation, employeeCode: d.employeeCode, machineId: d.machineId.trim(),
             joinedAt: d.joinedAt || null, pan: d.pan.trim().toUpperCase(), uan: d.uan, paymentMode: d.paymentMode, pfApplicable: d.pfApplicable, epsApplicable: d.epsApplicable, esiApplicable: d.esiApplicable, ptApplicable: d.ptApplicable, esiNumber: d.esiNumber,
             tdsApplicable: d.tdsApplicable, taxRegime: d.taxRegime, taxDeclaration: taxFromText(d.tax),
             bankDetails: d.paymentMode === 'BANK' ? { ...d.bank, ifsc: d.bank.ifsc.trim().toUpperCase() } : undefined,
@@ -514,6 +514,9 @@ export default function StaffPayrollPage() {
                                 )}
                                 <Field label="PAN (optional)"><input className={`${inputCls} uppercase`} maxLength={10} value={details.pan} onChange={e => setDetails({ ...details, pan: e.target.value })} /></Field>
                                 <Field label="UAN / PF no. (optional)"><input className={inputCls} maxLength={12} value={details.uan} onChange={e => setDetails({ ...details, uan: e.target.value })} /></Field>
+                                <Field label="Attendance machine ID (optional)" hint="This person's number on the fingerprint / RFID machine">
+                                    <input className={inputCls} maxLength={40} value={details.machineId} onChange={e => setDetails({ ...details, machineId: e.target.value })} />
+                                </Field>
                             </div>
 
                             {/* Statutory deductions for this person (only matter when switched on in Payroll Settings) */}

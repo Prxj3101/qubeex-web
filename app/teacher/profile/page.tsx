@@ -1,13 +1,14 @@
 
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Hash, Mail, Phone, MapPin, Calendar, User,
     GraduationCap, Briefcase, Edit2, Check, X,
-    BookOpen, Camera, Tag, ChevronRight, Layers,
+    BookOpen, Camera, Tag, ChevronRight, Layers, Wallet,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -17,6 +18,7 @@ import { useUserTitleStore } from '@/store/userTitleStore';
 import { useAuthStore } from '@/store/authStore';
 import NextImage from 'next/image';
 import { colorForSubject } from '@/lib/subjectColors';
+import MyPayroll from './MyPayroll';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface TeacherAssignment {
@@ -203,9 +205,20 @@ function EditableField({ label, value, onChange, placeholder }: {
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
+// useSearchParams (for ?tab=payroll) needs a Suspense boundary in the App Router.
 export default function TeacherProfilePage() {
+    return <Suspense fallback={null}><TeacherProfileInner /></Suspense>;
+}
+
+function TeacherProfileInner() {
     const [teacher, setTeacher] = useState<TeacherData | null>(null);
     const [loading, setLoading] = useState(true);
+    // Profile | My Payroll - ?tab=payroll opens payroll directly (Overview card, old /teacher/payroll URL).
+    const searchParams = useSearchParams();
+    const router = useRouter();
+    const tab: 'profile' | 'payroll' = searchParams.get('tab') === 'payroll' ? 'payroll' : 'profile';
+    const switchTab = (t: 'profile' | 'payroll') =>
+        router.replace(t === 'payroll' ? '/teacher/profile?tab=payroll' : '/teacher/profile', { scroll: false });
     const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
     const [photoExpanded, setPhotoExpanded] = useState(false);
     const setUserAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
@@ -399,14 +412,33 @@ export default function TeacherProfilePage() {
 
             {/* Header */}
             <div className="sticky top-0 z-20 bg-background pb-0 shrink-0">
-                <h1 className="text-xl font-bold flex items-center gap-2">
-                    <User size={21} /> My Profile
-                </h1>
-                <p className="text-[13px] text-muted-foreground">View and manage your profile details</p>
+                <div className="flex items-end justify-between gap-3">
+                    <div>
+                        <h1 className="text-xl font-bold flex items-center gap-2">
+                            {tab === 'payroll' ? <><Wallet size={21} /> My Payroll</> : <><User size={21} /> My Profile</>}
+                        </h1>
+                        <p className="text-[13px] text-muted-foreground">
+                            {tab === 'payroll' ? 'Your payslips and your own attendance' : 'View and manage your profile details'}
+                        </p>
+                    </div>
+                    <div className="flex bg-muted/50 rounded-xl p-0.5 border border-border/50 mb-0.5">
+                        {([{ key: 'profile', label: 'Profile', Icon: User }, { key: 'payroll', label: 'My Payroll', Icon: Wallet }] as const).map(({ key, label, Icon }) => (
+                            <button key={key} onClick={() => switchTab(key)}
+                                className={`flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-medium transition-all ${tab === key ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                                <Icon size={14} /> {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
                 <div className="h-px bg-border/60 mt-2" />
             </div>
 
-            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
+            {tab === 'payroll' ? (
+                <motion.div key="payroll" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                    <MyPayroll />
+                </motion.div>
+            ) : (
+            <motion.div key="profile" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}
                 className="space-y-4">
 
                 {/* Header Card */}
@@ -728,6 +760,7 @@ export default function TeacherProfilePage() {
                 </SectionCard>
 
             </motion.div>
+            )}
         </div>
     );
 }

@@ -62,6 +62,7 @@ export interface StaffMember {
     paymentMode: PaymentMode;
     pfApplicable: boolean; // PF deducted when the school has PF on
     epsApplicable?: boolean; // false: no EPS (e.g. 58+), full employer 12% to EPF
+    machineId?: string | null; // ID on the school's attendance machine
     esiApplicable: boolean;
     ptApplicable: boolean;
     esiNumber: string | null;

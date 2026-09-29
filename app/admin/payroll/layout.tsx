@@ -3,7 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Users, Send, FileText, Layers, Settings2, SlidersHorizontal } from 'lucide-react';
+import { Users, Send, FileText, Layers, Settings2, SlidersHorizontal, CalendarCheck } from 'lucide-react';
 
 // Components and Templates live inside Settings (switched with the toggle on the
 // right of the tab bar); their URLs stay the same so old links keep working.
@@ -16,6 +16,7 @@ const SETTINGS_PAGES = [
 const PAYROLL_TABS = [
     { label: 'Payroll Runs', href: '/admin/payroll/runs',     icon: Send,      match: ['/admin/payroll/runs'] },
     { label: 'Staff',        href: '/admin/payroll/staff',    icon: Users,     match: ['/admin/payroll/staff'] },
+    { label: 'Attendance',   href: '/admin/payroll/attendance', icon: CalendarCheck, match: ['/admin/payroll/attendance'] },
     { label: 'Settings',     href: '/admin/payroll/settings', icon: Settings2, match: SETTINGS_PAGES.map(p => p.href) },
 ];
 
