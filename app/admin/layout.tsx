@@ -16,6 +16,9 @@ import {
     Wallet,
 } from 'lucide-react';
 import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
+import { AcademicYearProvider } from '@/context/AcademicYearContext';
+import { AcademicYearSelector } from '@/components/shared/AcademicYearSelector';
+import { HistoricalYearBanner } from '@/components/shared/HistoricalYearBanner';
 
 // Parent nav unlocks if user has ANY of the listed child permission keys
 const ALL_NAV_ITEMS = [
@@ -176,6 +179,10 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
             <Topbar
                 navItems={navItems}
             />
+            <div className="flex items-center justify-end px-2">
+                <AcademicYearSelector />
+            </div>
+            <HistoricalYearBanner />
             <main
                 className="flex-1 overflow-y-auto overflow-x-hidden px-2 outline-none bg-background visible-scrollbar"
                 style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb-strong) transparent' }}
@@ -190,7 +197,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
     return (
         <MockInstTypeProvider>
-            <AdminLayoutInner>{children}</AdminLayoutInner>
+            <AcademicYearProvider>
+                <AdminLayoutInner>{children}</AdminLayoutInner>
+            </AcademicYearProvider>
         </MockInstTypeProvider>
     );
 }
