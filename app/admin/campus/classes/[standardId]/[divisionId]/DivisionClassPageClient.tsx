@@ -799,12 +799,21 @@ export default function DivisionDetailPage() {
     const [division, setDivision] = useState<Division | null>(null);
     const [teachers, setTeachers] = useState<TeacherOption[]>([]);
     const [loading, setLoading] = useState(true);
+    // division === null already means "Division not found" below; this flag
+    // distinguishes a failed load so that screen says so instead.
+    const [loadError, setLoadError] = useState(false);
     const [students, setStudents] = useState<AdminStudent[]>([]);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const { user } = useAuthStore();
     const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
     const isHistorical = useIsHistoricalYear();
-    const yearParams = isCurrentYearSelected ? {} : { academicYearId: selectedYearId };
+    // The year this screen actually requests: null means "current year" (the
+    // API call sends no academicYearId). selectedYearId itself starts as null
+    // and then becomes the current year's real id once AcademicYearContext
+    // loads — both mean "current", so comparing effectiveYear (not the raw id)
+    // keeps that first-mount transition from looking like a year switch.
+    const effectiveYear = isCurrentYearSelected ? null : selectedYearId;
+    const yearParams = effectiveYear === null ? {} : { academicYearId: effectiveYear };
     const subAdminPermissions = user?.role === 'SUB_ADMIN' ? (user.permissions ?? []) : null;
 
     function isTabLocked(tabKey: 'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'): boolean {
@@ -847,6 +856,10 @@ export default function DivisionDetailPage() {
     const [savingAssign, setSavingAssign] = useState(false);
     const [savingSubject, setSavingSubject] = useState(false);
     const fetchedRef = useRef(false);
+    // Request sequencing: only the most recently *initiated* fetch may update
+    // state, so a slow response for a previously-selected year can never land
+    // on top of the newer year's data (or clear it on failure).
+    const reqIdRef = useRef(0);
     const [feedFilter, setFeedFilter] = useState<FeedFilter>('all');
     const [showScrollTop, setShowScrollTop] = useState(false);
     const feedScrollRef = useRef<HTMLDivElement>(null);
@@ -1022,6 +1035,7 @@ export default function DivisionDetailPage() {
     const canFetchLeaderboard = !subAdminPermissions || subAdminPermissions.includes('CAMPUS_VIEW') || subAdminPermissions.includes('CAMPUS_MANAGE');
 
     const fetchAll = useCallback(async () => {
+        const requestId = ++reqIdRef.current;
         setLoading(true);
         try {
             // Use allSettled so a failed posts/teachers/students/leaderboard fetch (e.g. 403
@@ -1033,36 +1047,51 @@ export default function DivisionDetailPage() {
                 canFetchStudents ? api.get(`/admin/campus/divisions/${divisionId}/students`, { params: yearParams }) : Promise.resolve({ data: { data: [] } }),
                 canFetchLeaderboard ? api.get(`/admin/campus/divisions/${divisionId}/leaderboard`) : Promise.resolve({ data: { data: [] } }),
             ]);
+            if (requestId !== reqIdRef.current) return; // a newer request has started; discard this stale response
             // Division is critical — re-throw so the catch block handles it
             if (divResult.status === 'rejected') throw divResult.reason;
+            setLoadError(false);
             setDivision(divResult.value.data.data);
             setTeachers(teachersResult.status === 'fulfilled' ? (teachersResult.value.data.data ?? []) : []);
             setAnnouncements(postsResult.status === 'fulfilled' ? (postsResult.value.data.data ?? []) : []);
             setStudents(studentsResult.status === 'fulfilled' ? (studentsResult.value.data.data ?? []) : []);
             setLeaderboard(leaderboardResult.status === 'fulfilled' ? (leaderboardResult.value.data.data ?? []) : []);
+            setLoading(false);
         } catch (err: unknown) {
+            if (requestId !== reqIdRef.current) return; // a newer request has started; discard this stale failure
+            // Clear rather than keep the previous response on screen — otherwise
+            // it would be shown (and be actionable) under the newly-selected
+            // year's label. loadError makes the empty state say "failed to load".
+            setDivision(null);
+            setTeachers([]);
+            setAnnouncements([]);
+            setStudents([]);
+            setLeaderboard([]);
+            setSelectedStudent(null);
+            setLoadError(true);
+            setLoading(false);
             const msg = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data?.error
                 ?? (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
             toast.error(msg ?? 'Failed to load class');
-        } finally {
-            setLoading(false);
         }
-    }, [divisionId, canFetchTeachers, canFetchPosts, canFetchStudents, canFetchLeaderboard, isCurrentYearSelected, selectedYearId]);
+    // yearParams is derived solely from effectiveYear, which is listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [divisionId, canFetchTeachers, canFetchPosts, canFetchStudents, canFetchLeaderboard, effectiveYear]);
 
     // fetchedRef guards against React StrictMode's dev-only double-invoke of this
     // effect on mount (same deps, no real dependency change). prevYearRef tracks
-    // the year selector so a genuine year switch still triggers a refetch — see
+    // the effective year so a genuine year switch still triggers a refetch — see
     // the Classes list page (app/admin/campus/classes/page.tsx) for the same pattern.
-    const prevYearRef = useRef(selectedYearId);
+    const prevYearRef = useRef(effectiveYear);
     useEffect(() => {
         if (!fetchedRef.current) {
             fetchedRef.current = true;
-            prevYearRef.current = selectedYearId;
+            prevYearRef.current = effectiveYear;
             fetchAll();
             return;
         }
-        if (prevYearRef.current !== selectedYearId) {
-            prevYearRef.current = selectedYearId;
+        if (prevYearRef.current !== effectiveYear) {
+            prevYearRef.current = effectiveYear;
             // A student selected under the previous year's roster is a separate
             // piece of state that fetchAll() never touches — left alone, the
             // Student Info panel would keep showing that student's (possibly
@@ -1072,7 +1101,7 @@ export default function DivisionDetailPage() {
             setSelectedStudent(null);
             fetchAll();
         }
-    }, [fetchAll, selectedYearId]);
+    }, [fetchAll, effectiveYear]);
 
     // Re-select the student that was clicked into Report/View Profile, once the
     // students list has loaded, instead of leaving selection empty/reset.
@@ -1176,7 +1205,7 @@ export default function DivisionDetailPage() {
     if (!division) {
         return (
             <div className="flex flex-col items-center justify-center h-full gap-3">
-                <p className="text-sm text-muted-foreground">Division not found</p>
+                <p className="text-sm text-muted-foreground">{loadError ? 'Failed to load this class' : 'Division not found'}</p>
                 <button onClick={() => router.back()}
                     className="text-xs text-primary underline">Go back</button>
             </div>

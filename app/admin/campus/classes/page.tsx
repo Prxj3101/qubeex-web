@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
-import { useAcademicYear } from '@/context/AcademicYearContext';
+import { useAcademicYear, useIsHistoricalYear } from '@/context/AcademicYearContext';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
 import { colorForSubject } from '@/lib/subjectColors';
@@ -105,6 +105,7 @@ export default function ClassesPage() {
     const router = useRouter();
     const { instType } = useMockInstType();
     const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
+    const isHistorical = useIsHistoricalYear();
     const { user } = useAuthStore();
     // A sub-admin granted CAMPUS_MANAGE gets the exact same add/edit/delete/
     // reorder access as an Admin here — the backend routes for standards,
@@ -126,6 +127,9 @@ export default function ClassesPage() {
         | { type: 'standard'; id: string }
         | { type: 'division'; standardId: string; id: string };
     const [editing, setEditing] = useState<EditTarget | null>(null);
+    // Any rename left open when switching to a past year is hidden (not
+    // submittable) while that year is on screen.
+    const visibleEditing = isHistorical ? null : editing;
     const [editValue, setEditValue] = useState('');
     const [savingEdit, setSavingEdit] = useState(false);
 
@@ -139,39 +143,58 @@ export default function ClassesPage() {
     const standardLabel = instType === 'COLLEGE' ? 'Department' : instType === 'COACHING' ? 'Batch' : 'Standard';
     const divisionLabel = instType === 'COLLEGE' ? 'Section' : instType === 'COACHING' ? 'Group' : 'Division';
 
+    // The year this screen actually requests: null means "current year" (the
+    // API call sends no academicYearId). selectedYearId itself starts as null
+    // and then becomes the current year's real id once AcademicYearContext
+    // loads — both mean "current", so comparing effectiveYear (not the raw id)
+    // keeps that first-mount transition from looking like a year switch.
+    const effectiveYear = isCurrentYearSelected ? null : selectedYearId;
+
+    // Request sequencing: only the most recently *initiated* fetch may update
+    // state, so a slow response for a previously-selected year can never land
+    // on top of the newer year's data (or clear it on failure).
+    const reqIdRef = useRef(0);
+
     const fetchStandards = useCallback(async () => {
+        const requestId = ++reqIdRef.current;
         setLoading(true);
         try {
             const res = await api.get('/admin/campus/standards', {
-                params: isCurrentYearSelected ? {} : { academicYearId: selectedYearId },
+                params: effectiveYear === null ? {} : { academicYearId: effectiveYear },
             });
+            if (requestId !== reqIdRef.current) return; // a newer request has started; discard this stale response
             setStandards(res.data.data);
-        } catch (err: unknown) {
-            const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
-            toast.error(msg ?? 'Failed to load classes');
-        } finally {
             setLoading(false);
+        } catch (err: unknown) {
+            if (requestId !== reqIdRef.current) return; // a newer request has started; discard this stale failure
+            // Clear rather than keep the previous response on screen — otherwise
+            // it would be shown under the newly-selected year's label.
+            setStandards([]);
+            setLoading(false);
+            const data = (err as { response?: { data?: { error?: string; message?: string } } })?.response?.data;
+            toast.error(data?.error ?? data?.message ?? 'Failed to load classes');
         }
-    }, [isCurrentYearSelected, selectedYearId]);
+    }, [effectiveYear]);
 
     // fetchedRef guards against React StrictMode's dev-only double-invoke of
     // this effect on mount (same deps, no real dependency change). prevYearRef
-    // tracks the selector so a genuine year switch still triggers a refetch.
-    const prevYearRef = useRef(selectedYearId);
+    // tracks the effective year so a genuine year switch still triggers a refetch.
+    const prevYearRef = useRef(effectiveYear);
     useEffect(() => {
         if (!fetchedRef.current) {
             fetchedRef.current = true;
-            prevYearRef.current = selectedYearId;
+            prevYearRef.current = effectiveYear;
             fetchStandards();
             return;
         }
-        if (prevYearRef.current !== selectedYearId) {
-            prevYearRef.current = selectedYearId;
+        if (prevYearRef.current !== effectiveYear) {
+            prevYearRef.current = effectiveYear;
             fetchStandards();
         }
-    }, [fetchStandards, selectedYearId]);
+    }, [fetchStandards, effectiveYear]);
 
     const addStandard = async (name: string) => {
+        if (isHistorical) return;
         setSaving(true);
         try {
             const res = await api.post('/admin/campus/standards', { name });
@@ -189,6 +212,7 @@ export default function ClassesPage() {
     };
 
     const addDivision = async (standardId: string, name: string) => {
+        if (isHistorical) return;
         setSaving(true);
         try {
             const res = await api.post(`/admin/campus/standards/${standardId}/divisions`, { name });
@@ -207,6 +231,7 @@ export default function ClassesPage() {
     };
 
     const addSubject = async (standardId: string, name: string) => {
+        if (isHistorical) return;
         setSaving(true);
         try {
             const res = await api.post(`/admin/campus/standards/${standardId}/subjects`, { name });
@@ -226,6 +251,7 @@ export default function ClassesPage() {
     };
 
     const deleteSubject = async (subjectId: string, standardId: string) => {
+        if (isHistorical) return;
         try {
             await api.delete(`/admin/campus/subjects/${subjectId}`);
             setStandards(prev => prev.map(s => s.id !== standardId ? s : {
@@ -254,7 +280,7 @@ export default function ClassesPage() {
         setEditValue('');
     };
     const saveEdit = async () => {
-        if (!editing || !editValue.trim()) return;
+        if (isHistorical || !editing || !editValue.trim()) return;
         const name = editValue.trim();
         setSavingEdit(true);
         try {
@@ -279,7 +305,7 @@ export default function ClassesPage() {
 
     // ── Delete Standard / Division ───────────────────────────────────────────
     const performEntityDelete = async () => {
-        if (!confirmDeleteEntity) return;
+        if (isHistorical || !confirmDeleteEntity) return;
         const target = confirmDeleteEntity;
         setDeletingEntity(true);
         try {
@@ -314,12 +340,20 @@ export default function ClassesPage() {
     const [divDragReady, setDivDragReady] = useState(false);
 
     const reorderStandards = async (orderedIds: string[]) => {
+        // Reorder is a write against the CURRENT year only, and the backend
+        // responds with current-year data — never run it (or apply its
+        // response) while a past year is on screen.
+        if (isHistorical) return;
+        const requestIdAtStart = reqIdRef.current;
         setStandards(prev => orderedIds
             .map(id => prev.find(s => s.id === id))
             .filter((s): s is Standard => !!s));
         try {
             const res = await api.patch('/admin/campus/standards/reorder', { orderedIds });
             const reordered: Standard[] = res.data.data;
+            // A year switch (new fetch) since this reorder started means the
+            // screen now shows different data — don't overwrite it.
+            if (requestIdAtStart !== reqIdRef.current) return;
             setStandards(reordered);
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -343,6 +377,7 @@ export default function ClassesPage() {
     };
 
     const reorderDivisions = async (standardId: string, orderedIds: string[]) => {
+        if (isHistorical) return;
         setStandards(prev => prev.map(s => s.id !== standardId ? s : {
             ...s,
             divisions: orderedIds
@@ -385,6 +420,7 @@ export default function ClassesPage() {
     const [dragReady, setDragReady] = useState(false);
 
     const reorderSubjects = async (standardId: string, orderedIds: string[]) => {
+        if (isHistorical) return;
         // Optimistic reorder — colors are placeholders here (same as before the
         // drag) until the server responds with the real recolored list, since
         // color reassignment happens server-side to stay the single source of truth.
@@ -451,7 +487,9 @@ export default function ClassesPage() {
                     {isAdmin && (
                         <button
                             onClick={() => setAddingStandard(true)}
-                            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all w-fit"
+                            disabled={isHistorical}
+                            title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all w-fit disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                             <Plus size={15} /> Add {standardLabel}
                         </button>
@@ -479,7 +517,7 @@ export default function ClassesPage() {
                     </div>
                 )}
 
-                {isAdmin && addingStandard && (
+                {isAdmin && !isHistorical && addingStandard && (
                     <div className="bg-card border border-primary/30 rounded-2xl px-5 py-4">
                         <p className="text-xs font-semibold text-muted-foreground mb-3">New {standardLabel}</p>
                         <InlineAddInput
@@ -498,16 +536,16 @@ export default function ClassesPage() {
 
                     return (
                         <div key={std.id}
-                            draggable={isAdmin && stdDragReady}
+                            draggable={isAdmin && !isHistorical && stdDragReady}
                             onDragStart={() => setDragStdId(std.id)}
-                            onDragOver={(e) => isAdmin && e.preventDefault()}
+                            onDragOver={(e) => isAdmin && !isHistorical && e.preventDefault()}
                             onDrop={(e) => { e.preventDefault(); handleStdDrop(std.id); }}
                             onDragEnd={() => { setDragStdId(null); setStdDragReady(false); }}
                             className={`bg-card border border-border/50 rounded-2xl overflow-hidden transition-opacity ${dragStdId === std.id ? 'opacity-40' : ''}`}>
 
                             {/* Standard header */}
                             <div className="group/std w-full flex items-center justify-between px-3 sm:px-5 py-4 hover:bg-muted/20 transition-colors">
-                                {isAdmin && (
+                                {isAdmin && !isHistorical && (
                                     <GripVertical
                                         size={15}
                                         className="text-muted-foreground/40 shrink-0 opacity-0 group-hover/std:opacity-100 transition-opacity cursor-grab active:cursor-grabbing mr-1"
@@ -517,14 +555,14 @@ export default function ClassesPage() {
                                 )}
                                 <button
                                     onClick={() => setExpandedId(isExpanded ? null : std.id)}
-                                    disabled={editing?.type === 'standard' && editing.id === std.id}
+                                    disabled={visibleEditing?.type === 'standard' && visibleEditing.id === std.id}
                                     className="flex items-center gap-3 flex-1 min-w-0 text-left">
                                     <div
                                         className="w-11 h-11 rounded-2xl flex items-center justify-center text-base font-black text-white shrink-0"
                                         style={{ background: grad }}>
                                         {std.name.replace(/[^0-9A-Za-z]/g, '').slice(0, 2) || std.name[0]}
                                     </div>
-                                    {editing?.type === 'standard' && editing.id === std.id ? (
+                                    {visibleEditing?.type === 'standard' && visibleEditing.id === std.id ? (
                                         <input
                                             autoFocus
                                             value={editValue}
@@ -546,7 +584,7 @@ export default function ClassesPage() {
                                 </button>
 
                                 <div className="flex items-center gap-1 shrink-0 ml-2">
-                                    {isAdmin && editing?.type === 'standard' && editing.id === std.id ? (
+                                    {isAdmin && visibleEditing?.type === 'standard' && visibleEditing.id === std.id ? (
                                         <>
                                             <button onClick={saveEdit} disabled={savingEdit}
                                                 className="w-7 h-7 rounded-lg flex items-center justify-center text-white disabled:opacity-50"
@@ -564,12 +602,16 @@ export default function ClassesPage() {
                                                 <div className="flex items-center gap-0.5 opacity-0 group-hover/std:opacity-100 transition-opacity">
                                                     <button
                                                         onClick={() => startEdit({ type: 'standard', id: std.id }, std.name)}
-                                                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                                                        disabled={isHistorical}
+                                                        title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                                         <Pencil size={13} className="text-muted-foreground" />
                                                     </button>
                                                     <button
                                                         onClick={() => setConfirmDeleteEntity({ type: 'standard', id: std.id, name: std.name })}
-                                                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                                                        disabled={isHistorical}
+                                                        title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                                        className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                                         <Trash2 size={13} className="text-red-500" />
                                                     </button>
                                                 </div>
@@ -601,9 +643,9 @@ export default function ClassesPage() {
                                                     <div className="flex flex-wrap items-center gap-2">
                                                         {(std.subjects ?? []).map((sub) => (
                                                             <span key={sub.id}
-                                                                draggable={isAdmin && dragReady}
+                                                                draggable={isAdmin && !isHistorical && dragReady}
                                                                 onDragStart={() => setDragSubjectId(sub.id)}
-                                                                onDragOver={(e) => isAdmin && e.preventDefault()}
+                                                                onDragOver={(e) => isAdmin && !isHistorical && e.preventDefault()}
                                                                 onDrop={(e) => { e.preventDefault(); handleSubjectDrop(std.id, sub.id); }}
                                                                 onDragEnd={() => { setDragSubjectId(null); setDragReady(false); }}
                                                                 className={`group flex items-center gap-1.5 pl-2.5 pr-1.5 py-1.5 rounded-full text-xs font-medium transition-opacity ${dragSubjectId === sub.id ? 'opacity-40' : ''}`}
@@ -612,7 +654,7 @@ export default function ClassesPage() {
                                                                     color: colorForSubject(sub),
                                                                     border: `1px solid ${colorForSubject(sub)}40`,
                                                                 }}>
-                                                                {isAdmin && (
+                                                                {isAdmin && !isHistorical && (
                                                                     <GripVertical
                                                                         size={11}
                                                                         className="opacity-50 cursor-grab active:cursor-grabbing"
@@ -625,7 +667,9 @@ export default function ClassesPage() {
                                                                 {isAdmin && (
                                                                     <button
                                                                         onClick={() => setConfirmDeleteSubject({ id: sub.id, name: sub.name, standardId: std.id })}
-                                                                        className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all">
+                                                                        disabled={isHistorical}
+                                                                        title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                                                        className="ml-0.5 w-4 h-4 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-black/10 transition-all disabled:cursor-not-allowed">
                                                                         <X size={9} />
                                                                     </button>
                                                                 )}
@@ -634,7 +678,7 @@ export default function ClassesPage() {
                                                         {(std.subjects ?? []).length === 0 && (
                                                             <span className="text-xs text-muted-foreground/60 italic">No subjects yet</span>
                                                         )}
-                                                        {isAdmin && (addingSubject === std.id ? (
+                                                        {isAdmin && (addingSubject === std.id && !isHistorical ? (
                                                             <InlineAddInput
                                                                 placeholder="Subject name"
                                                                 onAdd={name => addSubject(std.id, name)}
@@ -643,7 +687,9 @@ export default function ClassesPage() {
                                                             />
                                                         ) : (
                                                             <button onClick={() => setAddingSubject(std.id)}
-                                                                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
+                                                                disabled={isHistorical}
+                                                                title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                                                className="flex items-center gap-1 px-3 py-1.5 rounded-full border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                                                                 <Plus size={11} /> Add subject
                                                             </button>
                                                         ))}
@@ -663,9 +709,9 @@ export default function ClassesPage() {
                                                                     initial={{ opacity: 0, y: 20 }}
                                                                     animate={{ opacity: 1, y: 0 }}
                                                                     transition={{ delay: divIdx * 0.05, duration: 0.3 }}
-                                                                    draggable={isAdmin && divDragReady}
+                                                                    draggable={isAdmin && !isHistorical && divDragReady}
                                                                     onDragStart={() => setDragDivId(div.id)}
-                                                                    onDragOver={(e) => isAdmin && e.preventDefault()}
+                                                                    onDragOver={(e) => isAdmin && !isHistorical && e.preventDefault()}
                                                                     onDrop={(e) => { e.preventDefault(); handleDivDrop(std.id, div.id); }}
                                                                     onDragEnd={() => { setDragDivId(null); setDivDragReady(false); }}
                                                                     className={`group/divcard rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-background hover:shadow-md hover:shadow-black/5 hover:border-border transition-all duration-200 ${dragDivId === div.id ? 'opacity-40' : ''}`}>
@@ -673,7 +719,7 @@ export default function ClassesPage() {
                                                                     <div className="px-4 pt-4 pb-3">
                                                                         <div className="flex items-center justify-between mb-2 gap-2">
                                                                             <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                                                                                {isAdmin && (
+                                                                                {isAdmin && !isHistorical && (
                                                                                     <GripVertical
                                                                                         size={13}
                                                                                         className="text-muted-foreground/40 shrink-0 opacity-0 group-hover/divcard:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
@@ -688,7 +734,7 @@ export default function ClassesPage() {
                                                                                         {div.name.includes('-') ? div.name.split('-').pop() : div.name[0]}
                                                                                     </span>
                                                                                 </div>
-                                                                                {editing?.type === 'division' && editing.id === div.id ? (
+                                                                                {visibleEditing?.type === 'division' && visibleEditing.id === div.id ? (
                                                                                     <input
                                                                                         autoFocus
                                                                                         value={editValue}
@@ -705,7 +751,7 @@ export default function ClassesPage() {
                                                                             </div>
 
                                                                             <div className="flex items-center gap-1 shrink-0">
-                                                                                {isAdmin && editing?.type === 'division' && editing.id === div.id ? (
+                                                                                {isAdmin && visibleEditing?.type === 'division' && visibleEditing.id === div.id ? (
                                                                                     <>
                                                                                         <button onClick={saveEdit} disabled={savingEdit}
                                                                                             className="w-7 h-7 rounded-lg flex items-center justify-center text-white disabled:opacity-50"
@@ -723,12 +769,16 @@ export default function ClassesPage() {
                                                                                             <div className="flex items-center gap-0.5 opacity-0 group-hover/divcard:opacity-100 transition-opacity">
                                                                                                 <button
                                                                                                     onClick={() => startEdit({ type: 'division', standardId: std.id, id: div.id }, div.name)}
-                                                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors">
+                                                                                                    disabled={isHistorical}
+                                                                                                    title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                                                                                     <Pencil size={13} className="text-muted-foreground" />
                                                                                                 </button>
                                                                                                 <button
                                                                                                     onClick={() => setConfirmDeleteEntity({ type: 'division', standardId: std.id, id: div.id, name: div.name })}
-                                                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors">
+                                                                                                    disabled={isHistorical}
+                                                                                                    title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                                                                                    className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                                                                                     <Trash2 size={13} className="text-red-500" />
                                                                                                 </button>
                                                                                             </div>
@@ -801,7 +851,7 @@ export default function ClassesPage() {
                                                 )}
 
                                                 {/* Add division — ADMIN only */}
-                                                {isAdmin && (addingDivision === std.id ? (
+                                                {isAdmin && (addingDivision === std.id && !isHistorical ? (
                                                     <InlineAddInput
                                                         placeholder={`e.g. ${std.name.replace('Class ', '')}-A`}
                                                         onAdd={name => addDivision(std.id, name)}
@@ -811,7 +861,9 @@ export default function ClassesPage() {
                                                 ) : (
                                                     <button
                                                         onClick={() => setAddingDivision(std.id)}
-                                                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all">
+                                                        disabled={isHistorical}
+                                                        title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-border/60 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                                                         <Plus size={11} /> Add {divisionLabel}
                                                     </button>
                                                 ))}
@@ -826,7 +878,7 @@ export default function ClassesPage() {
             </div>
 
             <AnimatePresence>
-                {confirmDeleteSubject && (
+                {confirmDeleteSubject && !isHistorical && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                             className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
@@ -850,7 +902,7 @@ export default function ClassesPage() {
             </AnimatePresence>
 
             <AnimatePresence>
-                {confirmDeleteEntity && (
+                {confirmDeleteEntity && !isHistorical && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                             className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">

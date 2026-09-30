@@ -11,7 +11,7 @@ export function HistoricalYearBanner() {
 
   return (
     <div className="px-3 py-1.5 text-sm bg-amber-50 text-amber-900 border-b border-amber-200 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-900">
-      Viewing {selected.label} — read-only.
+      Classes &amp; rosters showing {selected.label} (read-only) — other pages still show current data.
     </div>
   );
 }
