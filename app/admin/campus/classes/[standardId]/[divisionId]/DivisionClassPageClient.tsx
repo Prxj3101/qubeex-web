@@ -13,6 +13,7 @@ import {
 import { toast } from 'sonner';
 import { Lock } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { useAcademicYear, useIsHistoricalYear } from '@/context/AcademicYearContext';
 import api from '@/lib/api';
 import { validateAttachment, ATTACHMENT_ACCEPT } from '@/lib/attachmentValidation';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
@@ -444,12 +445,14 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName, divisio
 
 // ── Teacher Picker ────────────────────────────────────────────────────────────
 
-function TeacherPicker({ value, teachers, onChange, accentColor, loading }: {
+function TeacherPicker({ value, teachers, onChange, accentColor, loading, disabled, title }: {
     value?: string;
     teachers: TeacherOption[];
     onChange: (teacherId: string, name: string) => void;
     accentColor?: string;
     loading?: boolean;
+    disabled?: boolean;
+    title?: string;
 }) {
     const [open, setOpen] = useState(false);
     const [pending, setPending] = useState<TeacherOption | null>(null);
@@ -471,7 +474,8 @@ function TeacherPicker({ value, teachers, onChange, accentColor, loading }: {
         <div ref={ref} className="relative">
             <button
                 type="button"
-                disabled={loading}
+                disabled={loading || disabled}
+                title={title}
                 onClick={() => setOpen(v => !v)}
                 className="flex items-center gap-1.5 h-7 px-2.5 rounded-lg border text-[11px] font-medium transition-all disabled:opacity-50"
                 style={selected ? {
@@ -798,6 +802,9 @@ export default function DivisionDetailPage() {
     const [students, setStudents] = useState<AdminStudent[]>([]);
     const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
     const { user } = useAuthStore();
+    const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
+    const isHistorical = useIsHistoricalYear();
+    const yearParams = isCurrentYearSelected ? {} : { academicYearId: selectedYearId };
     const subAdminPermissions = user?.role === 'SUB_ADMIN' ? (user.permissions ?? []) : null;
 
     function isTabLocked(tabKey: 'overview' | 'manage' | 'fees' | 'attendance' | 'marksheet'): boolean {
@@ -1015,14 +1022,15 @@ export default function DivisionDetailPage() {
     const canFetchLeaderboard = !subAdminPermissions || subAdminPermissions.includes('CAMPUS_VIEW') || subAdminPermissions.includes('CAMPUS_MANAGE');
 
     const fetchAll = useCallback(async () => {
+        setLoading(true);
         try {
             // Use allSettled so a failed posts/teachers/students/leaderboard fetch (e.g. 403
             // during permission sync) doesn't prevent the division itself from loading.
             const [divResult, teachersResult, postsResult, studentsResult, leaderboardResult] = await Promise.allSettled([
-                api.get(`/admin/campus/divisions/${divisionId}`),
+                api.get(`/admin/campus/divisions/${divisionId}`, { params: yearParams }),
                 canFetchTeachers ? api.get('/admin/teachers') : Promise.resolve({ data: { data: [] } }),
                 canFetchPosts ? api.get('/admin/campus/feed/posts', { params: { divisionId, limit: 50 } }) : Promise.resolve({ data: { data: [] } }),
-                canFetchStudents ? api.get(`/admin/campus/divisions/${divisionId}/students`) : Promise.resolve({ data: { data: [] } }),
+                canFetchStudents ? api.get(`/admin/campus/divisions/${divisionId}/students`, { params: yearParams }) : Promise.resolve({ data: { data: [] } }),
                 canFetchLeaderboard ? api.get(`/admin/campus/divisions/${divisionId}/leaderboard`) : Promise.resolve({ data: { data: [] } }),
             ]);
             // Division is critical — re-throw so the catch block handles it
@@ -1039,13 +1047,32 @@ export default function DivisionDetailPage() {
         } finally {
             setLoading(false);
         }
-    }, [divisionId, canFetchTeachers, canFetchPosts, canFetchStudents, canFetchLeaderboard]);
+    }, [divisionId, canFetchTeachers, canFetchPosts, canFetchStudents, canFetchLeaderboard, isCurrentYearSelected, selectedYearId]);
 
+    // fetchedRef guards against React StrictMode's dev-only double-invoke of this
+    // effect on mount (same deps, no real dependency change). prevYearRef tracks
+    // the year selector so a genuine year switch still triggers a refetch — see
+    // the Classes list page (app/admin/campus/classes/page.tsx) for the same pattern.
+    const prevYearRef = useRef(selectedYearId);
     useEffect(() => {
-        if (fetchedRef.current) return;
-        fetchedRef.current = true;
-        fetchAll();
-    }, [fetchAll]);
+        if (!fetchedRef.current) {
+            fetchedRef.current = true;
+            prevYearRef.current = selectedYearId;
+            fetchAll();
+            return;
+        }
+        if (prevYearRef.current !== selectedYearId) {
+            prevYearRef.current = selectedYearId;
+            // A student selected under the previous year's roster is a separate
+            // piece of state that fetchAll() never touches — left alone, the
+            // Student Info panel would keep showing that student's (possibly
+            // now-stale, possibly no-longer-enrolled-here) details after the
+            // new year's roster loads. Clear it so the panel falls back to its
+            // "Select a student" empty state until the admin picks one fresh.
+            setSelectedStudent(null);
+            fetchAll();
+        }
+    }, [fetchAll, selectedYearId]);
 
     // Re-select the student that was clicked into Report/View Profile, once the
     // students list has loaded, instead of leaving selection empty/reset.
@@ -1780,7 +1807,8 @@ export default function DivisionDetailPage() {
                                     {manageRightTab === 'student' && selectedStudent && (
                                         <div className="flex items-center gap-2">
                                             <button onClick={() => setConfirmToggle(true)}
-                                                disabled={togglingStatus}
+                                                disabled={togglingStatus || isHistorical}
+                                                title={isHistorical ? 'Read-only — viewing a past year' : undefined}
                                                 className={`flex items-center gap-1.5 h-7 px-3 rounded-lg text-[11px] font-semibold transition-all disabled:opacity-50 ${selectedStudent.status === 'ACTIVE'
                                                     ? 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'
                                                     : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400'
@@ -1839,7 +1867,8 @@ export default function DivisionDetailPage() {
                                                                 return (
                                                                     <button key={sub.id}
                                                                         onClick={() => toggleSubject(sub.id)}
-                                                                        disabled={togglingSubject === sub.id}
+                                                                        disabled={togglingSubject === sub.id || isHistorical}
+                                                                        title={isHistorical ? 'Read-only — viewing a past year' : undefined}
                                                                         className="flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-medium transition-all disabled:opacity-50"
                                                                         style={isSelected ? {
                                                                             background: (colorForSubject(sub)) + '20',
@@ -1877,7 +1906,9 @@ export default function DivisionDetailPage() {
                                                         <div className="flex items-center gap-2">
                                                             {classTeacherAssignment && (
                                                                 <button onClick={() => setConfirmRemove(classTeacherAssignment.id)}
-                                                                    className="text-[10px] text-red-500 hover:underline">
+                                                                    disabled={isHistorical}
+                                                                    title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                                                    className="text-[10px] text-red-500 hover:underline disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed">
                                                                     Remove
                                                                 </button>
                                                             )}
@@ -1886,6 +1917,8 @@ export default function DivisionDetailPage() {
                                                                 teachers={teachers}
                                                                 accentColor="#F59E0B"
                                                                 loading={savingAssign}
+                                                                disabled={isHistorical}
+                                                                title={isHistorical ? 'Read-only — viewing a past year' : undefined}
                                                                 onChange={(teacherId, name) => assignTeacher(null, teacherId, name)}
                                                             />
                                                         </div>
@@ -1917,7 +1950,9 @@ export default function DivisionDetailPage() {
                                                                             <div className="flex items-center gap-2">
                                                                                 {assignment && (
                                                                                     <button onClick={() => setConfirmRemove(assignment.id)}
-                                                                                        className="text-[10px] text-red-500 hover:underline">
+                                                                                        disabled={isHistorical}
+                                                                                        title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                                                                        className="text-[10px] text-red-500 hover:underline disabled:opacity-50 disabled:no-underline disabled:cursor-not-allowed">
                                                                                         Remove
                                                                                     </button>
                                                                                 )}
@@ -1926,6 +1961,8 @@ export default function DivisionDetailPage() {
                                                                                     teachers={teachers}
                                                                                     accentColor={colorForSubject(sub)}
                                                                                     loading={savingAssign}
+                                                                                    disabled={isHistorical}
+                                                                                    title={isHistorical ? 'Read-only — viewing a past year' : undefined}
                                                                                     onChange={(teacherId, name) => assignTeacher(sub.id, teacherId, name)}
                                                                                 />
                                                                             </div>
