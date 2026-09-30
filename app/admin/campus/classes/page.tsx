@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMockInstType } from '@/context/MockInstTypeContext';
+import { useAcademicYear } from '@/context/AcademicYearContext';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/lib/api';
 import { colorForSubject } from '@/lib/subjectColors';
@@ -103,6 +104,7 @@ function InlineAddInput({ placeholder, onAdd, onCancel, loading }: {
 export default function ClassesPage() {
     const router = useRouter();
     const { instType } = useMockInstType();
+    const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
     const { user } = useAuthStore();
     // A sub-admin granted CAMPUS_MANAGE gets the exact same add/edit/delete/
     // reorder access as an Admin here — the backend routes for standards,
@@ -138,8 +140,11 @@ export default function ClassesPage() {
     const divisionLabel = instType === 'COLLEGE' ? 'Section' : instType === 'COACHING' ? 'Group' : 'Division';
 
     const fetchStandards = useCallback(async () => {
+        setLoading(true);
         try {
-            const res = await api.get('/admin/campus/standards');
+            const res = await api.get('/admin/campus/standards', {
+                params: isCurrentYearSelected ? {} : { academicYearId: selectedYearId },
+            });
             setStandards(res.data.data);
         } catch (err: unknown) {
             const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
@@ -147,13 +152,24 @@ export default function ClassesPage() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [isCurrentYearSelected, selectedYearId]);
 
+    // fetchedRef guards against React StrictMode's dev-only double-invoke of
+    // this effect on mount (same deps, no real dependency change). prevYearRef
+    // tracks the selector so a genuine year switch still triggers a refetch.
+    const prevYearRef = useRef(selectedYearId);
     useEffect(() => {
-        if (fetchedRef.current) return;
-        fetchedRef.current = true;
-        fetchStandards();
-    }, [fetchStandards]);
+        if (!fetchedRef.current) {
+            fetchedRef.current = true;
+            prevYearRef.current = selectedYearId;
+            fetchStandards();
+            return;
+        }
+        if (prevYearRef.current !== selectedYearId) {
+            prevYearRef.current = selectedYearId;
+            fetchStandards();
+        }
+    }, [fetchStandards, selectedYearId]);
 
     const addStandard = async (name: string) => {
         setSaving(true);
@@ -427,7 +443,9 @@ export default function ClassesPage() {
                             Classes
                         </h1>
                         <p className="text-[13px] text-muted-foreground">
-                            {standards.length} {standardLabel.toLowerCase()}s · {totalDivisions} {divisionLabel.toLowerCase()}s · {totalSubjects} subjects
+                            {loading
+                                ? 'Loading...'
+                                : `${standards.length} ${standardLabel.toLowerCase()}s · ${totalDivisions} ${divisionLabel.toLowerCase()}s · ${totalSubjects} subjects`}
                         </p>
                     </div>
                     {isAdmin && (
@@ -473,7 +491,7 @@ export default function ClassesPage() {
                     </div>
                 )}
 
-                {standards.map((std, idx) => {
+                {!loading && standards.map((std, idx) => {
                     const isExpanded = expandedId === std.id;
                     const grad = gradients[idx % gradients.length];
                     const totalStudents = std.divisions.reduce((sum, div) => sum + div.studentCount, 0);
