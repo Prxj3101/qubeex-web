@@ -7,6 +7,7 @@ import api from '@/lib/api';
 import NextImage from 'next/image';
 import { useStudentStore } from '@/store/studentStore';
 import { colorForSubject } from '@/lib/subjectColors';
+import { useAcademicYear } from '@/context/AcademicYearContext';
 
 interface ExamCol { id: string; name: string; maxMarks: number; score: number | null; isAbsent: boolean; }
 interface MarksheetSubject {
@@ -79,13 +80,18 @@ export default function ReportCardPage() {
     const [data, setData] = useState<MarksheetData | null>(null);
     const [loading, setLoading] = useState(true);
     const [tab, setTab] = useState<'offline' | 'online'>('offline');
+    const { selectedYearId, isCurrentYearSelected, years } = useAcademicYear();
+    const effectiveYear = isCurrentYearSelected ? null : selectedYearId;
+    const selectedYearLabel = effectiveYear === null ? undefined : years.find(y => y.id === effectiveYear)?.label;
 
     useEffect(() => {
-        api.get('/student/marksheet')
+        setLoading(true);
+        const qs = selectedYearLabel ? `?academicYear=${encodeURIComponent(selectedYearLabel)}` : '';
+        api.get(`/student/marksheet${qs}`)
             .then(r => setData(r.data.data))
-            .catch(() => {})
+            .catch(() => setData(null))
             .finally(() => setLoading(false));
-    }, []);
+    }, [selectedYearLabel]);
 
     // Build unique exam column names in order of first appearance
     const uniqueColNames = useMemo(() => {

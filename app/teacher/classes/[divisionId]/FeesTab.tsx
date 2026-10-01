@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { useAcademicYear } from '@/context/AcademicYearContext';
 
 const FEE_CARD_THEMES = {
     yellow: { name: 'Yellow', bg: '#FFF9E0', border: '#EEDD9B' },
@@ -132,6 +133,9 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
     divisionId: string;
     divisionName: string;
 }) {
+    const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
+    const effectiveYear = isCurrentYearSelected ? null : selectedYearId;
+    const yq = effectiveYear ? `?academicYearId=${effectiveYear}` : '';
     const [loading, setLoading] = useState(true);
     const [rosterStudents, setRosterStudents] = useState<RosterStudent[]>([]);
     const [feeStructures, setFeeStructures] = useState<FeeStructure[]>([]);
@@ -155,8 +159,8 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
 
     useEffect(() => {
         Promise.all([
-            api.get(`/teacher/classes/${divisionId}/students`).catch(() => ({ data: { data: [] } })),
-            api.get(`/teacher/campus/divisions/${divisionId}/fee-structure`).catch(() => ({ data: { data: null } })),
+            api.get(`/teacher/classes/${divisionId}/students${yq}`).catch(() => ({ data: { data: [] } })),
+            api.get(`/teacher/campus/divisions/${divisionId}/fee-structure${yq}`).catch(() => ({ data: { data: null } })),
             api.get(`/teacher/campus/divisions/${divisionId}/fee-payments`).catch(() => ({ data: { data: [] } })),
         ]).then(([studentsRes, structureRes, paymentsRes]) => {
             const studentsRaw: { id: string; studentId: string; user: { name: string | null }; rollNo: string | null; extraDetailFields: Record<string, string> | null; avatarUrl: string | null }[] = studentsRes.data?.data ?? [];
@@ -188,7 +192,7 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
             setFeePayments(paymentsRes.data?.data ?? []);
         }).catch(() => toast.error('Failed to load fees'))
             .finally(() => setLoading(false));
-    }, [divisionId]);
+    }, [divisionId, yq]);
 
     const getPayment = useCallback((studentId: string, feeMonthId: string): FeePayment =>
         feePayments.find(p => p.studentId === studentId && p.feeMonthId === feeMonthId)

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { useAcademicYear, useIsHistoricalYear } from '@/context/AcademicYearContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -649,6 +650,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     divisionId: string; divisionName: string; feesSubTab: 'setup' | 'students';
     onSavingChange?: (saving: boolean) => void;
 }>(function FeesTab({ divisionId, divisionName, feesSubTab, onSavingChange }, ref) {
+    const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
+    const isHistorical = useIsHistoricalYear();
+    const effectiveYear = isCurrentYearSelected ? null : selectedYearId;
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [templateFrom, setTemplateFrom] = useState<string | null>(null);
@@ -775,6 +779,12 @@ export const FeesTab = forwardRef<FeesTabHandle, {
 
     const setPaymentField = (feeMonthId: string, updates: { status?: 'PAID' | 'PENDING'; paidDate?: string; remark?: string; extraFieldLabel?: string; extraFieldValue?: string; toggleStructureId?: string }) => {
         if (!selectedStudent) return;
+        // StudentFeePayment has no academicYearId of its own (it's keyed by the
+        // student's live division) — a write here always lands on today's live
+        // payment record regardless of which year is selected, so block it
+        // outright while browsing history rather than silently mutate current
+        // data from a historical screen.
+        if (isHistorical) return;
         const studentId = selectedStudent.id;
         const current = getPayment(studentId, feeMonthId);
         const nextExtraFields = updates.extraFieldLabel !== undefined
@@ -897,12 +907,20 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     }, []);
 
     useEffect(() => {
-        api.get(`/admin/campus/divisions/${divisionId}/fee-structure`)
+        // Loading a historical year resets didLoadRef first — without this, the
+        // state churn from applyData() (clearing fields when a past year has no
+        // saved structure) would itself trigger the autosave effect below and
+        // attempt to PUT while historical, racing the isHistorical guard there.
+        didLoadRef.current = false;
+        const qs = effectiveYear ? `?academicYearId=${effectiveYear}` : '';
+        api.get(`/admin/campus/divisions/${divisionId}/fee-structure${qs}`)
             .then(res => {
                 const data = res.data.data;
                 if (data) {
                     applyData(data);
                     if (data.isTemplate && data.templateFrom) setTemplateFrom(data.templateFrom);
+                } else {
+                    applyData({});
                 }
             })
             .catch(() => { })
@@ -912,7 +930,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                 // (from applyData) have flushed — otherwise autosave fires immediately on load.
                 setTimeout(() => { didLoadRef.current = true; }, 0);
             });
-    }, [divisionId, applyData]);
+    }, [divisionId, applyData, effectiveYear]);
 
     useEffect(() => {
         api.get(`/admin/campus/divisions/${divisionId}/students`)
@@ -938,6 +956,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     }, []);
 
     const handleSave = async (opts?: { silent?: boolean }) => {
+        // Fee structures can only ever be edited for the current year — writes
+        // always land on the live year server-side regardless, so skip the
+        // call entirely while browsing history rather than silently save to a
+        // year the admin isn't even looking at.
+        if (isHistorical) return;
         setSaving(true);
         try {
             await api.put(`/admin/campus/divisions/${divisionId}/fee-structure`, {

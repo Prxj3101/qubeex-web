@@ -6,6 +6,7 @@ import NextImage from 'next/image';
 import { ArrowLeft, Landmark, Building2, QrCode, CreditCard, Wallet, ChevronDown, ImagePlus } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
+import { useAcademicYear } from '@/context/AcademicYearContext';
 
 const FEE_CARD_THEMES = {
     yellow: { name: 'Yellow', bg: '#FFF9E0', border: '#EEDD9B' },
@@ -141,6 +142,8 @@ const BANK_LABELS: { key: keyof BankDetails; label: string }[] = [
 
 export default function FeesPage() {
     const router = useRouter();
+    const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
+    const effectiveYear = isCurrentYearSelected ? null : selectedYearId;
     const [loading, setLoading] = useState(true);
     const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
     const [cardFlipped, setCardFlipped] = useState(false);
@@ -164,9 +167,11 @@ export default function FeesPage() {
     const [extraDetailFields, setExtraDetailFields] = useState<Record<string, string> | null>(null);
 
     useEffect(() => {
+        setLoading(true);
+        const qs = effectiveYear ? `?academicYearId=${effectiveYear}` : '';
         Promise.all([
             api.get('/student/me').catch(() => ({ data: { data: null } })),
-            api.get('/student/fees').catch(() => ({ data: { data: { structure: null, payments: [] } } })),
+            api.get(`/student/fees${qs}`).catch(() => ({ data: { data: { structure: null, payments: [] } } })),
         ]).then(([meRes, feesRes]) => {
             const me = meRes.data?.data;
             if (me) {
@@ -201,7 +206,7 @@ export default function FeesPage() {
 
             setFeePayments(feesRes.data?.data?.payments ?? []);
         }).finally(() => setLoading(false));
-    }, []);
+    }, [effectiveYear]);
 
     const downloadQrCode = async () => {
         if (!qrImageUrl) return;

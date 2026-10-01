@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import { useEffect, useMemo, useState } from 'react';
 import api from '@/lib/api';
+import { useAcademicYear } from '@/context/AcademicYearContext';
 
 const MONTH_FULL: Record<string, string> = {
     Jun: 'June', Jul: 'July', Aug: 'August', Sep: 'September', Oct: 'October', Nov: 'November',
@@ -45,13 +46,17 @@ export default function AttendanceDetailsPage() {
     const [hoverHoliday, setHoverHoliday] = useState<{ month: string; day: number; name: string } | null>(null);
     const [pinnedHoliday, setPinnedHoliday] = useState<{ month: string; day: number; name: string } | null>(null);
     const activeHoliday = pinnedHoliday ?? hoverHoliday;
+    const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
+    const effectiveYear = isCurrentYearSelected ? null : selectedYearId;
 
     useEffect(() => {
-        api.get('/student/attendance')
+        setLoading(true);
+        const qs = effectiveYear ? `?academicYearId=${effectiveYear}` : '';
+        api.get(`/student/attendance${qs}`)
             .then(r => setData(r.data.data))
-            .catch(() => {})
+            .catch(() => setData(null))
             .finally(() => setLoading(false));
-    }, []);
+    }, [effectiveYear]);
 
     // Holiday lookup: "YYYY-MM-DD" → name
     const holidayMap = useMemo(() => {
