@@ -6,8 +6,10 @@ import {
     User, Mail, KeyRound, Eye, EyeOff, Check, X,
     Calendar, Clock, Monitor, MapPin, LogOut, AlertTriangle,
     Edit3, Save, RefreshCw, ShieldCheck, Hash,
-    Activity, Lock, Settings,
+    Activity, Lock, Settings, ScrollText, ChevronRight,
 } from 'lucide-react';
+import Link from 'next/link';
+import { ACTION_CONFIG } from '@/lib/teacherAuditActions';
 import { Button } from '@/components/ui/button';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuthStore } from '@/store/authStore';
@@ -88,7 +90,7 @@ function SectionCard({ title, icon: Icon, description, children, action }: {
                 </div>
                 {action}
             </div>
-            <div className="p-5">{children}</div>
+            <div className="px-5 pt-2 pb-4">{children}</div>
         </div>
     );
 }
@@ -219,6 +221,16 @@ export default function TeacherSettingsPageClient() {
             }
         };
         load();
+    }, []);
+
+    // My Activity: last few of the teacher's own actions (logins are in the card above).
+    const [myActivity, setMyActivity] = useState<{ id: string; action: string; details?: string | null; createdAt: string }[]>([]);
+    const [myActivityLoading, setMyActivityLoading] = useState(true);
+    useEffect(() => {
+        api.get('/teacher/audit-logs?page=1&limit=5&category=ADMIN_ACTION')
+            .then(res => setMyActivity(res.data.data?.logs ?? []))
+            .catch(() => setMyActivity([]))
+            .finally(() => setMyActivityLoading(false));
     }, []);
 
     useEffect(() => {
@@ -376,6 +388,45 @@ export default function TeacherSettingsPageClient() {
                                         </div>
                                     </div>
                                 )}
+                            </SectionCard>
+                        </motion.div>
+                        {/* Audit Logs preview (full page at /teacher/audit-logs) */}
+                        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12, duration: 0.3 }}>
+                            <SectionCard title="Audit Logs" icon={ScrollText} description="Things you did in QubeEx, like marking attendance or publishing results"
+                                action={
+                                    <Link href="/teacher/audit-logs" className="inline-flex items-center gap-0.5 text-xs font-semibold text-[var(--primary)] hover:underline shrink-0">
+                                        View all <ChevronRight size={13} />
+                                    </Link>
+                                }>
+                                <div className="space-y-0">
+                                    {myActivityLoading ? (
+                                        [...Array(3)].map((_, i) => (
+                                            <div key={i} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-none">
+                                                <div className="w-2 h-2 rounded-full bg-muted animate-pulse shrink-0" />
+                                                <div className="flex-1 space-y-1.5">
+                                                    <div className="h-3 bg-muted animate-pulse rounded w-32" />
+                                                    <div className="h-2.5 bg-muted animate-pulse rounded w-56" />
+                                                </div>
+                                            </div>
+                                        ))
+                                    ) : myActivity.length === 0 ? (
+                                        <p className="text-xs text-muted-foreground py-8 text-center">No activity yet</p>
+                                    ) : myActivity.map(log => {
+                                        const cfg = ACTION_CONFIG[log.action];
+                                        return (
+                                            <div key={log.id} className="flex items-center gap-3 py-2.5 border-b border-border/40 last:border-none">
+                                                <span className={`w-2 h-2 rounded-full shrink-0 ${cfg?.dot ?? 'bg-slate-400'}`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <span className={`inline-block text-[10.5px] font-semibold px-2 py-0.5 rounded-full leading-none ${cfg?.cls ?? 'bg-muted text-muted-foreground'}`}>
+                                                        {cfg?.label ?? log.action.replace(/_/g, ' ').toLowerCase()}
+                                                    </span>
+                                                    {log.details && <p className="text-[11.5px] text-muted-foreground truncate mt-1">{log.details}</p>}
+                                                </div>
+                                                <span className="text-[11px] text-muted-foreground flex items-center gap-1 shrink-0"><Clock size={10} />{toIST(log.createdAt)}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </SectionCard>
                         </motion.div>
                     </div>

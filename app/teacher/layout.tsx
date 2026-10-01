@@ -11,7 +11,6 @@ import {
     Building2,
     LayoutGrid,
     Monitor,
-    ScrollText,
     User,
 } from 'lucide-react';
 
@@ -20,7 +19,6 @@ const TEACHER_NAV_ITEMS = [
     { label: 'Campus', href: '/teacher/campus', icon: Building2, activePath: '/teacher/campus' },
     { label: 'Classes', href: '/teacher/classes', icon: LayoutGrid, activePath: '/teacher/classes' },
     { label: 'Blackboard', href: '/teacher/blackboard', icon: Monitor },
-    { label: 'Audit Logs', href: '/teacher/audit-logs', icon: ScrollText },
     { label: 'My Profile', href: '/teacher/profile', icon: User },
 ];
 
