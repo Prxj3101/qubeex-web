@@ -1,8 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 import { Topbar } from '@/components/shared/Topbar';
 import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
+import { AcademicYearProvider } from '@/context/AcademicYearContext';
+import { AcademicYearSelector } from '@/components/shared/AcademicYearSelector';
+import { HistoricalYearBanner } from '@/components/shared/HistoricalYearBanner';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
 import { useUserTitleStore } from '@/store/userTitleStore';
 import api from '@/lib/api';
@@ -24,6 +28,7 @@ const TEACHER_NAV_ITEMS = [
 
 function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
     const { instType } = useMockInstType();
+    const pathname = usePathname();
     const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
     const setTitle = useUserTitleStore(s => s.setTitle);
     const setPrefix = useUserTitleStore(s => s.setPrefix);
@@ -55,7 +60,8 @@ function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
             suppressHydrationWarning
             className={`flex flex-col h-screen bg-background px-0 pt-3 gap-3 ${instType === 'COLLEGE' ? 'theme-college' : ''}`}
         >
-            <Topbar navItems={TEACHER_NAV_ITEMS} />
+            <Topbar navItems={TEACHER_NAV_ITEMS} navRightSlot={pathname.startsWith('/teacher/classes') ? <AcademicYearSelector /> : undefined} />
+            <HistoricalYearBanner />
             <main className="flex-1 min-h-0 px-2 overflow-y-auto">
                 {children}
             </main>
@@ -66,7 +72,9 @@ function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
 export default function TeacherLayout({ children }: { children: React.ReactNode }) {
     return (
         <MockInstTypeProvider>
-            <TeacherLayoutInner>{children}</TeacherLayoutInner>
+            <AcademicYearProvider>
+                <TeacherLayoutInner>{children}</TeacherLayoutInner>
+            </AcademicYearProvider>
         </MockInstTypeProvider>
     );
 }

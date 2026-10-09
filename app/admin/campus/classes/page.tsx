@@ -484,16 +484,18 @@ export default function ClassesPage() {
                                 : `${standards.length} ${standardLabel.toLowerCase()}s · ${totalDivisions} ${divisionLabel.toLowerCase()}s · ${totalSubjects} subjects`}
                         </p>
                     </div>
-                    {isAdmin && (
-                        <button
-                            onClick={() => setAddingStandard(true)}
-                            disabled={isHistorical}
-                            title={isHistorical ? 'Read-only — viewing a past year' : undefined}
-                            className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all w-fit disabled:opacity-50 disabled:cursor-not-allowed"
-                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                            <Plus size={15} /> Add {standardLabel}
-                        </button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        {isAdmin && (
+                            <button
+                                onClick={() => setAddingStandard(true)}
+                                disabled={isHistorical}
+                                title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all w-fit disabled:opacity-50 disabled:cursor-not-allowed"
+                                style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                <Plus size={15} /> Add {standardLabel}
+                            </button>
+                        )}
+                    </div>
                 </div>
                 <div className="h-px bg-border/60 mt-2" />
             </div>

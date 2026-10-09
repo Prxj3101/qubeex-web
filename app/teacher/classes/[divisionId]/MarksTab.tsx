@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useMarksheet, UseMarksheetResult, useOnlineMarksheet, UseOnlineMarksheetResult } from '@/lib/useMarksheet';
 import { downloadMarksheetPdf, resolveGrade, type MarksheetMeta, type GradeScaleEntry } from '@/lib/marksheetApi';
 import NextImage from 'next/image';
+import { useAcademicYear, useIsHistoricalYear } from '@/context/AcademicYearContext';
 import { colorForSubject, assignSubjectColor } from '@/lib/subjectColors';
 
 interface Student { id: string; name: string; rollNo: string; avatarUrl?: string | null; }
@@ -512,7 +513,9 @@ function MarkSheet({
     const now = new Date();
     const yr = now.getFullYear();
     const mo = now.getMonth();
-    const academicYear = mo >= 5 ? `${yr}–${String(yr + 1).slice(2)}` : `${yr - 1}–${String(yr).slice(2)}`;
+    const { years, selectedYearId, isCurrentYearSelected } = useAcademicYear();
+    const selectedLabel = isCurrentYearSelected ? undefined : years.find(y => y.id === selectedYearId)?.label;
+    const academicYear = selectedLabel ?? (mo >= 5 ? `${yr}–${String(yr + 1).slice(2)}` : `${yr - 1}–${String(yr).slice(2)}`);
     const [expandedPhoto, setExpandedPhoto] = useState<{ url: string; name: string } | null>(null);
 
     const gs = marksheetHook?.gradeScale ?? [];
@@ -2443,6 +2446,7 @@ export default function MarksTab({
     isClassTeacher?: boolean;
     isAdmin?: boolean;
 }) {
+    const isHistorical = useIsHistoricalYear();
     const marksheetHook = useMarksheet(divisionId, isAdmin);
     const onlineMarksheetHook = useOnlineMarksheet(divisionId, isAdmin);
     const mappedSubjects: Subject[] = subjects.map(s => ({
@@ -2465,7 +2469,7 @@ export default function MarksTab({
                         isActive={subTab === "offline"}
                         onStatsChange={onStatsChange}
                         restrictToSubjectId={restrictToSubjectId}
-                        readOnly={readOnly}
+                        readOnly={readOnly || isHistorical}
                         marksheetHook={marksheetHook}
                         showPublishControl={isClassTeacher}
                     />
@@ -2485,7 +2489,7 @@ export default function MarksTab({
                         isActive={subTab === "online"}
                         onStatsChange={onStatsChange}
                         restrictToSubjectId={restrictToSubjectId}
-                        readOnly={readOnly}
+                        readOnly={readOnly || isHistorical}
                         onlineMarksheetHook={onlineMarksheetHook}
                     />
                 )}

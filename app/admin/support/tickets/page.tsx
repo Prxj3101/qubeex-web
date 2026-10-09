@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import SupportHeader from '../SupportHeader';
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { PendingAttachmentChip } from '@/components/shared/PendingAttachmentChip';
 
@@ -434,16 +435,7 @@ export default function AdminTicketsPage() {
 
     return (
         <div className="space-y-3">
-            <div className="shrink-0 pt-0 pb-0 px-1 sticky top-0 z-20 bg-background">
-                <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-                    <div>
-                        <h1 className="text-xl font-bold flex items-center gap-2">
-                            <TicketIcon size={21} />
-                            Tickets
-                        </h1>
-                        <p className="text-muted-foreground text-[13px]">Raise and track support tickets</p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap">
+            <SupportHeader subtitle="Raise and track support tickets"><div className="flex items-center gap-2 flex-wrap">
                         {(['ALL', 'OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'] as const).map(s => (
                             <button key={s} onClick={() => handleFilterChange(s)}
                                 className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-all ${statusFilter === s ? 'bg-primary text-white border-primary' : 'border-border/50 text-muted-foreground hover:text-foreground'}`}>
@@ -455,10 +447,7 @@ export default function AdminTicketsPage() {
                             style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                             <Plus size={15} /> Raise Ticket
                         </button>
-                    </div>
-                </div>
-                <div className="h-px bg-border/60 mt-2" />
-            </div>
+                    </div></SupportHeader>
 
             {loading ? (
                 <div className="flex items-center justify-center py-24 text-muted-foreground text-sm">Loading...</div>

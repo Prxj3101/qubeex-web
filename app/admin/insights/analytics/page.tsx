@@ -101,6 +101,7 @@ const AI_FEATURE_LABELS: Record<string, string> = {
     BLACKBOARD_CHAT: 'AI Chat',
     BLACKBOARD_QUIZ: 'Quiz Generation',
     BLACKBOARD_MINDMAP: 'Mindmap Generation',
+    BLACKBOARD_MAGIC: 'AI MagicChalk',
     TASK_QUESTION_GENERATION: 'Question Bank',
     SCHOOL_ASSISTANT: 'Jarvis',
     OTHERS: 'Others',
@@ -113,6 +114,7 @@ const AI_FEATURE_COLORS: Record<string, string> = {
     BLACKBOARD_CHAT: '#DA7756',
     BLACKBOARD_QUIZ: '#059669',
     BLACKBOARD_MINDMAP: '#2563EB',
+    BLACKBOARD_MAGIC: '#EC4899',
     TASK_QUESTION_GENERATION: '#0891B2',
     SCHOOL_ASSISTANT: '#F59E0B',
     OTHERS: '#64748B',
@@ -123,7 +125,7 @@ const AI_FEATURE_COLOR_FALLBACK = '#64748B';
 // into a single "Others" bucket instead of getting its own bar. Keeps the
 // card from accumulating a long tail of one-off features over time.
 const MAIN_AI_FEATURES = new Set(
-    ['BLACKBOARD_CONTEXT', 'BLACKBOARD_SCAN', 'BLACKBOARD_CHAT', 'BLACKBOARD_QUIZ', 'BLACKBOARD_MINDMAP', 'TASK_QUESTION_GENERATION', 'SCHOOL_ASSISTANT']
+    ['BLACKBOARD_CONTEXT', 'BLACKBOARD_SCAN', 'BLACKBOARD_CHAT', 'BLACKBOARD_QUIZ', 'BLACKBOARD_MINDMAP', 'BLACKBOARD_MAGIC', 'TASK_QUESTION_GENERATION', 'SCHOOL_ASSISTANT']
 );
 // Friendly names for whatever ends up folded into "Others" — add new small
 // features here as they're introduced so the tooltip stays readable instead

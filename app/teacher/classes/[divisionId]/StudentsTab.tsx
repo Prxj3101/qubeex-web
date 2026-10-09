@@ -8,6 +8,7 @@ import { Users, Flag, User } from 'lucide-react';
 import { Division, getInitials, getAvatarColor } from './DivisionClassPageClient';
 import { useStudentPhotosStore } from '@/store/studentPhotosStore';
 import api from '@/lib/api';
+import { useIsHistoricalYear, useYearParams } from '@/context/AcademicYearContext';
 
 interface Student {
     id: string;
@@ -42,13 +43,11 @@ export default function StudentsTab({ division }: { division: Division }) {
     const [loadingStats, setLoadingStats] = useState(false);
 
     const { photos, setPhoto } = useStudentPhotosStore();
-    const fetchedRef = useRef(false);
+    const yp = useYearParams();
 
     useEffect(() => {
-        if (fetchedRef.current) return;
-        fetchedRef.current = true;
         setLoadingStudents(true);
-        api.get(`/teacher/classes/${division.id}/students`)
+        api.get(`/teacher/classes/${division.id}/students`, { params: yp })
             .then(res => {
                 const list: Student[] = res.data.data;
                 list.forEach(s => { if (s.avatarUrl) setPhoto(s.id, s.avatarUrl); });
@@ -63,7 +62,7 @@ export default function StudentsTab({ division }: { division: Division }) {
             .then(res => setLeaderboard(res.data.data))
             .catch(() => setLeaderboard([]));
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [division.id]);
+    }, [division.id, yp.academicYearId]);
 
     useEffect(() => {
         if (!selectedStudent) return;

@@ -6,7 +6,7 @@ import { useBranding } from '@/context/BrandingContext';
 import { ThemeToggle } from './ThemeToggle';
 import { useAuthStore } from '@/store/authStore';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { LucideIcon, User, LogOut, Settings, Lock, X } from 'lucide-react';
+import { LucideIcon, User, LogOut, Settings, Headset, Lock, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { NotificationsBell } from './NotificationsBell';
 import {
@@ -38,6 +38,8 @@ interface NavItem {
 
 interface TopbarProps {
     navItems?: NavItem[];
+    // Rendered at the far right of the nav-pill row (e.g. the academic-year picker).
+    navRightSlot?: React.ReactNode;
     restrictNav?: boolean;
     lockMessage?: string;
     // Only the theme toggle should be interactive on this topbar — used for
@@ -125,6 +127,8 @@ function AvatarMenu({ restrictNav, lockMessage, disabled }: { restrictNav?: bool
     const studentName = useStudentStore(s => s.name);
     const userAvatarUrl = useUserAvatarStore(s => s.avatarUrl);
     const isStudent = pathname.startsWith('/student');
+    const showSupport = role === 'ADMIN' || role === 'SUB_ADMIN';
+    const supportLocked = role === 'SUB_ADMIN' && !user?.permissions?.includes('SUPPORT');
     const photoUrl = isStudent ? studentPhoto : userAvatarUrl;
     const rawName = isStudent && studentName ? studentName : (user?.name || user?.email || 'Signed in');
     const displayName = (role === 'ADMIN' || role === 'TEACHER' || role === 'SUB_ADMIN') ? formatDisplayName(rawName, customPrefix) : rawName;
@@ -212,6 +216,24 @@ function AvatarMenu({ restrictNav, lockMessage, disabled }: { restrictNav?: bool
                     <span className="text-sm font-medium">My Profile</span>
                 </DropdownMenuItem>
 
+                {showSupport && (
+                    <DropdownMenuItem
+                        onClick={() => {
+                            if (restrictNav) { toast.error(lockMessage); return; }
+                            if (supportLocked) { toast.error('Access restricted - contact your admin'); return; }
+                            router.push('/admin/support/tickets');
+                        }}
+                        className={cn(
+                            "flex items-center gap-2.5 px-3 py-2.5 rounded-xl cursor-pointer transition-colors",
+                            restrictNav || supportLocked ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/50"
+                        )}>
+                        <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                            <Headset size={13} className="text-primary" />
+                        </div>
+                        <span className="text-sm font-medium">Support</span>
+                        {supportLocked && <Lock size={11} className="ml-auto text-muted-foreground" />}
+                    </DropdownMenuItem>
+                )}
                 {!isStudent && (
                     <DropdownMenuItem
                         onClick={() => restrictNav ? toast.error('Set your password to continue') : router.push(settingsHref)}
@@ -271,7 +293,7 @@ function AvatarMenu({ restrictNav, lockMessage, disabled }: { restrictNav?: bool
     );
 }
 
-export function Topbar({ navItems, restrictNav, lockMessage, disableProfileActions }: TopbarProps) {
+export function Topbar({ navItems, navRightSlot, restrictNav, lockMessage, disableProfileActions }: TopbarProps) {
     const pathname = usePathname();
     const effectiveLockMessage = lockMessage ?? 'Set your password to continue';
     const branding = useBranding();
@@ -309,6 +331,7 @@ export function Topbar({ navItems, restrictNav, lockMessage, disableProfileActio
             </header>
 
             {navItems && (
+                <div className="flex items-center justify-between gap-2">
                 <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/30 w-fit max-w-full items-center">
                 <div className="flex gap-1 items-center overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                     {navItems.map((item) => {
@@ -366,6 +389,8 @@ export function Topbar({ navItems, restrictNav, lockMessage, disableProfileActio
                     <div className="ml-1 shrink-0">
                         <RoleBadge />
                     </div>
+                </div>
+                {navRightSlot && <div className="shrink-0">{navRightSlot}</div>}
                 </div>
             )}
         </div>

@@ -5,6 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, ChevronRight, Users, NotebookPen, Smartphone, BarChart2, CalendarCheck, TrendingUp } from 'lucide-react';
 import api from '@/lib/api';
+import { useIsHistoricalYear } from '@/context/AcademicYearContext';
 import ViewTab from './ViewTab';
 import ManageTab from './ManageTab';
 import StudentsTab from './StudentsTab';
@@ -68,6 +69,7 @@ export default function DivisionClassPageClient() {
 
     const role = searchParams.get('role') ?? 'class-teacher';
     const isClassTeacher = role === 'class-teacher';
+    const isHistorical = useIsHistoricalYear();
     const subjectId = searchParams.get('subjectId');
 
     const TABS = isClassTeacher
@@ -400,7 +402,7 @@ export default function DivisionClassPageClient() {
                             </div>
                         ) : (
                             <div className="flex items-center gap-4">
-                                {activeTab === 'manage' && isClassTeacher && (
+                                {activeTab === 'manage' && isClassTeacher && !isHistorical && (
                                     <button onClick={() => updateTab('promotions')}
                                         className="flex items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-semibold text-white shrink-0"
                                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
@@ -442,7 +444,7 @@ export default function DivisionClassPageClient() {
                             <StudentsTab division={division} />
                         </motion.div>
                     )}
-                    {activeTab === 'promotions' && isClassTeacher && (
+                    {activeTab === 'promotions' && isClassTeacher && !isHistorical && (
                         <motion.div key="promotions" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full overflow-y-auto p-4">
                             <PromotionPanel
                                 divisionId={divisionId}

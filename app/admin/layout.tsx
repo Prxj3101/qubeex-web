@@ -12,8 +12,8 @@ import {
     Building2,
     Users,
     LineChart,
-    Headset,
     Wallet,
+    Boxes,
 } from 'lucide-react';
 import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
 import { AcademicYearProvider } from '@/context/AcademicYearContext';
@@ -26,7 +26,7 @@ const ALL_NAV_ITEMS = [
     { label: 'Staff',      href: '/admin/staff',              icon: Users,           childKeys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
     { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { label: 'Insights',   href: '/admin/insights',           icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION', 'AUDIT_LOGS'] },
-    { label: 'Support',    href: '/admin/support/tickets',    icon: Headset,         activePath: '/admin/support',  childKeys: ['SUPPORT'] },
+    { label: 'Inventory',  href: '/admin/inventory',         icon: Boxes,           activePath: '/admin/inventory', childKeys: ['INVENTORY'] },
     // Sub-Admins (e.g. the school accountant) get in via the PAYROLL permission.
     // Audit Logs moved into Insights.
     { label: 'Payroll',    href: '/admin/payroll/runs',       icon: Wallet,          activePath: '/admin/payroll',  childKeys: ['PAYROLL'] },
@@ -35,6 +35,7 @@ const ALL_NAV_ITEMS = [
 // Which permission keys gate each path prefix — ordered most-specific first,
 // since the first matching prefix wins.
 const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
+    { prefix: '/admin/inventory', keys: ['INVENTORY'] },
     { prefix: '/admin/staff/teachers',        keys: ['STAFF_TEACHERS'] },
     { prefix: '/admin/staff/staffroom',       keys: ['STAFF_STAFFROOM'] },
     { prefix: '/admin/staff/subadmins',       keys: ['STAFF_SUBADMINS'] },
@@ -178,10 +179,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         >
             <Topbar
                 navItems={navItems}
+                navRightSlot={pathname.startsWith('/admin/campus/classes') ? <AcademicYearSelector /> : undefined}
             />
-            <div className="flex items-center justify-end px-2">
-                <AcademicYearSelector />
-            </div>
             <HistoricalYearBanner />
             <main
                 className="flex-1 overflow-y-auto overflow-x-hidden px-2 outline-none bg-background visible-scrollbar"

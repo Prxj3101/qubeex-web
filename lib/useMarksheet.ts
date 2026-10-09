@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { AxiosError } from 'axios';
+import { useAcademicYear } from '@/context/AcademicYearContext';
 import { toast } from 'sonner';
 import {
   MarksheetMeta, ExamColumn, ScoreEntry, GradedSubjectItem, GradedScoreEntry, MarksheetStudent,
@@ -56,7 +57,11 @@ function getAcademicYear(): string {
 }
 
 export function useMarksheet(divisionId: string, isAdmin?: boolean): UseMarksheetResult {
-  const academicYear = getAcademicYear();
+  // A past year picked in the year dropdown overrides the calendar-derived
+  // current year (labels match the backend's "2025-26" format).
+  const { years, selectedYearId, isCurrentYearSelected } = useAcademicYear();
+  const selectedLabel = isCurrentYearSelected ? undefined : years.find(y => y.id === selectedYearId)?.label;
+  const academicYear = selectedLabel ?? getAcademicYear();
   const [loading, setLoading] = useState(true);
   const [marksheet, setMarksheet] = useState<MarksheetMeta | null>(null);
   const [students, setStudents] = useState<MarksheetStudent[]>([]);

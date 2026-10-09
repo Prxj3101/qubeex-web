@@ -232,6 +232,7 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
     const permissions = user?.permissions ?? [];
 
     const canSeeFeed = !isSubAdmin || permissions.includes('CAMPUS_FEED');
+    const canSeeClasses = !isSubAdmin || ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'].some(key => permissions.includes(key));
 
     const onCampusRoot = pathname === '/admin/campus' || pathname === '/admin/campus/';
     const needsRedirect = !!user && isSubAdmin && !canSeeFeed && onCampusRoot;
@@ -242,7 +243,7 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
 
     const TABS = [
         { key: 'feed', label: 'Feed', icon: Rss, href: '/admin/campus', locked: !canSeeFeed },
-        { key: 'classes', label: classesLabel, icon: LayoutGrid, href: classesHref, locked: false },
+        { key: 'classes', label: classesLabel, icon: LayoutGrid, href: classesHref, locked: !canSeeClasses },
     ];
 
     const activeTab = (pathname.startsWith('/admin/campus/classes') || pathname.startsWith('/admin/campus/courses')) ? 'classes' : 'feed';

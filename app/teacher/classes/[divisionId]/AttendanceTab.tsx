@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '@/lib/api';
+import { useAcademicYear, useIsHistoricalYear, useYearParams } from '@/context/AcademicYearContext';
 import NextImage from 'next/image';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -102,7 +103,7 @@ function StatusBtn({ label, active, onClick, disabled }: {
 }
 
 // ── Attendance Sheet (Right Panel) ────────────────────────────────────────────
-function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRemarks, onHolidayChange, onRemarkChange, divisionName, divisionId, refreshKey, attBase, readOnly }: {
+function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRemarks, onHolidayChange, onRemarkChange, divisionName, divisionId, refreshKey, attBase, readOnly: readOnlyProp }: {
     students: AttendanceStudent[];
     selectedDate: Date;
     attendance: Record<string, { status: AttendanceStatus; remark: string }>;
@@ -116,6 +117,8 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     onHolidayChange: (dk: string, name: string | null) => void;
     onRemarkChange: (dk: string, remark: string) => void;
 }) {
+    const isHistorical = useIsHistoricalYear();
+    const readOnly = readOnlyProp || isHistorical;
     const today = new Date();
     const [activeMonth, setActiveMonth] = useState(selectedDate.getMonth());
     const [monthOffset, setMonthOffset] = useState(0);
@@ -160,9 +163,10 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
     const isSelectedDateCell = (d: number) => d === selectedDate.getDate() && activeMonth === selectedDate.getMonth();
 
     // ── Fetch monthly data when activeMonth or refreshKey changes ─────────────
+    const yp = useYearParams();
     useEffect(() => {
         const monthStr = `${year}-${String(activeMonth + 1).padStart(2, '0')}`;
-        api.get(`${attBase}/monthly?month=${monthStr}`)
+        api.get(`${attBase}/monthly?month=${monthStr}`, { params: yp })
             .then(res => {
                 const recs: Record<string, AttendanceStatus> = {};
                 res.data.data.records.forEach((r: { studentId: string; date: string; status: string }) => {
@@ -171,7 +175,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                 setMonthlyRecords(recs);
             })
             .catch(() => setMonthlyRecords({}));
-    }, [activeMonth, divisionId, year, refreshKey]);
+    }, [activeMonth, divisionId, year, refreshKey, yp.academicYearId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Live data getters ─────────────────────────────────────────────────────
     const getLiveStatus = (studentId: string, dk: string): AttendanceStatus => {
@@ -659,12 +663,14 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
     const [overallRightTab, setOverallRightTab] = useState<'class' | 'student'>('class');
     const [shortTab, setShortTab] = useState<'month' | 'overall'>('month');
     const [studentRecords, setStudentRecords] = useState<Record<string, AttendanceStatus>>({});
+    const yp = useYearParams();
+    const { years } = useAcademicYear();
     const [loadingStudentRec, setLoadingStudentRec] = useState(false);
 
     useEffect(() => {
         let cancelled = false;
         setLoading(true);
-        api.get(`${attBase}/summary`)
+        api.get(`${attBase}/summary`, { params: yp })
             .then(res => {
                 if (cancelled) return;
                 const { students, classStats: cs } = res.data.data;
@@ -676,15 +682,18 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
             .catch(err => { if (!cancelled) console.error(err); })
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
-    }, [divisionId]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [divisionId, yp.academicYearId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Fetch student records when selected student changes — use full academic year range
     useEffect(() => {
         if (!selectedStudent) return;
         setLoadingStudentRec(true);
         const now = new Date();
-        const sy = now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1;
-        api.get(`${attBase}/student-records/${selectedStudent.studentId}?startDate=${sy}-06-01&endDate=${sy + 1}-05-31`)
+        const histYear = yp.academicYearId ? years.find(y => y.id === yp.academicYearId) : undefined;
+        const sy = histYear
+            ? new Date(histYear.startDate).getFullYear()
+            : now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1;
+        api.get(`${attBase}/student-records/${selectedStudent.studentId}?startDate=${sy}-06-01&endDate=${sy + 1}-05-31`, { params: yp })
             .then(res => {
                 const recs: Record<string, AttendanceStatus> = {};
                 res.data.data.records.forEach((r: { date: string; status: string }) => {
@@ -694,7 +703,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
             })
             .catch(console.error)
             .finally(() => setLoadingStudentRec(false));
-    }, [selectedStudent?.studentId, divisionId]);
+    }, [selectedStudent?.studentId, divisionId, yp.academicYearId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Convert holidays to month/day format for the student sheet
     const holidaysByMonthDay: Record<number, Record<number, string>> = {};
@@ -1181,7 +1190,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
 }
 
 // ── Daily Attendance Tab ──────────────────────────────────────────────────────
-function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHolidayChange, onAttendanceSaved, attBase, readOnly }: {
+function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHolidayChange, onAttendanceSaved, attBase, readOnly: readOnlyProp }: {
     divisionName: string;
     divisionId: string;
     students: AttendanceStudent[];
@@ -1191,6 +1200,10 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     onHolidayChange: (dk: string, name: string | null) => void;
     onAttendanceSaved?: () => void;
 }) {
+    const yp = useYearParams();
+    // A past academic year is always view-only.
+    const isHistorical = useIsHistoricalYear();
+    const readOnly = readOnlyProp || isHistorical;
     const today = new Date();
     const [selectedDate, setSelectedDate] = useState<Date>(today);
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -1239,7 +1252,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
         // date, which reads as if it belongs to the date you just switched to.
         setAttendance(Object.fromEntries(students.map(s => [s.id, { status: null as AttendanceStatus, remark: '' }])));
         setGlobalRemark('');
-        api.get(`${attBase}/daily?date=${currentDk}`)
+        api.get(`${attBase}/daily?date=${currentDk}`, { params: yp })
             .then(res => {
                 const { records, dateNote } = res.data.data;
                 const newAtt = Object.fromEntries(students.map(s => [s.id, { status: null as AttendanceStatus, remark: '' }]));
@@ -1260,7 +1273,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
             })
             .finally(() => setLoadingDate(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [currentDk, divisionId, students.length]);
+    }, [currentDk, divisionId, students.length, yp.academicYearId]);
 
     const isCurrentDaySunday = selectedDate.getDay() === 0;
     const isCurrentDayHoliday = !!holidays[currentDk];
@@ -1271,7 +1284,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
     // date lights up its dot immediately instead of waiting for a re-open.
     useEffect(() => {
         const monthStr = `${calYear}-${String(calMonth + 1).padStart(2, '0')}`;
-        api.get(`${attBase}/monthly?month=${monthStr}`)
+        api.get(`${attBase}/monthly?month=${monthStr}`, { params: yp })
             .then(res => {
                 const perDate: Record<string, Set<string>> = {};
                 res.data.data.records.forEach((r: { studentId: string; date: string; status: string | null }) => {
@@ -1281,7 +1294,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
                 setMonthMarkedCounts(Object.fromEntries(Object.entries(perDate).map(([dk, set]) => [dk, set.size])));
             })
             .catch(() => setMonthMarkedCounts({}));
-    }, [calYear, calMonth, divisionId, attBase, refreshKey]);
+    }, [calYear, calMonth, divisionId, attBase, refreshKey, yp.academicYearId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleHolidayChange = async (dk: string, name: string | null) => {
         onHolidayChange(dk, name);
@@ -1650,6 +1663,7 @@ export default function AttendanceTab({
     const studentsUrl = readOnly
         ? `/admin/campus/divisions/${divisionId}/students`
         : `/teacher/classes/${divisionId}/students`;
+    const yp = useYearParams();
 
     const [students, setStudents] = useState<AttendanceStudent[]>([]);
     const [holidays, setHolidays] = useState<Record<string, string>>({});
@@ -1658,7 +1672,7 @@ export default function AttendanceTab({
     // list) — called on mount and again after every attendance save, since
     // saving changes the cumulative % for the current and all later months.
     const refreshSummary = useCallback(() => {
-        return api.get(`${attBase}/summary`).then(summaryRes => {
+        return api.get(`${attBase}/summary`, { params: yp }).then(summaryRes => {
             const summaryByStudentId = new Map<string, SummaryStudent>(
                 (summaryRes.data.data.students as SummaryStudent[]).map(ss => [ss.studentId, ss])
             );
@@ -1672,14 +1686,14 @@ export default function AttendanceTab({
             onHeaderStatsLoad?.({ overall: cs?.overallPct ?? null, thisMonth: cs?.currentMonthPct ?? null });
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [attBase]);
+    }, [attBase, yp.academicYearId]);
 
     useEffect(() => {
         let cancelled = false;
         Promise.all([
-            api.get(studentsUrl),
+            api.get(studentsUrl, { params: yp }),
             api.get(`${attBase}/holidays`),
-            api.get(`${attBase}/summary`),
+            api.get(`${attBase}/summary`, { params: yp }),
         ]).then(([studRes, holRes, summaryRes]) => {
             if (cancelled) return;
             const summaryByStudentId = new Map<string, SummaryStudent>(
@@ -1709,7 +1723,7 @@ export default function AttendanceTab({
             onHeaderStatsLoad?.({ overall: cs?.overallPct ?? null, thisMonth: cs?.currentMonthPct ?? null });
         }).catch(err => { if (!cancelled) console.error('Failed to load attendance base data', err); });
         return () => { cancelled = true; };
-    }, [divisionId]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [divisionId, yp.academicYearId]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleHolidayChange = (dk: string, name: string | null) => {
         setHolidays(prev => {

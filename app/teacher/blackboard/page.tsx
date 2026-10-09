@@ -17,6 +17,11 @@ import api from '@/lib/api';
 import { useTheme } from 'next-themes';
 import { blackboardMemory, usePersisted, setBlackboardValue, saveBlackboardFile, loadBlackboardFile, clearBlackboardFile } from '@/store/blackboardMemory';
 import { useBranding } from '@/context/BrandingContext';
+import { useMagicChalk, MagicChalkIcon, type MagicLang } from './MagicChalk';
+import { useChalkFeel } from './ChalkFeel';
+import { SoundMenu, type SoundChannel } from './SoundMenu';
+import { KBTQuiz } from './KBTQuiz';
+import { ChalkBoard, BoardHeader } from './ChalkBoard';
 
 import dynamic from 'next/dynamic';
 
@@ -78,9 +83,12 @@ function useScanLoadingAnim() {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type AIMode = 'scan' | 'prompt' | 'quiz' | 'mindmap' | null;
-type DocRenderer = 'pdf' | 'office-online' | 'office-local' | 'image' | 'video' | 'unsupported';
+type DocRenderer = 'pdf' | 'office-online' | 'office-local' | 'image' | 'video' | 'board' | 'unsupported';
+// The empty classroom board (Load -> Blackboard): no file, just chalk + Magic Chalk.
+const BOARD_DOC = { name: 'Blackboard', url: 'board:', type: 'board' };
 
 function getRenderer(doc: { url: string; type: string }): DocRenderer {
+    if (doc.type === 'board') return 'board';
     if (doc.type === 'application/pdf') return 'pdf';
     if (doc.type.startsWith('image/')) return 'image';
     if (doc.type.startsWith('video/')) return 'video';
@@ -1340,7 +1348,7 @@ function AIPromptPanel({ onClose, context, doc, selectedPages, currentPage }: {
 
 // ── AI Quiz Panel ─────────────────────────────────────────────────────────────
 function AIQuizPanel({
-    onClose, docName, doc, totalPages, selectedPages, onTogglePage, onNavigateToPage,
+    onClose, docName, doc, totalPages, selectedPages, onTogglePage, onNavigateToPage, narrationVolume = 1,
 }: {
     onClose: () => void;
     docName?: string;
@@ -1349,6 +1357,7 @@ function AIQuizPanel({
     selectedPages: number[];
     onTogglePage: (page: number) => void;
     onNavigateToPage?: (page: number) => void;
+    narrationVolume?: number;
 }) {
     const [phase, setPhase] = usePersisted<'input' | 'loading' | 'result'>('quiz_phase', 'input');
     const [instructions, setInstructions] = usePersisted('quiz_instructions', '');
@@ -1360,6 +1369,22 @@ function AIQuizPanel({
     // Prev/Next preserves what was already selected/revealed for each question.
     const [answers, setAnswers] = usePersisted<Record<number, number>>('quiz_answers', {});
     const [revealedMap, setRevealedMap] = usePersisted<Record<number, boolean>>('quiz_revealedMap', {});
+    // KBT - Kaun Banega Topper: the same questions, played as a quiz show.
+    const [quizMode, setQuizMode] = usePersisted<'normal' | 'kbt'>('quiz_mode', 'normal');
+    const [kbtStudents, setKbtStudents] = usePersisted('kbt_students', 30);
+    const [kbtOpen, setKbtOpen] = useState(false);
+    // Set when a KBT quiz was just generated. Kept in persisted state (not a plain flag) so the game
+    // still opens even if this panel remounts while the quiz is being generated.
+    const [kbtPending, setKbtPending] = usePersisted('kbt_pending', false);
+    useEffect(() => {
+        if (kbtPending && phase === 'result' && questions.length > 0) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect
+            setKbtOpen(true);
+            setKbtPending(false);
+        }
+    }, [kbtPending, phase, questions.length, setKbtPending]);
+    // Text typed in the students box. It may be empty while typing; the real value is committed as you type.
+    const [kbtStudentsText, setKbtStudentsText] = useState<string | null>(null);
     const selectedOption = answers[currentQ] ?? null;
     const revealed = revealedMap[currentQ] ?? false;
     const loadingAnim = useScanLoadingAnim();
@@ -1431,6 +1456,7 @@ function AIQuizPanel({
             setAnswers({});
             setRevealedMap({});
             setPhase('result');
+            if (quizMode === 'kbt') setKbtPending(true);
         } catch (err: any) {
             await minDelay;
             toast.error(err.response?.status === 429
@@ -1474,6 +1500,12 @@ function AIQuizPanel({
                     {phase === 'result' && (
                         <>
                             <span className="text-[11px] text-white/50">{currentQ + 1}/{questions.length}</span>
+                            <button
+                                onClick={() => setKbtOpen(true)}
+                                className="h-6 px-2 rounded-lg text-[10.5px] font-bold text-[#2a1a00] hover:opacity-90 transition-all flex items-center gap-1"
+                                style={{ background: 'linear-gradient(180deg,#fff3b0,#F5C84B 55%,#b8860b)' }}>
+                                🏆 KBT
+                            </button>
                             <button
                                 onClick={() => setPhase('input')}
                                 className="h-6 px-2 rounded-lg text-[10.5px] font-medium text-white/60 border border-white/15 hover:bg-white/10 transition-all flex items-center gap-1">
@@ -1566,6 +1598,35 @@ function AIQuizPanel({
 
                         <div className="border-t border-white/10 -mb-2" />
 
+                        <div className="flex gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
+                            {([{ k: 'normal' as const, label: 'Normal' }, { k: 'kbt' as const, label: '🏆 KBT' }]).map(m => (
+                                <button key={m.k} onClick={() => setQuizMode(m.k)}
+                                    className="flex-1 py-1.5 rounded-lg text-[11px] font-semibold transition-all"
+                                    style={quizMode === m.k
+                                        ? { background: m.k === 'kbt' ? 'linear-gradient(180deg,#fff3b0,#F5C84B 55%,#b8860b)' : 'rgba(5,150,105,0.25)', color: m.k === 'kbt' ? '#2a1a00' : '#34d399' }
+                                        : { color: 'rgba(255,255,255,0.45)' }}>
+                                    {m.label}
+                                </button>
+                            ))}
+                        </div>
+                        {quizMode === 'kbt' && (
+                            <div className="flex items-center justify-between gap-3 rounded-xl px-3 py-2" style={{ background: 'rgba(245,200,75,0.08)', border: '1px solid rgba(245,200,75,0.25)' }}>
+                                <div className="leading-tight">
+                                    <p className="text-[11px] font-semibold text-white/80">Kaun Banega Topper</p>
+                                    <p className="text-[10px] text-white/45">Total students in class (roll no. 1 to N)</p>
+                                </div>
+                                <input type="text" inputMode="numeric" value={kbtStudentsText ?? String(kbtStudents)}
+                                    onFocus={e => e.target.select()}
+                                    onChange={e => {
+                                        const v = e.target.value.replace(/\D/g, '').slice(0, 3);
+                                        setKbtStudentsText(v);
+                                        if (v !== '') setKbtStudents(Math.max(1, Math.min(200, Number(v))));
+                                    }}
+                                    onBlur={() => setKbtStudentsText(null)}
+                                    className="w-16 h-8 rounded-lg bg-black/50 border border-white/15 text-center text-sm font-bold text-[#F5C84B] focus:outline-none focus:border-[#F5C84B]/60" />
+                            </div>
+                        )}
+
                         <div className="flex gap-3">
                             <div className="flex-1 space-y-1.5">
                                 <label className="text-[10px] font-semibold text-white/40 uppercase tracking-wide">
@@ -1610,11 +1671,15 @@ function AIQuizPanel({
                             className="w-full h-9 rounded-xl text-xs font-semibold text-white disabled:opacity-40 hover:opacity-90 transition-all shrink-0"
                             style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 40%, #047857 100%)' }}>
                             <Sparkles size={12} className="inline mr-1.5 -mt-0.5" />
-                            {!doc ? 'Load a Document First' : isPdf && totalPages > 0 ? 'Generate Quiz from Selected Pages' : 'Generate Quiz'}
+                            {!doc ? 'Load a Document First' : quizMode === 'kbt' ? 'Generate & Play KBT' : isPdf && totalPages > 0 ? 'Generate Quiz from Selected Pages' : 'Generate Quiz'}
                         </button>
                         <AiDisclaimer />
                     </div>
                 </div>
+            )}
+
+            {kbtOpen && questions.length > 0 && (
+                <KBTQuiz questions={questions} totalStudents={kbtStudents} narrationVolume={narrationVolume} onClose={() => setKbtOpen(false)} />
             )}
 
 
@@ -2650,7 +2715,7 @@ function FloatingAIButton({ activeMode, onSelect, showControls }: {
     ];
 
     return (
-        <div className="absolute bottom-5 right-5 flex flex-col items-end gap-2 z-20">
+        <div className="absolute bottom-5 right-5 flex flex-col items-end gap-2 z-40">
             <AnimatePresence>
                 {open && showControls && (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }}
@@ -2894,6 +2959,23 @@ export default function BlackboardPage() {
         toast.success('Document unloaded');
     };
 
+    // Load -> Blackboard: an empty classroom board with the pen tools ready (white chalk).
+    const openBoard = () => {
+        if (doc?.url.startsWith('blob:')) URL.revokeObjectURL(doc.url);
+        setDoc(BOARD_DOC);
+        setCurrentPage(1);
+        setTotalPages(0);
+        setSelectedScanPages([]);
+        setSelectedQuizPages([]);
+        setScale(1);
+        setRotation(0);
+        clearBlackboardFile();
+        // Tools start closed - the teacher opens them with "Start writing".
+        setDrawingMode(false);
+        setActiveTool('magic');
+        if (drawColor !== '#FFFF00') setDrawColor('#FFFFFF');
+    };
+
     const toggleFullscreen = () => {
         setIsFullscreen(v => !v);
     };
@@ -2974,9 +3056,13 @@ export default function BlackboardPage() {
 
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const [drawingMode, setDrawingMode] = usePersisted('drawingMode', false);
-    const [activeTool, setActiveTool] = usePersisted<'pen' | 'highlighter' | 'eraser'>('activeTool', 'pen');
+    const [activeTool, setActiveTool] = usePersisted<'pen' | 'highlighter' | 'eraser' | 'magic' | 'none'>('activeTool', 'magic'); // 'none' = no tool picked (clicking a selected tool again)
     const [drawColor, setDrawColor] = usePersisted('drawColor', '#FF0000');
-    const [drawSize, setDrawSize] = usePersisted('drawSize', 3);
+    // Each tool remembers its own thickness: the eraser starts at 10, the highlighter at 5, pen and Magic Chalk at 3.
+    const [toolSizes, setToolSizes] = usePersisted<Record<'pen' | 'magic' | 'highlighter' | 'eraser', number>>('toolSizes', { pen: 3, magic: 3, highlighter: 5, eraser: 10 });
+    const sizeKey = activeTool === 'none' ? 'pen' : activeTool;
+    const drawSize = toolSizes[sizeKey];
+    const setDrawSize = (v: number) => setToolSizes(t => ({ ...t, [sizeKey]: v }));
     const isDrawing = useRef(false);
     const lastPos = useRef<{ x: number; y: number } | null>(null);
 
@@ -2986,20 +3072,68 @@ export default function BlackboardPage() {
     const undoStack = useRef<ImageData[]>([]);
     const redoStack = useRef<ImageData[]>([]);
 
+    // Magic Chalk: double-click a written word / drawing / sum to make it real.
+    // Language the teacher teaches in (names + fun facts come back in it) and the chalk scratch sound.
+    const [magicLang, setMagicLang] = usePersisted<MagicLang>('magicLang', 'en');
+    const [chalkSound, setChalkSound] = usePersisted<SoundChannel>('chalkSoundCh', { volume: 0.7, muted: false });
+    const [voiceSound, setVoiceSound] = usePersisted<SoundChannel>('voiceSoundCh', { volume: 1, muted: false });
+    const magic = useMagicChalk({
+        canvasRef, undoStack, color: doc?.type === 'board' ? '#F4F1E8' : drawColor,
+        onCanvasChanged: () => saveCanvasSnapshot(),
+        topic: doc?.name,
+        lang: magicLang,
+        voiceVolume: voiceSound.muted ? 0 : voiceSound.volume,
+        // A different document = a different board: its own strokes, pictures and graphs.
+        storageKey: doc ? `${doc.name}_${doc.type}` : undefined,
+    });
+    const chalkFeel = useChalkFeel({ enabled: doc?.type === 'board', volume: chalkSound.muted ? 0 : chalkSound.volume });
+
+    // Keep the drawing canvas the same size as the board area WITHOUT losing what is drawn.
+    // Changing a canvas's width/height wipes it, and it used to be re-sized by React on whichever
+    // render happened to come next (e.g. going fullscreen) - so the writing vanished. Now the size
+    // follows the board area through a ResizeObserver and the old pixels are carried over, scaled.
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        const host = viewerRef.current;
+        if (!canvas || !host) return;
+        const sync = () => {
+            const w = host.clientWidth, h = host.clientHeight;
+            if (!w || !h) return;
+            // Draw at twice the on-screen density (within the browser's size limit) so going
+            // fullscreen enlarges a sharp drawing instead of a blurry one. The context is scaled,
+            // so all drawing code keeps using plain on-screen coordinates.
+            const k = Math.min(2, 4096 / w, 4096 / h);
+            const pw = Math.round(w * k), ph = Math.round(h * k);
+            if (canvas.width === pw && canvas.height === ph) return;
+            const keep = document.createElement('canvas');
+            keep.width = canvas.width; keep.height = canvas.height;
+            keep.getContext('2d')!.drawImage(canvas, 0, 0);
+            canvas.width = pw; canvas.height = ph;
+            const ctx = canvas.getContext('2d')!;
+            ctx.setTransform(k, 0, 0, k, 0, 0);
+            ctx.imageSmoothingQuality = 'high';
+            if (keep.width > 1 && keep.height > 1) ctx.drawImage(keep, 0, 0, w, h);
+        };
+        sync();
+        const ro = new ResizeObserver(sync);
+        ro.observe(host);
+        return () => ro.disconnect();
+    }, [drawingMode, doc?.name, doc?.type]);
+
     // Restores whatever was drawn before this page was navigated away from (or
     // the tab was refreshed) — the canvas element itself is brand new after
     // remount, so its pixels need to be painted back in from the snapshot
     // saved in blackboardMemory. Keyed by name+type rather than doc.url,
     // since "From Computer" docs get a brand new blob: URL every reload.
     useEffect(() => {
-        if (!drawingMode || !canvasRef.current || !doc) return;
+        if ((!drawingMode && doc?.type !== 'board') || !canvasRef.current || !doc) return;
         const saved = blackboardMemory[`canvasSnapshot_${doc.name}_${doc.type}`] as string | undefined;
         if (!saved) return;
         const canvas = canvasRef.current;
         const ctx = canvas.getContext('2d');
         if (!ctx) return;
         const img = new window.Image();
-        img.onload = () => { ctx.drawImage(img, 0, 0, canvas.width, canvas.height); };
+        img.onload = () => { ctx.drawImage(img, 0, 0, canvas.clientWidth || canvas.width, canvas.clientHeight || canvas.height); };
         img.src = saved;
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [drawingMode, doc?.name, doc?.type]);
@@ -3109,6 +3243,7 @@ export default function BlackboardPage() {
     };
 
     const startDraw = (e: React.MouseEvent<HTMLCanvasElement>) => {
+        if (activeTool === 'none') return;
         isDrawing.current = true;
         const rect = canvasRef.current!.getBoundingClientRect();
         const pos = { x: e.clientX - rect.left, y: e.clientY - rect.top };
@@ -3116,6 +3251,7 @@ export default function BlackboardPage() {
         const ctx = canvasRef.current!.getContext('2d')!;
         undoStack.current.push(ctx.getImageData(0, 0, canvasRef.current!.width, canvasRef.current!.height));
         redoStack.current = [];
+        if (activeTool === 'magic') magic.beginStroke(pos);
         if (activeTool === 'highlighter') {
             currentStroke.current = [pos];
             baseImageData.current = ctx.getImageData(0, 0, canvasRef.current!.width, canvasRef.current!.height);
@@ -3128,6 +3264,8 @@ export default function BlackboardPage() {
         const rect = canvasRef.current.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
+        if (activeTool === 'magic') magic.extendStroke({ x, y });
+        if (activeTool === 'pen' || activeTool === 'magic' || activeTool === 'eraser') chalkFeel.move(x, y, activeTool === 'eraser' ? 'eraser' : 'chalk');
 
         if (activeTool === 'highlighter') {
             currentStroke.current.push({ x, y });
@@ -3146,13 +3284,14 @@ export default function BlackboardPage() {
             ctx.stroke();
             ctx.globalAlpha = 1;
             ctx.globalCompositeOperation = 'source-over';
-        } else if (activeTool === 'pen') {
+        } else if (activeTool === 'pen' || activeTool === 'magic') {
             ctx.beginPath();
             ctx.moveTo(lastPos.current!.x, lastPos.current!.y);
             ctx.lineTo(x, y);
             ctx.globalAlpha = 1;
             ctx.globalCompositeOperation = 'source-over';
-            ctx.strokeStyle = drawColor;
+            // Magic Chalk writes like plain white chalk on the classroom board.
+            ctx.strokeStyle = activeTool === 'magic' && doc?.type === 'board' ? '#F4F1E8' : drawColor;
             ctx.lineWidth = drawSize;
             ctx.lineCap = 'round';
             ctx.stroke();
@@ -3199,6 +3338,8 @@ export default function BlackboardPage() {
 
     const stopDraw = () => {
         if (isDrawing.current) saveCanvasSnapshot();
+        magic.endStroke();
+        chalkFeel.stop();
         isDrawing.current = false;
         lastPos.current = null;
     };
@@ -3207,6 +3348,7 @@ export default function BlackboardPage() {
         if (!canvasRef.current) return;
         const ctx = canvasRef.current.getContext('2d')!;
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+        magic.reset();
         saveCanvasSnapshot();
     };
 
@@ -3261,7 +3403,7 @@ export default function BlackboardPage() {
                                 <Monitor size={21} /> Blackboard
                             </h1>
                             <p className="text-[13px] text-muted-foreground">
-                                {doc ? doc.name : 'Load a document to begin'}
+                                {doc ? (doc.type === 'board' ? 'Blackboard · pick Magic Chalk ✨, write or draw, then double-click it' : doc.name) : 'Load a document or open the Blackboard to begin'}
                             </p>
                         </div>
                         <div className="flex items-center gap-2">
@@ -3269,7 +3411,7 @@ export default function BlackboardPage() {
                                 <button onClick={() => setShowLoadMenu(v => !v)}
                                     className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
                                     style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                    <Upload size={14} /> Load Document <ChevronDown size={11} />
+                                    <Upload size={14} /> Load <ChevronDown size={11} />
                                 </button>
                                 {!showLoadMenu && (
                                     <SupportedTypesTooltip types={SUPPORTED_TYPES_COMPUTER} className="bottom-full mb-2 right-0" />
@@ -3305,12 +3447,16 @@ export default function BlackboardPage() {
                                                     ))}
                                                 </div>
                                             </div>
+                                            <button onClick={() => { openBoard(); setShowLoadMenu(false); }}
+                                                className="w-full flex items-center gap-2 px-3 py-2.5 text-xs hover:bg-muted transition-colors">
+                                                <Presentation size={14} className="text-emerald-600" /> Blackboard
+                                            </button>
                                             {doc && (
                                                 <>
                                                     <div className="h-px bg-border/60 my-1" />
                                                     <button onClick={() => { handleUnloadDocument(); setShowLoadMenu(false); }}
                                                         className="w-full flex items-center gap-2 px-3 py-2.5 text-xs hover:bg-muted transition-colors text-red-500">
-                                                        <X size={14} /> Unload Document
+                                                        <X size={14} /> {doc.type === 'board' ? 'Close Blackboard' : 'Unload Document'}
                                                     </button>
                                                 </>
                                             )}
@@ -3341,7 +3487,7 @@ export default function BlackboardPage() {
                         animate={{ opacity: showControls ? 1 : 0 }}
                         transition={{ duration: 0.3 }}
                         onClick={toggleFullscreen}
-                        className="absolute bottom-3 left-3 z-20 w-8 h-8 rounded-xl flex items-center justify-center text-white/70 hover:text-white border border-white/10 transition-colors"
+                        className="absolute bottom-3 left-3 z-40 w-8 h-8 rounded-xl flex items-center justify-center text-white/70 hover:text-white border border-white/10 transition-colors"
                         style={{ background: 'rgba(0,0,0,0.6)' }}>
                         {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                     </motion.button>
@@ -3358,6 +3504,10 @@ export default function BlackboardPage() {
                                 <p className="text-sm font-semibold text-white/70">No document loaded</p>
                                 <p className="text-xs text-white/40 mt-1">Upload a PDF, PPT, Word document, or video to start</p>
                             </div>
+                            <button onClick={openBoard}
+                                className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white border border-white/15 hover:bg-white/10 transition-colors">
+                                <Presentation size={14} className="text-emerald-400" /> Open Blackboard
+                            </button>
                         </div>
                     ) : (
                         <>
@@ -3454,22 +3604,50 @@ export default function BlackboardPage() {
                                                 {drawingMode && (
                                                     <canvas
                                                         ref={canvasRef}
-                                                        width={viewerRef.current?.clientWidth ?? 800}
-                                                        height={viewerRef.current?.clientHeight ?? 600}
-                                                        className="absolute inset-0 z-20"
-                                                        style={{ cursor: activeTool === 'eraser' ? 'cell' : 'crosshair' }}
+                                                        className="absolute inset-0 z-20 w-full h-full"
+                                                        style={{ cursor: activeTool === 'eraser' ? 'cell' : activeTool === 'magic' ? 'copy' : 'crosshair', pointerEvents: activeTool === 'none' ? 'none' : 'auto' }}
                                                         onMouseDown={startDraw}
                                                         onMouseMove={draw}
                                                         onMouseUp={stopDraw}
                                                         onMouseLeave={stopDraw}
+                                                        onDoubleClick={activeTool === 'magic' ? magic.onDoubleClick : undefined}
                                                     />
                                                 )}
+                                                {drawingMode && magic.layer}
 
                                                 <div
                                                     className="absolute inset-0 z-10"
                                                     onMouseMove={handleMouseMove}
                                                     style={{ pointerEvents: showControls ? 'none' : 'all' }}
                                                 />
+                                            </>
+                                        )}
+
+                                        {renderer === 'board' && (
+                                            <>
+                                                <ChalkBoard />
+                                                {(
+                                                    <canvas
+                                                        ref={canvasRef}
+                                                        className="absolute inset-0 z-20 w-full h-full"
+                                                        style={{ cursor: activeTool === 'eraser' ? 'cell' : activeTool === 'magic' ? 'copy' : 'crosshair', pointerEvents: activeTool === 'none' || !drawingMode ? 'none' : 'auto' }}
+                                                        onMouseDown={startDraw}
+                                                        onMouseMove={draw}
+                                                        onMouseUp={stopDraw}
+                                                        onMouseLeave={stopDraw}
+                                                        onDoubleClick={activeTool === 'magic' ? magic.onDoubleClick : undefined}
+                                                    />
+                                                )}
+                                                <BoardHeader />
+                                                {chalkFeel.layer}
+                                                {magic.layer}
+                                                {!drawingMode && (
+                                                    <button onClick={() => { setActiveTool('magic'); setDrawingMode(true); }}
+                                                        className="absolute z-20 bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white border border-white/15"
+                                                        style={{ background: 'rgba(0,0,0,0.6)' }}>
+                                                        <Pencil size={13} /> Start writing
+                                                    </button>
+                                                )}
                                             </>
                                         )}
 
@@ -3523,7 +3701,7 @@ export default function BlackboardPage() {
                             })()}
 
                             {/* Floating controls bar */}
-                            {doc && (() => {
+                            {doc && getRenderer(doc) !== 'board' && (() => {
                                 const renderer = getRenderer(doc);
                                 const isPdf = renderer === 'pdf';
                                 const isImage = renderer === 'image';
@@ -3659,7 +3837,7 @@ export default function BlackboardPage() {
 
                                                 <div className="w-px h-4 bg-white/10 shrink-0" />
                                                 <button
-                                                    onClick={() => setDrawingMode(v => !v)}
+                                                    onClick={() => { if (!drawingMode) setActiveTool('magic'); setDrawingMode(v => !v); }}
                                                     className={`w-6 h-6 flex items-center justify-center transition-all shrink-0 rounded-md ${drawingMode ? 'text-white bg-white/20' : 'text-white/50 hover:text-white'}`}>
                                                     <Pencil size={14} />
                                                 </button>
@@ -3669,32 +3847,58 @@ export default function BlackboardPage() {
                                 );
                             })()}
 
-                            {drawingMode && doc && getRenderer(doc) === 'pdf' && (
+                            <AnimatePresence>
+                            {drawingMode && doc && (getRenderer(doc) === 'pdf' || getRenderer(doc) === 'board') && (
                                 <motion.div
+                                    key="draw-toolbar"
                                     drag
                                     dragMomentum={false}
                                     dragConstraints={containerRef}
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: -10 }}
-                                    className="absolute top-4 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 rounded-2xl border border-white/10 cursor-default"
+                                    // Old CRT TV power on / off: a bright line grows out of the
+                                    // middle, then opens up; closing squeezes back to a line, then a dot.
+                                    initial={{ scaleX: 0, scaleY: 0.06, opacity: 0, filter: 'brightness(3)' }}
+                                    animate={{
+                                        scaleX: [0, 1, 1], scaleY: [0.06, 0.06, 1], opacity: [0, 1, 1],
+                                        filter: ['brightness(3)', 'brightness(2.2)', 'brightness(1)'],
+                                        transition: { duration: 0.42, times: [0, 0.45, 1], ease: 'easeOut' },
+                                    }}
+                                    exit={{
+                                        scaleX: [1, 1, 0], scaleY: [1, 0.06, 0.06], opacity: [1, 1, 0],
+                                        filter: ['brightness(1)', 'brightness(2.2)', 'brightness(3)'],
+                                        transition: { duration: 0.36, times: [0, 0.5, 1], ease: 'easeIn' },
+                                    }}
+                                    className={`absolute ${getRenderer(doc) === 'board' ? 'bottom-6' : 'top-4'} left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-1.5 rounded-2xl border border-white/10 cursor-default`}
                                     style={{ background: 'rgba(0,0,0,0.85)' }}>
 
                                     <GripVertical size={14} className="text-white/30 cursor-grab active:cursor-grabbing shrink-0" />
                                     <div className="w-px h-4 bg-white/10 shrink-0" />
 
                                     {([
+                                        { key: 'magic' as const, icon: MagicChalkIcon, title: 'Magic Chalk ✨ write or draw, then double-click it' },
                                         { key: 'pen' as const, icon: Pen, title: 'Pen' },
                                         { key: 'highlighter' as const, icon: Highlighter, title: 'Highlighter' },
                                         { key: 'eraser' as const, icon: Eraser, title: 'Eraser' },
                                     ]).map(tool => (
                                         <button key={tool.key}
                                             title={tool.title}
-                                            onClick={() => setActiveTool(tool.key)}
-                                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${activeTool === tool.key ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white'}`}>
-                                            <tool.icon size={14} />
+                                            onClick={() => setActiveTool(t => (t === tool.key ? 'none' : tool.key))}
+                                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all ${activeTool === tool.key ? (tool.key === 'magic' ? 'bg-pink-400/25 text-pink-200' : 'bg-white/20 text-white') : 'text-white/50 hover:text-white'}`}>
+                                            <tool.icon size={tool.key === 'magic' ? 20 : 14} />
                                         </button>
                                     ))}
+
+                                    {doc?.type === 'board' && (
+                                        <>
+                                            <button
+                                                title="Language for Magic Chalk names & facts (tap to change)"
+                                                onClick={() => setMagicLang(l => (l === 'en' ? 'hi' : l === 'hi' ? 'mr' : 'en'))}
+                                                className="h-7 px-1.5 rounded-lg text-[11px] font-bold text-white/70 hover:text-white transition-all shrink-0"
+                                                style={{ fontFamily: 'Kalam, sans-serif' }}>
+                                                {magicLang === 'en' ? 'EN' : magicLang === 'hi' ? 'हिं' : 'मरा'}
+                                            </button>
+                                            <SoundMenu chalk={chalkSound} voice={voiceSound} onChalk={setChalkSound} onVoice={setVoiceSound} />
+                                        </>
+                                    )}
 
                                     <div className="w-px h-4 bg-white/10 shrink-0" />
 
@@ -3736,6 +3940,7 @@ export default function BlackboardPage() {
                                     </button>
                                 </motion.div>
                             )}
+                            </AnimatePresence>
                         </>
                     )}
                 </div>
@@ -3784,6 +3989,7 @@ export default function BlackboardPage() {
                                 )}
                                 {activeMode === 'quiz' && (
                                     <AIQuizPanel
+                                        narrationVolume={voiceSound.muted ? 0 : voiceSound.volume}
                                         onClose={() => setActiveMode(null)}
                                         docName={doc?.name}
                                         doc={doc ? { url: doc.url, type: doc.type } : null}

@@ -74,3 +74,10 @@ export function useAcademicYear(): AcademicYearContextType {
 export function useIsHistoricalYear(): boolean {
     return !useAcademicYear().isCurrentYearSelected;
 }
+
+// Query params to spread into an API call: empty for the current year (the
+// backend defaults to it), `{ academicYearId }` when a past year is selected.
+export function useYearParams(): { academicYearId?: string } {
+    const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
+    return isCurrentYearSelected || !selectedYearId ? {} : { academicYearId: selectedYearId };
+}

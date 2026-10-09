@@ -14,6 +14,7 @@ import {
 import { Division, getInitials, getAvatarColor } from './DivisionClassPageClient';
 import { useStudentPhotosStore } from '@/store/studentPhotosStore';
 import api from '@/lib/api';
+import { useIsHistoricalYear, useYearParams } from '@/context/AcademicYearContext';
 import { getErrorMessage } from '@/lib/error';
 import { colorForSubject } from '@/lib/subjectColors';
 import { formatDisplayName } from '@/lib/displayName';
@@ -309,6 +310,8 @@ export default function ManageTab({ division, isClassTeacher }: {
     const [loadingStats, setLoadingStats] = useState(false);
 
     const fetchedRef = useRef(false);
+    const yp = useYearParams();
+    const isHistorical = useIsHistoricalYear();
 
     const { photos, setPhoto } = useStudentPhotosStore();
     const photoInputRef = useRef<HTMLInputElement>(null);
@@ -339,7 +342,7 @@ export default function ManageTab({ division, isClassTeacher }: {
     const fetchStudents = useCallback(async () => {
         setLoadingStudents(true);
         try {
-            const res = await api.get(`/teacher/classes/${division.id}/students`);
+            const res = await api.get(`/teacher/classes/${division.id}/students`, { params: yp });
             const list: Student[] = res.data.data;
             // Seed photo store with signed avatar URLs from the API
             list.forEach(s => { if (s.avatarUrl) setPhoto(s.id, s.avatarUrl); });
@@ -361,16 +364,21 @@ export default function ManageTab({ division, isClassTeacher }: {
         } finally {
             setLoadingStudents(false);
         }
-    }, [division.id]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [division.id, yp.academicYearId]);
+
+    // Re-runs when the selected academic year changes.
+    useEffect(() => {
+        fetchStudents();
+    }, [fetchStudents]);
 
     useEffect(() => {
         if (fetchedRef.current) return;
         fetchedRef.current = true;
-        fetchStudents();
         api.get(`/teacher/classes/${division.id}/leaderboard`)
             .then(res => setLeaderboard(res.data.data))
             .catch(() => setLeaderboard([]));
-    }, [fetchStudents, division.id]);
+    }, [division.id]);
 
     // Reset edit draft when selected student changes
     useEffect(() => {
@@ -602,7 +610,9 @@ export default function ManageTab({ division, isClassTeacher }: {
                             </div>
                             <button
                                 onClick={() => setShowAddStudent(true)}
-                                className="flex items-center gap-1.5 h-7 px-3 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
+                                disabled={isHistorical}
+                                title={isHistorical ? 'Read-only — viewing a past year' : undefined}
+                                className="flex items-center gap-1.5 h-7 px-3 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                                 <Plus size={13} /> Add
                             </button>

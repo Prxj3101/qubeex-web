@@ -9,6 +9,7 @@ import {
 import { toast } from 'sonner';
 import { formatRelative } from 'date-fns';
 import api from '@/lib/api';
+import SupportHeader from '../SupportHeader';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Review {
@@ -315,25 +316,11 @@ export default function AdminFeedbackPage() {
         <div className="space-y-3 pt-0">
 
             {/* Header */}
-            <div className="shrink-0 pt-0 pb-0 px-1 sticky top-0 z-20 bg-background">
-                <div className="flex items-center justify-between flex-wrap gap-2 pt-1">
-                    <div>
-                        <h1 className="text-xl font-bold flex items-center gap-2">
-                            <Star size={21} className="text-amber-400 fill-amber-400" />
-                            Reviews & Feedback
-                        </h1>
-                        <p className="text-muted-foreground text-[13px]">
-                            {avgRating} avg · {reviews.length} review{reviews.length !== 1 ? 's' : ''}
-                        </p>
-                    </div>
-                    <button onClick={() => { setEditReview(undefined); setShowModal(true); }}
+            <SupportHeader subtitle={<>{avgRating} avg · {reviews.length} review{reviews.length !== 1 ? 's' : ''}</>}><button onClick={() => { setEditReview(undefined); setShowModal(true); }}
                         className="flex items-center gap-1 h-8 px-3 rounded-xl text-[13px] font-semibold text-white hover:opacity-90 transition-all"
                         style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
                         <Plus size={15} /> Write Review
-                    </button>
-                </div>
-                <div className="h-px bg-border/60 mt-2" />
-            </div>
+                    </button></SupportHeader>
 
             {/* Reviews grid */}
             {loading ? (
