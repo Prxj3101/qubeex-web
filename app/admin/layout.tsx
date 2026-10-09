@@ -40,6 +40,7 @@ const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/staff/staffroom',       keys: ['STAFF_STAFFROOM'] },
     { prefix: '/admin/staff/subadmins',       keys: ['STAFF_SUBADMINS'] },
     { prefix: '/admin/payroll',               keys: ['PAYROLL'] },
+    { prefix: '/admin/timetable',             keys: ['TIMETABLE_VIEW', 'TIMETABLE_MANAGE'] },
     { prefix: '/admin/campus/classes',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { prefix: '/admin/campus/courses',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     // Bare '/admin/campus' (the Feed page) is intentionally NOT gated here —

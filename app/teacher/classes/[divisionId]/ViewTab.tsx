@@ -14,6 +14,7 @@ import { Division, Assignment, getInitials, getAvatarColor, AVATAR_COLORS, Leade
 import { AttachmentPreview } from '@/components/shared/AttachmentPreview';
 import { colorForSubject } from '@/lib/subjectColors';
 import { formatDisplayName, resolveDisplayTitle } from '@/lib/displayName';
+import { ClassTimetableCard } from '@/components/timetable/ClassTimetableCard';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 type PostType = 'announcement' | 'notice' | 'material' | 'result';
@@ -930,35 +931,24 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                     })()}
                 </div>
 
-                {/* Timetable */}
-                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                            <Calendar size={14} /> Timetable
-                        </p>
-                        {isClassTeacher && (
+                {/* Timetable — live grid when published, class teacher can still upload an image fallback */}
+                <div className="shrink-0">
+                    <ClassTimetableCard
+                        mode="teacher"
+                        divisionId={division.id}
+                        divisionLabel={division.name}
+                        imageUrl={timetableImage}
+                        onOpenImage={() => setShowTimetable(true)}
+                        headerExtra={isClassTeacher ? (
                             <button
                                 onClick={() => timetableInputRef.current?.click()}
                                 disabled={uploadingTimetable}
                                 className="flex items-center gap-1 h-6 px-2.5 rounded-lg text-[11px] font-semibold text-white hover:opacity-90 transition-all disabled:opacity-60"
                                 style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
-                                <Upload size={11} /> {uploadingTimetable ? 'Uploading...' : timetableImage ? 'Replace' : 'Upload'}
+                                <Upload size={11} /> {uploadingTimetable ? 'Uploading...' : timetableImage ? 'Replace image' : 'Upload image'}
                             </button>
-                        )}
-                    </div>
-                    {timetableImage ? (
-                        <div className="p-2 cursor-pointer" onClick={() => setShowTimetable(true)}>
-                            <img src={timetableImage} alt="Timetable"
-                                className="w-full rounded-xl object-contain max-h-90 hover:opacity-90 transition-opacity" />
-                        </div>
-                    ) : (
-                        <div className="p-6 flex flex-col items-center justify-center gap-1.5 text-center">
-                            <Calendar size={22} className="text-muted-foreground/40" />
-                            <p className="text-[12px] text-muted-foreground">
-                                {isClassTeacher ? 'No timetable uploaded yet' : 'Timetable not uploaded yet'}
-                            </p>
-                        </div>
-                    )}
+                        ) : null}
+                    />
                 </div>
 
                 {isClassTeacher && (

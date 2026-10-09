@@ -53,6 +53,13 @@ const PERMISSION_TREE: PermNode[] = [
         ],
     },
     {
+        key: 'TIMETABLE', label: 'Timetable', icon: CalendarDays,
+        children: [
+            { key: 'TIMETABLE_VIEW',   label: 'View',   description: 'View timetables, conflicts & reports' },
+            { key: 'TIMETABLE_MANAGE', label: 'Manage', description: 'Build, generate, publish & edit timetables' },
+        ],
+    },
+    {
         key: 'INSIGHTS', label: 'Insights', icon: LineChart,
         children: [
             { key: 'INSIGHTS_ANALYTICS',    label: 'Analytics',    description: 'Usage & performance analytics' },

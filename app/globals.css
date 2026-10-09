@@ -508,3 +508,28 @@
   bottom: auto !important;
   transform: none !important;
 }
+/* ── Timetable printing ─────────────────────────────────────────────────────────
+   Printing a timetable shows only the print copy (see hooks/usePrintArea.tsx), never the whole page.
+   Scoped to body.tt-printing so other print uses in the app are untouched. */
+[data-tt-print-root] { display: none; }
+
+@media print {
+  body.tt-printing > *:not([data-tt-print-root]) { display: none !important; }
+  body.tt-printing {
+    overflow: visible !important;
+    height: auto !important;
+    position: static !important;
+    background: #fff !important;
+    pointer-events: auto !important;
+  }
+  body.tt-printing [data-tt-print-root] {
+    display: block !important;
+    color: #111;
+    background: #fff;
+    zoom: 0.88;
+  }
+  body.tt-printing [data-tt-print-root] * { box-shadow: none !important; }
+  body.tt-printing [data-tt-print-root] tr { break-inside: avoid; }
+  body.tt-printing [data-tt-print-root] .sticky { position: static !important; }
+  body.tt-printing [data-tt-print-root] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

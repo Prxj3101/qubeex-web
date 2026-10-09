@@ -9,6 +9,8 @@ import { colorForSubject } from '@/lib/subjectColors';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import api from '@/lib/api';
 import { formatDisplayName } from '@/lib/displayName';
+import { ClassTimetableCard } from '@/components/timetable/ClassTimetableCard';
+import { classLabel } from '@/lib/timetable';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 interface Subject { id: string; name: string; code: string; color: string; teacherName: string; teacherPrefix?: string | null; teacherAvatarUrl?: string | null }
@@ -229,22 +231,16 @@ function ViewTab({ data }: { data: ClassData }) {
                 <div className="flex-1 min-w-0 overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 pb-3 lg:[grid-template-rows:repeat(2,380px)]">
 
-                        {/* Timetable (col 1, row 1) */}
-                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
-                            <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
-                                <Calendar size={13} className="text-muted-foreground" />
-                                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Timetable</p>
-                            </div>
-                            {division?.timetableUrl ? (
-                                <div className="flex-1 flex items-center justify-center p-3 cursor-pointer overflow-hidden" onClick={() => setShowTimetable(true)}>
-                                    <img src={division.timetableUrl} alt="Timetable"
-                                        className="w-full h-full rounded-xl object-contain scale-[1.15] hover:opacity-90 transition-opacity" />
-                                </div>
-                            ) : (
-                                <div className="flex-1 flex flex-col items-center justify-center gap-1.5 text-center">
-                                    <Calendar size={22} className="text-muted-foreground/40" />
-                                    <p className="text-[12px] text-muted-foreground">Timetable not uploaded yet</p>
-                                </div>
+                        {/* Timetable (col 1, row 1) — live published grid, uploaded image as fallback */}
+                        <div className="min-h-[380px] lg:min-h-0 overflow-y-auto">
+                            {division && (
+                                <ClassTimetableCard
+                                    mode="student"
+                                    divisionId={division.id}
+                                    divisionLabel={classLabel(division.standardName, division.name)}
+                                    imageUrl={division.timetableUrl}
+                                    onOpenImage={() => setShowTimetable(true)}
+                                />
                             )}
                         </div>
 

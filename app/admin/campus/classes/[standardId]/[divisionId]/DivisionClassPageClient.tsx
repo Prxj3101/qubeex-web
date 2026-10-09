@@ -21,6 +21,8 @@ import { colorForSubject } from '@/lib/subjectColors';
 import { toTitleCase } from '@/lib/utils';
 import { formatDisplayName, resolveDisplayTitle } from '@/lib/displayName';
 import { FeesTab, FeesTabHandle } from './fees';
+import { ClassTimetableCard } from '@/components/timetable/ClassTimetableCard';
+import { classLabel } from '@/lib/timetable';
 import AttendanceTab, { AttendanceSubTab } from '@/app/teacher/classes/[divisionId]/AttendanceTab';
 import MarksTab, { MarksSubTab, MarksStats } from '@/app/teacher/classes/[divisionId]/MarksTab';
 
@@ -1687,26 +1689,14 @@ export default function DivisionDetailPage() {
                                 </div>
 
                                 {/* Timetable */}
-                                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
-                                    <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
-                                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                                            <Calendar size={12} /> Timetable
-                                        </p>
-                                    </div>
-                                    {division.timetableUrl ? (
-                                        <div className="p-2 cursor-pointer" onClick={() => setShowTimetable(true)}>
-                                            <img
-                                                src={division.timetableUrl}
-                                                alt="Timetable"
-                                                className="w-full rounded-xl object-contain max-h-84 hover:opacity-90 transition-opacity"
-                                            />
-                                        </div>
-                                    ) : (
-                                        <div className="p-6 flex flex-col items-center justify-center gap-1.5 text-center">
-                                            <Calendar size={22} className="text-muted-foreground/40" />
-                                            <p className="text-[12px] text-muted-foreground">Timetable not uploaded yet</p>
-                                        </div>
-                                    )}
+                                <div className="shrink-0">
+                                    <ClassTimetableCard
+                                        mode="admin"
+                                        divisionId={division.id}
+                                        divisionLabel={classLabel(division.standard.name, division.name)}
+                                        imageUrl={division.timetableUrl}
+                                        onOpenImage={() => setShowTimetable(true)}
+                                    />
                                 </div>
 
                                 {/* Class Calendar */}
