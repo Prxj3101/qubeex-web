@@ -7,12 +7,13 @@ import { TransferStockDialog } from './TransferStockDialog';
 import { IssueStockDialog, recipientLabel } from './IssueStockDialog';
 import { IssuedStockDialog } from './IssuedStockDialog';
 import { useCallback, useEffect, useState } from 'react';
-import { Boxes, Plus, Pencil, Trash2, Search, Loader2, PackagePlus, Paperclip, ExternalLink, Download, PackageMinus, ClipboardList, ArrowRightLeft, SlidersHorizontal, Undo2 } from 'lucide-react';
+import { Boxes, Plus, Pencil, Trash2, Search, Loader2, PackagePlus, Paperclip, ExternalLink, Download, PackageMinus, ClipboardList, ArrowRightLeft, SlidersHorizontal, Undo2, MoreHorizontal } from 'lucide-react';
 import { PendingAttachmentChip } from '@/components/shared/PendingAttachmentChip';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { PageHeader, PrimaryButton, SecondaryButton, SmallButton, EmptyState, Field, inputCls, ThemedSelect, Pill } from '@/app/admin/payroll/_components/ui';
 
@@ -193,15 +194,21 @@ export default function ItemsPanel({ onSetup }: { onSetup: () => void }) {
                                 <SmallButton onClick={() => void showHistory(item, b)}>History</SmallButton>
                             </div>) : <span className="text-muted-foreground">No stock recorded</span>}</td>
                             <td className="px-4 py-3 whitespace-nowrap"><Pill tone={low ? 'amber' : quantity > 0 ? 'green' : 'muted'}>{low ? 'Low stock' : quantity > 0 ? 'In stock' : 'No stock'}</Pill></td>
-                            <td className="px-4 py-3"><div className="flex gap-1.5">
-                                <SmallButton disabled={!suppliers.length || !item.balances.some(b => Number(b.quantity) > 0)} onClick={() => setSupplierReturnItem(item)}><Undo2 size={13} />Supplier return</SmallButton>
-                                <SmallButton disabled={locations.length < 2 || !item.balances.some(b => Number(b.quantity) > 0)} onClick={() => setTransferItem(item)}><ArrowRightLeft size={13} />Transfer stock</SmallButton>
+                            <td className="px-4 py-3"><div className="flex items-center gap-1.5">
                                 <SmallButton disabled={!item.balances.some(b => Number(b.quantity) > 0)} onClick={() => setIssueItem(item)}><PackageMinus size={13} />Issue stock</SmallButton>
-                                <SmallButton onClick={() => setIssuedItem(item)}><ClipboardList size={13} />Issued items</SmallButton>
                                 <SmallButton disabled={!locations.length || !suppliers.length} onClick={() => setReceipt({ files: [], item, requestId: crypto.randomUUID(), supplierId: '', locationId: '', deliveredQuantity: '', rejectedQuantity: '0', damageReason: '', recordedOn: today(), billNumber: '', billDate: '', totalCost: '', notes: '' })}><PackagePlus size={13} />Receive stock</SmallButton>
-                                <SmallButton disabled={!locations.some(l => !item.balances.some(b => b.locationId === l.id))} onClick={() => setOpening({ item, locationId: '', quantity: '', recordedOn: today(), notes: '' })}><PackagePlus size={13} />Opening stock</SmallButton>
-                                <SmallButton aria-label={`Edit ${item.name}`} onClick={() => setDraft({ id: item.id, name: item.name, code: item.code, description: item.description, type: item.type, categoryId: item.categoryId, unitId: item.unitId, lowStockLevel: String(item.lowStockLevel) })}><Pencil size={13} /></SmallButton>
-                                <SmallButton aria-label={`Delete ${item.name}`} disabled={item.balances.length > 0} onClick={() => setToDelete(item)}><Trash2 size={13} /></SmallButton>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild><SmallButton aria-label={`More actions for ${item.name}`}><MoreHorizontal size={14} /></SmallButton></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuItem disabled={locations.length < 2 || !item.balances.some(b => Number(b.quantity) > 0)} onClick={() => setTransferItem(item)}><ArrowRightLeft size={13} className="mr-2" />Transfer stock</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => setIssuedItem(item)}><ClipboardList size={13} className="mr-2" />Issued items</DropdownMenuItem>
+                                        <DropdownMenuItem disabled={!locations.some(l => !item.balances.some(b => b.locationId === l.id))} onClick={() => setOpening({ item, locationId: '', quantity: '', recordedOn: today(), notes: '' })}><PackagePlus size={13} className="mr-2" />Opening stock</DropdownMenuItem>
+                                        <DropdownMenuItem disabled={!suppliers.length || !item.balances.some(b => Number(b.quantity) > 0)} onClick={() => setSupplierReturnItem(item)}><Undo2 size={13} className="mr-2" />Supplier return</DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => setDraft({ id: item.id, name: item.name, code: item.code, description: item.description, type: item.type, categoryId: item.categoryId, unitId: item.unitId, lowStockLevel: String(item.lowStockLevel) })}><Pencil size={13} className="mr-2" />Edit item</DropdownMenuItem>
+                                        <DropdownMenuItem variant="destructive" disabled={item.balances.length > 0} onClick={() => setToDelete(item)}><Trash2 size={13} className="mr-2" />Delete item</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div></td>
                         </tr>;
                     })}</tbody>
