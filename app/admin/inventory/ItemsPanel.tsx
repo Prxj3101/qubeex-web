@@ -7,7 +7,7 @@ import { TransferStockDialog } from './TransferStockDialog';
 import { IssueStockDialog, recipientLabel } from './IssueStockDialog';
 import { IssuedStockDialog } from './IssuedStockDialog';
 import { useCallback, useEffect, useState } from 'react';
-import { Boxes, Plus, Pencil, Trash2, Search, Loader2, PackagePlus, Paperclip, ExternalLink, Download, PackageMinus, ClipboardList, ArrowRightLeft, SlidersHorizontal, Undo2, MoreHorizontal } from 'lucide-react';
+import { Boxes, Plus, Pencil, Trash2, Search, Loader2, PackagePlus, Paperclip, ExternalLink, Download, PackageMinus, ClipboardList, ArrowRightLeft, SlidersHorizontal, Undo2, MoreHorizontal, History } from 'lucide-react';
 import { PendingAttachmentChip } from '@/components/shared/PendingAttachmentChip';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -189,9 +189,14 @@ export default function ItemsPanel({ onSetup }: { onSetup: () => void }) {
                             <td className="px-4 py-3 whitespace-nowrap font-semibold">{formatQuantity(quantity)} <span className="font-normal text-muted-foreground">{item.unit.abbreviation || item.unit.name}</span></td>
                             <td className="px-4 py-3">{item.balances.length ? item.balances.map(b => <div key={b.id} className="flex items-center gap-2 py-1 whitespace-nowrap">
                                 <span>{b.location.name}: {formatQuantity(b.quantity)}</span>
-                                <SmallButton aria-label={`Edit opening stock at ${b.location.name}`} title="Edit opening stock" disabled={!canCorrect(item, b)} onClick={() => setCorrection({ item, balance: b, quantity: String(b.quantity), reason: '' })}><Pencil size={12} /></SmallButton>
-                                <SmallButton title="Stock adjustment" aria-label={`Adjust stock at ${b.location.name}`} onClick={() => setAdjustment({ item, balance: b })}><SlidersHorizontal size={12} />Adjust stock</SmallButton>
-                                <SmallButton onClick={() => void showHistory(item, b)}>History</SmallButton>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild><SmallButton aria-label={`Actions for ${item.name} at ${b.location.name}`}><MoreHorizontal size={14} /></SmallButton></DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48">
+                                        <DropdownMenuItem onClick={() => setAdjustment({ item, balance: b })}><SlidersHorizontal size={13} className="mr-2" />Adjust stock</DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => void showHistory(item, b)}><History size={13} className="mr-2" />History</DropdownMenuItem>
+                                        <DropdownMenuItem disabled={!canCorrect(item, b)} onClick={() => setCorrection({ item, balance: b, quantity: String(b.quantity), reason: '' })}><Pencil size={13} className="mr-2" />Edit opening stock</DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
                             </div>) : <span className="text-muted-foreground">No stock recorded</span>}</td>
                             <td className="px-4 py-3 whitespace-nowrap"><Pill tone={low ? 'amber' : quantity > 0 ? 'green' : 'muted'}>{low ? 'Low stock' : quantity > 0 ? 'In stock' : 'No stock'}</Pill></td>
                             <td className="px-4 py-3"><div className="flex items-center gap-1.5">
