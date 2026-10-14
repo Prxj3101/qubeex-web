@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { AlertTriangle, BookOpen, FlaskConical, Library, Loader2, Minus, Plus, Trash2, Trophy, Palette, ListPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { classLabel, ttApi, errMsg, type ConfigRow, type SessionType, type StudioData } from '@/lib/timetable';
+import { classLabel, ttApi, errMsg, type ConfigRow, type CopyConfigsResult, type SessionType, type StudioData } from '@/lib/timetable';
 
 const field = 'w-full rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm';
 
@@ -85,7 +85,11 @@ function RequirementsForm({ onClose, studio, yearId, onSaved }: Props) {
     };
     const blocking = rows.some(r => warningsFor(r).some(w => w.level === 'error')) || total > capacity;
 
-    const save = async () => {
+    const save = async (applyToOthers: boolean) => {
+        if (applyToOthers) {
+            const names = studio.siblings.map(x => x.label).join(', ');
+            if (!confirm(`Save, then apply these requirements to ${studio.siblings.length} other section(s): ${names}?\n\nMatching subjects there are updated and missing ones added. Nothing is deleted, and each section keeps its own teachers.`)) return;
+        }
         setBusy(true);
         try {
             await ttApi.put(`/divisions/${studio.division.id}/configs`, yearId, {
@@ -95,7 +99,12 @@ function RequirementsForm({ onClose, studio, yearId, onSaved }: Props) {
                     teacherId: r.teacherId, roomId: r.roomId, roomType: r.roomType || null,
                 })),
             });
-            toast.success('Weekly requirements saved');
+            if (applyToOthers) {
+                const res = await ttApi.post<CopyConfigsResult[]>(`/divisions/${studio.division.id}/configs/copy`, yearId, {});
+                toast.success(`Saved and applied to ${res.length} other section${res.length === 1 ? '' : 's'}: ${res.map(r => r.divisionName).join(', ')}`);
+            } else {
+                toast.success('Weekly requirements saved');
+            }
             onSaved();
             onClose();
         } catch (e) { toast.error(errMsg(e)); } finally { setBusy(false); }
@@ -212,11 +221,19 @@ function RequirementsForm({ onClose, studio, yearId, onSaved }: Props) {
                     )}
                 </div>
 
-                <DialogFooter className="sm:justify-between">
+                <DialogFooter className="gap-2 sm:justify-between">
                     <span className="self-center text-xs text-muted-foreground">{blocking ? 'Fix the red items to save.' : ''}</span>
-                    <button type="button" disabled={busy || blocking} onClick={() => void save()} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
-                        {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save requirements
-                    </button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                        {studio.siblings.length > 0 && (
+                            <button type="button" disabled={busy || blocking || !rows.length} onClick={() => void save(true)} title={`Also apply to ${studio.siblings.map(x => x.label).join(', ')}`}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-primary/50 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/10 disabled:opacity-50">
+                                {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save &amp; apply to {studio.siblings.length} other section{studio.siblings.length === 1 ? '' : 's'}
+                            </button>
+                        )}
+                        <button type="button" disabled={busy || blocking} onClick={() => void save(false)} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-50">
+                            {busy && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Save requirements
+                        </button>
+                    </div>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
