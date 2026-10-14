@@ -52,7 +52,7 @@ export function ClassTimetableEditor({ divisionId, onChanged }: { divisionId: st
                 })}
             </div>
 
-            {pane('timetable', <Suspense key={studioKey} fallback={null}><StudioClient fixedDivisionId={divisionId} onChanged={onChanged} /></Suspense>)}
+            {pane('timetable', <Suspense key={studioKey} fallback={null}><StudioClient fixedDivisionId={divisionId} onChanged={onChanged} onNavigate={t => open(t)} /></Suspense>)}
             {pane('setup', <SetupClient />)}
             {pane('resources', <ResourcesClient />)}
             {pane('reports', <ViewsClient initialKind="class" initialTargetId={divisionId} />)}

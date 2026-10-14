@@ -56,6 +56,7 @@ export interface StudioData {
     academicYear: { id: string; label: string; status: string; isCurrent: boolean };
     writable: boolean;
     division: { id: string; name: string; standardId: string; standardName: string; classTeacherId: string | null };
+    siblings: { id: string; label: string }[];   // the other sections of this class
     timetable: { id: string; status: TimetableStatus; generatedAt: string | null; publishedAt: string | null } | null;
     workingDays: number[]; slots: Slot[]; entries: Entry[]; configs: ConfigRow[]; requirements: Requirement[]; conflicts: Conflict[];
     subjects: SubjectLite[]; sessionTypes: SessionType[]; rooms: Room[]; teachers: TeacherLite[];
@@ -68,6 +69,15 @@ export interface SetupData {
     sessionTypes: SessionType[]; rooms: Room[]; teachers: TeacherLite[]; subjects: { id: string; name: string }[];
     teacherPrefs: { teacherId: string; maxPeriodsPerDay: number | null; maxConsecutive: number | null; maxPeriodsPerWeek: number | null }[];
 }
+
+/** A session of another, still-unpublished section that was moved so the section being generated could be filled. */
+export interface RearrangedItem { divisionId: string; divisionName: string; subject: string; from: string; to: string }
+
+export interface GeneratePublishResult {
+    divisionId: string; divisionName: string; outcome: 'PUBLISHED' | 'NEEDS_ATTENTION' | 'SKIPPED'; reasons: string[]; placed: number; unplaced: number;
+    rearranged?: RearrangedItem[];
+}
+export interface CopyConfigsResult { divisionId: string; divisionName: string; added: number; updated: number }
 
 export interface OverviewRow {
     divisionId: string; divisionName: string; standardId: string; standardName: string;

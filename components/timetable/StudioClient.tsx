@@ -15,18 +15,20 @@ import { TimetableGrid, GridLegend, cellKey, CONFIG_DRAG_TYPE } from './Timetabl
 import { SessionDialog } from './SessionDialog';
 import { RequirementsDialog } from './RequirementsDialog';
 import { DayToolsDialog } from './DayToolsDialog';
+import { ReadinessChecklist, type ReadinessTarget } from './ReadinessChecklist';
+import { BulkResultDialog } from './BulkResultDialog';
 import { ConflictList } from './ConflictList';
 import {
     classLabel, STATUS_CLASS, STATUS_LABEL, ttApi, conflictsFromError, errMsg,
-    type Conflict, type Entry, type EntrySnapshot, type Slot, type TimetableStatus, type UndoAction,
+    type Conflict, type Entry, type EntrySnapshot, type GeneratePublishResult, type RearrangedItem, type Slot, type TimetableStatus, type UndoAction,
 } from '@/lib/timetable';
 
-interface GenResult { divisionId: string; divisionName: string; complete: boolean; placed: number; unplaced: number; problems: string[]; timedOut: boolean }
+interface GenResult { divisionId: string; divisionName: string; complete: boolean; placed: number; unplaced: number; problems: string[]; timedOut: boolean; rearranged?: RearrangedItem[] }
 
 const MAX_UNDO = 20;
 const todayDow = () => ((new Date().getDay() + 6) % 7) + 1;
 
-export function StudioClient({ fixedDivisionId, onChanged }: { fixedDivisionId?: string; onChanged?: () => void } = {}) {
+export function StudioClient({ fixedDivisionId, onChanged, onNavigate }: { fixedDivisionId?: string; onChanged?: () => void; onNavigate?: (t: ReadinessTarget) => void } = {}) {
     const embedded = !!fixedDivisionId;
     const router = useRouter();
     const params = useSearchParams();
@@ -43,6 +45,7 @@ export function StudioClient({ fixedDivisionId, onChanged }: { fixedDivisionId?:
     const [forceAsk, setForceAsk] = useState<{ title: string; conflicts: Conflict[]; run: () => Promise<void> } | null>(null);
     const [menu, setMenu] = useState<'generate' | 'export' | 'more' | null>(null);
     const [undoStack, setUndoStack] = useState<UndoAction[]>([]);
+    const [bulkResult, setBulkResult] = useState<{ title: string; rows: GeneratePublishResult[] } | null>(null);
     const { printing, start: startPrint } = usePrintArea();
 
     const divisionId = fixedDivisionId ?? params.get('div');
@@ -157,7 +160,8 @@ export function StudioClient({ fixedDivisionId, onChanged }: { fixedDivisionId?:
             if (scope === 'division') {
                 const r = await ttApi.post<GenResult>(`/divisions/${studio.division.id}/generate`, selectedYearId, { keepLocked: true, variation });
                 setGenState({ division: studio.division.id, results: [r] });
-                toast[r.complete ? 'success' : 'warning'](r.complete ? 'Timetable generated' : `Generated with ${r.unplaced} unscheduled period${r.unplaced === 1 ? '' : 's'}`);
+                const moved = r.rearranged?.length ?? 0;
+                toast[r.complete ? 'success' : 'warning']((r.complete ? 'Timetable generated' : `Generated with ${r.unplaced} unscheduled period${r.unplaced === 1 ? '' : 's'}`) + (moved ? ` · moved ${moved} session${moved === 1 ? '' : 's'} in other unpublished sections to make room` : ''));
             } else {
                 const r = await ttApi.post<GenResult[]>('/generate-bulk', selectedYearId, { keepLocked: true, variation, standardId: scope === 'standard' ? studio.division.standardId : undefined });
                 setGenState({ division: studio.division.id, results: r });
@@ -169,6 +173,44 @@ export function StudioClient({ fixedDivisionId, onChanged }: { fixedDivisionId?:
             reload();
         } catch (e) { toast.error(errMsg(e)); } finally { setBusy(null); }
     };
+
+    /** One click: generate every unpublished section and publish the ones that come out complete and clean. */
+    const generatePublish = async (scope: 'standard' | 'all') => {
+        if (!studio) return;
+        setMenu(null);
+        const what = scope === 'standard' ? `every unpublished section of class ${studio.division.standardName}` : 'every unpublished section in the school';
+        if (!confirm(`Generate ${what} and publish the ones that come out complete and conflict-free?\n\nAlready-published sections are left alone. Anything with problems stays a draft and is listed with the reason.`)) return;
+        setBusy('generate');
+        const variation = Math.floor(Math.random() * 1_000_000_000);
+        try {
+            const rows = await ttApi.post<GeneratePublishResult[]>('/generate-publish', selectedYearId, { keepLocked: true, variation, standardId: scope === 'standard' ? studio.division.standardId : undefined });
+            setBulkResult({ title: scope === 'standard' ? `Generate & publish — class ${studio.division.standardName}` : 'Generate & publish — whole school', rows });
+            setUndoStack([]);
+            reload();
+        } catch (e) { toast.error(errMsg(e)); } finally { setBusy(null); }
+    };
+
+    /** Publish the sections of this class that already have a timetable, without regenerating anything. */
+    const publishReady = async () => {
+        if (!studio) return;
+        setMenu(null);
+        const all = [{ id: studio.division.id, label: classLabel(studio.division.standardName, studio.division.name) }, ...studio.siblings];
+        setBusy('status');
+        try {
+            const res = await ttApi.post<{ divisionId: string; ok: boolean; error?: string }[]>('/status-bulk', selectedYearId, { status: 'PUBLISHED', divisionIds: all.map(x => x.id) });
+            const label = new Map(all.map(x => [x.id, x.label]));
+            setBulkResult({
+                title: `Publish — class ${studio.division.standardName}`,
+                rows: res.map(r => ({
+                    divisionId: r.divisionId, divisionName: label.get(r.divisionId) ?? r.divisionId, outcome: r.ok ? 'PUBLISHED' as const : 'NEEDS_ATTENTION' as const,
+                    reasons: r.ok ? [] : [r.error ?? 'Could not publish'], placed: 0, unplaced: 0,
+                })),
+            });
+            reload();
+        } catch (e) { toast.error(errMsg(e)); } finally { setBusy(null); }
+    };
+
+    const goTo = (t: ReadinessTarget) => (onNavigate ? onNavigate(t) : router.push(t === 'setup' ? '/admin/timetable/setup' : '/admin/timetable/resources'));
 
     const setStatus = (next: TimetableStatus, okMsg: string) =>
         attempt('status', async force => { await ttApi.post(`/divisions/${studio!.division.id}/status`, selectedYearId, { status: next, force }); }, okMsg);
@@ -265,15 +307,19 @@ export function StudioClient({ fixedDivisionId, onChanged }: { fixedDivisionId?:
                                 {busy === 'undo' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Undo2 className="w-4 h-4" />} Undo{undoStack.length > 1 ? ` (${undoStack.length})` : ''}
                             </button>
                             <div className="relative">
-                                <button type="button" disabled={!!busy || published || !periodsConfigured} onClick={() => setMenu(m => (m === 'generate' ? null : 'generate'))} title={published ? 'Unpublish to regenerate' : !periodsConfigured ? 'Set working days and periods first' : ''}
+                                <button type="button" disabled={!!busy || !periodsConfigured} onClick={() => setMenu(m => (m === 'generate' ? null : 'generate'))} title={!periodsConfigured ? 'Set working days and periods first' : ''}
                                     className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground disabled:opacity-50">
                                     {busy === 'generate' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Wand2 className="w-4 h-4" />} Generate <ChevronDown className="w-3.5 h-3.5" />
                                 </button>
                                 {menu === 'generate' && (
                                     <div className={menuBox}>
-                                        <button className={menuItem} onClick={() => void generate('division')}>This section <span className="block text-xs text-muted-foreground">New arrangement each time · keeps locked sessions</span></button>
+                                        <button className={menuItem} disabled={published} onClick={() => void generate('division')}>This section <span className="block text-xs text-muted-foreground">{published ? 'Unpublish first to regenerate' : 'New arrangement each time · keeps locked sessions · may move sessions in other unpublished sections'}</span></button>
                                         {!embedded && <button className={menuItem} onClick={() => void generate('standard')}>All sections of this class</button>}
                                         {!embedded && <button className={menuItem} onClick={() => void generate('all')}>Every class in the school</button>}
+                                        <div className="my-1 border-t border-border/60" />
+                                        <button className={menuItem} onClick={() => void generatePublish('standard')}>Generate &amp; publish — all sections of this class <span className="block text-xs text-muted-foreground">Publishes only the clean ones</span></button>
+                                        {!embedded && <button className={menuItem} onClick={() => void generatePublish('all')}>Generate &amp; publish — whole school</button>}
+                                        <button className={menuItem} onClick={() => void publishReady()}>Publish all ready sections of this class <span className="block text-xs text-muted-foreground">No regenerating</span></button>
                                     </div>
                                 )}
                             </div>
@@ -334,11 +380,13 @@ export function StudioClient({ fixedDivisionId, onChanged }: { fixedDivisionId?:
                         </PrintPortal>
                     )}
 
-                    {!periodsConfigured && (
-                        <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 text-sm text-amber-700 dark:text-amber-300">
-                            Working days or periods aren&apos;t set up for {studio.academicYear.label} yet. Open the <b>Periods &amp; days</b> tab to set them first.
-                        </div>
-                    )}
+                    <ReadinessChecklist
+                        studio={studio} canManage={writable} onNavigate={goTo}
+                        onEditRequirements={() => setReqOpen(true)}
+                        onGenerate={() => void generate('division')}
+                        onShowConflicts={() => setPanel('conflicts')}
+                        onPublish={() => void setStatus('PUBLISHED', 'Timetable published')}
+                    />
 
                     <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px] print:block">
                         <div className="min-w-0 space-y-2">
@@ -420,6 +468,14 @@ export function StudioClient({ fixedDivisionId, onChanged }: { fixedDivisionId?:
                                                     {r.problems.map((p, i) => <li key={i}>{p}</li>)}
                                                 </ul>
                                             )}
+                                            {!!r.rearranged?.length && (
+                                                <div className="rounded-lg bg-sky-500/10 px-2.5 py-2 text-xs text-sky-700 dark:text-sky-300">
+                                                    <div className="font-semibold">Moved {r.rearranged.length} session{r.rearranged.length === 1 ? '' : 's'} in other unpublished sections to make room:</div>
+                                                    <ul className="mt-1 list-disc pl-5 space-y-0.5">
+                                                        {r.rearranged.map((m, i) => <li key={i}>{m.divisionName} · {m.subject}: {m.from} → {m.to}</li>)}
+                                                    </ul>
+                                                </div>
+                                            )}
                                         </div>
                                     ))}
                                     {!genResults && !studio.lastGeneration && <p className="text-sm text-muted-foreground">Nothing generated yet.</p>}
@@ -434,6 +490,7 @@ export function StudioClient({ fixedDivisionId, onChanged }: { fixedDivisionId?:
                         onChanged={undoStep => { pushUndo(undoStep); reload(); }}
                     />
                     <RequirementsDialog open={reqOpen} onClose={() => setReqOpen(false)} studio={studio} yearId={selectedYearId} onSaved={() => void reload()} />
+                    <BulkResultDialog result={bulkResult} onClose={() => setBulkResult(null)} />
                     <DayToolsDialog open={dayToolsOpen} onClose={() => setDayToolsOpen(false)} workingDays={studio.workingDays} dayCounts={dayCounts} onCopy={copyDay} onClear={d => clear(d)} />
                 </>
             )}

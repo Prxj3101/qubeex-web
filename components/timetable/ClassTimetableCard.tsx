@@ -8,7 +8,7 @@ import { useCanManageTimetable } from '@/hooks/useTimetableAccess';
 import { useRemote } from '@/hooks/useRemote';
 import { TimetableGrid } from './TimetableGrid';
 import { ClassTimetableEditor } from './ClassTimetableEditor';
-import { STATUS_CLASS, STATUS_LABEL, selfApi, ttApi, type Entry, type Slot, type TimetableStatus, type WeekData } from '@/lib/timetable';
+import { STATUS_CLASS, STATUS_LABEL, errMsg, selfApi, ttApi, type Entry, type Slot, type TimetableStatus, type WeekData } from '@/lib/timetable';
 import api from '@/lib/api';
 
 type Mode = 'admin' | 'teacher' | 'student';
@@ -20,6 +20,7 @@ interface Model {
     status: TimetableStatus | null;     // admin only (teachers/students only ever see published data)
     writable: boolean;
     hasContent: boolean;
+    error?: string;                     // a real failure (not just "nothing published yet")
 }
 
 // A published week (teacher/student payload) → the same entry shape the grid renders.
@@ -64,13 +65,15 @@ export function ClassTimetableCard({ mode, divisionId, divisionLabel, imageUrl, 
             if (mode === 'student') return fromWeek(await selfApi.week('student', undefined), divisionId);
             const res = await api.get(`/teacher/timetable/division/${divisionId}`, { params: yearId ? { academicYearId: yearId } : {} });
             return fromWeek(res.data.data as WeekData, divisionId);
-        } catch {
-            return null; // no access / not configured → fall back to the image
+        } catch (e) {
+            // Keep showing the old image, but say why the live timetable couldn't load instead of failing silently.
+            return { slots: [], days: [], entries: [], status: null, writable: false, hasContent: false, error: errMsg(e, 'The server could not be reached') };
         }
     });
     const m = q.data;
     const canEdit = mode === 'admin' && canManage && !!m?.writable;
     const showGrid = !!m && m.hasContent;
+    const loadError = m?.error ?? null;
     const unpublished = mode === 'admin' && m?.status && m.status !== 'PUBLISHED';
 
     const grid = useMemo(() => (m ? (
@@ -100,6 +103,13 @@ export function ClassTimetableCard({ mode, divisionId, divisionLabel, imageUrl, 
                     )}
                 </span>
             </div>
+
+            {loadError && !showGrid && (
+                <div className="mx-3 mt-3 flex items-start justify-between gap-2 rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                    <span>Couldn&apos;t load the live timetable: {loadError}</span>
+                    <button type="button" onClick={q.reload} className="shrink-0 font-semibold underline">Retry</button>
+                </div>
+            )}
 
             {q.loading ? (
                 <div className="p-6 text-center text-xs text-muted-foreground">Loading…</div>
