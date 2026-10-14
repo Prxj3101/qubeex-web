@@ -239,7 +239,7 @@ export default function AdminStudentDetailPage() {
                     style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
 
                     {/* ROW 1 — Student Info + Academic Details */}
-                    <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                    <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background" data-admin-surface="">
                         <div className="flex-1 px-4 py-3 border-b lg:border-b-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
                             <SectionLabel icon={User} label="Student Info" />
                             <div className="flex items-center gap-3 mb-2">
@@ -291,7 +291,7 @@ export default function AdminStudentDetailPage() {
                     </div>
 
                     {/* ROW 2 — Medical & Identity + Address */}
-                    <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                    <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background" data-admin-surface="">
                         <div className="flex-1 px-4 py-3 border-b lg:border-b-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
                             <SectionLabel icon={Shield} label="Medical & Identity" />
                             <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200/50 dark:border-red-900/50">
@@ -319,13 +319,13 @@ export default function AdminStudentDetailPage() {
                     </div>
 
                     {/* ROW 3 — Parents / Guardian */}
-                    <div className="border border-border/50 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
+                    <div className="border border-border/50 rounded-2xl px-4 py-3 space-y-2.5 bg-background" data-admin-surface="">
                         <SectionLabel icon={Users} label="Parents / Guardian" />
                         {(!student.guardians || student.guardians.length === 0) && (
                             <p className="text-xs text-muted-foreground/60 text-center py-2">No parents or guardians added yet</p>
                         )}
                         {(student.guardians ?? []).map((g, i) => (
-                            <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
+                            <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2" data-admin-surface="">
                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
                                     {g.relation || `Entry ${i + 1}`}
                                 </p>

@@ -269,7 +269,7 @@ export default function StudentOverview() {
                 </div>
 
                 {/* ── Leaderboard ── */}
-                <div className="bg-card border border-border/50 rounded-xl p-5 flex flex-col gap-4">
+                <div className="bg-card border border-border/50 rounded-xl p-5 flex flex-col gap-4" data-dashboard-surface="">
                     {/* Header */}
                     <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">

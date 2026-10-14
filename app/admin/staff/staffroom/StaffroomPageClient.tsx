@@ -185,7 +185,7 @@ function AttachmentChip({
   }
   return (
     <div
-      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl w-fit max-w-[220px] ${dark ? "bg-white/20" : "bg-muted/50 border border-border/40"}`}
+      className={`flex items-center gap-2 px-3 py-1.5 rounded-xl w-fit max-w-[220px] ${dark ? "bg-white/20" : "bg-muted/50 border border-border/40"}`} data-admin-surface=""
     >
       <FileText
         size={12}
@@ -328,7 +328,7 @@ function PostCard({
             isEmojiOnlyMessage(post.text) && !(post.attachments?.length)
               ? {}
               : isMe ? { background: "#E8CBB5", color: "#3A322C" } : {}
-          }
+          } data-admin-surface=""
         >
           <LinkifiedText
             text={post.text}
@@ -392,7 +392,7 @@ function PostCard({
                     >
                       {getInitials(c.author.name)}
                     </div>
-                    <div className="px-2.5 py-1.5 rounded-xl bg-muted/60 border border-border/30 group relative">
+                    <div className="px-2.5 py-1.5 rounded-xl bg-muted/60 border border-border/30 group relative" data-admin-surface="">
                       <p className="text-[10px] font-semibold text-muted-foreground">
                         {formatDisplayName(c.author.name, c.author.prefix)}
                       </p>
@@ -448,7 +448,7 @@ function PostCard({
       {confirmDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface="">
             <h3 className="text-base font-bold mb-1">Delete Post?</h3>
             <p className="text-sm text-muted-foreground mb-5">This post will be permanently deleted.</p>
             <div className="flex gap-2 justify-end">
@@ -1049,7 +1049,7 @@ export default function StaffroomPage() {
       {/* Body */}
       <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden pb-3">
         {/* LEFT — Feed */}
-        <div className="relative w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+        <div className="relative w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20" data-admin-surface="">
           {/* Feed header */}
           <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
             <div className="flex items-center justify-between">
@@ -1183,7 +1183,7 @@ export default function StaffroomPage() {
               <div className="self-center w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-950 flex items-center justify-center text-[10px] font-bold text-violet-700 dark:text-violet-300 shrink-0">
                 {myInitials || "AD"}
               </div>
-              <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+              <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all" data-admin-surface="">
                 <textarea
                   ref={postInputRef}
                   value={postInput}
@@ -1255,7 +1255,7 @@ export default function StaffroomPage() {
         </div>
 
         {/* RIGHT — DMs */}
-        <div className="relative w-full lg:w-[40%] h-[70vh] lg:h-auto flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20">
+        <div className="relative w-full lg:w-[40%] h-[70vh] lg:h-auto flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20" data-admin-surface="">
           {/* DMs header */}
           <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
             <div className="flex items-center justify-between">
@@ -1462,7 +1462,7 @@ export default function StaffroomPage() {
                               return (
                             <div
                               className={msgEmojiOnly ? "px-0.5 py-0.5" : `px-2.5 py-1.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.isMe ? "rounded-tr-sm" : "bg-card border border-border/40 text-foreground rounded-tl-sm"}`}
-                              style={msgEmojiOnly ? {} : (msg.isMe ? { background: "#E8CBB5", color: "#3A322C" } : {})}
+                              style={msgEmojiOnly ? {} : (msg.isMe ? { background: "#E8CBB5", color: "#3A322C" } : {})} data-admin-surface=""
                             >
                               {msg.text && (
                                 <p className={msgEmojiOnly ? "text-[40px] leading-[48px]" : undefined}>
@@ -1551,7 +1551,7 @@ export default function StaffroomPage() {
                 {/* DM Input */}
                 <div className="px-3 py-1.5 border-t border-border/40 shrink-0">
                   <div className="flex items-end gap-2">
-                    <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                    <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all" data-admin-surface="">
                       <textarea
                         ref={dmInputRef}
                         value={dmInput}
@@ -1663,7 +1663,7 @@ export default function StaffroomPage() {
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface=""
           >
             <h3 className="text-base font-bold mb-1">Unsend Message?</h3>
             <p className="text-sm text-muted-foreground mb-5">This message will be permanently deleted. Are you sure?</p>

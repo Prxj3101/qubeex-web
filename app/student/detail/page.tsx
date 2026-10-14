@@ -110,7 +110,7 @@ function PhoneField({ label, value, onChange }: { label: string; value: string; 
                     </button>
                     {open && typeof document !== 'undefined' && createPortal(
                         <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
-                            className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
+                            className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto" data-dashboard-surface="">
                             {COUNTRY_CODES.map(c => (
                                 <button key={c.code} type="button"
                                     onClick={() => { onChange(`${c.code} ${number}`); setOpen(false); }}
@@ -461,7 +461,7 @@ export default function StudentDetailPage() {
                 style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
 
                 {/* ROW 1 — Student Info + Academic Details */}
-                <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background" data-dashboard-surface="">
 
                     {/* LEFT — Student Info */}
                     <div className="flex-1 px-4 py-3 border-b lg:border-b-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
@@ -575,7 +575,7 @@ export default function StudentDetailPage() {
                 </div>
 
                 {/* ROW 2 — Medical & Identity + Address */}
-                <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background" data-dashboard-surface="">
 
                     {/* LEFT — Medical & Identity */}
                     <div className="flex-1 px-4 py-3 border-b lg:border-b-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
@@ -637,7 +637,7 @@ export default function StudentDetailPage() {
                 </div>
 
                 {/* ROW 3 — Parents / Guardian */}
-                <div className="border border-border/50 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
+                <div className="border border-border/50 rounded-2xl px-4 py-3 space-y-2.5 bg-background" data-dashboard-surface="">
                     <SectionHeader icon={Users} label="Parents / Guardian"
                         editing={editingGuardians} onEdit={startGuardiansEdit} onSave={saveGuardiansEdit} onCancel={cancelGuardiansEdit}
                         afterLabel={editingGuardians && (
@@ -660,7 +660,7 @@ export default function StudentDetailPage() {
                         <p className="text-xs text-muted-foreground/60 text-center py-2">No parents or guardians added yet</p>
                     )}
                     {(editingGuardians ? guardianDraft : store.guardians).map((g, i) => (
-                        <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
+                        <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2" data-dashboard-surface="">
                             <div className="flex items-center justify-between">
                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
                                     {g.relation || `Entry ${i + 1}`}

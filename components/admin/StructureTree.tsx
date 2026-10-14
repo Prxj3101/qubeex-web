@@ -218,7 +218,7 @@ export function StructureTree({
                 return (
                     <div
                         key={l1.id}
-                        className="bg-card border border-border/50 rounded-xl overflow-hidden"
+                        className="bg-card border border-border/50 rounded-xl overflow-hidden" data-admin-surface=""
                     >
                         {/* Level 1 header */}
                         <div

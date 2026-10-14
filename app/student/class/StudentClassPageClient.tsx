@@ -125,7 +125,7 @@ function FileRow({ file, onView }: { file: FeedFile; onView: (f: FeedFile) => vo
     const badge = getBadge(file.attachmentType);
     const date = new Date(file.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
     return (
-        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors">
+        <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-muted/30 border border-border/40 hover:bg-muted/50 transition-colors" data-dashboard-surface="">
             <div className="text-[9px] font-bold px-1.5 py-0.5 rounded-md text-white shrink-0 w-9 text-center"
                 style={{ background: badge.bg }}>{badge.label}</div>
             <div className="flex-1 min-w-0">
@@ -196,7 +196,7 @@ function ViewTab({ data }: { data: ClassData }) {
             <div className="h-full overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-3 pt-3 pb-3 px-1">
 
                 {/* LEFT — Classmates */}
-                <div className="w-full lg:w-[25%] shrink-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5 max-h-72 lg:max-h-none">
+                <div className="w-full lg:w-[25%] shrink-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5 max-h-72 lg:max-h-none" data-dashboard-surface="">
                     <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center" style={{ height: '46px' }}>
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                             <Users size={13} /> Classmates ({classmates.length})
@@ -245,7 +245,7 @@ function ViewTab({ data }: { data: ClassData }) {
                         </div>
 
                         {/* Leaderboard (col 2, row 1) */}
-                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
+                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5" data-dashboard-surface="">
                             <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                 <Trophy size={13} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex-1">Leaderboard — Top 5</p>
@@ -284,7 +284,7 @@ function ViewTab({ data }: { data: ClassData }) {
                                             {rest.map((s, i) => {
                                                 const pct = getClassmatePct(s, lbMode);
                                                 return (
-                                                    <div key={s.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border ${s.isMe ? 'bg-violet-500/10 border-violet-500/30' : 'bg-muted/30 border-border/40'}`}>
+                                                    <div key={s.id} className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border ${s.isMe ? 'bg-violet-500/10 border-violet-500/30' : 'bg-muted/30 border-border/40'}`} data-dashboard-surface="">
                                                         <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
                                                         <Avatar name={s.name} size={24} url={s.avatarUrl} />
                                                         <p className="text-xs font-semibold flex-1 truncate">
@@ -302,7 +302,7 @@ function ViewTab({ data }: { data: ClassData }) {
                         </div>
 
                         {/* Subject Teachers (col 1, row 2) */}
-                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
+                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5" data-dashboard-surface="">
                             <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                 <GraduationCap size={16} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Teachers</p>
@@ -332,7 +332,7 @@ function ViewTab({ data }: { data: ClassData }) {
                         </div>
 
                         {/* Results & general class materials (col 2, row 2) */}
-                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5">
+                        <div className="min-h-[380px] lg:min-h-0 rounded-2xl overflow-hidden flex flex-col bg-card border border-border/50 shadow-sm shadow-black/5" data-dashboard-surface="">
                             <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                 <FileText size={13} className="text-muted-foreground" />
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Results &amp; Materials</p>
@@ -427,7 +427,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                         <div className="w-full lg:w-[35%] shrink-0 flex flex-col gap-3 min-h-0">
 
                             {/* Subject info card */}
-                            <div className="shrink-0 rounded-2xl bg-card border border-border/50 shadow-sm shadow-black/5 px-4 py-3 flex items-center gap-3">
+                            <div className="shrink-0 rounded-2xl bg-card border border-border/50 shadow-sm shadow-black/5 px-4 py-3 flex items-center gap-3" data-dashboard-surface="">
                                 <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-black shrink-0"
                                     style={{ background: activeColor }}>
                                     {subject.code || subject.name.slice(0, 2).toUpperCase()}
@@ -443,7 +443,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                             </div>
 
                             {/* Leaderboard card */}
-                            <div className="max-h-80 lg:max-h-none lg:flex-1 min-h-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5">
+                            <div className="max-h-80 lg:max-h-none lg:flex-1 min-h-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5" data-dashboard-surface="">
                                 <div className="px-4 border-b border-border/40 bg-muted/20 shrink-0 flex items-center gap-2" style={{ height: '46px' }}>
                                     <span className="text-sm">🏆</span>
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">{subject.name} — Top 5</p>
@@ -455,7 +455,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                             const pct = getLbPct(e, lbMode);
                                             const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : null;
                                             return (
-                                                <div key={i} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-colors ${e.isMe ? 'bg-violet-500/10 border-violet-500/30' : 'bg-background border-border/40'}`}>
+                                                <div key={i} className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-colors ${e.isMe ? 'bg-violet-500/10 border-violet-500/30' : 'bg-background border-border/40'}`} data-dashboard-surface="">
                                                     {medal
                                                         ? <span className="text-sm shrink-0">{medal}</span>
                                                         : <span className="text-[10px] font-bold text-muted-foreground w-5 text-center shrink-0">#{i + 1}</span>
@@ -477,7 +477,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                         </div>
 
                         {/* RIGHT 65% — single panel with 3 tabs */}
-                        <div className="w-full min-h-[420px] lg:min-h-0 lg:flex-1 min-w-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5">
+                        <div className="w-full min-h-[420px] lg:min-h-0 lg:flex-1 min-w-0 flex flex-col rounded-2xl overflow-hidden bg-card border border-border/50 shadow-sm shadow-black/5" data-dashboard-surface="">
 
                             {/* Tab toggle */}
                             <div className="flex-1 min-h-0 flex flex-col">
@@ -568,7 +568,7 @@ function SubjectsTab({ subjects, myScores, subjectLeaderboards, subjectMaterials
                                                             const pct = !c.isAbsent && c.scored != null ? Math.round((c.scored / c.max) * 100) : null;
                                                             const barColor = pct == null ? '#64748B' : pct >= 75 ? '#10B981' : pct >= 40 ? '#F59E0B' : '#EF4444';
                                                             return (
-                                                                <div key={i} className="px-3 py-2.5 rounded-xl border bg-background border-border/40 space-y-1.5">
+                                                                <div key={i} className="px-3 py-2.5 rounded-xl border bg-background border-border/40 space-y-1.5" data-dashboard-surface="">
                                                                     <div className="flex items-center gap-2.5">
                                                                         <p className="text-[11px] font-semibold text-foreground truncate flex-1">{c.name}</p>
                                                                         {c.isAbsent

@@ -533,3 +533,42 @@
   body.tt-printing [data-tt-print-root] .sticky { position: static !important; }
   body.tt-printing [data-tt-print-root] { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
+
+/* Admin cards share the subtle Inventory elevation. Scope keeps shared
+   components unchanged on teacher/student/parent dashboards. */
+@media screen {
+  .admin-shadow-theme :is([data-admin-surface], [data-dashboard-surface]),
+  .admin-shadow-theme [data-slot="card"] {
+    box-shadow: 0 0 10px 1px rgba(0, 0, 0, 0.08) !important;
+  }
+  .admin-shadow-theme :is([data-admin-surface], [data-dashboard-surface]):is([class~="border-border"], [class~="border-border/40"], [class~="border-border/50"], [class~="border-border/60"], [class~="border-border/70"], [class~="border-border/80"]),
+  .admin-shadow-theme [data-slot="card"] {
+    border-color: transparent !important;
+  }
+  .admin-shadow-theme.dark :is([data-admin-surface], [data-dashboard-surface]),
+  .admin-shadow-theme.dark [data-slot="card"] {
+    box-shadow: 0 0 10px 1px rgba(0, 0, 0, 0.28) !important;
+  }
+}
+
+/* Teacher and student dashboards use the same light Inventory elevation. */
+@media screen {
+  :is(.teacher-shadow-theme, .student-shadow-theme) :is([data-dashboard-surface], [data-admin-surface], [data-slot="card"]) {
+    box-shadow: 0 0 10px 1px rgba(0, 0, 0, 0.08) !important;
+  }
+  :is(.teacher-shadow-theme, .student-shadow-theme) :is([data-dashboard-surface], [data-admin-surface]):is([class~="border-border"], [class~="border-border/40"], [class~="border-border/50"], [class~="border-border/60"], [class~="border-border/70"], [class~="border-border/80"]),
+  :is(.teacher-shadow-theme, .student-shadow-theme) [data-slot="card"] {
+    border-color: transparent !important;
+  }
+  :is(.teacher-shadow-theme.dark, .student-shadow-theme.dark) :is([data-dashboard-surface], [data-admin-surface], [data-slot="card"]) {
+    box-shadow: 0 0 10px 1px rgba(0, 0, 0, 0.28) !important;
+  }
+}
+
+/* Neutral scrollbar for the paper ledger in both themes. */
+.ledger-scrollbar { scrollbar-width: thin; scrollbar-color: #96a58a #d5dfc5; }
+.ledger-scrollbar::-webkit-scrollbar { display: block; width: 6px; height: 6px; }
+.ledger-scrollbar::-webkit-scrollbar-track { background: #d5dfc5; }
+.ledger-scrollbar::-webkit-scrollbar-thumb { background: #96a58a; border-radius: 999px; }
+.ledger-scrollbar::-webkit-scrollbar-thumb:hover { background: #7d906e; }
+.ledger-scrollbar::-webkit-scrollbar-corner { background: #d5dfc5; }

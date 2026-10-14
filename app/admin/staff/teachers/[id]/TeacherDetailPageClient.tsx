@@ -175,7 +175,7 @@ function SectionCard({ title, children, editBtn, contentClassName = 'px-5 pt-2 p
     title: React.ReactNode; children: React.ReactNode; editBtn?: React.ReactNode; contentClassName?: string;
 }) {
     return (
-        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden" data-admin-surface="">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/50 bg-muted/30 min-h-[56px]">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
                 {editBtn}
@@ -344,7 +344,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }} className="space-y-4">
 
             {/* Header card */}
-            <div className="bg-card border border-border/50 rounded-2xl p-5">
+            <div className="bg-card border border-border/50 rounded-2xl p-5" data-admin-surface="">
                 <div className="flex flex-col sm:flex-row items-start gap-4">
                     {/* Avatar */}
                     <div
@@ -532,11 +532,11 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
 
                         {/* Stats */}
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                            <div className="bg-muted/40 rounded-xl p-3 text-center">
+                            <div className="bg-muted/40 rounded-xl p-3 text-center" data-admin-surface="">
                                 <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(aiUsage?.totalTokens ?? 0)}</p>
                                 <p className="text-[10px] text-muted-foreground">Used</p>
                             </div>
-                            <div className="bg-muted/40 rounded-xl p-3 text-center">
+                            <div className="bg-muted/40 rounded-xl p-3 text-center" data-admin-surface="">
                                 <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(Math.max(0, (aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.totalTokens ?? 0)), 2)}</p>
                                 <p className="text-[10px] text-muted-foreground">Remaining</p>
                             </div>
@@ -547,7 +547,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         </div>
 
                         {/* Institution pool */}
-                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3" data-admin-surface="">
                             <div className="flex items-center justify-between mb-1.5">
                                 <p className="text-[11px] font-semibold text-muted-foreground">Institution pool</p>
                                 <span className="text-[11px] font-semibold">
@@ -567,7 +567,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                         </div>
 
                         {/* Soft Limit */}
-                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2.5">
+                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3 space-y-2.5" data-admin-surface="">
                             <div className="flex items-center justify-between">
                                 <div>
                                     <p className="text-[11px] font-semibold">Soft Limit</p>
@@ -770,7 +770,7 @@ function ProfileTab({ teacher, onDeactivateClick, onTeacherUpdate }: {
                                             ? colorForSubject({ id: a.level3Id, color: a.subjectColor })
                                             : null;
                                         return (
-                                            <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border/50 bg-muted/20">
+                                            <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border/50 bg-muted/20" data-admin-surface="">
                                                 <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${a.role === 'CLASS_TEACHER' ? 'bg-amber-100 dark:bg-amber-950' : ''}`}
                                                     style={subjectColor ? { background: subjectColor + '20' } : undefined}>
                                                     {a.role === 'CLASS_TEACHER'
@@ -847,7 +847,7 @@ export default function TeacherDetailPage() {
     if (loading) return (
         <div className="space-y-4 animate-pulse">
             <div className="h-8 w-48 bg-muted rounded-xl" />
-            <div className="h-36 w-full bg-muted rounded-2xl" />
+            <div className="h-36 w-full bg-muted rounded-2xl" data-admin-surface="" />
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="h-48 bg-muted rounded-2xl" />
                 <div className="h-48 bg-muted rounded-2xl" />
@@ -898,7 +898,7 @@ export default function TeacherDetailPage() {
                     <motion.div
                         initial={{ opacity: 0, scale: 0.95 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl"
+                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface=""
                     >
                         <h3 className="text-base font-bold mb-2">
                             {teacher.status === 'ACTIVE' ? '⚠️ Deactivate Teacher?' : '✅ Activate Teacher?'}

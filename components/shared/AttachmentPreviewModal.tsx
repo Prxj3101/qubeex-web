@@ -68,7 +68,7 @@ export default function AttachmentPreviewModal({ url, type, name, onClose }: Pro
                     )}
 
                     {!isImage && !isPdf && (
-                        <div className="flex flex-col items-center justify-center bg-white/10 rounded-2xl p-12 gap-4">
+                        <div className="flex flex-col items-center justify-center bg-white/10 rounded-2xl p-12 gap-4" data-admin-surface="">
                             <p className="text-white/70 text-sm">Preview not available for this file type.</p>
                             <a
                                 href={url}

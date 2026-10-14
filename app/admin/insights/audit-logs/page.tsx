@@ -210,7 +210,7 @@ export default function AdminAuditLogsPage() {
     const hasFilters = search || actionFilter !== 'All Action Types' || roleFilter !== 'All Roles' || fromDate || toDate;
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-visible">
 
             {/* ── Sticky Header ── */}
             <div className="sticky top-0 z-20 bg-background pb-2 pt-0 space-y-2">
@@ -276,7 +276,7 @@ export default function AdminAuditLogsPage() {
 
             {/* ── Table ── */}
             <div className="flex-1 flex flex-col min-h-0 pb-6">
-                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
+                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col" data-admin-surface="">
                   <div className="overflow-x-auto">
                     <div className="min-w-[700px]">
 

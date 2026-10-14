@@ -1238,7 +1238,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                 {generateOpen && subTab === 'questions' && selectedContainerId && (
                     <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
                         className="shrink-0 overflow-hidden">
-                        <div className="mx-4 mt-3 p-4 rounded-xl border border-border bg-card/50">
+                        <div className="mx-4 mt-3 p-4 rounded-xl border border-border bg-card/50" data-dashboard-surface="">
                             <div className="flex gap-3">
                                 {/* Drop zone */}
                                 <div onClick={() => fileInputRef.current?.click()} onDragOver={e => { e.preventDefault(); setDragging(true); }}
@@ -1278,7 +1278,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                         <AnimatePresence>
                             {creatingContainer && (
                                 <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                                    className="p-4 rounded-xl border border-border bg-card/50 mb-1">
+                                    className="p-4 rounded-xl border border-border bg-card/50 mb-1" data-dashboard-surface="">
                                     <div className="flex items-center gap-2">
                                         <input autoFocus value={newContainerName} onChange={e => setNewContainerName(e.target.value)}
                                             onKeyDown={e => {
@@ -1680,7 +1680,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                         <AnimatePresence>
                             {creatingModule && (
                                 <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-                                    className="p-4 rounded-xl border border-border bg-card/50 mb-2">
+                                    className="p-4 rounded-xl border border-border bg-card/50 mb-2" data-dashboard-surface="">
                                     <div className="flex items-center justify-between mb-3">
                                         <h3 className="font-semibold text-sm">New Module</h3>
                                         <button onClick={() => setCreatingModule(false)}><X size={16} /></button>
@@ -1717,7 +1717,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                     <div key={m.id} data-module-card
                                         onDragOver={e => handleModuleDragOver(e, m.id)}
                                         onDrop={() => handleModuleDrop(m.id)}
-                                        className={`rounded-xl border bg-card overflow-hidden transition-all ${dragOverModuleId === m.id ? 'border-primary shadow-md scale-[1.01]' : 'border-border'} ${dragModuleId === m.id ? 'opacity-40' : 'opacity-100'}`}>
+                                        className={`rounded-xl border bg-card overflow-hidden transition-all ${dragOverModuleId === m.id ? 'border-primary shadow-md scale-[1.01]' : 'border-border'} ${dragModuleId === m.id ? 'opacity-40' : 'opacity-100'}`} data-dashboard-surface="">
 
                                         {editingModuleId === m.id ? (
                                             <div className="px-4 py-3 space-y-2">
@@ -2587,7 +2587,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                         <motion.div key="sh-modal" initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.92, y: 16 }} transition={{ type: 'spring', stiffness: 380, damping: 28 }}
                             className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none px-4">
-                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-md pointer-events-auto flex flex-col gap-4 max-h-[85vh]">
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-md pointer-events-auto flex flex-col gap-4 max-h-[85vh]" data-dashboard-surface="">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-semibold">Share questions</p>
                                     <button onClick={() => setShareOpen(false)} className="text-muted-foreground hover:text-foreground text-lg leading-none">×</button>
@@ -2596,7 +2596,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                                 {shareToken ? (
                                     <div className="flex flex-col gap-3">
                                         <p className="text-xs text-muted-foreground">Share this code with another teacher in your institution. It expires in 7 days.</p>
-                                        <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2">
+                                        <div className="flex items-center gap-2 bg-muted rounded-xl px-3 py-2" data-dashboard-surface="">
                                             <span className="flex-1 text-sm font-mono break-all select-all">{shareToken}</span>
                                             <button onClick={() => { navigator.clipboard.writeText(shareToken); toast.success('Copied!'); }}
                                                 className="shrink-0 text-xs px-2.5 py-1 rounded-lg border border-border text-muted-foreground hover:text-foreground transition-all">
@@ -2662,7 +2662,7 @@ export default function TasksTab({ divisionId, subjectId, subTab, onSubTabChange
                         <motion.div key="im-modal" initial={{ opacity: 0, scale: 0.92, y: 16 }} animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.92, y: 16 }} transition={{ type: 'spring', stiffness: 380, damping: 28 }}
                             className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none px-4">
-                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-md pointer-events-auto flex flex-col gap-4 max-h-[85vh]">
+                            <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 w-full max-w-md pointer-events-auto flex flex-col gap-4 max-h-[85vh]" data-dashboard-surface="">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-semibold">Import questions</p>
                                     <button onClick={() => setImportOpen(false)} className="text-muted-foreground hover:text-foreground text-lg leading-none">×</button>
@@ -2775,7 +2775,7 @@ function QuestionCard({ question, modules, index, onApprove, onReject, onDelete,
     const isOpenEnded = question.type === 'FILL_BLANK' || question.type === 'TRUE_FALSE' || question.type === 'SHORT_ANSWER';
 
     return (
-        <div className="rounded-xl border border-border bg-card">
+        <div className="rounded-xl border border-border bg-card" data-dashboard-surface="">
             <div className="px-4 py-3">
                 <div className="flex items-start gap-3">
                     <span className="text-xs font-bold text-muted-foreground shrink-0 mt-0.5 w-5 text-right">{index}.</span>
@@ -2913,7 +2913,7 @@ function QuestionCard({ question, modules, index, onApprove, onReject, onDelete,
                         </button>
                     ) : null}
                     {moduleDropdownOpen && !question.moduleAssignment && (
-                        <div className="absolute bottom-full right-0 mb-1 z-20 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[160px]">
+                        <div className="absolute bottom-full right-0 mb-1 z-20 bg-card border border-border rounded-xl shadow-lg py-1 min-w-[160px]" data-dashboard-surface="">
                             {modules.length === 0 ? (
                                 <p className="text-xs text-muted-foreground px-3 py-2">No modules yet</p>
                             ) : modules.map(m => (
@@ -2941,7 +2941,7 @@ function QuestionCard({ question, modules, index, onApprove, onReject, onDelete,
                                 exit={{ opacity: 0, scale: 0.9, y: 4 }}
                                 transition={{ type: 'spring', stiffness: 400, damping: 28 }}
                                 className="absolute bottom-8 right-0 z-30 bg-card border border-border rounded-xl shadow-xl p-3 flex flex-col gap-2"
-                                style={{ width: 160 }}>
+                                style={{ width: 160 }} data-dashboard-surface="">
                                 <p className="text-xs font-semibold text-foreground">{question.status === 'REJECTED' ? 'Delete this question?' : 'Reject this question?'}</p>
                                 <p className="text-[10px] text-muted-foreground leading-tight">{question.status === 'REJECTED' ? 'This cannot be undone.' : 'It will be moved to Rejected.'}</p>
                                 <div className="flex gap-1.5 mt-0.5">
@@ -3039,7 +3039,7 @@ function AssignmentCard({ assignment, onOpen, onDelete, onActivate, onComplete, 
     }[effectiveStatus];
 
     return (
-        <div className="group rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]">
+        <div className="group rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]" data-dashboard-surface="">
             {/* Top row */}
             <div className="flex gap-4">
                 <div className="flex-1 min-w-0">
@@ -3353,21 +3353,21 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
 
                     {data && rows.length > 0 && (
                         <div className="flex items-center gap-3 flex-1 justify-center">
-                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2" data-dashboard-surface="">
                                 <span className="text-base font-bold leading-none">{data.attempts.length}</span>
                                 <span className="text-xs text-muted-foreground">Submitted</span>
                             </div>
-                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2" data-dashboard-surface="">
                                 <span className={`text-base font-bold leading-none ${isTestCompleted ? 'text-red-500' : 'text-amber-500'}`}>{notSubmittedCount}</span>
                                 <span className="text-xs text-muted-foreground">Not Submitted</span>
                             </div>
-                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2" data-dashboard-surface="">
                                 <span className="text-base font-bold leading-none">
                                     {data.attempts.length > 0 ? Math.round(data.attempts.reduce((s, a) => s + (a.maxScore > 0 ? (a.totalScore / a.maxScore) * 100 : 0), 0) / data.attempts.length) : 0}%
                                 </span>
                                 <span className="text-xs text-muted-foreground">Avg Score</span>
                             </div>
-                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2" data-dashboard-surface="">
                                 <span className="text-base font-bold leading-none text-red-500">{data.attempts.filter(a => a.malpracticeFlag).length}</span>
                                 <span className="text-xs text-muted-foreground">Malpractice</span>
                             </div>
@@ -3435,7 +3435,7 @@ function TestResultsPanel({ testId, onClose }: { testId: string; onClose: () => 
                             )}
 
                             {/* Table */}
-                            <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-card">
+                            <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-card" data-dashboard-surface="">
                                 <table className="w-full text-xs border-separate border-spacing-0">
                                     <thead className="sticky top-0 z-10">
                                         <tr className="bg-muted shadow-[inset_0_-1px_0_0_var(--border)]">
@@ -3663,21 +3663,21 @@ function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: s
 
                     {data && total > 0 && (
                         <div className="flex items-center gap-3 flex-1 justify-center">
-                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2" data-dashboard-surface="">
                                 <span className="text-base font-bold leading-none">{submittedCount}</span>
                                 <span className="text-xs text-muted-foreground">Submitted</span>
                             </div>
-                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2" data-dashboard-surface="">
                                 <span className={`text-base font-bold leading-none ${isAssignmentOverdue && isOnline ? 'text-red-500' : 'text-amber-500'}`}>{pendingCount}</span>
                                 <span className="text-xs text-muted-foreground">Pending</span>
                             </div>
                             {isOnline && (
-                                <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                                <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2" data-dashboard-surface="">
                                     <span className="text-base font-bold leading-none text-emerald-500">{correctCount}</span>
                                     <span className="text-xs text-muted-foreground">Reviewed</span>
                                 </div>
                             )}
-                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2">
+                            <div className="flex flex-col items-center gap-0.5 rounded-xl border border-border bg-background px-3.5 py-2" data-dashboard-surface="">
                                 <span className="text-base font-bold leading-none">{total}</span>
                                 <span className="text-xs text-muted-foreground">Total</span>
                             </div>
@@ -3701,7 +3701,7 @@ function AssignmentSubmissionsPanel({ assignmentId, onClose }: { assignmentId: s
                             <p className="text-sm text-muted-foreground">No students in this class yet.</p>
                         </div>
                     ) : (
-                        <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-card">
+                        <div className="flex-1 min-h-0 overflow-auto rounded-xl border border-border bg-card" data-dashboard-surface="">
                             <table className="w-full text-xs border-separate border-spacing-0">
                                 <thead className="sticky top-0 z-10">
                                     <tr className="bg-muted shadow-[inset_0_-1px_0_0_var(--border)]">
@@ -3974,7 +3974,7 @@ function TestCard({ test, onOpen, onCopyLink, onDelete, onActivate, onStopNow, o
     }[displayStatus];
 
     return (
-        <div className="group rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]">
+        <div className="group rounded-xl border border-border bg-card px-6 py-5 flex flex-col gap-4 min-h-[130px]" data-dashboard-surface="">
             {/* Top row: content + icons */}
             <div className="flex gap-4">
                 <div className="flex-1 min-w-0">

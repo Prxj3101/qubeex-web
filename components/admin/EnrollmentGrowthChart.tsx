@@ -21,7 +21,7 @@ export function EnrollmentGrowthChart({ data }: EnrollmentGrowthChartProps) {
     const accentColor = useThemeAccent('--primary');
 
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5 h-full w-full overflow-hidden flex flex-col">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5 h-full w-full overflow-hidden flex flex-col" data-admin-surface="">
             <div className="flex flex-wrap items-center justify-between gap-2 mb-4 shrink-0">
                 <div className="flex items-center gap-2">
                     <TrendingUp size={15} className="text-muted-foreground" />

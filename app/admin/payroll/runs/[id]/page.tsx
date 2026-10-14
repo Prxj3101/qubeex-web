@@ -260,7 +260,7 @@ export default function PayrollRunDetailPage() {
             <PageHeader onBack={() => router.push('/admin/payroll/runs')} center={
                 // Run totals, shown in the middle of the header. Every cell has the
                 // same two lines (label + value) so they all line up.
-                <div className="flex items-center divide-x divide-border/60 rounded-xl border border-border/60 bg-card">
+                <div className="flex items-center divide-x divide-border/60 rounded-xl border border-border/60 bg-card" data-admin-surface="">
                     {[
                         {
                             label: 'Staff',
@@ -376,7 +376,7 @@ export default function PayrollRunDetailPage() {
                     <PrimaryButton onClick={() => router.push('/admin/payroll/staff')}>Go to Staff</PrimaryButton>
                 </EmptyState>
                 ) : (
-                <div className="rounded-2xl border border-border/60 bg-card divide-y divide-border/40">
+                <div className="rounded-2xl border border-border/60 bg-card divide-y divide-border/40" data-admin-surface="">
                     {/* Column headings (desktop) */}
                     <div className="hidden lg:flex items-center gap-3 pl-4 pr-4 h-9 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground bg-muted border-b border-border/60 sticky top-0 z-10 rounded-t-2xl">
                         <span className="w-3.5" />
@@ -664,7 +664,7 @@ function PayslipDetail({ p, month, isPublished, stageLabel }: { p: Payslip; mont
     if (p.exitDate) info.splice(4, 0, ['Last working day', formatDate(p.exitDate)]);
 
     const Table = ({ title, tone, lines, totalLabel, total }: { title: string; tone: string; lines: MoneyLine[]; totalLabel: string; total: number }) => (
-        <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
+        <div className="rounded-xl border border-border/60 bg-card overflow-hidden" data-admin-surface="">
             <div className="flex justify-between px-3.5 py-2 bg-muted/40 text-[10px] font-semibold uppercase tracking-wide">
                 <span className={tone}>{title}</span><span className="text-muted-foreground">Amount</span>
             </div>
@@ -681,7 +681,7 @@ function PayslipDetail({ p, month, isPublished, stageLabel }: { p: Payslip; mont
 
     return (
         <div className="px-4 pb-4 text-xs">
-            <div className="rounded-2xl border border-border/60 bg-background/60 p-4 space-y-4">
+            <div className="rounded-2xl border border-border/60 bg-background/60 p-4 space-y-4" data-admin-surface="">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-sm font-semibold">Payslip · {monthLabel(month)}</p>
                     <p className="text-muted-foreground">
@@ -701,7 +701,7 @@ function PayslipDetail({ p, month, isPublished, stageLabel }: { p: Payslip; mont
                     ))}
                 </div>
 
-                <div className="grid grid-cols-3 rounded-xl border border-border/60 bg-card divide-x divide-border/60 text-center">
+                <div className="grid grid-cols-3 rounded-xl border border-border/60 bg-card divide-x divide-border/60 text-center" data-admin-surface="">
                     <div className="py-2"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Days in month</p><p className="text-sm font-semibold">{p.basisDays}</p></div>
                     <div className="py-2"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Paid days</p><p className="text-sm font-semibold">{fmtDays(p.paidDays)}</p></div>
                     <div className="py-2"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">LOP days</p><p className="text-sm font-semibold">{fmtDays(p.lopDays)}</p></div>
@@ -714,7 +714,7 @@ function PayslipDetail({ p, month, isPublished, stageLabel }: { p: Payslip; mont
 
                 {p.tdsInfo && 'annualTax' in p.tdsInfo && (
                     // How this month's TDS was worked out (whole financial year estimate).
-                    <div className="rounded-xl border border-border/60 bg-card px-4 py-2.5">
+                    <div className="rounded-xl border border-border/60 bg-card px-4 py-2.5" data-admin-surface="">
                         <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                             Income tax (TDS) · {p.tdsInfo.regime === 'OLD' ? 'old' : 'new'} regime
                         </p>
@@ -732,7 +732,7 @@ function PayslipDetail({ p, month, isPublished, stageLabel }: { p: Payslip; mont
 
                 {(p.employerContributions?.length ?? 0) > 0 && (
                     // School's PF share etc.: part of the cost, not taken from the salary.
-                    <div className="rounded-xl border border-border/60 bg-card px-4 py-2.5">
+                    <div className="rounded-xl border border-border/60 bg-card px-4 py-2.5" data-admin-surface="">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                             <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Paid by the school (not deducted)</p>
                             <p className="text-[10px] text-muted-foreground">PF wages {formatINR(p.pfWages)}</p>
@@ -746,7 +746,7 @@ function PayslipDetail({ p, month, isPublished, stageLabel }: { p: Payslip; mont
                     </div>
                 )}
 
-                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-border/60 bg-card px-4 py-3" data-admin-surface="">
                     <div>
                         <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Net pay</p>
                         <p className="text-muted-foreground italic">{amountInWords(p.netPay)}</p>
@@ -769,7 +769,7 @@ function RunStepper({ run }: { run: RunDetail }) {
         { label: 'Published', meta: run.publishedAt ? formatDate(run.publishedAt) : 'Payslips shared' },
     ];
     return (
-        <div className="h-full flex items-center gap-2 rounded-xl border border-border/60 bg-card px-3 py-2 overflow-x-auto">
+        <div className="h-full flex items-center gap-2 rounded-xl border border-border/60 bg-card px-3 py-2 overflow-x-auto" data-admin-surface="">
             {steps.map((st, i) => {
                 const done = i < current || run.status === 'PUBLISHED';
                 const active = i === current && run.status !== 'PUBLISHED';
@@ -832,7 +832,7 @@ function ReviewPanel({ run, open, onToggle, warningCount, onAiReviewed }: { run:
     const notes = run.warnings.filter(w => w.level === 'info');
 
     return (
-        <div className="rounded-xl border border-border/60 bg-card text-xs">
+        <div className="rounded-xl border border-border/60 bg-card text-xs" data-admin-surface="">
             <button type="button" onClick={onToggle} className="w-full flex flex-wrap items-center gap-x-4 gap-y-1 px-3.5 py-2 text-left">
                 <span className="flex items-center gap-1.5 font-semibold">
                     <Sparkles size={14} className="text-[#DA7756]" />
@@ -974,7 +974,7 @@ function InputsGrid({ run, onClose, onSaved }: { run: RunDetail; onClose: () => 
 
     const cell = 'h-8 w-full px-2 rounded-lg border border-border bg-background text-xs text-right tabular-nums focus:outline-none focus:border-foreground/30';
     return (
-        <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden">
+        <div className="flex-1 min-h-0 flex flex-col rounded-2xl border border-border/60 bg-card overflow-hidden" data-admin-surface="">
             <div className="shrink-0 flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 border-b border-border/60">
                 <div>
                     <p className="text-sm font-semibold">LOP &amp; bonus for {monthLabel(run.month)}</p>
@@ -1056,7 +1056,7 @@ function PublishProgress({ run, onRetry, retrying }: { run: RunDetail; onRetry: 
     const running = run.publishState === 'RUNNING';
     const pct = run.publishTotal ? Math.round((run.publishDone / run.publishTotal) * 100) : 0;
     return (
-        <div className={`shrink-0 rounded-xl border px-4 py-3 text-xs ${running ? 'border-border/60 bg-card' : 'border-red-300/60 bg-red-50 dark:bg-red-950/30 dark:border-red-900/60'}`}>
+        <div className={`shrink-0 rounded-xl border px-4 py-3 text-xs ${running ? 'border-border/60 bg-card' : 'border-red-300/60 bg-red-50 dark:bg-red-950/30 dark:border-red-900/60'}`} data-admin-surface="">
             <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                     {running ? <Loader2 size={15} className="animate-spin text-muted-foreground" /> : <AlertTriangle size={15} className="text-red-600 dark:text-red-400" />}
@@ -1112,7 +1112,7 @@ function PaymentsBar({ run }: { run: RunDetail }) {
 
     const total = (list: Payslip[]) => formatINR(list.reduce((t, p) => t + p.netPay, 0));
     return (
-        <div className="h-full flex items-center gap-x-3 rounded-xl border border-border/60 bg-card px-3.5 py-2.5 text-xs overflow-hidden">
+        <div className="h-full flex items-center gap-x-3 rounded-xl border border-border/60 bg-card px-3.5 py-2.5 text-xs overflow-hidden" data-admin-surface="">
             <span className="font-semibold shrink-0">Pay salaries</span>
             {allPaid && (
                 <span className="shrink-0 whitespace-nowrap flex items-center gap-1 text-emerald-600 dark:text-emerald-400">

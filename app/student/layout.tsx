@@ -66,6 +66,10 @@ function isInAppWebView() {
 }
 
 function StudentLayoutInner({ children }: { children: React.ReactNode }) {
+    useEffect(() => {
+        document.documentElement.classList.add('student-shadow-theme');
+        return () => document.documentElement.classList.remove('student-shadow-theme');
+    }, []);
     bridgeWebViewToken();
     const pathname = usePathname();
     const [loading, setLoading] = useState(true);

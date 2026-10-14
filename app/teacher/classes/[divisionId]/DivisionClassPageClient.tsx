@@ -198,7 +198,7 @@ export default function DivisionClassPageClient() {
     const classTeacherAssignment = division.assignments.find((a: Assignment) => a.subjectId === null);
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-visible">
             <div className="shrink-0 px-1 pt-1 pb-0">
                 <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
                     <div className="flex items-center gap-3 flex-wrap">
@@ -426,7 +426,7 @@ export default function DivisionClassPageClient() {
             </div>
 
             {/* Tab content */}
-            <div className="flex-1 min-h-0 overflow-hidden relative">
+            <div className="flex-1 min-h-0 overflow-visible relative">
                 <AnimatePresence mode="wait">
                     {activeTab === 'view' && (
                         <motion.div key="view" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="h-full">

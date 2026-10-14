@@ -304,7 +304,7 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
 
 
             {/* LEFT — Students List */}
-            <div className="w-full lg:w-[25%] h-[320px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[25%] h-[320px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
                 <div className="px-3.5 py-2.5 border-b border-border/40 shrink-0">
                     <div className="flex items-center justify-between">
                         <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({students.length})</p>
@@ -374,7 +374,7 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
             </div>
 
             {/* RIGHT — Fee Details */}
-            <div className="w-full lg:flex-1 h-[60vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:flex-1 h-[60vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
                 <div className="px-4 py-3 border-b border-border/40 shrink-0">
                     <p className="text-sm font-bold">Fee Details</p>
                 </div>
@@ -389,7 +389,7 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
                         <div className="space-y-4">
 
                             {/* Student header */}
-                            <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20">
+                            <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20" data-dashboard-surface="">
                                 <div onClick={() => selectedStudent.avatarUrl && setExpandedPhoto({ url: selectedStudent.avatarUrl, name: selectedStudent.name })}
                                     className={`w-10 h-10 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0 ${selectedStudent.avatarUrl ? 'cursor-pointer' : ''}`}
                                     style={{ background: selectedStudent.avatarUrl ? 'transparent' : getAvatarColor(selectedStudent.name) }}>

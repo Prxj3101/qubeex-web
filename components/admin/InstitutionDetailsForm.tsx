@@ -99,7 +99,7 @@ export function InstitutionDetailsForm({
               : 'Coaching centre';
 
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5" data-admin-surface="">
             <h2 className="text-sm font-semibold mb-4">Institution details</h2>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
                 {/* Logo upload */}

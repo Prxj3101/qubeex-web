@@ -161,7 +161,7 @@ export default function AdminOverviewPage() {
 
                 {/* Left: AI Tokens + Current Plan, stacked — 3 cols */}
                 <div className="lg:col-span-3 flex flex-col gap-3 h-full">
-                    <div className="bg-card border border-border/50 rounded-xl p-5">
+                    <div className="bg-card border border-border/50 rounded-xl p-5" data-admin-surface="">
                         <div className="flex items-center gap-2 mb-3">
                             <Sparkles size={15} className="text-muted-foreground" />
                             <p className="text-sm font-medium">AI Token Usage</p>

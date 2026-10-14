@@ -170,7 +170,8 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     // when the rest of the page is correctly showing the college blue theme.
     useEffect(() => {
         document.documentElement.classList.toggle('theme-college', instType === 'COLLEGE');
-        return () => { document.documentElement.classList.remove('theme-college'); };
+        document.documentElement.classList.add('admin-shadow-theme');
+        return () => { document.documentElement.classList.remove('theme-college', 'admin-shadow-theme'); };
     }, [instType]);
 
     return (

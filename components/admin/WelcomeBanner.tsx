@@ -190,7 +190,7 @@ function StorageTokenRow({ plan, color, colorBg, colorBgStrong, storagePct: real
         <div className="grid grid-cols-2 gap-2.5 mt-3">
 
             {/* Storage */}
-            <div className="rounded-xl border border-border/40 bg-background/50 dark:bg-white/[0.03] p-3">
+            <div className="rounded-xl border border-border/40 bg-background/50 dark:bg-white/[0.03] p-3" data-admin-surface="">
                 <div className="flex items-center gap-2 mb-2.5">
                     <div className="w-6 h-6 rounded-lg flex items-center justify-center text-sm shrink-0"
                         style={{ background: colorBgStrong }}>
@@ -232,7 +232,7 @@ function StorageTokenRow({ plan, color, colorBg, colorBgStrong, storagePct: real
             </div>
 
             {/* AI Tokens */}
-            <div className="rounded-xl border border-border/40 bg-background/50 dark:bg-white/[0.03] p-3">
+            <div className="rounded-xl border border-border/40 bg-background/50 dark:bg-white/[0.03] p-3" data-admin-surface="">
                 <div className="flex items-center gap-2 mb-2.5">
                     <div className="w-6 h-6 rounded-lg flex items-center justify-center text-sm shrink-0"
                         style={{ background: colorBgStrong }}>

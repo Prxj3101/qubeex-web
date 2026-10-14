@@ -113,7 +113,7 @@ export function FlagCard({ flag, classLabel, onDelete, onEdit }: { flag: FlagIte
             {/* Confirm delete popup */}
             {confirmDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setConfirmDelete(false)}>
-                    <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                    <div className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()} data-admin-surface="">
                         <h3 className="text-base font-bold mb-2">Delete this card?</h3>
                         <p className="text-sm text-muted-foreground mb-5">
                             &ldquo;{flag.title}&rdquo; will be permanently deleted. It will disappear from the teacher&rsquo;s reports and the student&rsquo;s Flags &amp; Warnings board as well. This can&rsquo;t be undone.

@@ -130,7 +130,7 @@ export default function PayrollSettingsPage() {
             </PageHeader>
 
             <div className="grid gap-4 lg:grid-cols-3">
-            <section className="lg:col-span-2 rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+            <section className="lg:col-span-2 rounded-2xl border border-border/60 bg-card p-5 space-y-4" data-admin-surface="">
                 <div>
                     <p className="text-sm font-semibold">One day&apos;s salary</p>
                     <p className="text-xs text-muted-foreground">Used when someone takes unpaid leave (LOP) or joins / leaves in the middle of a month.</p>
@@ -152,14 +152,14 @@ export default function PayrollSettingsPage() {
                         );
                     })}
                 </div>
-                <div className="rounded-xl bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+                <div className="rounded-xl bg-muted/40 px-4 py-3 text-xs text-muted-foreground" data-admin-surface="">
                     Example: salary {formatINR(EXAMPLE_SALARY)}, 2 days unpaid leave in a 30-day month →
                     one day = <span className="font-semibold text-foreground">{formatINR(perDay)}</span>, cut =
                     <span className="font-semibold text-foreground"> {formatINR(perDay * 2)}</span>.
                 </div>
             </section>
 
-            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-3">
+            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-3" data-admin-surface="">
                 <div className="flex items-center gap-2">
                     <CalendarDays size={16} className="text-primary" />
                     <p className="text-sm font-semibold">Salary day</p>
@@ -175,7 +175,7 @@ export default function PayrollSettingsPage() {
             </div>
 
             {/* ── Provident Fund ── */}
-            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4" data-admin-surface="">
                 <div className="flex items-center gap-2">
                     <Landmark size={16} className="text-primary" />
                     <p className="text-sm font-semibold">Provident Fund (PF)</p>
@@ -201,7 +201,7 @@ export default function PayrollSettingsPage() {
                             <Field label="EDLI (%)"><input className={inputCls} inputMode="decimal" value={pf.edli} onChange={setPfField('edli')} /></Field>
                             <Field label="Admin charges (%)"><input className={inputCls} inputMode="decimal" value={pf.admin} onChange={setPfField('admin')} /></Field>
                         </div>
-                        <div className="rounded-xl bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+                        <div className="rounded-xl bg-muted/40 px-4 py-3 text-xs text-muted-foreground" data-admin-surface="">
                             {(() => {
                                 const wages = 3000000; // ₹30,000 Basic + DA
                                 const ceil = Math.round(Number(pf.ceiling || 0) * 100);
@@ -219,7 +219,7 @@ export default function PayrollSettingsPage() {
 
             <div className="grid gap-4 lg:grid-cols-2">
             {/* ── ESI ── */}
-            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4" data-admin-surface="">
                 <div className="flex items-center gap-2">
                     <HeartPulse size={16} className="text-primary" />
                     <p className="text-sm font-semibold">ESI</p>
@@ -236,7 +236,7 @@ export default function PayrollSettingsPage() {
             </section>
 
             {/* ── Professional Tax ── */}
-            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4" data-admin-surface="">
                 <div className="flex items-center gap-2">
                     <Receipt size={16} className="text-primary" />
                     <p className="text-sm font-semibold">Professional Tax (PT)</p>
@@ -250,7 +250,7 @@ export default function PayrollSettingsPage() {
                                 options={[{ value: 'MAHARASHTRA', label: 'Maharashtra' }, { value: 'CUSTOM', label: 'Other state (enter slabs)' }]} />
                         </Field>
                         {ptState === 'MAHARASHTRA' ? (
-                            <div className="rounded-xl bg-muted/40 px-4 py-3 text-xs text-muted-foreground space-y-1">
+                            <div className="rounded-xl bg-muted/40 px-4 py-3 text-xs text-muted-foreground space-y-1" data-admin-surface="">
                                 <p>Up to ₹7,500: nil · ₹7,501 to ₹10,000: ₹175 · Above ₹10,000: ₹200 (₹300 in February) · ₹2,500 a year.</p>
                                 <p>Women earning up to ₹25,000 a month are exempt: turn PT off for them on the Staff page.</p>
                             </div>
@@ -280,7 +280,7 @@ export default function PayrollSettingsPage() {
             </div>
 
             {/* ── Income tax (TDS) ── */}
-            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-3">
+            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-3" data-admin-surface="">
                 <div className="flex items-center gap-2">
                     <Percent size={16} className="text-primary" />
                     <p className="text-sm font-semibold">Income tax (TDS)</p>
@@ -288,7 +288,7 @@ export default function PayrollSettingsPage() {
                 <Toggle checked={tdsEnabled} onChange={setTdsEnabled} label="Deduct income tax (TDS) from salary"
                     hint="Every month the whole year's salary (April to March) is estimated, the tax on it worked out, and what's left after TDS already cut is spread over the remaining months. New regime by default; choose the old regime and add declarations per person on the Staff page." />
                 {tdsEnabled && (
-                    <div className="rounded-xl bg-muted/40 px-4 py-3 text-xs text-muted-foreground space-y-1">
+                    <div className="rounded-xl bg-muted/40 px-4 py-3 text-xs text-muted-foreground space-y-1" data-admin-surface="">
                         <p>New regime (FY 2026-27): no tax up to ₹12.75L salary a year (₹75,000 standard deduction + rebate). Slabs 5% to 30% above ₹4L.</p>
                         <p>Old regime: ₹50,000 standard deduction, PT, 80C (employee PF counts, max ₹1.5L), 80D, HRA and other deductions from the declaration.</p>
                         <p>No PAN: TDS is at least 20%. Staff aged 60+ (old regime special slabs) are not handled yet.</p>
@@ -297,7 +297,7 @@ export default function PayrollSettingsPage() {
             </section>
 
             {/* ── Staff attendance -> LOP ── */}
-            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4">
+            <section className="rounded-2xl border border-border/60 bg-card p-5 space-y-4" data-admin-surface="">
                 <div className="flex items-center gap-2">
                     <CalendarCheck size={16} className="text-primary" />
                     <p className="text-sm font-semibold">Attendance</p>

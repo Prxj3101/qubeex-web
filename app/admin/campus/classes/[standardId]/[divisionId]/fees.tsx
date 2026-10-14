@@ -624,7 +624,7 @@ function FeeStructureModal({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={onClose}>
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 max-h-[80vh] flex flex-col"
-                onClick={e => e.stopPropagation()}>
+                onClick={e => e.stopPropagation()} data-admin-surface="">
 
                 {/* Header */}
                 <div className="flex items-center justify-between px-5 py-4 border-b border-border/40 shrink-0">
@@ -1619,7 +1619,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                             </div>
 
                             {/* RIGHT — Payment Methods */}
-                            <div className="w-full lg:w-[45%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                            <div className="w-full lg:w-[45%] flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-admin-surface="">
                                 <div className="px-4 py-3.5 border-b border-border/50 bg-muted/20 shrink-0">
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                         <Landmark size={14} /> Payment Methods
@@ -1704,7 +1704,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                         </div>
 
                         {/* ROW 2: Fee Structures */}
-                        <div className="flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                        <div className="flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-admin-surface="">
                             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/50 bg-muted/20 shrink-0 flex-wrap gap-2">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -1814,7 +1814,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                         className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden">
 
                         {/* LEFT — Student list */}
-                        <div className="w-full lg:w-[25%] h-[45vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl lg:overflow-hidden shadow-sm shadow-black/5">
+                        <div className="w-full lg:w-[25%] h-[45vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl lg:overflow-hidden shadow-sm shadow-black/5" data-admin-surface="">
                             <div className="px-3.5 py-2.5 border-b border-border/40 shrink-0">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({students.length})</p>
@@ -1872,7 +1872,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                         </div>
 
                         {/* RIGHT — Student fee card */}
-                        <div className="flex-1 h-[65vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                        <div className="flex-1 h-[65vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-admin-surface="">
                             <div className="px-4 py-3 border-b border-border/40 shrink-0">
                                 <p className="text-sm font-bold">Fee Details</p>
                             </div>
@@ -1887,7 +1887,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                     <div className="space-y-4">
 
                                         {/* Student header */}
-                                        <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20">
+                                        <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20" data-admin-surface="">
                                             <div onClick={() => selectedStudent.avatarUrl && setExpandedPhoto({ url: selectedStudent.avatarUrl, name: selectedStudent.name })}
                                                 className={`w-10 h-10 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0 ${selectedStudent.avatarUrl ? 'cursor-pointer' : ''}`}
                                                 style={{ background: selectedStudent.avatarUrl ? 'transparent' : getAvatarColor(selectedStudent.name) }}>
@@ -2319,7 +2319,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setAddStructureModalMonthId(null)}>
                             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
                                 onClick={e => e.stopPropagation()}
-                                className="bg-card border border-border rounded-2xl w-full max-w-3xl mx-4 shadow-2xl flex flex-col max-h-[85vh]">
+                                className="bg-card border border-border rounded-2xl w-full max-w-3xl mx-4 shadow-2xl flex flex-col max-h-[85vh]" data-admin-surface="">
                                 <div className="flex items-center justify-between px-5 py-4 border-b border-border/50 shrink-0">
                                     <div>
                                         <h3 className="text-sm font-bold">Add Fee Structure</h3>
@@ -2423,7 +2423,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                 {confirmDelete && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface="">
                             <h3 className="text-base font-bold mb-2">
                                 Delete {confirmDelete.kind === 'studentField' ? 'Field'
                                     : confirmDelete.kind === 'extraColumn' ? 'Column'
@@ -2460,7 +2460,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                 {confirmBusToggle && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface="">
                             <h3 className="text-base font-bold mb-2">
                                 {confirmBusToggle.nextEnabled ? 'Enable Bus Service?' : 'Disable Bus Service?'}
                             </h3>
@@ -2502,7 +2502,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                 {busMonthsModal && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => setBusMonthsModal(null)}>
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()}>
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()} data-admin-surface="">
                             <h3 className="text-sm font-bold mb-1">Bus Fee - Select Months</h3>
                             <p className="text-xs text-muted-foreground mb-3">Pick the months this student&apos;s Bus Fee should be added to.</p>
                             {feeMonths.length > 0 && (

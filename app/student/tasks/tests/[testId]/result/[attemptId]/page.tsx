@@ -216,7 +216,7 @@ export default function TestResultPage() {
                 </div>
                 </div>
                 <div style={{ height: headerHeight + 6 }} className="sm:hidden" />
-                <div className="relative flex flex-col rounded-2xl border border-border bg-card p-4">
+                <div className="relative flex flex-col rounded-2xl border border-border bg-card p-4" data-dashboard-surface="">
                     {/* App WebView (narrow, no sm:): pills move below the
                         Correct/Incorrect/Skipped stats row, in flow.
                         Normal web browser (sm+): unchanged — pills sit
@@ -298,7 +298,7 @@ export default function TestResultPage() {
                                 </p>
                             </div>
                         )}
-                        <div className="rounded-2xl border border-border bg-card p-4">
+                        <div className="rounded-2xl border border-border bg-card p-4" data-dashboard-surface="">
                             <div className="flex items-start gap-2 mb-2">
                                 {a.isCorrect ? <CheckCircle2 size={16} className="text-emerald-600 shrink-0 mt-0.5" /> : <XCircle size={16} className="text-red-600 shrink-0 mt-0.5" />}
                                 <p className="text-sm font-medium leading-relaxed">{i + 1}. {a.generatedQuestion}</p>

@@ -89,7 +89,7 @@ export default function AdminNotificationsPage() {
     const handleRefresh = () => void fetchNotifs(page);
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-visible">
 
             {/* ── Header ── */}
             <div className="sticky top-0 z-20 bg-background pb-3 pt-1 space-y-3">
@@ -127,7 +127,7 @@ export default function AdminNotificationsPage() {
 
             {/* ── List ── */}
             <div className="flex-1 flex flex-col min-h-0 pb-6">
-                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
+                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col" data-admin-surface="">
                     <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
                         {loading ? (
                             [...Array(5)].map((_, i) => <SkeletonRow key={i} />)

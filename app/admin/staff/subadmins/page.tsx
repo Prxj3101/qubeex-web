@@ -367,7 +367,7 @@ function SubAdminCard({
                 ${isActive
                     ? 'border-border/50 hover:border-primary/30 hover:shadow-md'
                     : 'border-border/30 opacity-70 hover:opacity-90'
-                }`}
+                }`} data-admin-surface=""
         >
             <div className="flex items-start gap-3 p-4 pb-3">
                 <div
@@ -892,7 +892,7 @@ export default function SubadminsPage() {
                                                     <ChevronDown size={13} className="text-muted-foreground" />
                                                 </button>
                                                 {showGenderDrop && (
-                                                    <div className="absolute top-full mt-1 w-full bg-card border border-border rounded-xl shadow-lg z-10 overflow-hidden">
+                                                    <div className="absolute top-full mt-1 w-full bg-card border border-border rounded-xl shadow-lg z-10 overflow-hidden" data-admin-surface="">
                                                         {GENDERS.map(g => (
                                                             <button
                                                                 key={g} type="button"

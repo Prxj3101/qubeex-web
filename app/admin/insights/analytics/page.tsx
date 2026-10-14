@@ -312,7 +312,7 @@ function StatCard({ icon: Icon, label, value, sub, iconBg, iconColor }: {
     sub?: string; iconBg: string; iconColor: string;
 }) {
     return (
-        <div className="bg-white dark:bg-muted/50 rounded-xl p-4 relative shadow-sm border border-border/50">
+        <div className="bg-white dark:bg-muted/50 rounded-xl p-4 relative shadow-sm border border-border/50" data-admin-surface="">
             <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${iconBg} flex items-center justify-center`}>
                 <Icon size={15} className={iconColor} />
             </div>
@@ -368,7 +368,7 @@ function AttendanceAccordion({ data, ai }: { data: AttendanceStandard[]; ai: Att
 
     if (data.length === 0) {
         return (
-            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden p-8 flex flex-col items-center justify-center text-center gap-2">
+            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden p-8 flex flex-col items-center justify-center text-center gap-2" data-admin-surface="">
                 <Users size={22} className="text-muted-foreground/40" />
                 <p className="text-sm font-medium text-muted-foreground">No classes set up yet</p>
             </div>
@@ -391,7 +391,7 @@ function AttendanceAccordion({ data, ai }: { data: AttendanceStandard[]; ai: Att
     const overallColor = getAttendanceColor(overallPct);
 
     return (
-        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden" data-admin-surface="">
             {/* Header */}
             <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2 flex-wrap">
                 <Users size={15} className="text-muted-foreground" />
@@ -412,7 +412,7 @@ function AttendanceAccordion({ data, ai }: { data: AttendanceStandard[]; ai: Att
             </div>
 
             <div className="mx-5 mt-3 mb-3 flex flex-col lg:flex-row gap-6 items-stretch">
-                <div className="rounded-2xl p-2.5 lg:flex-1 bg-muted/30 border border-border/50">
+                <div className="rounded-2xl p-2.5 lg:flex-1 bg-muted/30 border border-border/50" data-admin-surface="">
                     <div className="flex items-center gap-1.5 mb-1.5">
                         <Sparkles size={16} style={{ color: '#DA7756' }} />
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">AI Attendance Insight</p>
@@ -621,7 +621,7 @@ function FeeAccordion({ data, ai }: { data: FeeStandard[]; ai: FeeAiInsights | n
 
     if (data.length === 0) {
         return (
-            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden p-8 flex flex-col items-center justify-center text-center gap-2">
+            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden p-8 flex flex-col items-center justify-center text-center gap-2" data-admin-surface="">
                 <Wallet size={22} className="text-muted-foreground/40" />
                 <p className="text-sm font-medium text-muted-foreground">No fee structures set up yet</p>
             </div>
@@ -649,7 +649,7 @@ function FeeAccordion({ data, ai }: { data: FeeStandard[]; ai: FeeAiInsights | n
     const feeUnitLabel = 'students';
 
     return (
-        <div ref={cardRef} className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+        <div ref={cardRef} className="bg-card border border-border/50 rounded-2xl overflow-hidden" data-admin-surface="">
             <div className="px-5 py-4 border-b border-border/40 flex items-center gap-2 flex-wrap">
                 <Wallet size={15} className="text-muted-foreground" />
                 <p className="text-sm font-semibold">Fee Analysis</p>
@@ -1197,7 +1197,7 @@ export default function AdminAnalyticsPage() {
                 </div>
 
                 {/* Plan Usage — stretches to match the stat-card block's height */}
-                <div className="bg-card border border-border/50 rounded-2xl p-5 flex flex-col gap-4 h-full">
+                <div className="bg-card border border-border/50 rounded-2xl p-5 flex flex-col gap-4 h-full" data-admin-surface="">
                     <div className="flex items-center gap-2 mb-1">
                         < Gauge size={15} className="text-muted-foreground" />
                         <p className="text-sm font-semibold">Plan Usage</p>
@@ -1249,7 +1249,7 @@ export default function AdminAnalyticsPage() {
             </div>
 
             {/* ── AI Usage — full width, split 60/40 with a separator ── */}
-            <div className="bg-card border border-border/50 rounded-2xl p-5">
+            <div className="bg-card border border-border/50 rounded-2xl p-5" data-admin-surface="">
                 <div className="flex flex-col lg:flex-row gap-5">
 
                     {/* Left 60% — all existing content */}
@@ -1408,7 +1408,7 @@ export default function AdminAnalyticsPage() {
                                     });
                                 };
                                 return (
-                                    <div key={t.teacherId} className="rounded-xl border border-border/40 bg-muted/10 p-3">
+                                    <div key={t.teacherId} className="rounded-xl border border-border/40 bg-muted/10 p-3" data-admin-surface="">
                                         <div
                                             role="button"
                                             tabIndex={0}
@@ -1519,7 +1519,7 @@ export default function AdminAnalyticsPage() {
                 recently, cross-checked with the app whenever it's switched on
                 (see ParentModeEvent). Always shown, same "always visible, even
                 when empty" rule as the AI Attendance boxes. ── */}
-            <div className="bg-card border border-border/50 rounded-2xl p-5">
+            <div className="bg-card border border-border/50 rounded-2xl p-5" data-admin-surface="">
                 <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                         <Users size={15} className="text-muted-foreground" />
@@ -1609,7 +1609,7 @@ export default function AdminAnalyticsPage() {
 
             {/* ── Open tickets ── */}
             {overview.tickets.length > 0 && (
-                <div className="bg-card border border-border/50 rounded-2xl p-5">
+                <div className="bg-card border border-border/50 rounded-2xl p-5" data-admin-surface="">
                     <div className="flex items-center gap-2 mb-4">
                         <AlertCircle size={15} className="text-muted-foreground" />
                         <p className="text-sm font-semibold">Open Support Tickets</p>

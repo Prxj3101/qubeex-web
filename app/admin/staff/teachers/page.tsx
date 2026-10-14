@@ -180,7 +180,7 @@ function TeacherCard({
                 ${isActive
                     ? 'border-border/50 hover:border-primary/30 hover:shadow-md'
                     : 'border-border/30 opacity-70 hover:opacity-90'
-                }`}
+                }`} data-admin-surface=""
         >
             {/* ── Top: Avatar + Name + Status ── */}
             <div className="flex items-start gap-3 p-4 pb-3">

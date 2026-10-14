@@ -507,7 +507,7 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                             </div>
                             <div className="space-y-3">
                                 {guardians.map((g, i) => (
-                                    <div key={i} className="flex flex-col sm:flex-row sm:items-end gap-3 p-3 rounded-xl border border-border/40 bg-muted/20 relative">
+                                    <div key={i} className="flex flex-col sm:flex-row sm:items-end gap-3 p-3 rounded-xl border border-border/40 bg-muted/20 relative" data-dashboard-surface="">
                                         <div className="flex-1">
                                             <FL>Name</FL>
                                             <Input value={g.name} onChange={e => updateGuardian(i, 'name', e.target.value)}

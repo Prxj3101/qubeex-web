@@ -58,7 +58,7 @@ function StatusPill({ run }: { run: PayrollRun }) {
 function MiniStat({ icon: Icon, label, value, sub, onClick }: { icon: React.ElementType; label: string; value: string; sub?: string; onClick?: () => void }) {
     return (
         <div onClick={onClick} role={onClick ? 'button' : undefined}
-            className={`h-full flex items-center gap-2.5 rounded-2xl border border-border/60 bg-card px-3 py-1.5 ${onClick ? 'cursor-pointer hover:bg-muted/30 transition-colors' : ''}`}>
+            className={`h-full flex items-center gap-2.5 rounded-2xl border border-border/60 bg-card px-3 py-1.5 ${onClick ? 'cursor-pointer hover:bg-muted/30 transition-colors' : ''}`} data-admin-surface="">
             <div className="w-7 h-7 rounded-lg bg-muted/60 flex items-center justify-center shrink-0"><Icon size={14} className="text-muted-foreground" /></div>
             <div className="min-w-0">
                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-tight">{label}</p>
@@ -468,7 +468,7 @@ export default function PayrollRunsPage() {
 
             {/* Shown while a run is being created (salaries are worked out on the server). */}
             {creating && (
-                <div className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+                <div className="rounded-2xl border border-border/60 bg-card overflow-hidden" data-admin-surface="">
                     <div className="flex items-center gap-3 px-4 py-3">
                         <Loader2 size={18} className="animate-spin text-muted-foreground shrink-0" />
                         <div>
@@ -492,7 +492,7 @@ export default function PayrollRunsPage() {
                 <>
                     {/* ── This month (left) + numbers that matter (right), 50/50 ── */}
                     <div className="grid gap-3 lg:grid-cols-2 items-stretch">
-                        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card px-4 py-2 sm:px-5 flex flex-col justify-center gap-2">
+                        <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-card px-4 py-2 sm:px-5 flex flex-col justify-center gap-2" data-admin-surface="">
                             <div className="absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-[0.12] pointer-events-none" style={{ background: TERRACOTTA }} />
                             {/* month + status | amount */}
                             <div className="relative flex items-start justify-between gap-3">
@@ -560,7 +560,7 @@ export default function PayrollRunsPage() {
                     </div>
 
                     {/* ── The year at a glance ── */}
-                    <div className="rounded-2xl border border-border/60 bg-card px-3 pt-3 pb-2 sm:px-4 sm:pt-4 sm:pb-2">
+                    <div className="rounded-2xl border border-border/60 bg-card px-3 pt-3 pb-2 sm:px-4 sm:pt-4 sm:pb-2" data-admin-surface="">
                         <div className="flex items-center justify-between mb-3">
                             <div>
                                 <p className="text-sm font-semibold">{fyLabel(fy)}</p>

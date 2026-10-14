@@ -280,7 +280,7 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName, divisio
     };
 
     return (
-        <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] shrink-0 bg-card   rounded-2xl overflow-hidden  " data-admin-surface="">
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -361,7 +361,7 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName, divisio
                 {showEventModal && selectedDate && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-5 max-w-sm w-full mx-4 " data-admin-surface="">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-sm font-bold">📅 {selectedDate} {MONTHS_S[month]}, {year}</p>
                                 <button onClick={() => setShowEventModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -408,7 +408,7 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName, divisio
                 {showAddModal && addDate && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-5 max-w-sm w-full mx-4 " data-admin-surface="">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-sm font-bold">Add Event — {addDate} {MONTHS_S[month]}</p>
                                 <button onClick={() => setShowAddModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -701,7 +701,7 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
     })();
 
     return (
-        <div className="bg-card border border-border/50 rounded-2xl p-4 space-y-3">
+        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-4 space-y-3" data-admin-surface="">
             <div className="flex items-center justify-between">
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${meta.cls}`}>
                     {meta.emoji} {meta.label}
@@ -758,7 +758,7 @@ function DivFeedCard({ ann, onDelete }: { ann: DivAnnouncement; onDelete?: (id: 
             {confirmDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                        className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-6 max-w-sm w-full mx-4 " data-admin-surface="">
                         <h3 className="text-base font-bold mb-1">Delete Announcement?</h3>
                         <p className="text-sm text-muted-foreground mb-5">This announcement will be permanently deleted. Are you sure?</p>
                         <div className="flex gap-2 justify-end">
@@ -1217,7 +1217,7 @@ export default function DivisionDetailPage() {
     const classTeacherAssignment = division.assignments.find(a => a.subjectId === null);
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-visible">
 
             {/* Header */}
             <div className="shrink-0 px-1 pt-1 pb-0">
@@ -1415,7 +1415,7 @@ export default function DivisionDetailPage() {
                             <div className="w-full lg:w-[58%] h-[70vh] lg:h-auto flex flex-col gap-3 min-h-0 lg:overflow-hidden">
 
                                 {/* Class Teacher card */}
-                                <div className="shrink-0 bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm shadow-black/5">
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] shrink-0 bg-card   rounded-2xl px-4 py-3 flex items-center gap-3  " data-admin-surface="">
                                     <div className="w-9 h-9 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
                                         style={{ background: classTeacherAssignment?.teacher.avatarUrl ? 'transparent' : '#F59E0B' }}>
                                         {classTeacherAssignment?.teacher.avatarUrl
@@ -1435,7 +1435,7 @@ export default function DivisionDetailPage() {
                                 </div>
 
                                 {/* Feed */}
-                                <div className="relative flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] relative flex-1 min-h-0 flex flex-col bg-card   rounded-2xl overflow-hidden  " data-admin-surface="">
                                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
                                         <div className="flex items-center justify-between flex-wrap gap-2">
                                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -1492,7 +1492,7 @@ export default function DivisionDetailPage() {
                                     <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">
                                         {/* Row 1 — Title + Filters */}
                                         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-                                            <div className="w-full sm:flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                                            <div className="w-full sm:flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all" data-admin-surface="">
                                                 <input value={postInput} onChange={e => setPostInput(e.target.value)}
                                                     placeholder="Title..."
                                                     className="flex-1 bg-transparent text-sm font-bold placeholder:text-muted-foreground/60 placeholder:font-normal focus:outline-none" />
@@ -1517,20 +1517,20 @@ export default function DivisionDetailPage() {
 
                                         {/* Row 2 — Body + Attach + Send */}
                                         <div className="flex items-center gap-2">
-                                            <div className="flex-1 flex items-start px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                                            <div className="flex-1 flex items-start px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all" data-admin-surface="">
                                                 <textarea ref={bodyTextareaRef} value={postBody}
                                                     onChange={e => { setPostBody(e.target.value); autoGrowBody(e.target); }}
                                                     placeholder="Write description (optional)..." rows={1}
                                                     className="flex-1 bg-transparent text-xs text-muted-foreground placeholder:text-muted-foreground/60 focus:outline-none resize-none max-h-24 overflow-y-auto py-0.5"
                                                     style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }} />
                                                 {uploadingAttachment && (
-                                                    <div className="flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px] text-muted-foreground">
+                                                    <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex items-center gap-1.5 ml-2 px-2 py-0.5 rounded-lg bg-muted   text-[10px] text-muted-foreground">
                                                         <span className="w-3 h-3 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />
                                                         Uploading...
                                                     </div>
                                                 )}
                                                 {postAttachment && !uploadingAttachment && (
-                                                    <div className="flex items-center gap-1 ml-2 px-2 py-0.5 rounded-lg bg-muted border border-border/50 text-[10px]">
+                                                    <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex items-center gap-1 ml-2 px-2 py-0.5 rounded-lg bg-muted   text-[10px]">
                                                         <span>{
                                                             postAttachment.mimeType.startsWith('image/') ? '🖼️' :
                                                                 postAttachment.name.endsWith('.pdf') ? '📄' :
@@ -1564,7 +1564,7 @@ export default function DivisionDetailPage() {
                             <div className="w-full lg:w-[42%] h-[65vh] lg:h-auto flex flex-col gap-3 min-h-0 overflow-y-auto pb-1">
 
                                 {/* Subject Teachers */}
-                                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] shrink-0 bg-card   rounded-2xl overflow-hidden  " data-admin-surface="">
                                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                             <BookOpen size={12} /> Subject Teachers
@@ -1609,7 +1609,7 @@ export default function DivisionDetailPage() {
                                 </div>
 
                                 {/* Leaderboard */}
-                                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] shrink-0 bg-card   rounded-2xl overflow-hidden  " data-admin-surface="">
                                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                             <Trophy size={12} /> Leaderboard — Top 5
@@ -1667,7 +1667,7 @@ export default function DivisionDetailPage() {
                                                 {/* Rank 4 & 5 */}
                                                 <div className="px-4 pb-3 space-y-1.5">
                                                     {top5.slice(3, 5).map((student, i) => (
-                                                        <div key={student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
+                                                        <div key={student.id} className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30  " data-admin-surface="">
                                                             <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
                                                             <div className="w-6 h-6 rounded-full overflow-hidden relative flex items-center justify-center text-[9px] font-bold text-white shrink-0"
                                                                 style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
@@ -1708,7 +1708,7 @@ export default function DivisionDetailPage() {
                                 />
 
                                 {/* Results */}
-                                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] shrink-0 bg-card   rounded-2xl overflow-hidden  " data-admin-surface="">
                                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                             <FileText size={12} /> Results
@@ -1741,7 +1741,7 @@ export default function DivisionDetailPage() {
                             className="flex flex-col lg:flex-row gap-3 h-full pt-3 pb-3 px-1 overflow-y-auto lg:overflow-hidden">
 
                             {/* LEFT — Students List */}
-                            <div className="w-full lg:w-[40%] h-[50vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl lg:overflow-hidden shadow-sm shadow-black/5">
+                            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:w-[40%] h-[50vh] lg:h-auto flex flex-col min-h-0 bg-card   rounded-2xl lg:overflow-hidden  " data-admin-surface="">
                                 <div className="px-4 py-3 border-b border-border/40 shrink-0">
                                     <p className="text-sm font-bold flex items-center gap-2">
                                         <Users size={15} /> Students ({students.length})
@@ -1804,7 +1804,7 @@ export default function DivisionDetailPage() {
                             </div>
 
                             {/* RIGHT — 2 tabs */}
-                            <div className="w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card   rounded-2xl overflow-hidden  " data-admin-surface="">
 
                                 {/* Tab bar */}
                                 <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center justify-between flex-wrap gap-2">
@@ -1912,7 +1912,7 @@ export default function DivisionDetailPage() {
 
                                                 <div>
                                                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Class Teacher</p>
-                                                    <div className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20">
+                                                    <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex items-center justify-between py-2 px-3 rounded-xl   bg-muted/20" data-admin-surface="">
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#F59E0B' }} />
                                                             <span className="text-xs text-muted-foreground">Class Teacher</span>
@@ -1955,7 +1955,7 @@ export default function DivisionDetailPage() {
                                                                 .map(sub => {
                                                                     const assignment = division.assignments.find(a => a.subjectId === sub.id);
                                                                     return (
-                                                                        <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20">
+                                                                        <div key={sub.id} className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex items-center justify-between py-2 px-3 rounded-xl   bg-muted/20" data-admin-surface="">
                                                                             <div className="flex items-center gap-2">
                                                                                 <div className="w-2 h-2 rounded-full shrink-0"
                                                                                     style={{ background: colorForSubject(sub) }} />
@@ -2040,7 +2040,7 @@ export default function DivisionDetailPage() {
                                                                             studentStats.attendance.pct >= 65 ? '#F59E0B' : '#EF4444',
                                                                 },
                                                             ].map(stat => (
-                                                                <div key={stat.label} className="flex flex-col items-center justify-center py-2.5 rounded-xl border border-border/40 bg-muted/20">
+                                                                <div key={stat.label} className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex flex-col items-center justify-center py-2.5 rounded-xl   bg-muted/20" data-admin-surface="">
                                                                     <p className="text-lg font-black" style={{ color: stat.color }}>{stat.value}</p>
                                                                     <p className="text-[11px] font-semibold text-foreground/70 mt-0.5">{stat.label}</p>
                                                                     <p className="text-[10px] text-muted-foreground/60">{stat.sub}</p>
@@ -2064,7 +2064,7 @@ export default function DivisionDetailPage() {
                                                         )}
 
                                                         {/* ROW 1 — Student Info + Academic */}
-                                                        <div className="flex flex-col md:flex-row gap-3 border border-border/40 rounded-2xl overflow-hidden bg-background">
+                                                        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex flex-col md:flex-row gap-3   rounded-2xl overflow-hidden bg-background" data-admin-surface="">
                                                             {/* LEFT — Student Info */}
                                                             <div className="flex-1 px-4 py-3 md:border-r border-border/40 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={User} label="Student Info" />
@@ -2138,7 +2138,7 @@ export default function DivisionDetailPage() {
                                                         </div>
 
                                                         {/* ROW 2 — Medical + Address */}
-                                                        <div className="flex flex-col md:flex-row gap-3 border border-border/40 rounded-2xl overflow-hidden bg-background">
+                                                        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex flex-col md:flex-row gap-3   rounded-2xl overflow-hidden bg-background" data-admin-surface="">
                                                             {/* LEFT — Medical & Identity */}
                                                             <div className="flex-1 px-4 py-3 md:border-r border-border/40 min-w-0 space-y-2.5">
                                                                 <SectionViewLabel icon={Shield} label="Medical & Identity" />
@@ -2168,13 +2168,13 @@ export default function DivisionDetailPage() {
                                                         </div>
 
                                                         {/* ROW 3 — Parents/Guardian */}
-                                                        <div className="border border-border/40 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
+                                                        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)]   rounded-2xl px-4 py-3 space-y-2.5 bg-background" data-admin-surface="">
                                                             <SectionViewLabel icon={Users} label="Parents / Guardian" />
                                                             {(!selectedStudent.guardians || selectedStudent.guardians.length === 0) ? (
                                                                 <p className="text-xs text-muted-foreground/60 text-center py-1">No parents or guardians added yet</p>
                                                             ) : (
                                                                 selectedStudent.guardians.map((g, i) => (
-                                                                    <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
+                                                                    <div key={i} className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] p-3 rounded-xl   bg-muted/20 space-y-2" data-admin-surface="">
                                                                         <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
                                                                             {g.relation || `Entry ${i + 1}`}
                                                                         </p>
@@ -2286,7 +2286,7 @@ export default function DivisionDetailPage() {
                 {confirmRemove && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-6 max-w-sm w-full mx-4 " data-admin-surface="">
                             <h3 className="text-base font-bold mb-2">Remove Assignment?</h3>
                             <p className="text-sm text-muted-foreground mb-5">
                                 This teacher will be unassigned. You can reassign anytime.
@@ -2309,7 +2309,7 @@ export default function DivisionDetailPage() {
                 {confirmToggle && selectedStudent && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-6 max-w-sm w-full mx-4 " data-admin-surface="">
                             <h3 className="text-base font-bold mb-2">
                                 {selectedStudent.status === 'ACTIVE' ? '⚠️ Deactivate Student?' : '✅ Activate Student?'}
                             </h3>

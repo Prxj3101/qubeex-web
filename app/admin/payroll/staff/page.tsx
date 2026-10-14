@@ -384,7 +384,7 @@ export default function StaffPayrollPage() {
                 <div className="py-10 text-center text-sm text-muted-foreground">No staff match this search.</div>
             ) : (
                 <motion.div layoutScroll className="flex-1 min-h-0 overflow-y-auto rounded-2xl border border-border/60 bg-card"
-                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }} data-admin-surface="">
                     <Reorder.Group axis="y" as="div" values={visible} onReorder={handleReorder} className="divide-y divide-border/40">
                     {visible.map(s => (
                         <DragRow key={s.id} item={s} canDrag={canReorder} onDrop={saveOrder}
@@ -471,7 +471,7 @@ export default function StaffPayrollPage() {
                                             value={linkSearch} onChange={e => { setLinkSearch(e.target.value); setDetails({ ...details, linked: null }); }} autoFocus />
                                     </div>
                                     {details.linked ? (
-                                        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2">
+                                        <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2" data-admin-surface="">
                                             <Link2 size={14} className="text-primary" />
                                             <div className="text-xs"><p className="font-semibold">{details.linked.name}</p><p className="text-muted-foreground">{details.linked.email} · {STAFF_TYPE_LABEL[details.linked.role]}</p></div>
                                         </div>
@@ -674,7 +674,7 @@ export default function StaffPayrollPage() {
                                             const changePct = prevNet ? (change! / prevNet) * 100 : null;
                                             const templateName = v.templateId ? templates.find(t => t.id === v.templateId)?.name : null;
                                             return (
-                                                <div key={v.id} className={`rounded-xl border transition-colors ${toDateInput(v.effectiveFrom) === salaryDraft.effectiveFrom ? 'border-foreground/40 ring-1 ring-foreground/10' : open ? 'border-foreground/20' : 'border-border/50'} ${open ? 'bg-muted/20' : ''}`}>
+                                                <div key={v.id} className={`rounded-xl border transition-colors ${toDateInput(v.effectiveFrom) === salaryDraft.effectiveFrom ? 'border-foreground/40 ring-1 ring-foreground/10' : open ? 'border-foreground/20' : 'border-border/50'} ${open ? 'bg-muted/20' : ''}`} data-admin-surface="">
                                                     <div role="button" tabIndex={0} onClick={() => setOpenVersion(open ? null : v.id)}
                                                         onKeyDown={e => e.key === 'Enter' && setOpenVersion(open ? null : v.id)}
                                                         className="flex items-center justify-between gap-2 px-3 py-2 cursor-pointer">

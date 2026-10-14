@@ -27,6 +27,10 @@ const TEACHER_NAV_ITEMS = [
 ];
 
 function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
+    useEffect(() => {
+        document.documentElement.classList.add('teacher-shadow-theme');
+        return () => document.documentElement.classList.remove('teacher-shadow-theme');
+    }, []);
     const { instType } = useMockInstType();
     const pathname = usePathname();
     const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);

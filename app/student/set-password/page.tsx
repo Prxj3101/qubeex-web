@@ -120,7 +120,7 @@ export default function StudentSetPasswordPage() {
 
                 <div className="h-[2px] w-full mb-0 shrink-0"
                     style={{ background: 'linear-gradient(90deg, transparent, #7C3AED, #DA7756, transparent)' }} />
-                <div className="bg-white/[0.04] border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl p-6 shrink-0">
+                <div className="bg-white/[0.04] border border-white/10 rounded-3xl backdrop-blur-xl shadow-2xl p-6 shrink-0" data-dashboard-surface="">
 
                     {/* New Password */}
                     <div className="mb-4">

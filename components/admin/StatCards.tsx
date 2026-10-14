@@ -54,7 +54,7 @@ export function StatCards({ stats, institutionType, plan }: StatCardsProps) {
             {items.map((s) => {
                 const Icon = s.icon;
                 return (
-                    <div key={s.label} className="bg-white dark:bg-muted/50 rounded-xl p-4 relative shadow-sm border border-border/50">
+                    <div key={s.label} className="bg-white dark:bg-muted/50 rounded-xl p-4 relative shadow-sm border border-border/50" data-admin-surface="">
                         <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
                             <Icon size={15} className={s.iconColor} />
                         </div>

@@ -56,7 +56,7 @@ const d10 = (v?: string | null) => (v ? v.slice(0, 10) : null);
 
 function Card({ title, right, children, className = '' }: { title: React.ReactNode; right?: React.ReactNode; children: React.ReactNode; className?: string }) {
     return (
-        <div className={`bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col ${className}`}>
+        <div className={`bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col ${className}`} data-dashboard-surface="">
             <div className="flex items-center justify-between gap-2 px-5 py-3 min-h-[56px] border-b border-border/50 bg-muted/30">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2 leading-none">{title}</p>
                 {right}
@@ -121,7 +121,7 @@ export default function MyPayroll() {
 
     if (noStaff) {
         return (
-            <div className="bg-card border border-border/50 rounded-2xl py-14 text-center">
+            <div className="bg-card border border-border/50 rounded-2xl py-14 text-center" data-dashboard-surface="">
                 <Wallet size={22} className="mx-auto text-muted-foreground mb-2" />
                 <p className="text-sm font-medium">Payroll is not set up for you yet</p>
                 <p className="text-xs text-muted-foreground mt-1">Once the school adds you to payroll, your payslips will show up here.</p>
@@ -150,7 +150,7 @@ export default function MyPayroll() {
                                 <div key={p.id} role="button" tabIndex={0}
                                     onClick={() => goMonth(p.payrollRun.month)}
                                     onKeyDown={e => { if (e.key === 'Enter') goMonth(p.payrollRun.month); }}
-                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${active ? 'border-border bg-muted/60' : 'border-transparent hover:bg-muted/30'}`}>
+                                    className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border cursor-pointer transition-colors ${active ? 'border-border bg-muted/60' : 'border-transparent hover:bg-muted/30'}`} data-dashboard-surface="">
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm font-semibold leading-tight">{monthName(p.payrollRun.month)}</p>
                                         <p className="text-[11px] text-muted-foreground leading-tight mt-1">

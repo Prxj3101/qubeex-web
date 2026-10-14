@@ -81,7 +81,7 @@ function SectionCard({ title, icon: Icon, iconColor, children, action }: {
     children: React.ReactNode; action?: React.ReactNode;
 }) {
     return (
-        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden h-full">
+        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden h-full" data-dashboard-surface="">
             <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50 bg-muted/20 flex-wrap gap-2 lg:px-5">
                 <div className="flex items-center gap-2 flex-wrap">
                     <Icon size={15} style={{ color: iconColor }} />
@@ -218,7 +218,7 @@ export default function StudentProfile() {
                             const pct = total > 0 ? Math.round((paid / total) * 100) : 0;
                             const cleared = total > 0 && paid === total;
                             return (
-                                <div key={term.label} className="p-3 bg-muted/40 rounded-xl space-y-1.5">
+                                <div key={term.label} className="p-3 bg-muted/40 rounded-xl space-y-1.5" data-dashboard-surface="">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <span className="text-xs font-semibold">{term.label}</span>

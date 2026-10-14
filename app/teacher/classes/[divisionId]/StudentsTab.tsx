@@ -92,7 +92,7 @@ export default function StudentsTab({ division }: { division: Division }) {
         <div className="flex flex-col lg:flex-row gap-3 h-full pt-3 pb-3 px-1 overflow-y-auto lg:overflow-hidden">
 
             {/* LEFT — Students List */}
-            <div className="w-full lg:w-[40%] h-[420px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[40%] h-[420px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
                 <div className="px-4 py-3 border-b border-border/40 shrink-0">
                     <p className="text-sm font-bold flex items-center gap-2">
                         <Users size={15} /> Students ({students.length})
@@ -154,7 +154,7 @@ export default function StudentsTab({ division }: { division: Division }) {
             </div>
 
             {/* RIGHT — Selected student summary + Report / View Profile */}
-            <div className="w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
                 {!selectedStudent ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center px-4 h-full">
                         <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
@@ -210,7 +210,7 @@ export default function StudentsTab({ division }: { division: Division }) {
                                         sub: 'overall',
                                     },
                                 ].map(stat => (
-                                    <div key={stat.label} className="flex flex-col items-center justify-center py-2.5 rounded-xl border border-border/50 bg-muted/30">
+                                    <div key={stat.label} className="flex flex-col items-center justify-center py-2.5 rounded-xl border border-border/50 bg-muted/30" data-dashboard-surface="">
                                         <p className="text-lg font-black" style={{ color: '#DA7756' }}>{stat.value}</p>
                                         <p className="text-[11px] font-semibold text-foreground/70 mt-0.5">{stat.label}</p>
                                         <p className="text-[10px] text-muted-foreground/60">{stat.sub}</p>
@@ -218,7 +218,7 @@ export default function StudentsTab({ division }: { division: Division }) {
                                 ))}
                             </div>
 
-                            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border/50 bg-muted/20">
+                            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-border/50 bg-muted/20" data-dashboard-surface="">
                                 <User size={13} className="text-muted-foreground shrink-0" />
                                 <p className="text-[11px] text-muted-foreground">
                                     Full student details, guardians, and account management are handled by {division.name}&apos;s class teacher.

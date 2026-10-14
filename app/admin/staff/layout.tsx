@@ -39,7 +39,7 @@ export default function PeopleLayout({ children }: { children: React.ReactNode }
     }, [pathname, isSubAdmin, permissions]);
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-visible">
             {/* Tab bar */}
             <div className="shrink-0 pt-0 pb-2 px-1 overflow-x-auto">
                 <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">

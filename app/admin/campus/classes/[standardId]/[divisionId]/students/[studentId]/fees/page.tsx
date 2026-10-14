@@ -345,7 +345,7 @@ export default function AdminStudentFeesPage() {
             <div className="flex-1 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-4 pb-3">
 
                 {/* ── LEFT: Fee Details (same as teacher fees tab) ── */}
-                <div className="order-2 w-full lg:w-[60%] lg:shrink-0 h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="order-2 w-full lg:w-[60%] lg:shrink-0 h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-admin-surface="">
                     <div className="px-4 py-3 border-b border-border/40 shrink-0 flex items-center gap-2">
                         <Wallet size={14} className="text-muted-foreground" />
                         <p className="text-sm font-bold">Fee Details</p>
@@ -354,7 +354,7 @@ export default function AdminStudentFeesPage() {
                         <div className="space-y-4">
 
                             {/* Student header */}
-                            <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20">
+                            <div className="flex items-center gap-3 p-3 rounded-xl border border-border/40 bg-white dark:bg-muted/20" data-admin-surface="">
                                 <div className="w-10 h-10 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
                                     style={{ background: student?.avatarUrl ? 'transparent' : getAvatarColor(student?.name ?? '') }}>
                                     {student?.avatarUrl
@@ -696,7 +696,7 @@ export default function AdminStudentFeesPage() {
                 </div>
 
                 {/* ── RIGHT: Pay Fees (read-only, mirrors admin Payment Methods) ── */}
-                <div className="order-1 w-full lg:flex-1 lg:min-w-0 h-[500px] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="order-1 w-full lg:flex-1 lg:min-w-0 h-[500px] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-admin-surface="">
                     <div className="px-4 py-3 border-b border-border/40 shrink-0 flex items-center gap-2">
                         <Landmark size={14} className="text-muted-foreground" />
                         <p className="text-sm font-bold">Pay Fees</p>
@@ -756,7 +756,7 @@ export default function AdminStudentFeesPage() {
                 {qrPreviewOpen && qrImageUrl && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={() => setQrPreviewOpen(false)}>
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={e => e.stopPropagation()} data-admin-surface="">
                             <div className="flex items-center justify-between mb-3">
                                 <p className="text-sm font-bold flex items-center gap-1.5"><QrCode size={14} /> Payment QR Code</p>
                                 <button onClick={() => setQrPreviewOpen(false)}

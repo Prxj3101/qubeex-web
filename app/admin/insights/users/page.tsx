@@ -157,7 +157,7 @@ export default function UsersInsightPage() {
             </div>
 
             {/* ── Content ── */}
-            <div className="flex-1 overflow-hidden flex flex-col gap-3 py-3">
+            <div className="flex-1 overflow-visible flex flex-col gap-3 py-3">
 
                 {/* Filters */}
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
@@ -233,7 +233,7 @@ export default function UsersInsightPage() {
                 </div>
 
                 {/* User table */}
-                <div className="flex-1 overflow-hidden bg-card border border-border/50 rounded-2xl flex flex-col">
+                <div className="flex-1 overflow-hidden bg-card border border-border/50 rounded-2xl flex flex-col" data-admin-surface="">
                     {loading ? (
                         <div className="py-12 text-center">
                             <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-2" />

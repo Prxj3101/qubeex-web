@@ -257,7 +257,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
         : `${year - 1}–${String(year).slice(2)}`;
 
     return (
-        <div className="w-full lg:w-[65%] h-[500px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5">
+        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:w-[65%] h-[500px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card   rounded-2xl  " data-admin-surface="">
 
             {/* Header — Month navigator */}
             <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3">
@@ -327,7 +327,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                 {showMonthSelector && (
                     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-5 max-w-sm w-full mx-4 " data-admin-surface="">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-sm font-bold">🗓️ Select Months to Export</p>
                                 <button onClick={() => setShowMonthSelector(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -563,7 +563,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                 {holidayModalDk && (
                     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-5 max-w-sm w-full mx-4 " data-admin-surface="">
                             <div className="flex items-center justify-between mb-3">
                                 <p className="text-sm font-bold">🏖️ Mark as Holiday</p>
                                 <button onClick={() => setHolidayModalDk(null)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted"><X size={14} /></button>
@@ -588,7 +588,7 @@ function AttendanceSheet({ students, selectedDate, attendance, holidays, dateRem
                 {remarkModalDk && (
                     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-5 max-w-sm w-full mx-4 " data-admin-surface="">
                             <div className="flex items-center justify-between mb-1">
                                 <p className="text-sm font-bold">💬 {remarkModalDk.includes('::') ? 'Student Remark' : 'Date Note'}</p>
                                 <button onClick={() => setRemarkModalDk(null)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted"><X size={14} /></button>
@@ -745,7 +745,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
         <div className="flex flex-col lg:flex-row gap-3 h-full min-h-0 overflow-y-auto lg:overflow-visible">
 
             {/* LEFT — Students list */}
-            <div className="w-full lg:w-[30%] h-[380px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:w-[30%] h-[380px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card   rounded-2xl overflow-hidden  " data-admin-surface="">
                 <div className="px-4 py-3.5 border-b border-border/40 shrink-0">
                     <div className="flex items-center justify-between">
                         <p className="text-sm font-bold flex items-center gap-2"><Users size={14} /> Students ({summaryStudents.length})</p>
@@ -805,7 +805,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
             </div>
 
             {/* RIGHT — Attendance details */}
-            <div className="w-full lg:flex-1 h-[65vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:flex-1 h-[65vh] lg:h-auto flex flex-col min-h-0 bg-card   rounded-2xl overflow-hidden  " data-admin-surface="">
                 <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3">
                     <p className="text-sm font-bold shrink-0 flex items-center gap-1.5">
                         <CalendarDays size={14} /> {divisionName}
@@ -843,13 +843,13 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                         <div className="space-y-4">
                             {/* Class overall stats */}
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] rounded-2xl   bg-card p-4 text-center" data-admin-surface="">
                                     <p className={`text-2xl font-black ${pctColor(classStats?.overallPct ?? null)}`}>
                                         {classStats?.overallPct !== null && classStats?.overallPct !== undefined ? `${classStats.overallPct}%` : '—'}
                                     </p>
                                     <p className="text-[11px] text-muted-foreground mt-1">Class Overall</p>
                                 </div>
-                                <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] rounded-2xl   bg-card p-4 text-center" data-admin-surface="">
                                     <p className={`text-2xl font-black ${pctColor(classStats?.currentMonthPct ?? null)}`}>
                                         {classStats?.currentMonthPct !== null && classStats?.currentMonthPct !== undefined ? `${classStats.currentMonthPct}%` : '—'}
                                     </p>
@@ -858,7 +858,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                             </div>
 
                             {/* Month wise breakdown */}
-                            <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+                            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] rounded-2xl   bg-card overflow-hidden" data-admin-surface="">
                                 <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month-wise Class Average</p>
                                     <button onClick={onSwitchToDaily}
@@ -901,7 +901,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                             </div>
 
                             {/* Short Attendance */}
-                            <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+                            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] rounded-2xl   bg-card overflow-hidden" data-admin-surface="">
                                 <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center gap-2">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex-1">Short Attendance</p>
                                     <div className="flex gap-0.5 bg-muted/50 rounded-lg p-0.5 border border-border/40">
@@ -951,13 +951,13 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                 {/* Top section — stats left, monthwise right */}
                                 <div className="flex flex-col sm:flex-row gap-3">
                                     <div className="flex flex-row sm:flex-col gap-3 w-full sm:w-[140px] shrink-0">
-                                        <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
+                                        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] rounded-2xl   bg-card p-4 text-center" data-admin-surface="">
                                             <p className={`text-2xl font-black ${pctColor(selectedStudent.overallPct)}`}>
                                                 {selectedStudent.overallPct !== null ? `${selectedStudent.overallPct}%` : '—'}
                                             </p>
                                             <p className="text-[11px] text-muted-foreground mt-1">Overall</p>
                                         </div>
-                                        <div className="rounded-2xl border border-border/50 bg-card p-4 text-center">
+                                        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] rounded-2xl   bg-card p-4 text-center" data-admin-surface="">
                                             <p className={`text-2xl font-black ${pctColor(selectedStudent.currentMonthPct)}`}>
                                                 {selectedStudent.currentMonthPct !== null ? `${selectedStudent.currentMonthPct}%` : '—'}
                                             </p>
@@ -966,7 +966,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                     </div>
 
                                     {/* Month-wise bars */}
-                                    <div className="flex-1 rounded-2xl border border-border/50 bg-card overflow-hidden">
+                                    <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex-1 rounded-2xl   bg-card overflow-hidden" data-admin-surface="">
                                         <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
                                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month-wise Attendance</p>
                                         </div>
@@ -1006,7 +1006,7 @@ function OverallTab({ divisionName, divisionId, holidays, onSwitchToDaily, onSta
                                 </div>
 
                                 {/* Individual Student Sheet */}
-                                <div className="rounded-2xl border border-border/50 overflow-hidden">
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] rounded-2xl   overflow-hidden">
                                     <div className="px-4 py-2.5 border-b border-border/40 bg-card flex items-center justify-between relative">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Attendance Sheet</p>
                                         <div className="absolute left-1/2 -translate-x-1/2 flex items-baseline gap-2">
@@ -1318,7 +1318,7 @@ function DailyAttendanceTab({ divisionName, divisionId, students, holidays, onHo
         <div className="flex flex-col lg:flex-row gap-3 h-full min-h-0 overflow-y-auto lg:overflow-visible">
 
             {/* ── LEFT (35%) — Date picker + Students list ── */}
-            <div className="w-full lg:w-[35%] h-[500px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:w-[35%] h-[500px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card   rounded-2xl overflow-hidden  " data-admin-surface="">
 
                 {/* Header — Date + Remark + All P */}
                 <div className="px-3 py-2 border-b border-border/40 shrink-0 space-y-1.5">

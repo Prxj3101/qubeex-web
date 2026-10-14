@@ -141,7 +141,7 @@ function PhoneField({ label, value, onChange }: { label: string; value: string; 
                     </button>
                     {open && typeof document !== 'undefined' && createPortal(
                         <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
-                            className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
+                            className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto" data-dashboard-surface="">
                             {COUNTRY_CODES.map(c => (
                                 <button key={c.code} type="button"
                                     onClick={() => { onChange(`${c.code} ${number}`); setOpen(false); }}
@@ -581,7 +581,7 @@ export default function ManageTab({ division, isClassTeacher }: {
         <div className="flex flex-col lg:flex-row gap-3 h-full pt-3 pb-3 px-1 overflow-y-auto lg:overflow-hidden">
 
             {/* LEFT — Students List */}
-            <div className="w-full lg:w-[40%] h-[420px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[40%] h-[420px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
                 <div className="px-4 py-3 border-b border-border/40 shrink-0 flex items-center justify-between">
                     <p className="text-sm font-bold flex items-center gap-2">
                         <Users size={15} /> Students ({students.length})
@@ -686,7 +686,7 @@ export default function ManageTab({ division, isClassTeacher }: {
             </div>
 
             {/* RIGHT */}
-            <div className="w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="w-full lg:w-[60%] h-[70vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
                 <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center justify-between">
                     <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
                         {[
@@ -751,7 +751,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                 className="px-4 py-3 space-y-4">
                                 <div>
                                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Class Teacher</p>
-                                    <div className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20">
+                                    <div className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20" data-dashboard-surface="">
                                         <div className="flex items-center gap-2">
                                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: '#F59E0B' }} />
                                             <span className="text-xs text-muted-foreground">Class Teacher</span>
@@ -774,7 +774,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                             {division.subjects.map(sub => {
                                                 const assignment = division.assignments.find(a => a.subjectId === sub.id);
                                                 return (
-                                                    <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20">
+                                                    <div key={sub.id} className="flex items-center justify-between py-2 px-3 rounded-xl border border-border/40 bg-muted/20" data-dashboard-surface="">
                                                         <div className="flex items-center gap-2">
                                                             <div className="w-2 h-2 rounded-full shrink-0" style={{ background: colorForSubject(sub) }} />
                                                             <span className="text-xs text-muted-foreground">{sub.name}</span>
@@ -840,7 +840,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                             studentStats.attendance.pct >= 65 ? '#F59E0B' : '#EF4444',
                                                 },
                                             ].map(stat => (
-                                                <div key={stat.label} className="flex flex-col items-center justify-center py-2.5 rounded-xl border border-border/50 bg-muted/30">
+                                                <div key={stat.label} className="flex flex-col items-center justify-center py-2.5 rounded-xl border border-border/50 bg-muted/30" data-dashboard-surface="">
                                                     <p className="text-lg font-black" style={{ color: stat.color ?? '#DA7756' }}>{stat.value}</p>
                                                     <p className="text-[11px] font-semibold text-foreground/70 mt-0.5">{stat.label}</p>
                                                     <p className="text-[10px] text-muted-foreground/60">{stat.sub}</p>
@@ -864,7 +864,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                         )}
 
                                         {/* ROW 1 — Student Info + Academic */}
-                                        <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                                        <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background" data-dashboard-surface="">
 
                                             {/* LEFT — Student Info */}
                                             <div className="flex-1 px-4 py-3 border-r-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
@@ -1026,7 +1026,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                         </div>
 
                                         {/* ROW 2 — Medical + Address */}
-                                        <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background">
+                                        <div className="flex flex-col lg:flex-row gap-3 border border-border/50 rounded-2xl overflow-hidden bg-background" data-dashboard-surface="">
                                             {/* LEFT — Medical & Identity */}
                                             <div className="flex-1 px-4 py-3 border-r-0 lg:border-r border-border/40 min-w-0 space-y-2.5">
                                                 <SectionHeader icon={Shield} label="Medical & Identity"
@@ -1092,7 +1092,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                         </div>
 
                                         {/* ROW 3 — Parents / Guardian */}
-                                        <div className="border border-border/50 rounded-2xl px-4 py-3 space-y-2.5 bg-background">
+                                        <div className="border border-border/50 rounded-2xl px-4 py-3 space-y-2.5 bg-background" data-dashboard-surface="">
                                             <SectionHeader icon={Users} label="Parents / Guardian"
                                                 editing={editingSections.guardians}
                                                 saving={savingSections.guardians}
@@ -1126,7 +1126,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                                                     ? (editDraft.guardians ?? [])
                                                     : (selectedStudent.guardians ?? []);
                                                 return guardianList.map((g, i) => (
-                                                    <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2">
+                                                    <div key={i} className="p-3 rounded-xl border border-border/40 bg-muted/20 space-y-2" data-dashboard-surface="">
                                                         <div className="flex items-center justify-between">
                                                             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
                                                                 {g.relation || `Entry ${i + 1}`}
@@ -1194,7 +1194,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                         {confirmToggle && selectedStudent && (
                             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                                    className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                                    className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-dashboard-surface="">
                                     <h3 className="text-base font-bold mb-2">
                                         {selectedStudent.status === 'ACTIVE' ? 'Deactivate Student?' : 'Activate Student?'}
                                     </h3>
@@ -1224,7 +1224,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                         {confirmResetPassword && selectedStudent && (
                             <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                                    className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                                    className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-dashboard-surface="">
                                     <h3 className="text-base font-bold mb-2">Reset Password?</h3>
                                     <p className="text-sm text-muted-foreground mb-5">
                                         {`This will generate a new temporary password for ${selectedStudent.user.name ?? 'this student'}. They'll need to use it to log in and set a new password.`}
@@ -1261,7 +1261,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+                    className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl" data-dashboard-surface=""
                 >
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -1277,7 +1277,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                     <div className="space-y-3 mb-4">
                         <div>
                             <p className="text-[11px] text-muted-foreground mb-1 font-medium">Student ID</p>
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border">
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border" data-dashboard-surface="">
                                 <span className="flex-1 font-mono font-bold text-sm" style={{ color: '#DA7756' }}>{createdStudent.studentId}</span>
                                 <button type="button" onClick={() => { navigator.clipboard.writeText(createdStudent.studentId); toast.success('Copied!'); }}
                                     className="text-muted-foreground hover:text-foreground transition-colors">
@@ -1287,7 +1287,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                         </div>
                         <div>
                             <p className="text-[11px] text-muted-foreground mb-1 font-medium">Temporary Password</p>
-                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border">
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border" data-dashboard-surface="">
                                 <span className="flex-1 font-mono font-semibold text-sm text-amber-500 tracking-wider">{createdStudent.tempPassword}</span>
                                 <button type="button" onClick={() => { navigator.clipboard.writeText(createdStudent.tempPassword); toast.success('Copied!'); }}
                                     className="text-muted-foreground hover:text-foreground transition-colors">
@@ -1312,7 +1312,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl"
+                    className="bg-card border border-border rounded-2xl p-6 w-full max-w-sm shadow-2xl" data-dashboard-surface=""
                 >
                     <div className="flex items-center gap-3 mb-4">
                         <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
@@ -1324,7 +1324,7 @@ export default function ManageTab({ division, isClassTeacher }: {
                         </div>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">New temporary password:</p>
-                    <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border font-mono text-sm mb-4">
+                    <div className="flex items-center gap-2 p-3 rounded-xl bg-muted/50 border border-border font-mono text-sm mb-4" data-dashboard-surface="">
                         <span className="flex-1 text-amber-500 font-semibold tracking-wider">{resetResult}</span>
                         <button
                             type="button"

@@ -109,7 +109,7 @@ export default function SalaryComponentsPage() {
     };
 
     const renderList = (list: SalaryComponent[], type: ComponentType) => (
-        <section className="rounded-2xl border border-border/60 bg-card overflow-hidden">
+        <section className="rounded-2xl border border-border/60 bg-card overflow-hidden" data-admin-surface="">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
                 <div className="flex items-center gap-2">
                     <span className={`w-7 h-7 rounded-lg flex items-center justify-center ${type === 'EARNING' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400' : 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400'}`}>

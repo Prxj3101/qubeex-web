@@ -3,19 +3,20 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { Rss, MessageSquare } from 'lucide-react';
+import { Rss, MessageSquare, Boxes } from 'lucide-react';
 
 const CAMPUS_TABS = [
     { key: 'feed', label: 'Feed', icon: Rss, href: '/teacher/campus' },
     { key: 'staffroom', label: 'Staffroom', icon: MessageSquare, href: '/teacher/campus/staffroom' },
+    { key: 'inventory', label: 'Inventory', icon: Boxes, href: '/teacher/campus/inventory' },
 ];
 
 export default function TeacherCampusLayout({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const activeTab = pathname.startsWith('/teacher/campus/staffroom') ? 'staffroom' : 'feed';
+    const activeTab = pathname.startsWith('/teacher/campus/inventory') ? 'inventory' : pathname.startsWith('/teacher/campus/staffroom') ? 'staffroom' : 'feed';
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-visible">
             {/* Sub navbar */}
             <div className="shrink-0 pt-0 pb-2 px-1">
                 <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
@@ -42,7 +43,7 @@ export default function TeacherCampusLayout({ children }: { children: React.Reac
             </div>
 
             {/* Page content */}
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-visible">
                 {children}
             </div>
         </div>

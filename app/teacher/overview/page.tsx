@@ -98,7 +98,7 @@ const TEACHER_CHARACTERS = [
 function CustomTooltip({ active, payload, label }: any) {
     if (!active || !payload?.length) return null;
     return (
-        <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-xl text-xs">
+        <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-xl text-xs" data-dashboard-surface="">
             <p className="font-semibold mb-1">{label}</p>
             <p className="text-[var(--primary)] font-bold">{payload[0].value}%</p>
         </div>
@@ -404,7 +404,7 @@ export default function TeacherOverviewPage() {
                     ] : MOCK_STATS).map((s, i) => {
                         const Icon = s.icon;
                         return (
-                            <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} className="bg-card border border-border/50 rounded-xl p-4 relative shadow-sm shadow-black/10">
+                            <motion.div key={s.label} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }} className="bg-card border border-border/50 rounded-xl p-4 relative shadow-sm shadow-black/10" data-dashboard-surface="">
                                 <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${s.iconBg} flex items-center justify-center`}>
                                     <Icon size={15} className={s.iconColor} />
                                 </div>
@@ -446,7 +446,7 @@ export default function TeacherOverviewPage() {
                 </div>
 
                 {/* AI Token — 2 cols */}
-                <div className="col-span-1 lg:col-span-2 bg-card border border-border/50 rounded-xl p-4">
+                <div className="col-span-1 lg:col-span-2 bg-card border border-border/50 rounded-xl p-4" data-dashboard-surface="">
                     <div className="flex items-center gap-2 mb-4">
                         <Sparkles size={15} className="text-muted-foreground" />
                         <p className="text-sm font-medium">AI Token Usage</p>
@@ -467,11 +467,11 @@ export default function TeacherOverviewPage() {
                             <p className="text-[11px] text-muted-foreground mt-1">{aiUsageLoading ? '…' : aiUsage?.poolSharePct ?? 0}% of institution pool</p>
                         </div>
                         <div className="grid grid-cols-3 gap-2">
-                            <div className="bg-muted/40 rounded-xl p-3 text-center">
+                            <div className="bg-muted/40 rounded-xl p-3 text-center" data-dashboard-surface="">
                                 <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(aiUsage?.totalTokens ?? 0)}</p>
                                 <p className="text-[10px] text-muted-foreground">Used</p>
                             </div>
-                            <div className="bg-muted/40 rounded-xl p-3 text-center">
+                            <div className="bg-muted/40 rounded-xl p-3 text-center" data-dashboard-surface="">
                                 <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(Math.max(0, (aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.institutionPoolUsed ?? 0)), 2)}</p>
                                 <p className="text-[10px] text-muted-foreground">Remaining</p>
                             </div>
@@ -480,7 +480,7 @@ export default function TeacherOverviewPage() {
                                 <p className="text-[10px] text-muted-foreground">Pool share</p>
                             </div>
                         </div>
-                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+                        <div className="rounded-xl border border-border/40 bg-muted/20 p-3" data-dashboard-surface="">
                             <div className="flex items-center justify-between mb-1.5">
                                 <p className="text-[11px] font-semibold text-muted-foreground">Institution pool</p>
                                 <span className="text-[11px] font-semibold">
@@ -500,7 +500,7 @@ export default function TeacherOverviewPage() {
                 </div>
 
                 {/* Short Attendance — 1 col */}
-                <div className="col-span-1 bg-card border border-border/50 rounded-xl p-4 flex flex-col">
+                <div className="col-span-1 bg-card border border-border/50 rounded-xl p-4 flex flex-col" data-dashboard-surface="">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                             <AlertTriangle size={15} className="text-muted-foreground" />
@@ -512,7 +512,7 @@ export default function TeacherOverviewPage() {
                     <div className="space-y-2 flex-1 overflow-y-auto" style={{ maxHeight: '168px' }}>
                         {(overview?.shortAttendance ?? []).map((s, i) => (
                             <motion.div key={s.rollNo} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.06 }}
-                                className="flex items-center gap-2 p-2 rounded-xl border border-border/50 bg-muted/20">
+                                className="flex items-center gap-2 p-2 rounded-xl border border-border/50 bg-muted/20" data-dashboard-surface="">
                                 <div className="w-7 h-7 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0 overflow-hidden"
                                     style={{ background: s.avatarUrl ? 'transparent' : (s.pct >= 65 ? '#D97706' : '#DC2626') }}>
                                     {s.avatarUrl

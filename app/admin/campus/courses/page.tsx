@@ -711,7 +711,7 @@ export default function CoursesPage() {
     ];
 
     return (
-        <div className="flex flex-col h-full overflow-hidden pb-3">
+        <div className="flex flex-col h-full overflow-visible pb-3">
 
             {/* Header */}
             <div className="shrink-0 pt-0 pb-0 px-1 sticky top-0 z-20 bg-background">
@@ -912,7 +912,7 @@ export default function CoursesPage() {
                                                         onDragOver={(e) => isAdmin && e.preventDefault()}
                                                         onDrop={(e) => { e.preventDefault(); handleDeptDrop(course.id, dept.id); }}
                                                         onDragEnd={() => { setDragDeptId(null); setDeptDragReady(false); }}
-                                                        className={`rounded-xl border border-border/50 overflow-hidden bg-card transition-opacity ${dragDeptId === dept.id ? 'opacity-40' : ''}`}>
+                                                        className={`rounded-xl border border-border/50 overflow-hidden bg-card transition-opacity ${dragDeptId === dept.id ? 'opacity-40' : ''}`} data-admin-surface="">
 
                                                         {/* Department header */}
                                                         <div className="group/dept w-full flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors">
@@ -1272,7 +1272,7 @@ export default function CoursesPage() {
                                                                                                                                                     onDragOver={(e) => isAdmin && e.preventDefault()}
                                                                                                                                                     onDrop={(e) => { e.preventDefault(); handleDivisionDrop(course.id, dept.id, year.id, sem.id, div.id); }}
                                                                                                                                                     onDragEnd={() => { setDragDivisionId(null); setDivDragReady(false); }}
-                                                                                                                                                    className={`group/divcard rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-background hover:shadow-md hover:shadow-black/5 hover:border-border transition-all duration-200 ${dragDivisionId === div.id ? 'opacity-40' : ''}`}>
+                                                                                                                                                    className={`group/divcard rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-background hover:shadow-md hover:shadow-black/5 hover:border-border transition-all duration-200 ${dragDivisionId === div.id ? 'opacity-40' : ''}`} data-admin-surface="">
 
                                                                                                                                                     <div className="px-4 pt-4 pb-3">
                                                                                                                                                         <div className="flex items-center justify-between mb-2 gap-2">
@@ -1494,7 +1494,7 @@ export default function CoursesPage() {
                 {confirmDeleteSubject && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface="">
                             <h3 className="text-base font-bold mb-2">Delete Subject?</h3>
                             <p className="text-sm text-muted-foreground mb-5">
                                 <span className="font-semibold text-foreground">{confirmDeleteSubject.name}</span> will be removed from this semester and all its divisions. Teacher assignments for this subject will also be removed.
@@ -1529,7 +1529,7 @@ export default function CoursesPage() {
                 {confirmDeleteEntity && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface="">
                             <h3 className="text-base font-bold mb-2">
                                 Delete {confirmDeleteEntity.type === 'course' ? 'Course' : confirmDeleteEntity.type === 'department' ? 'Department' : confirmDeleteEntity.type === 'year' ? 'Year' : confirmDeleteEntity.type === 'semester' ? 'Semester' : 'Division'}?
                             </h3>

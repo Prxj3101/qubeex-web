@@ -33,7 +33,7 @@ const MOCK_DATA: AttendanceDataPoint[] = [
 
 export function TeacherAttendanceChart({ data = MOCK_DATA }: Partial<TeacherAttendanceChartProps>) {
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-4 h-full">
+        <div className="bg-card border border-border/50 rounded-xl p-4 h-full" data-dashboard-surface="">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <div className="flex items-center gap-2">
                     <CalendarDays size={15} className="text-muted-foreground" />

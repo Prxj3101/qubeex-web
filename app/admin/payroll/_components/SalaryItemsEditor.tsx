@@ -95,7 +95,7 @@ export function SalaryItemsEditor({ items, components, onChange }: {
                 </div>
             )}
 
-            <div className="grid grid-cols-3 gap-2 rounded-xl bg-muted/40 border border-border/60 px-4 py-3">
+            <div className="grid grid-cols-3 gap-2 rounded-xl bg-muted/40 border border-border/60 px-4 py-3" data-admin-surface="">
                 <div>
                     <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Gross / month</p>
                     <p className="text-sm font-bold">{formatINR(preview.grossPay)}</p>

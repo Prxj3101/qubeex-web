@@ -65,7 +65,7 @@ function SectionCard({ title, icon: Icon, iconColor, children, action, titleExtr
     children: React.ReactNode; action?: React.ReactNode; titleExtra?: React.ReactNode;
 }) {
     return (
-        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden h-full">
+        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden h-full" data-admin-surface="">
             <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50 bg-muted/20 flex-wrap gap-2 lg:px-5">
                 <div className="flex items-center gap-2 flex-wrap">
                     <Icon size={15} style={{ color: iconColor }} />
@@ -332,7 +332,7 @@ export default function StudentProfileView({
                 {/* ── Rank + Score + Subject Performance ── */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch">
                     <div className="grid grid-cols-2 gap-3">
-                        <div className="bg-card border border-border/50 rounded-xl p-4">
+                        <div className="bg-card border border-border/50 rounded-xl p-4" data-admin-surface="">
                             <div className="flex items-center gap-2 mb-2">
                                 <Trophy size={14} className="text-amber-500" />
                                 <p className="text-xs font-semibold text-muted-foreground">Overall Rank</p>
@@ -342,7 +342,7 @@ export default function StudentProfileView({
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">Overall rank</p>
                         </div>
-                        <div className="bg-card border border-border/50 rounded-xl p-4">
+                        <div className="bg-card border border-border/50 rounded-xl p-4" data-admin-surface="">
                             <div className="flex items-center gap-2 mb-2">
                                 <Star size={14} className="text-amber-500 fill-amber-500" />
                                 <p className="text-xs font-semibold text-muted-foreground">Overall Score</p>

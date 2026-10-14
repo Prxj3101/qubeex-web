@@ -28,7 +28,7 @@ export function AccountCard({ email }: AccountCardProps) {
 
     return (
         <>
-            <div className="bg-card border border-border/50 rounded-xl p-5 space-y-5">
+            <div className="bg-card border border-border/50 rounded-xl p-5 space-y-5" data-admin-surface="">
                 <h2 className="text-sm font-semibold">Account</h2>
 
                 {/* Admin email — read-only */}

@@ -38,7 +38,7 @@ export function NotificationsPreviewCard({ tickets }: TicketsSummaryCardProps) {
     const inProgressCount = tickets.filter(t => t.status === 'IN_PROGRESS').length;
 
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5" data-admin-surface="">
             <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                     <TicketIcon size={15} className="text-muted-foreground" />

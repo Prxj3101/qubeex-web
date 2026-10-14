@@ -133,7 +133,7 @@ function SectionCard({ title, children, editBtn }: {
   title: React.ReactNode; children: React.ReactNode; editBtn?: React.ReactNode;
 }) {
   return (
-    <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+    <div className="bg-card border border-border/50 rounded-2xl overflow-hidden" data-admin-surface="">
       <div className="flex items-center justify-between px-5 h-14 border-b border-border/50 bg-muted/30">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
         {editBtn}
@@ -189,7 +189,7 @@ function PhoneEditField({ value, onChange, label = 'Phone No' }: { value: string
           </button>
           {open && typeof document !== 'undefined' && createPortal(
             <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
-              className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
+              className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto" data-admin-surface="">
               {INST_PHONE_CODES.map((c) => (
                 <button key={c.code} type="button"
                   onClick={() => { onChange(`${c.code} ${number}`); setOpen(false); }}
@@ -261,7 +261,7 @@ function InlineEditActions({ onCancel, onSave }: { onCancel: () => void; onSave:
 }
 
 function Skeleton({ className }: { className?: string }) {
-  return <div className={`animate-pulse bg-muted rounded-xl ${className ?? ''}`} />;
+  return <div className={`animate-pulse bg-muted rounded-xl ${className ?? ''}`} data-admin-surface="" />;
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
@@ -626,7 +626,7 @@ export default function AdminProfilePage() {
         className="space-y-4"
       >
         {/* Hero card */}
-        <div className="bg-card border border-border/50 rounded-2xl p-5">
+        <div className="bg-card border border-border/50 rounded-2xl p-5" data-admin-surface="">
           <div className="flex items-start gap-4">
             {/* Logo */}
             <div className="relative shrink-0">
@@ -707,7 +707,7 @@ export default function AdminProfilePage() {
         </div>
 
         {/* Admin Profile Card */}
-        <div className="bg-card border border-border/50 rounded-2xl p-5">
+        <div className="bg-card border border-border/50 rounded-2xl p-5" data-admin-surface="">
           <div className="flex items-start gap-4">
             <div className="relative shrink-0">
               <div className="relative w-20 h-20 rounded-2xl flex items-center justify-center text-xl font-bold bg-primary/10 text-primary overflow-hidden select-none cursor-pointer"

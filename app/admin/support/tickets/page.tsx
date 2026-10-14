@@ -135,7 +135,7 @@ function CreateTicketModal({ open, onClose, onCreate }: {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full mx-4 shadow-2xl">
+                className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full mx-4 shadow-2xl" data-admin-surface="">
                 <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/50">
                     <h3 className="text-base font-bold flex items-center gap-2"><TicketIcon size={16} /> Raise a Ticket</h3>
                     <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted"><X size={14} /></button>
@@ -257,7 +257,7 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.3 }}
-            className="bg-card border border-border/50 rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all duration-200 overflow-hidden">
+            className="bg-card border border-border/50 rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all duration-200 overflow-hidden" data-admin-surface="">
 
             <button className="w-full text-left p-4 flex items-start gap-3" onClick={() => setExpanded(e => !e)}>
                 <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${categoryCfg.cls}`}>
@@ -298,7 +298,7 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                 className="max-h-[285px] overflow-y-auto space-y-4 pr-1 pt-1 pb-3 border-b border-border/40"
                                 style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
                             >
-                                <div className="p-3 bg-muted/30 rounded-xl">
+                                <div className="p-3 bg-muted/30 rounded-xl" data-admin-surface="">
                                     <p className="text-[11px] font-semibold text-muted-foreground mb-1">Description</p>
                                     <p className="text-sm text-foreground leading-relaxed">{ticket.description}</p>
                                     {ticket.attachments && ticket.attachments.length > 0 && (
@@ -335,7 +335,7 @@ function TicketCard({ ticket, index }: { ticket: Ticket; index: number }) {
                                                     )}
                                                     <div className={`flex-1 flex flex-col ${isAdmin ? 'items-end' : 'items-start'}`}>
                                                         <div className={`px-3 py-2 rounded-xl text-sm max-w-[85%] ${isAdmin ? 'text-white rounded-tr-sm' : 'bg-muted text-foreground rounded-tl-sm'}`}
-                                                            style={isAdmin ? { background: '#7C3AED' } : {}}>
+                                                            style={isAdmin ? { background: '#7C3AED' } : {}} data-admin-surface="">
                                                             {r.message}
                                                         </div>
                                                         {r.attachments && r.attachments.length > 0 && (

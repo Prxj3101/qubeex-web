@@ -186,7 +186,7 @@ export function AttachmentPreview({
         <>
             <div
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${dark ? 'border-white/20 bg-white/10 text-white hover:bg-white/20' : 'border-border/50 bg-muted/40 text-foreground hover:bg-muted/70'}`}
-                onClick={() => isPdfFile ? setOpen(true) : downloadFile(url, name)}>
+                onClick={() => isPdfFile ? setOpen(true) : downloadFile(url, name)} data-admin-surface="">
                 <span className="shrink-0">{icon}</span>
                 <span className="truncate max-w-[140px]">{name}</span>
                 {!isPdfFile && (

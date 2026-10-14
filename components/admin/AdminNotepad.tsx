@@ -142,7 +142,7 @@ export default function AdminNotepad() {
     const [editingNoteText, setEditingNoteText] = useState('');
 
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-4 flex flex-col overflow-hidden" style={{ height: '100%' }}>
+        <div className="bg-card border border-border/50 rounded-xl p-4 flex flex-col overflow-hidden" style={{ height: '100%' }} data-admin-surface="">
             {/* Header */}
             <div className="flex items-center gap-2 mb-3 shrink-0">
                 <Pin size={15} className="text-muted-foreground" />

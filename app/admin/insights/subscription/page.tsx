@@ -365,7 +365,7 @@ export default function SubscriptionPage() {
         return (
             <div className="min-h-screen bg-background animate-pulse space-y-4 py-3">
                 <div className="h-8 w-48 bg-muted rounded-xl" />
-                <div className="h-40 w-full bg-muted rounded-2xl" />
+                <div className="h-40 w-full bg-muted rounded-2xl" data-admin-surface="" />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="h-48 bg-muted rounded-2xl" />
                     <div className="h-48 bg-muted rounded-2xl" />
@@ -414,7 +414,7 @@ export default function SubscriptionPage() {
                         { label: 'Member Since', value: overview?.institution.createdAt ? formatBillDate(overview.institution.createdAt) : '—', sub: '', icon: Zap, iconBg: 'bg-emerald-100 dark:bg-emerald-950', iconColor: 'text-emerald-600 dark:text-emerald-400' },
                         { label: 'Last Payment Method', value: latestPaid?.paymentMethod ? (PAYMENT_METHOD_LABELS[latestPaid.paymentMethod] ?? latestPaid.paymentMethod) : '—', sub: latestPaid ? formatBillDate(latestPaid.paidAt) : 'No payments yet', icon: CreditCard, iconBg: 'bg-sky-100 dark:bg-sky-950', iconColor: 'text-sky-600 dark:text-sky-400' },
                     ].map((item) => (
-                        <div key={item.label} className="bg-white dark:bg-muted/50 rounded-xl p-4 relative shadow-sm border border-border/50">
+                        <div key={item.label} className="bg-white dark:bg-muted/50 rounded-xl p-4 relative shadow-sm border border-border/50" data-admin-surface="">
                             <div className={`absolute top-4 right-4 w-8 h-8 rounded-lg ${item.iconBg} flex items-center justify-center`}>
                                 <item.icon size={15} className={item.iconColor} />
                             </div>
@@ -430,7 +430,7 @@ export default function SubscriptionPage() {
                     <SectionHeader icon={Shield} title="Plan monitoring" subtitle="Current usage against your plan limits" />
 
                     {/* ── Active Plan Banner ── */}
-                    <div className="bg-card border border-border/50 rounded-2xl p-5 mb-3">
+                    <div className="bg-card border border-border/50 rounded-2xl p-5 mb-3" data-admin-surface="">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
@@ -536,7 +536,7 @@ export default function SubscriptionPage() {
 
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                         {/* Usage bars */}
-                        <div className="lg:col-span-2 bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 space-y-5">
+                        <div className="lg:col-span-2 bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 space-y-5" data-admin-surface="">
                             <p className="text-sm font-medium text-foreground">Usage limits</p>
                             <div className="space-y-4">
 
@@ -651,7 +651,7 @@ export default function SubscriptionPage() {
                         </div>
 
                         {/* Feature access */}
-                        <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5">
+                        <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5" data-admin-surface="">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-sm font-medium text-foreground">Feature access</p>
                                 <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
@@ -705,7 +705,7 @@ export default function SubscriptionPage() {
                     </div>
 
                     {/* White-Labeling status */}
-                    <div className="mt-3 bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5">
+                    <div className="mt-3 bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5" data-admin-surface="">
                         <div className="flex items-center justify-between mb-1">
                             <div className="flex items-center gap-2">
                                 <ShieldCheck className="w-4 h-4 text-muted-foreground" />
@@ -719,7 +719,7 @@ export default function SubscriptionPage() {
                         </div>
 
                         {branding.enabled ? (
-                            <div className="mt-3 flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+                            <div className="mt-3 flex items-center gap-3 p-3 rounded-xl bg-muted/30 border border-border/40" data-admin-surface="">
                                 <NextImage
                                     src={branding.logoUrl}
                                     alt={branding.brandName}
@@ -735,7 +735,7 @@ export default function SubscriptionPage() {
                                 </div>
                             </div>
                         ) : (
-                            <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/30 border border-border/40">
+                            <div className="mt-3 flex items-center justify-between gap-3 p-3 rounded-xl bg-muted/30 border border-border/40" data-admin-surface="">
                                 <p className="text-[11px] text-muted-foreground">
                                     {currentPlan === 'PRO'
                                         ? 'Replace QubeEx branding with your own name and logo. Contact us to get it set up.'
@@ -757,10 +757,10 @@ export default function SubscriptionPage() {
                     <div className="space-y-3">
 
                         {/* Billing Summary */}
-                        <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 space-y-4">
+                        <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 space-y-4" data-admin-surface="">
                             <p className="text-sm font-medium text-foreground">Billing Summary</p>
                             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                                <div className="bg-white dark:bg-muted/50 rounded-xl p-3 border border-border/50">
+                                <div className="bg-white dark:bg-muted/50 rounded-xl p-3 border border-border/50" data-admin-surface="">
                                     <div className="flex items-center justify-between mb-1">
                                         <p className="text-xs text-muted-foreground">Active Users</p>
                                         <button
@@ -773,12 +773,12 @@ export default function SubscriptionPage() {
                                     <p className="text-lg font-bold">{usedUsers}</p>
                                     <p className="text-[11px] text-muted-foreground">billed this month</p>
                                 </div>
-                                <div className="bg-white dark:bg-muted/50 rounded-xl p-3 border border-border/50">
+                                <div className="bg-white dark:bg-muted/50 rounded-xl p-3 border border-border/50" data-admin-surface="">
                                     <p className="text-xs text-muted-foreground mb-1">Current Rate</p>
                                     <p className="text-lg font-bold">₹{currentRate}</p>
                                     <p className="text-[11px] text-muted-foreground">per user / month</p>
                                 </div>
-                                <div className="bg-white dark:bg-muted/50 rounded-xl p-3 border border-border/50" style={{ borderColor: '#DA775640' }}>
+                                <div className="bg-white dark:bg-muted/50 rounded-xl p-3 border border-border/50" style={{ borderColor: '#DA775640' }} data-admin-surface="">
                                     <p className="text-xs text-muted-foreground mb-1">Est. Monthly Bill</p>
                                     <p className="text-lg font-bold" style={{ color: '#DA7756' }}>₹{monthlyBill.toLocaleString('en-IN')}</p>
                                     <p className="text-[11px] text-muted-foreground">
@@ -838,7 +838,7 @@ export default function SubscriptionPage() {
 
                         {/* ── Plan History ── */}
                         {(planHistoryLoading || planHistory.length > 0) && (
-                            <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 space-y-3">
+                            <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 space-y-3" data-admin-surface="">
                                 <p className="text-sm font-medium text-foreground flex items-center gap-2">
                                     <Crown size={15} /> Plan History
                                 </p>
@@ -861,7 +861,7 @@ export default function SubscriptionPage() {
                         )}
 
                         {/* ── Bills & Payments ── */}
-                        <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 space-y-4">
+                        <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 space-y-4" data-admin-surface="">
                             <p className="text-sm font-medium text-foreground flex items-center gap-2">
                                 <FileText size={15} /> Bills & Payments
                             </p>
@@ -931,7 +931,7 @@ export default function SubscriptionPage() {
                                             </div>
                                         </div>
                                     ) : (
-                                        <div className="flex flex-col items-center justify-center py-8 text-center gap-2 bg-muted/20 rounded-xl border border-border/40">
+                                        <div className="flex flex-col items-center justify-center py-8 text-center gap-2 bg-muted/20 rounded-xl border border-border/40" data-admin-surface="">
                                             <Receipt className="w-8 h-8 text-muted-foreground/30" />
                                             <p className="text-xs font-medium text-muted-foreground">No bill generated yet</p>
                                             <p className="text-[11px] text-muted-foreground/60">
@@ -948,7 +948,7 @@ export default function SubscriptionPage() {
                         {/* Plan card */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                             {/* Plan card */}
-                            <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 flex flex-col gap-4">
+                            <div className="bg-card border border-border/50 rounded-2xl p-5 shadow-sm shadow-black/5 flex flex-col gap-4" data-admin-surface="">
                                 <div className="flex items-center justify-between">
                                     <p className="text-sm font-medium text-foreground">Latest Bill — {latestBill?.billingMonth ?? latestBill?.type ?? '—'}</p>
                                     <div className="flex items-center gap-2">
@@ -1014,7 +1014,7 @@ export default function SubscriptionPage() {
                             </div>
 
                             {/* Invoice + history */}
-                            <div className="lg:col-span-2 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">                                {/* Tab bar */}
+                            <div className="lg:col-span-2 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-admin-surface="">                                {/* Tab bar */}
                                 <div className="flex items-center gap-1 p-4 border-b border-border/50">
                                     {(['invoices', 'history'] as const).map((tab) => (
                                         <button key={tab} onClick={() => setBillingTab(tab)}
@@ -1073,7 +1073,7 @@ export default function SubscriptionPage() {
                                     <div className="h-[340px] overflow-y-auto p-5 space-y-4">
                                         {/* Bank Transfer */}
                                         {hasBankDetails && (
-                                            <div className="bg-muted/30 rounded-xl p-4 border border-border/50 space-y-2.5">
+                                            <div className="bg-muted/30 rounded-xl p-4 border border-border/50 space-y-2.5" data-admin-surface="">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <div className="w-6 h-6 rounded-lg bg-violet-100 dark:bg-violet-950/50 flex items-center justify-center">
                                                         <Landmark className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
@@ -1096,7 +1096,7 @@ export default function SubscriptionPage() {
 
                                         {/* QR Code */}
                                         {paymentSettings?.upiId && (
-                                            <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
+                                            <div className="bg-muted/30 rounded-xl p-4 border border-border/50" data-admin-surface="">
                                                 <div className="flex items-center gap-2 mb-3">
                                                     <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center">
                                                         <QrCode className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
@@ -1122,7 +1122,7 @@ export default function SubscriptionPage() {
                                         )}
 
                                         {!hasBankDetails && !paymentSettings?.upiId && (
-                                            <div className="flex flex-col items-center justify-center py-8 text-center gap-2 bg-muted/20 rounded-xl border border-border/40">
+                                            <div className="flex flex-col items-center justify-center py-8 text-center gap-2 bg-muted/20 rounded-xl border border-border/40" data-admin-surface="">
                                                 <Landmark className="w-8 h-8 text-muted-foreground/30" />
                                                 <p className="text-xs font-medium text-muted-foreground">Manual payment details not set up yet</p>
                                                 <p className="text-[11px] text-muted-foreground/60">Use online payment below, or contact support</p>
@@ -1130,7 +1130,7 @@ export default function SubscriptionPage() {
                                         )}
 
                                         {/* Payment Gateway */}
-                                        <div className="bg-muted/30 rounded-xl p-4 border border-border/50">
+                                        <div className="bg-muted/30 rounded-xl p-4 border border-border/50" data-admin-surface="">
                                             <div className="flex items-center gap-2 mb-3">
                                                 <div className="w-6 h-6 rounded-lg bg-sky-100 dark:bg-sky-950/50 flex items-center justify-center">
                                                     <CreditCard className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
@@ -1171,7 +1171,7 @@ export default function SubscriptionPage() {
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full mx-4 shadow-2xl"
+                            className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full mx-4 shadow-2xl" data-admin-surface=""
                         >
                             <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-border/50">
                                 <div>

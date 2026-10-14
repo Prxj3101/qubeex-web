@@ -34,7 +34,7 @@ interface RecentAuditLogsCardProps {
 
 export function RecentActivityCard({ auditLogs }: RecentAuditLogsCardProps) {
     return (
-        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5">
+        <div className="bg-card border border-border/50 rounded-xl p-4 lg:p-5" data-admin-surface="">
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                     <ScrollText size={15} className="text-muted-foreground" />

@@ -173,7 +173,7 @@ export function PhoneInput({ value, onChange }: { value: string; onChange: (v: s
 
 export function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
     return (
-        <div className="h-full flex flex-col justify-center rounded-2xl border border-border/60 bg-card px-3.5 py-2">
+        <div className="h-full flex flex-col justify-center rounded-2xl border border-border/60 bg-card px-3.5 py-2" data-admin-surface="">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-tight">{label}</p>
             <p className="text-base font-bold leading-snug">{value}</p>
             {sub && <p className="text-[10px] text-muted-foreground leading-tight truncate">{sub}</p>}
@@ -181,13 +181,14 @@ export function StatCard({ label, value, sub }: { label: string; value: string; 
     );
 }
 
-export function Pill({ children, tone = 'muted' }: { children: React.ReactNode; tone?: 'muted' | 'primary' | 'green' | 'amber' | 'red' }) {
+export function Pill({ children, tone = 'muted' }: { children: React.ReactNode; tone?: 'muted' | 'primary' | 'green' | 'amber' | 'red' | 'blue' }) {
     const tones: Record<string, string> = {
         muted: 'bg-muted text-muted-foreground',
         primary: 'bg-primary/10 text-primary',
         green: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
         amber: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
         red: 'bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-400',
+        blue: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-400',
     };
     return <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${tones[tone]}`}>{children}</span>;
 }

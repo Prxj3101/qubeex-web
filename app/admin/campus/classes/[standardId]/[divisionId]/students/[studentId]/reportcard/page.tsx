@@ -323,7 +323,7 @@ export default function AdminStudentReportCardPage() {
 
             <div className="flex-1 min-h-0 overflow-y-auto lg:overflow-hidden flex flex-col lg:flex-row gap-4 py-4">
 
-                <div className="w-full lg:w-[200px] shrink-0 bg-card border border-border/50 rounded-2xl p-4 flex flex-row lg:flex-col items-center gap-2 lg:h-fit flex-wrap justify-center">
+                <div className="w-full lg:w-[200px] shrink-0 bg-card border border-border/50 rounded-2xl p-4 flex flex-row lg:flex-col items-center gap-2 lg:h-fit flex-wrap justify-center" data-admin-surface="">
                     <div className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center text-sm font-bold text-white ring-2 ring-white/20 relative"
                         style={{ background: studentPhoto ? 'transparent' : getAvatarColor(studentName) }}>
                         {studentPhoto
@@ -346,7 +346,7 @@ export default function AdminStudentReportCardPage() {
                     </div>
                 </div>
 
-                <div className="flex-1 min-w-0 min-h-[420px] lg:min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="flex-1 min-w-0 min-h-[420px] lg:min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-admin-surface="">
                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex flex-col gap-2 lg:grid lg:grid-cols-3 items-center shrink-0">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider self-start lg:justify-self-start">Report Card</p>
                         <div className="flex items-baseline gap-2 lg:justify-self-center">

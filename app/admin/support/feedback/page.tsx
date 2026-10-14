@@ -74,7 +74,7 @@ function ReviewCard({ review, index, expanded, onToggle, onEdit }: {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.3 }}
-            className="bg-card border border-border/50 rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all duration-200 overflow-hidden">
+            className="bg-card border border-border/50 rounded-2xl hover:border-primary/30 hover:shadow-sm transition-all duration-200 overflow-hidden" data-admin-surface="">
 
             {/* Card Header */}
             <div className="p-4">
@@ -142,7 +142,7 @@ function ReviewCard({ review, index, expanded, onToggle, onEdit }: {
                         exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.2 }} className="overflow-hidden">
                         <div className="border-t border-border/40 px-4 py-4 space-y-3">
                             {review.body && (
-                                <div className="p-3 bg-muted/30 rounded-xl overflow-hidden">
+                                <div className="p-3 bg-muted/30 rounded-xl overflow-hidden" data-admin-surface="">
                                     <p className="text-[11px] font-semibold text-muted-foreground mb-1">Full Review</p>
                                     <p className="text-sm text-foreground leading-relaxed break-words">{review.body}</p>
                                 </div>
@@ -191,7 +191,7 @@ function ReviewModal({ open, onClose, onSubmit, editReview, submitting }: {
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full mx-4 shadow-2xl">
+                className="bg-card border border-border rounded-2xl overflow-hidden max-w-lg w-full mx-4 shadow-2xl" data-admin-surface="">
                 <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border/50">
                     <h3 className="text-base font-bold flex items-center gap-2">
                         <Star size={16} className="text-amber-400 fill-amber-400" />

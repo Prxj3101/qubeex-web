@@ -198,7 +198,7 @@ function AcademicCalendar({ canManage }: { canManage: boolean }) {
     };
 
     return (
-        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
+        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col" data-admin-surface="">
             <div className="flex items-center justify-between px-4 py-2 border-b border-border/40">
                 <p className="text-sm font-bold">📅 Academic Calendar</p>
                 <div className="flex items-center gap-2">
@@ -213,7 +213,7 @@ function AcademicCalendar({ canManage }: { canManage: boolean }) {
             </div>
 
             <div className="flex-1 overflow-y-auto px-4 py-1.5 bg-background">
-                <div className="bg-background rounded-xl mb-2">
+                <div className="bg-background rounded-xl mb-2" data-admin-surface="">
                     <div className="grid grid-cols-7 mb-1">
                         {DAYS.map((d, i) => (
                             <div key={i} className={`text-center text-[10px] font-semibold py-0.5 ${i >= 5 ? 'text-red-500' : 'text-muted-foreground'}`}>{d}</div>
@@ -269,7 +269,7 @@ function AcademicCalendar({ canManage }: { canManage: boolean }) {
                 {showEventModal && selectedDate && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface="">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-sm font-bold">📅 {selectedDate} {MONTHS_S[month]}, {year}</p>
                                 <button onClick={() => setShowEventModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -310,7 +310,7 @@ function AcademicCalendar({ canManage }: { canManage: boolean }) {
                 {showAddModal && addDate && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface="">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-sm font-bold">Add Event — {addDate} {MONTHS_S[month]}</p>
                                 <button onClick={() => setShowAddModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -375,7 +375,7 @@ function FeedCard({ post, onDelete, canManage }: { post: FeedPost; onDelete: (id
     const avatarColor = AVATAR_COLORS[name.charCodeAt(0) % AVATAR_COLORS.length];
 
     return (
-        <div className="bg-card border border-border/50 rounded-2xl p-4 space-y-3">
+        <div className="bg-card border border-border/50 rounded-2xl p-4 space-y-3" data-admin-surface="">
             <div className="flex items-center justify-between">
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${meta.cls}`}>
                     {meta.emoji} {meta.label}
@@ -437,7 +437,7 @@ function FeedCard({ post, onDelete, canManage }: { post: FeedPost; onDelete: (id
                 {confirmDelete && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-admin-surface="">
                             <h3 className="text-base font-bold mb-2">Delete Post?</h3>
                             <p className="text-sm text-muted-foreground mb-5">
                                 This post will be permanently deleted. Are you sure?
@@ -624,7 +624,7 @@ export default function AdminCampusPage() {
             <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden pb-2">
 
                 {/* Feed panel */}
-                <div className="relative w-full lg:w-[65%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+                <div className="relative w-full lg:w-[65%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20" data-admin-surface="">
                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between flex-wrap gap-2">
                             <h2 className="text-sm font-bold">📢 Announcements &amp; Feed</h2>
@@ -675,7 +675,7 @@ export default function AdminCampusPage() {
                     {canManage && <div className="border-t border-border/40 px-3 py-1.5 shrink-0 space-y-1.5">
                         {/* Row 1 — Title + Subject + Filters */}
                         <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
-                            <div className="w-full sm:flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                            <div className="w-full sm:flex-1 flex items-center gap-2 h-7 px-3 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all" data-admin-surface="">
                                 <input value={postInput} onChange={e => setPostInput(e.target.value)}
                                     placeholder="Title..."
                                     className="flex-1 bg-transparent text-sm font-bold placeholder:text-muted-foreground/60 placeholder:font-normal focus:outline-none" />
@@ -716,7 +716,7 @@ export default function AdminCampusPage() {
 
                         {/* Row 2 — Body + Attach + Send */}
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 flex items-start px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                            <div className="flex-1 flex items-start px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all" data-admin-surface="">
                                 <textarea ref={bodyTextareaRef} value={postBody}
                                     onChange={e => { setPostBody(e.target.value); autoGrowBody(e.target); }}
                                     placeholder="Write description (optional)..." rows={1}

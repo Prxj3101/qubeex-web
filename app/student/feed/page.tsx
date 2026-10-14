@@ -156,7 +156,7 @@ function AcademicCalendar() {
     const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1); } else setMonth(m => m + 1); };
 
     return (
-        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
+        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col" data-dashboard-surface="">
             <div className="flex items-center justify-between px-4 py-2 border-b border-border/40">
                 <p className="text-sm font-bold">📅 Academic Calendar</p>
                 <div className="flex items-center gap-2">
@@ -220,7 +220,7 @@ function AcademicCalendar() {
                 {showModal && selectedDate && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" data-dashboard-surface="">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-sm font-bold">📅 {selectedDate} {MONTHS_S[month]}, {year}</p>
                                 <button onClick={() => setShowModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -273,7 +273,7 @@ function FeedCard({ post, divisionName }: { post: FeedPost; divisionName: string
         <motion.div
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-card border border-border/50 rounded-2xl p-4 space-y-3"
+            className="bg-card border border-border/50 rounded-2xl p-4 space-y-3" data-dashboard-surface=""
         >
             <div className="flex items-center justify-between flex-wrap gap-y-1">
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${meta.cls}`}>
@@ -340,7 +340,7 @@ function FeedSkeleton() {
     return (
         <div className="space-y-2">
             {[1, 2, 3].map(i => (
-                <div key={i} className="bg-card border border-border/50 rounded-2xl p-4 space-y-3 animate-pulse">
+                <div key={i} className="bg-card border border-border/50 rounded-2xl p-4 space-y-3 animate-pulse" data-dashboard-surface="">
                     <div className="flex items-center justify-between">
                         <div className="h-6 w-28 bg-muted rounded-full" />
                         <div className="h-4 w-16 bg-muted rounded-full" />
@@ -437,7 +437,7 @@ export default function StudentFeedPage() {
             <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 lg:overflow-hidden pb-2">
 
                 {/* Feed panel — LEFT */}
-                <div className="relative w-full lg:w-[65%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+                <div className="relative w-full lg:w-[65%] h-[70vh] lg:h-auto flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20" data-dashboard-surface="">
 
                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
                         <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">

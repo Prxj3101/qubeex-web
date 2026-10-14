@@ -101,7 +101,7 @@ function AttachmentChip({ attachment, dark, onRemove }: {
         );
     }
     return (
-        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl w-fit max-w-[220px] ${dark ? 'bg-white/20' : 'bg-muted/50 border border-border/40'}`}>
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl w-fit max-w-[220px] ${dark ? 'bg-white/20' : 'bg-muted/50 border border-border/40'}`} data-dashboard-surface="">
             <FileText size={12} className={dark ? 'text-white/80' : 'text-muted-foreground'} />
             <span className={`text-[11px] font-medium truncate flex-1 ${dark ? 'text-white/90' : 'text-muted-foreground'}`}>{attachment.name}</span>
             {onRemove && (
@@ -176,7 +176,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                 <div className={isEmojiOnlyMessage(post.text) && !(post.attachments?.length)
                     ? 'px-0.5 py-0.5'
                     : `px-3 py-2.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${isMe ? 'rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
-                    style={isEmojiOnlyMessage(post.text) && !(post.attachments?.length) ? {} : (isMe ? { background: '#E8CBB5', color: '#3A322C' } : {})}>
+                    style={isEmojiOnlyMessage(post.text) && !(post.attachments?.length) ? {} : (isMe ? { background: '#E8CBB5', color: '#3A322C' } : {})} data-dashboard-surface="">
                     <LinkifiedText
                         text={post.text}
                         className={isEmojiOnlyMessage(post.text) && !(post.attachments?.length)
@@ -213,7 +213,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
                                         <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[8px] font-bold shrink-0 ${c.author.role === 'ADMIN' ? 'bg-[var(--muted)] text-[var(--primary)]' : getAvatarColor(c.author.id)}`}>
                                             {getInitials(c.author.name)}
                                         </div>
-                                        <div className="px-2.5 py-1.5 rounded-xl bg-muted/60 border border-border/30 group relative">
+                                        <div className="px-2.5 py-1.5 rounded-xl bg-muted/60 border border-border/30 group relative" data-dashboard-surface="">
                                             <p className="text-[10px] font-semibold text-muted-foreground">{formatDisplayName(c.author.name, c.author.prefix)}</p>
                                             <p className="text-xs text-foreground"><LinkifiedText text={c.text} /></p>
                                             {c.author.id === myUserId && (
@@ -244,7 +244,7 @@ function PostCard({ post, myUserId, onLike, onDelete, onAddComment, onDeleteComm
             {confirmDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-dashboard-surface="">
                         <h3 className="text-base font-bold mb-1">Delete Post?</h3>
                         <p className="text-sm text-muted-foreground mb-5">This post will be permanently deleted. Are you sure?</p>
                         <div className="flex gap-2 justify-end">
@@ -627,7 +627,7 @@ export default function TeacherStaffroom() {
             </div>
             <div className="flex flex-col lg:flex-row gap-3 flex-1 min-h-0 overflow-y-auto lg:overflow-hidden pb-3">
                 {/* LEFT — Feed */}
-                <div className="relative w-full lg:w-[60%] h-[520px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20">
+                <div className="relative w-full lg:w-[60%] h-[520px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 overflow-hidden border border-border/50 rounded-2xl bg-card shadow-md shadow-black/20" data-dashboard-surface="">
                     <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between">
                             <div className="flex items-center gap-2">
@@ -712,7 +712,7 @@ export default function TeacherStaffroom() {
                             <div className="self-center w-7 h-7 rounded-full bg-[var(--muted)] flex items-center justify-center text-[10px] font-bold text-[var(--primary)] shrink-0">
                                 {myInitials || 'T'}
                             </div>
-                            <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                            <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all" data-dashboard-surface="">
                                 <textarea ref={postInputRef} value={postInput} onChange={e => { setPostInput(e.target.value); autoGrowTextarea(e.target); }}
                                     rows={1}
                                     placeholder="Write an announcement..."
@@ -740,7 +740,7 @@ export default function TeacherStaffroom() {
                 </div>
 
                 {/* RIGHT — DMs */}
-                <div className="w-full lg:w-[40%] h-[420px] lg:h-auto shrink-0 lg:shrink flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20">
+                <div className="w-full lg:w-[40%] h-[420px] lg:h-auto shrink-0 lg:shrink flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden min-h-0 shadow-md shadow-black/20" data-dashboard-surface="">
                     <div className="px-4 pt-2 pb-1 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between">
                             <h2 className="text-base font-bold flex items-center gap-2"><User size={16} /> Direct Messages</h2>
@@ -846,7 +846,7 @@ export default function TeacherStaffroom() {
                                             <div className={msgEmojiOnly
                                                 ? 'px-0.5 py-0.5'
                                                 : `px-2.5 py-1.5 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${msg.isMe ? 'rounded-tr-sm' : 'bg-card border border-border/40 text-foreground rounded-tl-sm'}`}
-                                                                style={msgEmojiOnly ? {} : (msg.isMe ? { background: '#E8CBB5', color: '#3A322C' } : {})}>
+                                                                style={msgEmojiOnly ? {} : (msg.isMe ? { background: '#E8CBB5', color: '#3A322C' } : {})} data-dashboard-surface="">
                                                                 {msg.text && (
                                                                     <p className={msgEmojiOnly ? 'text-[40px] leading-[48px]' : undefined}>
                                                                         <LinkifiedText
@@ -921,7 +921,7 @@ export default function TeacherStaffroom() {
 
                                 <div className="px-3 py-1.5 border-t border-border/40 shrink-0">
                                     <div className="flex items-end gap-2">
-                                        <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                                        <div className="flex-1 flex items-end gap-2 px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all" data-dashboard-surface="">
                                             <textarea ref={dmInputRef} value={dmInput} onChange={e => { setDmInput(e.target.value); autoGrowTextarea(e.target); }}
                                                 rows={1}
                                                 placeholder={`Message ${activeDm.name}...`}
@@ -983,7 +983,7 @@ export default function TeacherStaffroom() {
             {confirmUnsendId && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
-                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                        className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-dashboard-surface="">
                         <h3 className="text-base font-bold mb-1">Unsend Message?</h3>
                         <p className="text-sm text-muted-foreground mb-5">This message will be permanently deleted. Are you sure?</p>
                         <div className="flex gap-2 justify-end">

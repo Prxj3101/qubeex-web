@@ -201,7 +201,7 @@ function TestCard({ test }: { test: StudentTest }) {
     const canStartAnother = test.studentStatus === 'LIVE' && test.attemptsUsed < test.maxAttempts;
 
     return (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden" data-dashboard-surface="">
             <div className="p-4">
                 <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
@@ -327,7 +327,7 @@ function TestCard({ test }: { test: StudentTest }) {
                     </div>
                 )}
                 {canStartAnother && test.lockedByOtherDevice && (
-                    <div className={`${test.lastAttemptId ? 'mt-2' : 'mt-3'} w-full py-2.5 rounded-xl text-sm font-semibold text-muted-foreground bg-muted/60 flex items-center justify-center gap-2`}>
+                    <div className={`${test.lastAttemptId ? 'mt-2' : 'mt-3'} w-full py-2.5 rounded-xl text-sm font-semibold text-muted-foreground bg-muted/60 flex items-center justify-center gap-2`} data-dashboard-surface="">
                         <ShieldAlert size={15} />
                         Test in progress on another device
                     </div>
@@ -405,7 +405,7 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
         ['PENDING', 'WRITE_AGAIN'].includes(assignment.studentStatus);
 
     return (
-        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        <div className="rounded-2xl border border-border bg-card overflow-hidden" data-dashboard-surface="">
             <div className="p-4">
                 <div className="flex items-start gap-3">
                     {/* Icon */}
@@ -481,7 +481,7 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
 
                         {/* Submission info */}
                         {assignment.submission?.submittedAt && (
-                            <div className="rounded-xl bg-muted/40 p-3">
+                            <div className="rounded-xl bg-muted/40 p-3" data-dashboard-surface="">
                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Online Submission</p>
                                 <div className="flex items-center justify-between gap-2">
                                     <p className="text-xs text-foreground truncate">
@@ -558,7 +558,7 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
                         )}
 
                         {assignment.submissionType === 'ONLINE' && assignment.submission?.submittedAt ? (
-                            <div className="rounded-xl bg-muted/40 p-3">
+                            <div className="rounded-xl bg-muted/40 p-3" data-dashboard-surface="">
                                 <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Offline Copy</p>
                                 <p className="text-xs text-foreground flex items-center gap-1">
                                     {assignment.submission.offlineSubmittedAt ? (
@@ -571,7 +571,7 @@ function AssignmentCard({ assignment, onSubmitted }: { assignment: StudentAssign
                             </div>
                         ) : (
                             assignment.submission?.offlineSubmittedAt && (
-                                <div className="rounded-xl bg-muted/40 p-3">
+                                <div className="rounded-xl bg-muted/40 p-3" data-dashboard-surface="">
                                     <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Offline Copy</p>
                                     <p className="text-xs text-foreground flex items-center gap-1">
                                         Marked received on {formatDate(assignment.submission.offlineSubmittedAt)}, {formatTime(assignment.submission.offlineSubmittedAt)}
@@ -719,15 +719,15 @@ export default function StudentTasksPage() {
                     once loading finishes — that was the visible "flash" on refresh. */}
                 {tab === 'tests' && (
                     <div className="flex gap-2 mb-3 overflow-x-auto">
-                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1" data-dashboard-surface="">
                             <span className="text-xl font-bold text-red-500">{testCounts.LIVE}</span>
                             <span className="text-[10px] text-muted-foreground font-medium">Live</span>
                         </div>
-                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1" data-dashboard-surface="">
                             <span className="text-xl font-bold text-orange-500">{testCounts.UPCOMING}</span>
                             <span className="text-[10px] text-muted-foreground font-medium">Upcoming</span>
                         </div>
-                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1" data-dashboard-surface="">
                             <span className="text-xl font-bold text-emerald-500">{testCounts.DONE}</span>
                             <span className="text-[10px] text-muted-foreground font-medium">Done</span>
                         </div>
@@ -736,15 +736,15 @@ export default function StudentTasksPage() {
 
                 {tab === 'assignments' && (
                     <div className="flex gap-2 mb-3 overflow-x-auto">
-                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1" data-dashboard-surface="">
                             <span className="text-xl font-bold text-red-500">{assignmentCounts.WRITE_AGAIN}</span>
                             <span className="text-[10px] text-muted-foreground font-medium">Write Again</span>
                         </div>
-                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1" data-dashboard-surface="">
                             <span className="text-xl font-bold text-amber-500">{assignmentCounts.PENDING}</span>
                             <span className="text-[10px] text-muted-foreground font-medium">Pending</span>
                         </div>
-                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1">
+                        <div className="flex-1 min-w-[90px] rounded-2xl border border-border bg-card p-3 flex flex-col items-center gap-1" data-dashboard-surface="">
                             <span className="text-xl font-bold text-emerald-500">{assignmentCounts.SUBMITTED}</span>
                             <span className="text-[10px] text-muted-foreground font-medium">Submitted</span>
                         </div>

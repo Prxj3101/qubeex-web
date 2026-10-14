@@ -151,7 +151,7 @@ function ExamEditModal({
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-card border border-border rounded-2xl p-5 max-w-xs w-full mx-4 shadow-2xl">
+                className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-5 max-w-xs w-full mx-4 " data-dashboard-surface="">
                 <div className="flex items-center justify-between mb-4">
                     <p className="text-sm font-bold">✏️ Edit Exam</p>
                     <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -227,7 +227,7 @@ function AddExamModal({
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-5 max-w-sm w-full mx-4 " data-dashboard-surface="">
                 <div className="flex items-center justify-between mb-4">
                     <p className="text-sm font-bold">➕ Add Exam</p>
                     <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -280,7 +280,7 @@ function GradedSubjectModal({
     return (
         <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
             <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-5 max-w-sm w-full mx-4 " data-dashboard-surface="">
                 <div className="flex items-center justify-between mb-4">
                     <p className="text-sm font-bold">{existing ? '✏️ Edit Subject' : '➕ Add Graded Subject'}</p>
                     <button onClick={onClose} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted"><X size={14} /></button>
@@ -401,7 +401,7 @@ function GradeScaleEditor({
     const displayScale = scale.length > 0 ? [...scale].sort((a, b) => b.minPct - a.minPct) : DEFAULT_GRADE_SCALE;
 
     return (
-        <div className="mx-3 mb-3 rounded-xl border border-border/60 bg-card overflow-hidden">
+        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] mx-3 mb-3 rounded-xl   bg-card overflow-hidden" data-dashboard-surface="">
             <button
                 onClick={() => { setOpen(o => !o); }}
                 className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium hover:bg-muted/30 transition-colors"
@@ -800,7 +800,7 @@ function MarkSheet({
     const TOTAL_W = 80;
 
     return (
-        <div className="flex-1 flex flex-col min-h-0 border border-border/50 rounded-2xl shadow-sm shadow-black/5 overflow-hidden bg-card">
+        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex-1 flex flex-col min-h-0   rounded-2xl   overflow-hidden bg-card" data-dashboard-surface="">
 
             {/* Header */}
             <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3 bg-card">
@@ -1447,7 +1447,7 @@ function StudentSummaryPanel({
     };
 
     return (
-        <div className="w-full lg:w-[30%] flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:w-[30%] flex flex-col min-h-0 bg-card   rounded-2xl overflow-hidden  " data-dashboard-surface="">
             <div className="px-4 py-3.5 border-b border-border/40 shrink-0">
                 <p className="text-sm font-bold flex items-center gap-2">
                     <Users size={14} /> Students ({students.length})
@@ -1648,7 +1648,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
         <div className="flex flex-col lg:flex-row gap-3 h-full min-h-0 pt-3 pb-3 px-1 overflow-y-auto lg:overflow-visible">
 
             {/* LEFT — Students list */}
-            <div className="w-full lg:w-[30%] h-[380px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:w-[30%] h-[380px] lg:h-auto shrink-0 lg:shrink flex flex-col min-h-0 bg-card   rounded-2xl overflow-hidden  " data-dashboard-surface="">
                 <div className="px-4 py-3.5 border-b border-border/40 shrink-0">
                     <p className="text-sm font-bold flex items-center gap-2">
                         <Users size={14} /> Students ({marksheetHook.students.length})
@@ -1695,7 +1695,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
             </div>
 
             {/* RIGHT — Details panel */}
-            <div className="w-full lg:flex-1 h-[75vh] lg:h-auto flex flex-col min-h-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:flex-1 h-[75vh] lg:h-auto flex flex-col min-h-0 bg-card   rounded-2xl overflow-hidden  " data-dashboard-surface="">
                 <div className="px-4 py-2.5 border-b border-border/40 shrink-0 flex items-center gap-3">
                     <p className="text-sm font-bold shrink-0 flex items-center gap-1.5">
                         <BookOpen size={14} /> {divisionName}
@@ -1744,7 +1744,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                             { height: 'h-12', color: '#CD7F32', label: '3rd' },
                         ];
                         return (
-                            <div className="w-full lg:w-1/2 h-[420px] lg:h-auto shrink-0 lg:shrink bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col min-h-0">
+                            <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:w-1/2 h-[420px] lg:h-auto shrink-0 lg:shrink bg-card   rounded-2xl overflow-hidden   flex flex-col min-h-0" data-dashboard-surface="">
                                 <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                                     <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                         <Trophy size={13} /> Leaderboard
@@ -1785,7 +1785,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                                     {rest.map((st, i) => {
                                         const pct = getPct(st);
                                         return (
-                                            <div key={st.student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
+                                            <div key={st.student.id} className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30  " data-dashboard-surface="">
                                                 <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
                                                 <div onClick={() => st.student.avatarUrl && setExpandedPhoto({ url: st.student.avatarUrl!, name: st.student.name })}
                                                     className={`w-6 h-6 rounded-full overflow-hidden flex items-center justify-center text-[9px] font-bold text-white shrink-0 relative ${st.student.avatarUrl ? 'cursor-pointer' : ''}`}
@@ -1804,7 +1804,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                         );
                     })()}
                         {/* Subject Toppers */}
-                        <div className="w-full lg:w-1/2 h-[420px] lg:h-auto shrink-0 lg:shrink bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col min-h-0">
+                        <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] w-full lg:w-1/2 h-[420px] lg:h-auto shrink-0 lg:shrink bg-card   rounded-2xl overflow-hidden   flex flex-col min-h-0" data-dashboard-surface="">
                             <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between shrink-0">
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                                     <Trophy size={13} /> Subject Toppers
@@ -1829,7 +1829,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                                             {top5.map((row, idx) => {
                                                 const pct = getPct(row);
                                                 return (
-                                                    <div key={row.student.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/30 border border-border/30">
+                                                    <div key={row.student.id} className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-muted/30  ">
                                                         <span className="text-[10px] font-black text-muted-foreground w-3 shrink-0">{idx + 1}</span>
                                                         <div onClick={() => row.student.avatarUrl && setExpandedPhoto({ url: row.student.avatarUrl!, name: row.student.name })}
                                                             className={`w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[8px] font-bold text-white shrink-0 relative ${row.student.avatarUrl ? 'cursor-pointer' : ''}`}
@@ -1892,7 +1892,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                             <div className="h-full overflow-y-auto space-y-3">
 
                                 {/* Top card: 380px */}
-                                <div className="shrink-0 bg-background border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5 flex flex-col" style={{ height: '380px' }}>
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] shrink-0 bg-background   rounded-2xl overflow-hidden   flex flex-col" style={{ height: '380px' }} data-dashboard-surface="">
                                     {/* Header: subject pills + mode toggle */}
                                     <div className="px-3 py-2 border-b border-border/40 bg-muted/20 flex items-center gap-2 shrink-0">
                                         <div className="flex-1 min-w-0 overflow-x-auto">
@@ -1993,7 +1993,7 @@ function OverallView({ divisionName, subjects, onStatsChange, marksheetHook, onl
                                 </div>
 
                                 {/* Report Card */}
-                                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                                <div className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] shrink-0 bg-card   rounded-2xl overflow-hidden  " data-dashboard-surface="">
                                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:items-center">
                                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider justify-self-start">Report Card</p>
                                         <div className="flex items-baseline gap-2 justify-self-center">
@@ -2392,7 +2392,7 @@ function CompactPublishButton({
                 {showConfirm && (
                     <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-xs w-full mx-4 shadow-2xl">
+                            className="shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)] bg-card   rounded-2xl p-5 max-w-xs w-full mx-4 " data-dashboard-surface="">
                             <p className="text-sm font-bold mb-1.5 flex items-center gap-1.5">
                                 <Megaphone size={14} /> {isPublished ? 'Re-publish marksheet?' : 'Publish marksheet?'}
                             </p>

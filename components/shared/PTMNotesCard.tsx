@@ -82,7 +82,7 @@ export default function PTMNotesCard({ divisionId, studentId }: PTMNotesCardProp
 
     return (
         <>
-            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden h-full">
+            <div className="bg-card border border-border/50 rounded-2xl overflow-hidden h-full" data-admin-surface="">
                 <div className="flex items-center justify-between px-4 py-3.5 border-b border-border/50 bg-muted/20 flex-wrap gap-2 lg:px-5">
                     <div className="flex items-center gap-2 flex-wrap">
                         <ClipboardList size={15} style={{ color: '#7C3AED' }} />

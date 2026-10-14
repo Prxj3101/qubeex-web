@@ -77,7 +77,7 @@ function SectionCard({ title, icon: Icon, description, children, action }: {
     action?: React.ReactNode;
 }) {
     return (
-        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden" data-dashboard-surface="">
             <div className="bg-muted/20 px-5 py-4 border-b border-border/50 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2.5 min-w-0">
                     <div className="w-8 h-8 rounded-lg bg-[var(--muted)] dark:bg-[var(--primary)]/25 flex items-center justify-center shrink-0">
@@ -563,7 +563,7 @@ export default function TeacherSettingsPageClient() {
 
                         {/* Danger Zone */}
                         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15, duration: 0.3 }}
-                            className="bg-card border border-red-200 dark:border-red-900/50 rounded-2xl overflow-hidden"
+                            className="bg-card border border-red-200 dark:border-red-900/50 rounded-2xl overflow-hidden" data-dashboard-surface=""
                         >
                             <div className="bg-red-50/50 dark:bg-red-950/20 px-5 py-4 border-b border-red-200 dark:border-red-900/50 flex items-center gap-2.5">
                                 <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-950 flex items-center justify-center">

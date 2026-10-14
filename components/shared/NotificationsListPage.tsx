@@ -149,7 +149,7 @@ export function NotificationsListPage({ roleBase }: { roleBase: '/teacher' | '/s
 
             {/* ── List ── */}
             <div className="flex-1 flex flex-col min-h-0 pb-6">
-                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col">
+                <div className="bg-card border border-border/50 rounded-2xl overflow-hidden flex flex-col" data-admin-surface="">
                     <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
                         {loading ? (
                             [...Array(5)].map((_, i) => <SkeletonRow key={i} />)

@@ -112,7 +112,7 @@ function PhoneEditField({ value, onChange }: { value: string; onChange: (v: stri
                     </button>
                     {open && typeof document !== 'undefined' && createPortal(
                         <div ref={dropRef} style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}
-                            className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto">
+                            className="bg-card border border-border rounded-xl shadow-xl py-1 min-w-[130px] max-h-[108px] overflow-y-auto" data-dashboard-surface="">
                             {PHONE_CODES.map(c => (
                                 <button key={c.code} type="button"
                                     onClick={() => { onChange(`${c.code} ${number}`); setOpen(false); }}
@@ -168,7 +168,7 @@ function SectionCard({ title, children, editBtn, contentClassName = 'px-5 pt-2 p
     title: React.ReactNode; children: React.ReactNode; editBtn?: React.ReactNode; contentClassName?: string;
 }) {
     return (
-        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden">
+        <div className="bg-card border border-border/50 rounded-2xl overflow-hidden" data-dashboard-surface="">
             <div className="flex items-center justify-between px-5 py-4 min-h-[60px] border-b border-border/50 bg-muted/30">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</p>
                 {editBtn}
@@ -442,7 +442,7 @@ function TeacherProfileInner() {
                 className="space-y-4">
 
                 {/* Header Card */}
-                <div className="bg-card border border-border/50 rounded-2xl p-5">
+                <div className="bg-card border border-border/50 rounded-2xl p-5" data-dashboard-surface="">
                     <div className="flex items-start gap-4">
                         <div className="relative">
                             <div
@@ -628,11 +628,11 @@ function TeacherProfileInner() {
                                 <p className="text-[11px] text-muted-foreground mt-1">{aiUsageLoading ? '…' : aiUsage?.poolSharePct ?? 0}% of institution pool</p>
                             </div>
                             <div className="grid grid-cols-3 gap-2">
-                                <div className="bg-muted/40 rounded-xl p-3 text-center">
+                                <div className="bg-muted/40 rounded-xl p-3 text-center" data-dashboard-surface="">
                                     <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(aiUsage?.totalTokens ?? 0)}</p>
                                     <p className="text-[10px] text-muted-foreground">Used</p>
                                 </div>
-                                <div className="bg-muted/40 rounded-xl p-3 text-center">
+                                <div className="bg-muted/40 rounded-xl p-3 text-center" data-dashboard-surface="">
                                     <p className="text-sm font-bold">{aiUsageLoading ? '…' : formatTokens(Math.max(0, (aiUsage?.institutionPoolLimit ?? 0) - (aiUsage?.institutionPoolUsed ?? 0)), 2)}</p>
                                     <p className="text-[10px] text-muted-foreground">Remaining</p>
                                 </div>
@@ -641,7 +641,7 @@ function TeacherProfileInner() {
                                     <p className="text-[10px] text-muted-foreground">Pool share</p>
                                 </div>
                             </div>
-                            <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+                            <div className="rounded-xl border border-border/40 bg-muted/20 p-3" data-dashboard-surface="">
                                 <div className="flex items-center justify-between mb-1.5">
                                     <p className="text-[11px] font-semibold text-muted-foreground">Institution pool</p>
                                     <span className="text-[11px] font-semibold">
@@ -729,7 +729,7 @@ function TeacherProfileInner() {
                                                 ? colorForSubject({ id: a.level2Id, color: a.subjectColor })
                                                 : null;
                                             return (
-                                                <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border/50 bg-muted/20">
+                                                <div key={a.id} className="flex items-center gap-3 px-3 py-2 rounded-xl border border-border/50 bg-muted/20" data-dashboard-surface="">
                                                     <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${a.role === 'CLASS_TEACHER' ? 'bg-amber-100 dark:bg-amber-950' : ''}`}
                                                         style={subjectColor ? { background: subjectColor + '20' } : undefined}>
                                                         {a.role === 'CLASS_TEACHER'

@@ -83,7 +83,7 @@ function ClassTeacherCard({ item, index }: { item: ClassTeacherAssignment; index
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.3 }}
-            className="rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-card hover:shadow-md hover:shadow-black/10 hover:border-border transition-all duration-200 cursor-pointer"
+            className="rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-card hover:shadow-md hover:shadow-black/10 hover:border-border transition-all duration-200 cursor-pointer" data-dashboard-surface=""
         >
             {/* Top */}
             <div className="px-4 pt-4 pb-0">
@@ -165,7 +165,7 @@ function SubjectTeacherCard({ item, index }: { item: SubjectTeacherAssignment; i
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05, duration: 0.3 }}
-            className="rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-card hover:shadow-md hover:shadow-black/10 hover:border-border transition-all duration-200 cursor-pointer"
+            className="rounded-2xl border border-border/50 overflow-hidden flex flex-col bg-card hover:shadow-md hover:shadow-black/10 hover:border-border transition-all duration-200 cursor-pointer" data-dashboard-surface=""
         >
             <div className="px-4 pt-4 pb-4">
                 <div className="flex items-center justify-between mb-3">

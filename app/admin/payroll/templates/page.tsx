@@ -86,7 +86,7 @@ export default function SalaryTemplatesPage() {
                     {templates.map(t => {
                         const p = previewMonthly(t.items, components);
                         return (
-                            <div key={t.id} className="group rounded-2xl border border-border/60 bg-card p-4 hover:border-border hover:shadow-sm transition-all">
+                            <div key={t.id} className="group rounded-2xl border border-border/60 bg-card p-4 hover:border-border hover:shadow-sm transition-all" data-admin-surface="">
                                 <div className="flex items-start justify-between gap-2">
                                     <div className="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center"><FileText size={16} /></div>
                                     <div className="flex items-center gap-1 opacity-70 group-hover:opacity-100">

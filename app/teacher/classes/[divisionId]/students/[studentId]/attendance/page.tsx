@@ -155,7 +155,7 @@ export default function TeacherStudentAttendanceDetailsPage() {
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border border-border/50 bg-card p-3.5">
+                    <div className="rounded-2xl border border-border/50 bg-card p-3.5" data-dashboard-surface="">
                         <div className="flex items-center gap-1.5">
                             <Info size={13} className="text-primary" />
                             <p className="text-xs font-semibold text-primary">Attendance Rules</p>
@@ -180,13 +180,13 @@ export default function TeacherStudentAttendanceDetailsPage() {
 
                     <div className="flex flex-col sm:flex-row gap-3 shrink-0">
                         <div className="flex flex-row sm:flex-col gap-3 w-full lg:w-[140px] shrink-0">
-                            <div className="flex-1 sm:flex-none rounded-2xl border border-border/50 bg-card p-4 text-center">
+                            <div className="flex-1 sm:flex-none rounded-2xl border border-border/50 bg-card p-4 text-center" data-dashboard-surface="">
                                 <p className={`text-2xl font-black ${pctColor(overallPct > 0 ? overallPct : null)}`}>
                                     {overallPct > 0 ? `${overallPct}%` : '—'}
                                 </p>
                                 <p className="text-[11px] text-muted-foreground mt-1">Overall</p>
                             </div>
-                            <div className="flex-1 sm:flex-none rounded-2xl border border-border/50 bg-card p-4 text-center">
+                            <div className="flex-1 sm:flex-none rounded-2xl border border-border/50 bg-card p-4 text-center" data-dashboard-surface="">
                                 <p className={`text-2xl font-black ${pctColor(currentMonthPct > 0 ? currentMonthPct : null)}`}>
                                     {currentMonthPct > 0 ? `${currentMonthPct}%` : '—'}
                                 </p>
@@ -194,7 +194,7 @@ export default function TeacherStudentAttendanceDetailsPage() {
                             </div>
                         </div>
 
-                        <div className="flex-1 rounded-2xl border border-border/50 bg-card overflow-hidden">
+                        <div className="flex-1 rounded-2xl border border-border/50 bg-card overflow-hidden" data-dashboard-surface="">
                             <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
                                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Month-wise Attendance</p>
                             </div>

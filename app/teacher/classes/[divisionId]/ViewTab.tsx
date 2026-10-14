@@ -217,7 +217,7 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName, divisio
     };
 
     return (
-        <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+        <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
             <div className="flex items-center justify-between px-4 py-3 border-b border-border/40">
                 <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                     <Calendar size={14} /> {divisionName} Academic Calendar
@@ -294,7 +294,7 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName, divisio
                 {showEventModal && selectedDate && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" data-dashboard-surface="">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-sm font-bold">📅 {selectedDate} {MONTHS_S[month]}, {year}</p>
                                 <button onClick={() => setShowEventModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -339,7 +339,7 @@ function ClassCalendar({ isClassTeacher, isSubjectTeacher, divisionName, divisio
                 {showAddModal && addDate && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" data-dashboard-surface="">
                             <div className="flex items-center justify-between mb-4">
                                 <p className="text-sm font-bold">Add Event — {addDate} {MONTHS_S[month]}</p>
                                 <button onClick={() => setShowAddModal(false)} className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted">
@@ -392,7 +392,7 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
     const roleLabel = resolveDisplayTitle(ann.author.role, ann.author.title);
 
     return (
-        <div className="bg-card border border-border/50 rounded-2xl p-4 space-y-3">
+        <div className="bg-card border border-border/50 rounded-2xl p-4 space-y-3" data-dashboard-surface="">
             <div className="flex items-center justify-between">
                 <span className={`inline-flex items-center gap-1.5 text-[11px] font-bold px-2.5 py-1 rounded-full ${meta.cls}`}>
                     {meta.emoji} {meta.label}
@@ -455,7 +455,7 @@ function DivFeedCard({ ann, myUserId, onDelete }: {
                 {confirmDelete && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
                         <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
-                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+                            className="bg-card border border-border rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl" data-dashboard-surface="">
                             <h3 className="text-base font-bold mb-2">Delete Post?</h3>
                             <p className="text-sm text-muted-foreground mb-5">
                                 This post will be permanently deleted. Are you sure?
@@ -638,7 +638,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
             <div className="w-full lg:w-[60%] h-[560px] lg:h-auto shrink-0 lg:shrink flex flex-col gap-3 min-h-0 overflow-hidden">
 
                 {/* Class Teacher card */}
-                <div className="shrink-0 bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm shadow-black/5">
+                <div className="shrink-0 bg-card border border-border/50 rounded-2xl px-4 py-3 flex items-center gap-3 shadow-sm shadow-black/5" data-dashboard-surface="">
                     <div className="w-9 h-9 rounded-xl overflow-hidden relative flex items-center justify-center text-sm font-bold text-white shrink-0"
                         style={{ background: classTeacherAssignment?.teacher.avatarUrl ? 'transparent' : '#F59E0B' }}>
                         {classTeacherAssignment?.teacher.avatarUrl
@@ -659,7 +659,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                 </div>
 
                 {/* Feed */}
-                <div className="relative flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="relative flex-1 min-h-0 flex flex-col bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
                     <div className="px-4 pt-3 pb-2 border-b border-border/40 shrink-0">
                         <div className="flex items-center justify-between flex-wrap gap-2">
                             <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -771,7 +771,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                             </div>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="flex-1 flex items-start px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all">
+                            <div className="flex-1 flex items-start px-3 py-2 rounded-xl border border-border/40 bg-muted/30 focus-within:border-primary/50 focus-within:bg-background transition-all" data-dashboard-surface="">
                                 <textarea ref={bodyTextareaRef} value={postBody}
                                     onChange={e => { setPostBody(e.target.value); autoGrowBody(e.target); }}
                                     placeholder="Write description (optional)..." rows={1}
@@ -811,7 +811,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
             <div className="w-full lg:w-[40%] flex flex-col gap-3 min-h-0 overflow-y-auto pb-1">
 
                 {/* Subject Teachers */}
-                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                             <BookOpen size={14} /> Subject Teachers
@@ -853,7 +853,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                 </div>
 
                 {/* Leaderboard */}
-                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5">
+                <div className="shrink-0 bg-card border border-border/50 rounded-2xl overflow-hidden shadow-sm shadow-black/5" data-dashboard-surface="">
                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                             <Trophy size={14} /> Leaderboard — Top 5
@@ -910,7 +910,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                                 {/* Rank 4 & 5 */}
                                 <div className="px-4 pb-3 space-y-1.5">
                                     {top5.slice(3, 5).map((student, i) => (
-                                        <div key={student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40">
+                                        <div key={student.id} className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-muted/30 border border-border/40" data-dashboard-surface="">
                                             <span className="text-xs font-black text-muted-foreground w-4 text-center">{i + 4}</span>
                                             <div className="w-6 h-6 rounded-full overflow-hidden relative flex items-center justify-center text-[9px] font-bold text-white shrink-0"
                                                 style={{ background: student.avatarUrl ? 'transparent' : getAvatarColor(student.name) }}>
@@ -983,7 +983,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                 />
 
                 {/* Materials */}
-                <div className="shrink-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5 flex flex-col" style={{ height: '240px' }}>
+                <div className="shrink-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5 flex flex-col" style={{ height: '240px' }} data-dashboard-surface="">
                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between shrink-0 rounded-t-2xl">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                             <FolderOpen size={14} /> Materials
@@ -1046,7 +1046,7 @@ export default function ViewTab({ division, classTeacherAssignment, isClassTeach
                 </div>
 
                 {/* Results */}
-                <div className="shrink-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5 flex flex-col" style={{ height: '240px' }}>
+                <div className="shrink-0 bg-card border border-border/50 rounded-2xl shadow-sm shadow-black/5 flex flex-col" style={{ height: '240px' }} data-dashboard-surface="">
                     <div className="px-4 py-2.5 border-b border-border/40 bg-muted/20 flex items-center justify-between shrink-0 rounded-t-2xl">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                             <FileText size={14} /> Results

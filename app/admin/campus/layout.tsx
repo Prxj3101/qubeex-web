@@ -254,7 +254,7 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
     if (needsRedirect) return null;
 
     return (
-        <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex flex-col h-full overflow-visible">
             {showTabs && mounted && (
                 <div className="shrink-0 pt-0 pb-2 px-1 flex items-center justify-between gap-2">
                     <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit shrink-0 overflow-x-auto">
@@ -339,7 +339,7 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
                     )}
                 </div>
             )}
-            <div className="flex-1 min-h-0 overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-visible">
                 {children}
             </div>
         </div>

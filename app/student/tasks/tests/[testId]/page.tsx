@@ -342,7 +342,7 @@ export default function TakeTestPage() {
                 </div>
             )}
 
-            <div className={`rounded-2xl border border-border bg-card p-5 flex flex-col ${isAppWebView ? 'mb-3 h-[400px]' : 'mb-4 h-[380px]'}`}>
+            <div className={`rounded-2xl border border-border bg-card p-5 flex flex-col ${isAppWebView ? 'mb-3 h-[400px]' : 'mb-4 h-[380px]'}`} data-dashboard-surface="">
                 <p className="text-base font-medium leading-relaxed mb-5">{index + 1}. {q.questionText}</p>
 
                 <div className="flex-1 overflow-y-auto pr-2 visible-scrollbar" style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb-strong) transparent' }}>
@@ -437,7 +437,7 @@ export default function TakeTestPage() {
 
             {showSubmitConfirm && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
-                    <div className="w-full max-w-sm rounded-2xl bg-card border border-border p-5">
+                    <div className="w-full max-w-sm rounded-2xl bg-card border border-border p-5" data-dashboard-surface="">
                         <h2 className="text-base font-bold mb-1">Submit test?</h2>
                         <p className="text-sm text-muted-foreground mb-1">
                             You've answered {Object.keys(answers).length} of {session.questions.length} questions.
