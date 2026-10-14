@@ -504,10 +504,10 @@ function SetPasswordContent() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="Re-enter your password"
                   className={`w-full h-11 pl-10 pr-10 rounded-xl bg-white/5 border text-sm text-white placeholder:text-white/25 focus:outline-none focus:bg-white/8 transition-all ${confirmPassword.length > 0
-                      ? passwordsMatch
-                        ? "border-emerald-500/50 focus:border-emerald-500/70"
-                        : "border-red-500/50 focus:border-red-500/70"
-                      : "border-white/10 focus:border-[#71717A]/60"
+                    ? passwordsMatch
+                      ? "border-emerald-500/50 focus:border-emerald-500/70"
+                      : "border-red-500/50 focus:border-red-500/70"
+                    : "border-white/10 focus:border-[#71717A]/60"
                     }`}
                 />
                 <button
@@ -561,7 +561,7 @@ function SetPasswordContent() {
             )}
           </div>
 
-          {/* Fixed bottom —submit + footer */}
+          {/* Fixed bottom — submit + footer */}
           <div className="shrink-0 px-4 lg:px-6 pb-6 pt-4 border-t border-white/8">
             <button
               onClick={handleSubmit}
