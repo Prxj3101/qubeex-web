@@ -85,7 +85,7 @@ export default function PurchaseRequestsPanel({ banner, navigation, onCreateOrde
                         {main === 'order' && <SmallButton onClick={() => onOrders(entry.purchaseOrder!.id)}>View order</SmallButton>}
                         {main === 'edit' && <SmallButton onClick={() => edit(entry)}>Edit</SmallButton>}
                         {main === 'view' && <SmallButton onClick={() => setDetail(entry)}>View</SmallButton>}
-                        <DropdownMenu>
+                        {(main !== 'view' || (canEdit && main !== 'edit') || !!entry.purchaseOrder || canReview) && <DropdownMenu>
                             <DropdownMenuTrigger asChild><SmallButton aria-label="More actions"><MoreHorizontal size={14} /></SmallButton></DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-44">
                                 {main !== 'view' && <DropdownMenuItem onClick={() => setDetail(entry)}>View details</DropdownMenuItem>}
@@ -93,7 +93,7 @@ export default function PurchaseRequestsPanel({ banner, navigation, onCreateOrde
                                 {entry.purchaseOrder && main !== 'order' && <DropdownMenuItem onClick={() => onOrders(entry.purchaseOrder!.id)}>View order</DropdownMenuItem>}
                                 {canReview && main !== 'review' && <DropdownMenuItem onClick={() => setReview({ entry, decision: 'APPROVED', reason: '' })}>Review</DropdownMenuItem>}
                             </DropdownMenuContent>
-                        </DropdownMenu>
+                        </DropdownMenu>}
                     </div>;
                 })()}</td>
             </tr>)}</tbody></table></div>}

@@ -7,6 +7,7 @@ import { getErrorMessage } from '@/lib/error';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Field, inputCls, ThemedSelect, PrimaryButton, SecondaryButton } from '@/app/admin/payroll/_components/ui';
 import { stockQuantity, stockToday } from './IssueStockDialog';
+import { qtyPattern, qtyStep, qtyMin, isQty } from './quantity-input';
 import { StockQuantityError } from './StockQuantityError';
 import type { Item } from './ItemsPanel';
 
@@ -18,7 +19,7 @@ export function StockAdjustmentDialog({ item, balance, onClose, onSaved }: { ite
     const countCorrection = draft.adjustmentType === 'COUNT_CORRECTION';
     const currentQuantity = Number(balance.quantity);
     const updatedQuantity = countCorrection ? Number(draft.quantity) : currentQuantity - Number(draft.quantity);
-    const valid = draft.quantity !== '' && Number.isInteger(Number(draft.quantity)) && Number(draft.quantity) >= (countCorrection ? 0 : 1) && Number(draft.quantity) <= (countCorrection ? 1000000000 : currentQuantity) && updatedQuantity >= 0 && updatedQuantity !== currentQuantity;
+    const valid = isQty(draft.quantity, (item.type === 'CONSUMABLE')) && Number(draft.quantity) >= (countCorrection ? 0 : 0.001) && Number(draft.quantity) <= (countCorrection ? 1000000000 : currentQuantity) && updatedQuantity >= 0 && updatedQuantity !== currentQuantity;
     const save = async (event: React.FormEvent) => {
         event.preventDefault(); if (saving || !valid || !draft.reason.trim()) return; setSaving(true);
         try {
@@ -37,8 +38,8 @@ export function StockAdjustmentDialog({ item, balance, onClose, onSaved }: { ite
             <p className="text-sm text-muted-foreground">Current stock: <span className="font-semibold text-foreground">{stockQuantity(balance.quantity)} {item.unit.abbreviation || item.unit.name}</span></p>
             <fieldset disabled={saving}><Field label="Adjustment type *"><ThemedSelect value={draft.adjustmentType} options={types} onChange={adjustmentType => setDraft({ ...draft, adjustmentType, quantity: '' })} /></Field></fieldset>
             <Field label={countCorrection ? 'Actual counted quantity *' : draft.adjustmentType === 'DAMAGED' ? 'Damaged quantity *' : 'Lost quantity *'} hint={countCorrection ? 'Enter the total counted stock at this location.' : `Enter how many available items were ${draft.adjustmentType === 'DAMAGED' ? 'damaged' : 'lost'}.`}>
-                <input autoFocus type="number" required min={countCorrection ? 0 : 1} max={countCorrection ? 1000000000 : currentQuantity} step="1" disabled={saving} className={inputCls} value={draft.quantity} onChange={e => { if (/^-?\d*$/.test(e.target.value)) setDraft({ ...draft, quantity: e.target.value }); }} />
-                <StockQuantityError value={draft.quantity} min={countCorrection ? 0 : 1} max={countCorrection ? 1000000000 : currentQuantity} limit={countCorrection ? undefined : 'available'} unchangedValue={countCorrection ? String(balance.quantity) : undefined} />
+                <input autoFocus type="number" required min={countCorrection ? 0 : qtyMin((item.type === 'CONSUMABLE'))} max={countCorrection ? 1000000000 : currentQuantity} step={qtyStep((item.type === 'CONSUMABLE'))} disabled={saving} className={inputCls} value={draft.quantity} onChange={e => { if (qtyPattern((item.type === 'CONSUMABLE')).test(e.target.value)) setDraft({ ...draft, quantity: e.target.value }); }} />
+                <StockQuantityError decimals={(item.type === 'CONSUMABLE')} value={draft.quantity} min={countCorrection ? 0 : 1} max={countCorrection ? 1000000000 : currentQuantity} limit={countCorrection ? undefined : 'available'} unchangedValue={countCorrection ? String(balance.quantity) : undefined} />
             </Field>
             {valid && <div className="rounded-xl border border-border/50 bg-muted/30 p-3 space-y-1" data-admin-surface=""><p className="text-sm font-semibold">Updated stock: {stockQuantity(updatedQuantity)} {item.unit.abbreviation || item.unit.name}</p><p className="text-xs text-muted-foreground">{updatedQuantity > currentQuantity ? 'Stock increase' : 'Stock decrease'}: {stockQuantity(Math.abs(updatedQuantity - currentQuantity))}</p></div>}
             <Field label="Adjustment date *"><input type="date" required disabled={saving} className={inputCls} value={draft.recordedOn} onChange={e => setDraft({ ...draft, recordedOn: e.target.value })} /></Field>

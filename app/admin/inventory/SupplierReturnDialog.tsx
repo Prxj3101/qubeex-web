@@ -8,6 +8,7 @@ import { getErrorMessage } from '@/lib/error';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Field, inputCls, ThemedSelect, PrimaryButton, SecondaryButton } from '@/app/admin/payroll/_components/ui';
 import { stockToday, stockQuantity } from './IssueStockDialog';
+import { qtyPattern, qtyStep, qtyMin, isQty } from './quantity-input';
 import { StockQuantityError } from './StockQuantityError';
 import type { Item } from './ItemsPanel';
 
@@ -15,7 +16,7 @@ export function SupplierReturnDialog({ item, suppliers, onClose, onSaved }: { it
     const [draft, setDraft] = useState(() => ({ requestId: crypto.randomUUID(), supplierId: '', locationId: '', quantity: '', recordedOn: stockToday(), reason: '' }));
     const [saving, setSaving] = useState(false);
     const balance = item.balances.find(b => b.locationId === draft.locationId);
-    const valid = !!balance && draft.quantity !== '' && Number.isInteger(Number(draft.quantity)) && Number(draft.quantity) >= 1 && Number(draft.quantity) <= Number(balance.quantity) && Number(draft.quantity) <= 1000000000;
+    const valid = !!balance && draft.quantity !== '' && isQty(draft.quantity, (item.type === 'CONSUMABLE')) && Number(draft.quantity) > 0 && Number(draft.quantity) <= Number(balance.quantity) && Number(draft.quantity) <= 1000000000;
     const save = async (event: React.FormEvent) => {
         event.preventDefault(); if (saving || !valid || !draft.supplierId || !draft.reason.trim()) return; setSaving(true);
         try {
@@ -37,7 +38,7 @@ export function SupplierReturnDialog({ item, suppliers, onClose, onSaved }: { it
             </fieldset>
             {balance && <p className="text-xs text-muted-foreground">Available: <span className="font-semibold text-foreground">{stockQuantity(balance.quantity)} {item.unit.abbreviation || item.unit.name}</span></p>}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Return quantity *"><input autoFocus type="number" required min="1" step="1" max={balance ? Number(balance.quantity) : 1000000000} disabled={saving} className={inputCls} value={draft.quantity} onChange={e => { if (/^-?\d*$/.test(e.target.value)) setDraft({ ...draft, quantity: e.target.value }); }} /><StockQuantityError value={draft.quantity} max={balance ? Number(balance.quantity) : undefined} limit={balance ? 'available' : undefined} /></Field>
+                <Field label="Return quantity *"><input autoFocus type="number" required min={qtyMin((item.type === 'CONSUMABLE'))} step={qtyStep((item.type === 'CONSUMABLE'))} max={balance ? Number(balance.quantity) : 1000000000} disabled={saving} className={inputCls} value={draft.quantity} onChange={e => { if (qtyPattern((item.type === 'CONSUMABLE')).test(e.target.value)) setDraft({ ...draft, quantity: e.target.value }); }} /><StockQuantityError decimals={(item.type === 'CONSUMABLE')} value={draft.quantity} max={balance ? Number(balance.quantity) : undefined} limit={balance ? 'available' : undefined} /></Field>
                 <Field label="Return date *"><input type="date" required disabled={saving} className={inputCls} value={draft.recordedOn} onChange={e => setDraft({ ...draft, recordedOn: e.target.value })} /></Field>
             </div>
             <Field label="Reason *"><textarea required maxLength={500} disabled={saving} className={`${inputCls} h-24 py-2 resize-none`} value={draft.reason} onChange={e => setDraft({ ...draft, reason: e.target.value })} placeholder="e.g. Pens stopped working and were returned to the supplier" /></Field>

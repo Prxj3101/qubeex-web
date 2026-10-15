@@ -34,7 +34,7 @@ function InventoryPageContent() {
     const [pillTarget, setPillTarget] = useState<HTMLDivElement | null>(null);
     const user = useAuthStore(s => s.user);
     const [tab, setTab] = useInventoryNavigation<InventoryTab>('tab', ['overview', 'items', 'purchases', 'reports', 'setup'], 'overview');
-    const [reportPreset, setReportPreset] = useState<InventoryReportPreset>({ report:'stock',returnStatus:'pending' });
+    const [reportPreset, setReportPreset] = useState<InventoryReportPreset>({ report:'movements',returnStatus:'pending' });
     const [setup, setSetup] = useInventoryNavigation<typeof setupTabs[number]['key']>('setup', ['categories', 'units', 'locations', 'suppliers'], 'categories');
 
     const setupNavigation = <div className="max-w-full overflow-x-auto"><div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/50 w-fit">

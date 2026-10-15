@@ -7,7 +7,7 @@ import ItemRequestsPanel from './ItemRequestsPanel';
 import { useInventoryNavigation } from './useInventoryNavigation';
 
 export default function StockAndAssetsPanel({ onSetup }: { onSetup: () => void }) {
- const [tab, setTab] = useInventoryNavigation<'items' | 'requests'>('stockTab', ['items', 'requests'], 'items');
+ const [tab, setTab] = useInventoryNavigation<'items' | 'requests'>('stockTab', ['items', 'requests'], 'requests');
  const [pending, setPending] = useState(0);
  useEffect(() => {
   const controller = new AbortController();

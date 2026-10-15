@@ -9,14 +9,14 @@ const remarkColour: Record<string, string> = { PENDING: '#80530c', CHANGES_REQUE
 const ink = 'border border-[#96a58a]/55 px-3 py-3 align-top';
 const number = ink + ' text-center tabular-nums font-medium';
 
-export function LedgerRegister({ entries, loading, error, selectedDate, page, count, search, onView, onReview, onRetry, onPage }: {
- entries: LedgerEntry[]; loading: boolean; error: string; selectedDate: string; page: number; count: number; search: string;
+export function LedgerRegister({ entries, loading, error, rangeLabel, page, count, search, onView, onReview, onRetry, onPage }: {
+ entries: LedgerEntry[]; loading: boolean; error: string; rangeLabel: string; page: number; count: number; search: string;
  onView: (entry: LedgerEntry) => void; onReview: (entry: LedgerEntry) => void; onRetry: () => void; onPage: (page: number) => void;
 }) {
  return <section data-admin-surface="" className="flex-1 min-h-0 flex flex-col rounded-sm overflow-hidden" style={{ colorScheme: 'light', color: '#1e2f43', backgroundColor: '#e2e9d5', backgroundImage: 'linear-gradient(90deg, rgba(54,72,45,0.07), transparent 18px, transparent calc(100% - 8px), rgba(54,72,45,0.025)), radial-gradient(ellipse at 30% 10%, rgba(248,253,237,0.18), transparent 80%), url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%27160%27 height=%27160%27%3E%3Cfilter id=%27n%27%3E%3CfeTurbulence type=%27fractalNoise%27 baseFrequency=%27.65%27 numOctaves=%273%27 stitchTiles=%27stitch%27/%3E%3C/filter%3E%3Crect width=%27100%25%27 height=%27100%25%27 opacity=%27.085%27 filter=%27url(%23n)%27/%3E%3C/svg%3E")', boxShadow: '0 3px 12px rgba(0,0,0,0.1)'  }}>
   <div className="shrink-0 grid grid-cols-[1fr_auto_1fr] items-center gap-4 px-5 py-4 bg-[#d5dfc5] border-b border-[#96a58a]/55">
    <div aria-hidden="true" /><div className="text-center"><div><h2 className="font-serif text-lg font-bold tracking-[0.06em] uppercase">School Material Issue & Return Ledger</h2></div></div>
-   <span className="justify-self-end text-[11px] text-[#4f5c69] whitespace-nowrap">{selectedDate ? day(selectedDate) : 'All dates'} | {count} {count === 1 ? 'entry' : 'entries'} | Page {page}</span>
+   <span className="justify-self-end text-[11px] text-[#4f5c69] whitespace-nowrap">{rangeLabel} | {count} {count === 1 ? 'entry' : 'entries'} | Page {page}</span>
   </div>
   <div className="flex-1 min-h-0 overflow-auto overscroll-contain ledger-scrollbar">
    <table className="w-full min-w-[1480px] border-collapse text-left text-[13px]">
@@ -27,7 +27,7 @@ export function LedgerRegister({ entries, loading, error, selectedDate, page, co
      </tr>
      <tr>{['Requested', 'Issued', 'Returned', 'To Issue', 'Pending Return', 'Damaged / Lost', 'Unit'].map(label => <th key={label} className={ink + ' text-center py-2 whitespace-nowrap'}>{label}</th>)}</tr>
     </thead>
-    <tbody>{loading || error || !entries.length ? <tr><td colSpan={14} className={ink + ' py-14 text-center'}>{loading ? <><Loader2 size={16} className="inline animate-spin mr-2" />Loading ledger...</> : error ? <><p role="alert" className="text-red-500 mb-3">{error}</p><button type="button" onClick={onRetry} className="underline text-[#244888]">Retry</button></> : search ? 'No matching ledger entries.' : 'No entries for this date.'}</td></tr> : entries.flatMap((entry, entryIndex) => entry.fulfilment.map((line, lineIndex) => {
+    <tbody>{loading || error || !entries.length ? <tr><td colSpan={14} className={ink + ' py-14 text-center'}>{loading ? <><Loader2 size={16} className="inline animate-spin mr-2" />Loading ledger...</> : error ? <><p role="alert" className="text-red-500 mb-3">{error}</p><button type="button" onClick={onRetry} className="underline text-[#244888]">Retry</button></> : search ? 'No matching ledger entries.' : 'No entries for this period.'}</td></tr> : entries.flatMap((entry, entryIndex) => entry.fulfilment.map((line, lineIndex) => {
      const ids = new Set(entry.events.filter(e => e.action === 'ITEM_ISSUED' && e.lineIndex === lineIndex).map(e => e.movementId));
      const issues = entry.ledgerSource === 'DIRECT' ? entry.issues : entry.issues.filter(i => ids.has(i.id));
      const sum = (key: 'returnedQuantity' | 'outstandingQuantity' | 'damagedQuantity' | 'lostQuantity') => issues.reduce((n, i) => n + i[key], 0);

@@ -36,6 +36,7 @@ const AI_FEATURE_LABELS: Record<string, string> = {
     TASK_QUESTION_GENERATION: 'Question Bank',
     FEE_FORECAST: 'AI Forecast',
     PAYROLL_REVIEW: 'AI Payroll Review',
+    INVENTORY_BRIEF: 'AI Inventory Brief',
     ATTENDANCE_SUMMARY: 'AI Attendance Insight',
     SCHOOL_ASSISTANT: 'Jarvis',
 };
@@ -51,6 +52,7 @@ const AI_FEATURE_COLORS: Record<string, string> = {
     TASK_QUESTION_GENERATION: '#0891B2',
     FEE_FORECAST: '#DA7756',
     PAYROLL_REVIEW: '#0D9488',
+    INVENTORY_BRIEF: '#0EA5E9',
     ATTENDANCE_SUMMARY: '#DC2626',
     SCHOOL_ASSISTANT: '#F59E0B',
 };

@@ -1,6 +1,7 @@
 'use client';
 import { LedgerFilePicker, ledgerPayload } from './LedgerAttachments';
 import { InventoryIconLabel } from './InventoryIconLabel';
+import { qtyPattern, qtyStep, qtyMin, isQty } from './quantity-input';
 import { StockQuantityError } from './StockQuantityError';
 
 import { useState } from 'react';
@@ -47,7 +48,7 @@ export function IssueStockDialog({ item, request, onClose, onSaved }: { item: It
             <fieldset disabled={saving}><Field label="From location *"><ThemedSelect value={draft.locationId} onChange={locationId => setDraft({ ...draft, locationId })} options={item.balances.filter(b => Number(b.quantity) > 0).map(b => ({ value: b.locationId, label: <InventoryIconLabel kind="locations" name={b.location.name}>{`${b.location.name} (${stockQuantity(b.quantity)} available)`}</InventoryIconLabel> }))} placeholder="Select location" /></Field></fieldset>
             {balance && <p className="text-xs text-muted-foreground">Available: <span className="font-semibold text-foreground">{stockQuantity(balance.quantity)} {item.unit.abbreviation || item.unit.name}</span></p>}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Quantity *"><input autoFocus type="number" required min="1" step="1" max={balance ? maximum : 1000000000} disabled={saving} className={inputCls} value={draft.quantity} onChange={e => { if (/^-?\d*$/.test(e.target.value)) setDraft({ ...draft, quantity: e.target.value }); }} /><StockQuantityError value={draft.quantity} max={balance ? maximum : undefined} limit={balance ? "available" : undefined} /></Field>
+                <Field label="Quantity *"><input autoFocus type="number" required min={qtyMin((item.type === 'CONSUMABLE' && !request))} step={qtyStep((item.type === 'CONSUMABLE' && !request))} max={balance ? maximum : 1000000000} disabled={saving} className={inputCls} value={draft.quantity} onChange={e => { if (qtyPattern((item.type === 'CONSUMABLE' && !request)).test(e.target.value)) setDraft({ ...draft, quantity: e.target.value }); }} /><StockQuantityError decimals={(item.type === 'CONSUMABLE' && !request)} value={draft.quantity} max={balance ? maximum : undefined} limit={balance ? "available" : undefined} /></Field>
                 <Field label="Issue date *"><input type="date" required disabled={saving} className={inputCls} value={draft.recordedOn} onChange={e => setDraft({ ...draft, recordedOn: e.target.value })} /></Field>
             </div>
             <Field label="Issue time (IST) *"><input type="time" required disabled={saving} className={inputCls} value={draft.recordedTime} onChange={e => setDraft({ ...draft, recordedTime: e.target.value })} /></Field>

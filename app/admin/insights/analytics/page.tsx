@@ -133,6 +133,7 @@ const MAIN_AI_FEATURES = new Set(
 const OTHER_FEATURE_LABELS: Record<string, string> = {
     FEE_FORECAST: 'AI Fee Analysis',
     PAYROLL_REVIEW: 'AI Payroll Review',
+    INVENTORY_BRIEF: 'AI Inventory Brief',
     ATTENDANCE_SUMMARY: 'AI Attendance Analysis',
 };
 function featureColor(feature: string) {

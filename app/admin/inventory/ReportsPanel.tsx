@@ -20,7 +20,7 @@ interface Lookup { id: string; name: string }
 const tabs: { value: Report; label: string }[] = [{ value: 'movements', label: 'Movements' }, { value: 'returns', label: 'Pending returns' }, { value: 'lowstock', label: 'Low stock' }, { value: 'stock', label: 'Stock' }];
 const movementOptions = [{ value: 'ALL', label: 'All movements' }, ...[['OPENING','Opening stock'],['OPENING_CORRECTION','Opening correction'],['RECEIPT','Received'],['ISSUE','Issued'],['RETURN','Returned'],['TRANSFER_OUT','Transfer out'],['TRANSFER_IN','Transfer in'],['ADJUSTMENT','Adjustment'],['SUPPLIER_RETURN','Supplier return'],['ISSUE_DAMAGED','Issued item damaged'],['ISSUE_LOST','Issued item lost']].map(([value,label]) => ({ value,label }))];
 
-export default function ReportsPanel({ initialReport = 'stock', initialReturnStatus = 'pending' }: { initialReport?: Report; initialReturnStatus?: 'pending' | 'overdue' }) {
+export default function ReportsPanel({ initialReport = 'movements', initialReturnStatus = 'pending' }: { initialReport?: Report; initialReturnStatus?: 'pending' | 'overdue' }) {
     const [report, setReport] = useInventoryNavigation<Report>('report', ['stock', 'movements', 'returns', 'lowstock'], initialReport);
     const [filters, setFilters] = useState({ search: '', locationId: 'ALL', categoryId: 'ALL', itemType: 'ALL', kind: 'ALL', returnStatus: initialReturnStatus as string, from: '', to: '' });
     const [page, setPage] = useState(1);

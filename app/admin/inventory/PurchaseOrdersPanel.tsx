@@ -79,7 +79,7 @@ export default function PurchaseOrdersPanel({ banner, navigation, onRequests, in
                     {main === 'receive' && <SmallButton onClick={() => setDetail(order)}>Add stock</SmallButton>}
                     {main === 'edit' && <SmallButton onClick={() => setEditing(order)}>Edit</SmallButton>}
                     {main === 'view' && <SmallButton onClick={() => setDetail(order)}>View</SmallButton>}
-                    <DropdownMenu>
+                    {(main !== 'view' || (canEdit && main !== 'edit') || canReview || hasPdf) && <DropdownMenu>
                         <DropdownMenuTrigger asChild><SmallButton aria-label="More actions"><MoreHorizontal size={14} /></SmallButton></DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
                             {main !== 'view' && <DropdownMenuItem onClick={() => setDetail(order)}>View details</DropdownMenuItem>}
@@ -87,7 +87,7 @@ export default function PurchaseOrdersPanel({ banner, navigation, onRequests, in
                             {canReview && main !== 'review' && <DropdownMenuItem onClick={() => setReview({ order, decision: 'APPROVED', reason: '' })}>Review</DropdownMenuItem>}
                             {hasPdf && <DropdownMenuItem disabled={!!downloading} onClick={() => void download(order)}><Download size={13} className="mr-2" />{downloading === order.id ? 'Downloading...' : 'Download PDF'}</DropdownMenuItem>}
                         </DropdownMenuContent>
-                    </DropdownMenu>
+                    </DropdownMenu>}
                 </div>;
             })()}</td></tr>)}</tbody></table></div>}
             </div>

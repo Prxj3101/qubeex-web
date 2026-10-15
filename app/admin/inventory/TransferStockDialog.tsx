@@ -1,5 +1,6 @@
 'use client';
 import { InventoryIconLabel } from './InventoryIconLabel';
+import { qtyPattern, qtyStep, qtyMin, isQty } from './quantity-input';
 import { StockQuantityError } from './StockQuantityError';
 
 import { useState } from 'react';
@@ -18,7 +19,7 @@ export function TransferStockDialog({ item, locations, onClose, onSaved }: { ite
     const destination = item.balances.find(b => b.locationId === draft.toLocationId);
     const save = async (event: React.FormEvent) => {
         event.preventDefault(); if (saving) return;
-        if (!Number.isInteger(Number(draft.quantity)) || Number(draft.quantity) < 1) { toast.error('Transfer quantity must be a whole number'); return; }
+        if (!isQty(draft.quantity, (item.type === 'CONSUMABLE')) || Number(draft.quantity) <= 0) { toast.error((item.type === 'CONSUMABLE') ? 'Enter a quantity greater than zero, up to 3 decimal places' : 'Transfer quantity must be a whole number'); return; }
         setSaving(true);
         try {
             const res = await api.post(`/admin/inventory/items/${item.id}/transfer-stock`, draft);
@@ -39,7 +40,7 @@ export function TransferStockDialog({ item, locations, onClose, onSaved }: { ite
             </fieldset>
             {source && <p className="text-xs text-muted-foreground">Source available: <span className="font-semibold text-foreground">{stockQuantity(source.quantity)} {item.unit.abbreviation || item.unit.name}</span></p>}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Field label="Quantity *"><input autoFocus type="number" required min="1" step="1" max={source ? Number(source.quantity) : 1000000000} disabled={saving} className={inputCls} value={draft.quantity} onChange={e => { if (/^-?\d*$/.test(e.target.value)) setDraft({ ...draft, quantity: e.target.value }); }} /><StockQuantityError value={draft.quantity} max={source ? Number(source.quantity) : undefined} limit={source ? "available" : undefined} /></Field>
+                <Field label="Quantity *"><input autoFocus type="number" required min={qtyMin((item.type === 'CONSUMABLE'))} step={qtyStep((item.type === 'CONSUMABLE'))} max={source ? Number(source.quantity) : 1000000000} disabled={saving} className={inputCls} value={draft.quantity} onChange={e => { if (qtyPattern((item.type === 'CONSUMABLE')).test(e.target.value)) setDraft({ ...draft, quantity: e.target.value }); }} /><StockQuantityError decimals={(item.type === 'CONSUMABLE')} value={draft.quantity} max={source ? Number(source.quantity) : undefined} limit={source ? "available" : undefined} /></Field>
                 <Field label="Transfer date *"><input type="date" required disabled={saving} className={inputCls} value={draft.recordedOn} onChange={e => setDraft({ ...draft, recordedOn: e.target.value })} /></Field>
             </div>
             {source && draft.toLocationId && Number(draft.quantity) > 0 && Number(draft.quantity) <= Number(source.quantity) && <div className="rounded-xl border border-border/50 bg-muted/30 p-3 space-y-1 text-xs" data-admin-surface="">
@@ -50,7 +51,7 @@ export function TransferStockDialog({ item, locations, onClose, onSaved }: { ite
             <Field label="Notes (optional)"><textarea maxLength={500} disabled={saving} className={`${inputCls} h-20 py-2 resize-none`} value={draft.notes} onChange={e => setDraft({ ...draft, notes: e.target.value })} placeholder="e.g. Stock moved for classroom use" /></Field>
             
 </div>
-<div className="flex justify-end gap-2 shrink-0 border-t border-border/50 pt-3 mt-4"><SecondaryButton type="button" disabled={saving} onClick={onClose}>Cancel</SecondaryButton><PrimaryButton type="submit" disabled={saving || !source || !draft.toLocationId || draft.fromLocationId === draft.toLocationId || !draft.recordedOn || !draft.quantity || Number(draft.quantity) <= 0 || !Number.isInteger(Number(draft.quantity)) || Number(draft.quantity) > Number(source.quantity)}>{saving ? 'Saving...' : 'Move stock'}</PrimaryButton></div>
+<div className="flex justify-end gap-2 shrink-0 border-t border-border/50 pt-3 mt-4"><SecondaryButton type="button" disabled={saving} onClick={onClose}>Cancel</SecondaryButton><PrimaryButton type="submit" disabled={saving || !source || !draft.toLocationId || draft.fromLocationId === draft.toLocationId || !draft.recordedOn || !draft.quantity || Number(draft.quantity) <= 0 || !isQty(draft.quantity, (item.type === 'CONSUMABLE')) || Number(draft.quantity) > Number(source.quantity)}>{saving ? 'Saving...' : 'Move stock'}</PrimaryButton></div>
         </form>
     
 </div>

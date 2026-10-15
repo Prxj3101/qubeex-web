@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Boxes, Plus, Trash2, Eye, Pencil, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
@@ -14,11 +14,44 @@ import { stockToday } from '@/app/admin/inventory/IssueStockDialog';
 
 type Line = { name: string; quantity: number; unit: string };
 type Entry = { ledgerStatus?: string; fulfilment?: (Line & { issued: number; pending: number })[]; linkedPurchaseRequestId?: string | null; id: string; revision: number; department: string; requiredOn: string; reason: string; lines: Line[]; status: string; createdAt: string; events: { action: string; reason: string; at: string }[]; purchaseOrder?: { number: string; status: string } | null };
+type CatalogueItem = { id: string; name: string; unit: string; unitAbbreviation: string };
 type Draft = { id?: string; revision?: number; requestId: string; department: string; requiredOn: string; reason: string; lines: { name: string; quantity: string; unit: string }[] };
 const labels: Record<string, string> = { RETURN_PENDING: 'Return pending', RETURNED: 'Returned', CLOSED: 'Closed', PENDING: 'Pending approval', APPROVED: 'Approved', REJECTED: 'Rejected', CHANGES_REQUESTED: 'Changes requested', SUBMITTED: 'Submitted', RESUBMITTED: 'Resubmitted', PARTIALLY_ISSUED: 'Partially issued', ISSUED: 'Issued', ITEM_CORRECTED: 'Issue corrected', ITEM_ISSUED: 'Stock issued', PURCHASE_REQUEST_CREATED: 'Purchase request created' };
 const date = (value: string) => new Date(value).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 const blankLine = () => ({ name: '', quantity: '', unit: '' });
 const scrollStyle = { scrollbarWidth: 'thin' as const, scrollbarColor: 'var(--scrollbar-thumb-strong) transparent' };
+
+// Item name field with suggestions from the school's item list. Typing a name that is not in the list still works.
+function ItemNameInput({ index, value, catalogue, onType, onPick }: { index: number; value: string; catalogue: CatalogueItem[]; onType: (name: string) => void; onPick: (item: CatalogueItem) => void }) {
+ const [open, setOpen] = useState(false);
+ const [active, setActive] = useState(0);
+ const wrapper = useRef<HTMLDivElement>(null);
+ const query = value.trim().toLowerCase();
+ const matches = catalogue.filter(item => !query || item.name.toLowerCase().includes(query)).slice(0, 8);
+ const exact = catalogue.some(item => item.name.toLowerCase() === query);
+ const show = open && matches.length > 0 && !exact;
+ useEffect(() => {
+  const close = (event: MouseEvent) => { if (!wrapper.current?.contains(event.target as Node)) setOpen(false); };
+  document.addEventListener('mousedown', close);
+  return () => document.removeEventListener('mousedown', close);
+ }, []);
+ const pick = (item: CatalogueItem) => { onPick(item); setOpen(false); };
+ return <div ref={wrapper} className="relative flex-1">
+  <input aria-label={`Item ${index + 1} name`} role="combobox" aria-expanded={show} aria-autocomplete="list" autoComplete="off" required maxLength={150} className={inputCls} placeholder="Item name (pick from list or type)" value={value}
+   onFocus={() => { setActive(0); setOpen(true); }}
+   onChange={e => { onType(e.target.value); setActive(0); setOpen(true); }}
+   onKeyDown={e => {
+    if (!show) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActive(Math.min(active + 1, matches.length - 1)); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActive(Math.max(active - 1, 0)); }
+    else if (e.key === 'Enter') { e.preventDefault(); pick(matches[active]); }
+    else if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
+   }} />
+  {show && <ul role="listbox" className="absolute left-0 right-0 top-full mt-1 z-30 max-h-48 overflow-y-auto rounded-lg border border-border bg-card shadow-lg py-1" style={scrollStyle}>
+   {matches.map((item, i) => <li key={item.id} role="option" aria-selected={i === active} onMouseDown={e => { e.preventDefault(); pick(item); }} onMouseEnter={() => setActive(i)} className={`px-3 py-2 text-xs cursor-pointer flex items-center justify-between gap-3 ${i === active ? 'bg-muted' : ''}`}><span className="font-medium truncate">{item.name}</span><span className="text-muted-foreground shrink-0">{item.unit}</span></li>)}
+  </ul>}
+ </div>;
+}
 
 export default function TeacherInventoryPage() {
  const [entries, setEntries] = useState<Entry[]>([]);
@@ -30,6 +63,12 @@ export default function TeacherInventoryPage() {
  const [draft, setDraft] = useState<Draft | null>(null);
  const [detail, setDetail] = useState<Entry | null>(null);
  const [saving, setSaving] = useState(false);
+ const [catalogue, setCatalogue] = useState<CatalogueItem[]>([]);
+ useEffect(() => {
+  const controller = new AbortController();
+  api.get('/teacher/inventory/item-catalogue', { signal: controller.signal }).then(result => { if (!controller.signal.aborted) setCatalogue(result.data.data); }).catch(() => { /* the list is optional, typing a name still works */ });
+  return () => controller.abort();
+ }, []);
  const load = useCallback(async (signal?: AbortSignal) => {
   try {
    const result = await api.get('/teacher/inventory/item-requests', { params: { page }, signal });
@@ -69,7 +108,7 @@ export default function TeacherInventoryPage() {
   <Dialog open={!!draft} onOpenChange={open => { if (!open && !saving) setDraft(null); }}><DialogContent className="sm:max-w-xl bg-card max-h-[85vh] flex flex-col overflow-hidden"><DialogHeader className="shrink-0 pr-6"><DialogTitle>{draft?.id ? 'Edit Request' : 'New Request'}</DialogTitle><DialogDescription>Your school inventory team will receive this request.</DialogDescription></DialogHeader>
    {draft && <form onSubmit={save} className="flex-1 min-h-0 flex flex-col overflow-hidden"><div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-4" style={scrollStyle}><fieldset disabled={saving} className="space-y-4">
     <div className="grid sm:grid-cols-2 gap-3"><Field label="Department / purpose (optional)"><input maxLength={100} className={inputCls} value={draft.department} onChange={e => setDraft({ ...draft, department: e.target.value })} placeholder="e.g. Science lab" /></Field><Field label="Required by *"><input required type="date" className={inputCls} value={draft.requiredOn} onChange={e => setDraft({ ...draft, requiredOn: e.target.value })} /></Field></div>
-    <div className="space-y-3"><p className="text-xs font-semibold">Items *</p>{draft.lines.map((line, i) => <div key={i} className="rounded-xl bg-muted/30 p-3 space-y-3"><div className="flex gap-2"><input aria-label={`Item ${i + 1} name`} required maxLength={150} className={inputCls} placeholder="Item name" value={line.name} onChange={e => setDraft({ ...draft, lines: draft.lines.map((row, index) => index === i ? { ...row, name: e.target.value } : row) })} /><SmallButton type="button" aria-label={`Remove item ${i + 1}`} disabled={draft.lines.length === 1} onClick={() => setDraft({ ...draft, lines: draft.lines.filter((_, index) => i !== index) })}><Trash2 size={14} /></SmallButton></div><div className="grid grid-cols-2 gap-3"><Field label="Quantity *"><input required type="number" min="1" max="1000000000" step="1" className={inputCls} value={line.quantity} onChange={e => { if (/^-?\d*$/.test(e.target.value)) setDraft({ ...draft, lines: draft.lines.map((row, index) => index === i ? { ...row, quantity: e.target.value } : row) }); }} /><StockQuantityError value={line.quantity} /></Field><Field label="Unit *"><input required maxLength={40} className={inputCls} value={line.unit} placeholder="e.g. pcs, boxes" onChange={e => setDraft({ ...draft, lines: draft.lines.map((row, index) => index === i ? { ...row, unit: e.target.value } : row) })} /></Field></div></div>)}<SecondaryButton type="button" disabled={draft.lines.length >= 20} onClick={() => setDraft({ ...draft, lines: [...draft.lines, blankLine()] })}><Plus size={13} />Add item</SecondaryButton></div>
+    <div className="space-y-3"><p className="text-xs font-semibold">Items *</p>{draft.lines.map((line, i) => <div key={i} className="rounded-xl bg-muted/30 p-3 space-y-3"><div className="flex gap-2"><ItemNameInput index={i} value={line.name} catalogue={catalogue} onType={name => setDraft({ ...draft, lines: draft.lines.map((row, index) => { if (index !== i) return row; const match = catalogue.find(item => item.name.toLowerCase() === name.trim().toLowerCase()); return { ...row, name, unit: match && !row.unit.trim() ? match.unit : row.unit }; }) })} onPick={item => setDraft({ ...draft, lines: draft.lines.map((row, index) => index === i ? { ...row, name: item.name, unit: item.unit } : row) })} /><SmallButton type="button" aria-label={`Remove item ${i + 1}`} disabled={draft.lines.length === 1} onClick={() => setDraft({ ...draft, lines: draft.lines.filter((_, index) => i !== index) })}><Trash2 size={14} /></SmallButton></div><div className="grid grid-cols-2 gap-3"><Field label="Quantity *"><input required type="number" min="1" max="1000000000" step="1" className={inputCls} value={line.quantity} onChange={e => { if (/^-?\d*$/.test(e.target.value)) setDraft({ ...draft, lines: draft.lines.map((row, index) => index === i ? { ...row, quantity: e.target.value } : row) }); }} /><StockQuantityError value={line.quantity} /></Field><Field label="Unit *"><input required maxLength={40} className={inputCls} value={line.unit} placeholder="e.g. pcs, boxes" onChange={e => setDraft({ ...draft, lines: draft.lines.map((row, index) => index === i ? { ...row, unit: e.target.value } : row) })} /></Field></div></div>)}<SecondaryButton type="button" disabled={draft.lines.length >= 20} onClick={() => setDraft({ ...draft, lines: [...draft.lines, blankLine()] })}><Plus size={13} />Add item</SecondaryButton></div>
     <Field label="Reason *"><textarea required maxLength={1000} className={`${inputCls} h-24 py-2 resize-none`} value={draft.reason} onChange={e => setDraft({ ...draft, reason: e.target.value })} placeholder="Why do you need these items?" /></Field>
    </fieldset></div><div className="shrink-0 flex justify-end gap-2 border-t border-border/40 pt-3 mt-4"><SecondaryButton type="button" disabled={saving} onClick={() => setDraft(null)}>Cancel</SecondaryButton><PrimaryButton type="submit" disabled={!valid || saving}>{saving ? 'Sending...' : draft.id ? 'Resubmit Request' : 'Send Request'}</PrimaryButton></div></form>}
   </DialogContent></Dialog>
