@@ -79,7 +79,7 @@ export default function PurchaseOrdersPanel({ banner, navigation, onRequests, in
                     {main === 'receive' && <SmallButton onClick={() => setDetail(order)}>Add stock</SmallButton>}
                     {main === 'edit' && <SmallButton onClick={() => setEditing(order)}>Edit</SmallButton>}
                     {main === 'view' && <SmallButton onClick={() => setDetail(order)}>View</SmallButton>}
-                    {(main !== 'view' || (canEdit && main !== 'edit') || canReview || hasPdf) && <DropdownMenu>
+                    {((canEdit && main !== 'edit') || canReview || hasPdf || main !== 'view') && <DropdownMenu>
                         <DropdownMenuTrigger asChild><SmallButton aria-label="More actions"><MoreHorizontal size={14} /></SmallButton></DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-44">
                             {main !== 'view' && <DropdownMenuItem onClick={() => setDetail(order)}>View details</DropdownMenuItem>}

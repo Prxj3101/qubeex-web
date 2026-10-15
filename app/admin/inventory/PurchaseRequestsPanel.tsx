@@ -85,7 +85,7 @@ export default function PurchaseRequestsPanel({ banner, navigation, onCreateOrde
                         {main === 'order' && <SmallButton onClick={() => onOrders(entry.purchaseOrder!.id)}>View order</SmallButton>}
                         {main === 'edit' && <SmallButton onClick={() => edit(entry)}>Edit</SmallButton>}
                         {main === 'view' && <SmallButton onClick={() => setDetail(entry)}>View</SmallButton>}
-                        {(main !== 'view' || (canEdit && main !== 'edit') || !!entry.purchaseOrder || canReview) && <DropdownMenu>
+                        {((canEdit && main !== 'edit') || !!entry.purchaseOrder || canReview || main !== 'view') && <DropdownMenu>
                             <DropdownMenuTrigger asChild><SmallButton aria-label="More actions"><MoreHorizontal size={14} /></SmallButton></DropdownMenuTrigger>
                             <DropdownMenuContent align="end" className="w-44">
                                 {main !== 'view' && <DropdownMenuItem onClick={() => setDetail(entry)}>View details</DropdownMenuItem>}
