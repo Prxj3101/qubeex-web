@@ -4,7 +4,7 @@ import { Suspense, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { BarChart2, CreditCard, ScrollText, Lock } from 'lucide-react';
+import { BarChart2, CreditCard, ScrollText, Lock, MessageCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 
@@ -13,6 +13,8 @@ const INSIGHTS_TABS = [
     { label: 'Subscription', href: '/admin/insights/subscription', icon: CreditCard, permKey: 'INSIGHTS_SUBSCRIPTION' as string | null },
     // Moved here from the main nav (Payroll took its old spot there).
     { label: 'Audit Logs', href: '/admin/insights/audit-logs', icon: ScrollText, permKey: 'AUDIT_LOGS' as string | null, adminOnly: false },
+    // Private parent–teacher conversations: Admin only (the API rejects sub-admins).
+    { label: 'Parent Chat', href: '/admin/insights/parent-chat', icon: MessageCircle, permKey: null as string | null, adminOnly: true },
 ];
 
 function TabBar({ isTabLocked, isSubAdmin }: { isTabLocked: (permKey: string) => boolean; isSubAdmin: boolean }) {
