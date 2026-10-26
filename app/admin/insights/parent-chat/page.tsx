@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { EyeOff, Save } from 'lucide-react';
+import { EyeOff, FileText, Flag, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
@@ -17,6 +17,7 @@ interface ThreadRow {
     className: string | null;
     teacherName: string;
     messageCount: number;
+    reportedCount: number;
     lastMessageAt: string;
 }
 
@@ -24,7 +25,10 @@ interface AdminMessage {
     id: string;
     fromTeacher: boolean;
     text: string;
+    attachment: { url: string; type: 'image' | 'pdf'; name: string } | null;
     hidden: boolean;
+    reportedAt: string | null;
+    reportReason: string | null;
     createdAt: string;
 }
 
@@ -153,7 +157,14 @@ export default function ParentChatAdminPage() {
                                 detail?.id === t.id && 'bg-muted/60',
                             )}
                         >
-                            <p className="text-sm font-medium truncate">{t.studentName} ↔ {t.teacherName}</p>
+                            <p className="text-sm font-medium truncate flex items-center gap-1.5">
+                                {t.reportedCount > 0 && (
+                                    <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-semibold">
+                                        <Flag size={9} /> {t.reportedCount}
+                                    </span>
+                                )}
+                                <span className="truncate">{t.studentName} ↔ {t.teacherName}</span>
+                            </p>
                             <p className="text-xs text-muted-foreground truncate">
                                 {[t.className, t.rollNo ? `Roll ${t.rollNo}` : null].filter(Boolean).join(' · ')} · {t.messageCount} messages · {formatDateTime(t.lastMessageAt)}
                             </p>
@@ -179,8 +190,24 @@ export default function ParentChatAdminPage() {
                                             m.fromTeacher ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm',
                                             m.hidden && 'opacity-60 line-through',
                                         )}>
+                                            {m.attachment?.type === 'image' && (
+                                                <a href={m.attachment.url} target="_blank" rel="noopener noreferrer" className="block mb-1">
+                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                                    <img src={m.attachment.url} alt={m.attachment.name} className="max-h-48 rounded-lg object-cover" />
+                                                </a>
+                                            )}
+                                            {m.attachment?.type === 'pdf' && (
+                                                <a href={m.attachment.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 underline mb-1">
+                                                    <FileText size={16} /> <span className="truncate">{m.attachment.name}</span>
+                                                </a>
+                                            )}
                                             {m.text}
                                         </div>
+                                        {m.reportedAt && (
+                                            <p className="text-[11px] text-red-600 px-1 mt-0.5 flex items-center gap-1">
+                                                <Flag size={10} /> Reported{m.reportReason ? `: ${m.reportReason}` : ''}
+                                            </p>
+                                        )}
                                         <div className="flex items-center gap-2 mt-0.5 px-1">
                                             <span className="text-[10px] text-muted-foreground">
                                                 {m.fromTeacher ? detail.teacherName : `Parent of ${detail.studentName}`} · {formatDateTime(m.createdAt)}
