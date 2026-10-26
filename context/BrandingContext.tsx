@@ -15,7 +15,9 @@ import {
 // branding from — a stale localStorage cache from a previous session (e.g.
 // testing a white-labeled institution) must never leak onto these pages.
 function isPublicRoute(pathname: string): boolean {
-    return pathname === '/' || pathname.startsWith('/login');
+    // /apply is the parents' admission form: logged out, so it must never
+    // call the authenticated /branding endpoint (a 401 would bounce to /login).
+    return pathname === '/' || pathname.startsWith('/login') || pathname.startsWith('/apply');
 }
 
 const BrandingContext = createContext<CachedBranding>(QUBEEX_DEFAULT_BRANDING);

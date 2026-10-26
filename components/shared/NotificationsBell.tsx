@@ -8,7 +8,7 @@ import {
     Building2, CreditCard, UserCheck, Megaphone, ChevronRight,
     BookOpen, AlertTriangle, IndianRupee, Calendar,
     ClipboardList, GraduationCap, Wrench, Sparkles, Bug,
-    ShieldAlert, Clock, Loader2, Boxes,
+    ShieldAlert, Clock, Loader2, Boxes, UserPlus,
 } from 'lucide-react';
 import api from '@/lib/api';
 import { toast } from 'sonner';
@@ -50,6 +50,7 @@ export const ICON_CFG: Record<string, { icon: React.ElementType; iconBg: string;
     SECURITY:      { icon: ShieldAlert, iconBg: 'bg-orange-100 dark:bg-orange-950/50', iconColor: 'text-orange-500' },
     TRIAL:         { icon: Clock,       iconBg: 'bg-blue-100 dark:bg-blue-950/50',     iconColor: 'text-blue-500' },
     INVENTORY:     { icon: Boxes,       iconBg: 'bg-sky-100 dark:bg-sky-950/50',       iconColor: 'text-sky-500' },
+    ADMISSIONS:    { icon: UserPlus,    iconBg: 'bg-orange-100 dark:bg-orange-950/50', iconColor: 'text-orange-500' },
     SYSTEM:        { icon: Bell,        iconBg: 'bg-muted',                            iconColor: 'text-muted-foreground' },
     // Superadmin activity types (used by mock data for other roles)
     NEW_TICKET:            { icon: TicketIcon,   iconBg: 'bg-red-100 dark:bg-red-950/50',        iconColor: 'text-red-500' },

@@ -130,7 +130,7 @@ export function ThemedSelect<T extends string>({ value, options, onChange, place
 }
 
 // Same country codes / max digits as the phone fields elsewhere (teacher profile etc).
-const PHONE_CODES = [
+export const PHONE_CODES = [
     { code: '+91', flag: '🇮🇳', max: 10 },
     { code: '+1', flag: '🇺🇸', max: 10 },
     { code: '+44', flag: '🇬🇧', max: 10 },
@@ -139,9 +139,24 @@ const PHONE_CODES = [
     { code: '+65', flag: '🇸🇬', max: 8 },
 ];
 
-function parsePhone(val: string) {
+export function parsePhone(val: string) {
     const match = (val ?? '').match(/^(\+\d+)\s*(.*)$/);
     return match ? { code: match[1], number: match[2] } : { code: '+91', number: (val ?? '').replace(/\D/g, '') };
+}
+
+// Digits only; a pasted number that starts with the country code ("+91 98765 43210") drops it.
+const cleanNumber = (raw: string, code: string, max: number) => {
+    let digits = raw.replace(/\D/g, '');
+    const cc = code.replace(/\D/g, '');
+    if (digits.length > max && digits.startsWith(cc)) digits = digits.slice(cc.length);
+    return digits.slice(0, max);
+};
+
+/** True when the number part has all the digits its country code needs. */
+export function phoneComplete(val: string) {
+    const { code, number } = parsePhone(val);
+    const max = PHONE_CODES.find(c => c.code === code)?.max ?? 10;
+    return number.length === max;
 }
 
 /** Country code + digits-only number. Value is stored as "+91 9876543210" ("" when empty). */
@@ -164,8 +179,7 @@ export function PhoneInput({ value, onChange }: { value: string; onChange: (v: s
                 type="tel" inputMode="numeric" placeholder="98765 43210"
                 className={inputCls}
                 value={number}
-                maxLength={max}
-                onChange={e => emit(code, e.target.value.replace(/\D/g, '').slice(0, max))}
+                onChange={e => emit(code, cleanNumber(e.target.value, code, max))}
             />
         </div>
     );

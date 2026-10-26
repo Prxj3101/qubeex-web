@@ -7,7 +7,10 @@ import { z } from 'zod';
 import { Dialog, DialogContent, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { User, Camera, X, ChevronDown, BookOpen, Shield, MapPin, Users, Plus, Trash2 } from 'lucide-react';
+import { User, Camera, X, ChevronDown, BookOpen, Shield, MapPin, Users, Plus, Trash2, AlertTriangle } from 'lucide-react';
+import api from '@/lib/api';
+
+type AdmissionMatch = { childName: string; applicationNo: string; stage: string; admissionNo: string | null; placed: boolean; className: string; section: string | null };
 
 const schema = z.object({
     name: z.string().min(1, 'Name is required').max(100),
@@ -179,6 +182,21 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
     });
 
     const nameVal = watch('name');
+    const dobVal = watch('dob');
+
+    // Warn if this child is already coming through Admissions (the admin adds them to the class).
+    const [admissionMatches, setAdmissionMatches] = useState<AdmissionMatch[]>([]);
+    useEffect(() => {
+        const name = (nameVal ?? '').trim();
+        const controller = new AbortController();
+        const t = setTimeout(() => {
+            if (!open || name.length < 3) { setAdmissionMatches([]); return; }
+            api.get('/admissions-check', { signal: controller.signal, params: { name, dob: dobVal || undefined } })
+                .then(res => setAdmissionMatches(res.data.data ?? []))
+                .catch(() => { if (!controller.signal.aborted) setAdmissionMatches([]); });
+        }, 500);
+        return () => { clearTimeout(t); controller.abort(); };
+    }, [nameVal, dobVal, open]);
     const initials = nameVal?.trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('').toUpperCase() ?? '';
 
     useEffect(() => {
@@ -309,6 +327,17 @@ export function AddStudentModal({ open, onOpenChange, loading, onSubmit: onFormS
                                         <FL>Full Name *</FL>
                                         <Input placeholder="e.g. Aarav Mehta" className="h-8 text-sm" {...register('name')} />
                                         {errors.name && <p className="text-xs text-destructive mt-0.5">{errors.name.message}</p>}
+                                        {admissionMatches.length > 0 && (
+                                            <div role="alert" className="mt-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] text-amber-800 dark:text-amber-300">
+                                                <p className="flex items-center gap-1 font-semibold"><AlertTriangle size={12} />Already in Admissions</p>
+                                                {admissionMatches.map(m => (
+                                                    <p key={m.applicationNo} className="mt-0.5">
+                                                        {m.childName} ({m.className}) - {m.placed ? `already added to ${m.section ?? 'a class'}` : m.stage === 'ADMITTED' ? `admitted${m.admissionNo ? `, no. ${m.admissionNo}` : ''}. The admin will add them to the class.` : `application ${m.applicationNo} is in progress.`}
+                                                    </p>
+                                                ))}
+                                                <p className="mt-0.5 opacity-80">Check before adding, so the child is not added twice.</p>
+                                            </div>
+                                        )}
                                         <div className="flex items-center gap-2 mt-1.5">
                                             <button type="button" onClick={() => fileRef.current?.click()} className="text-[11px] text-primary hover:underline">Upload Photo</button>
                                             {avatarPreview && (
