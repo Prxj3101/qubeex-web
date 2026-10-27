@@ -18,7 +18,7 @@ export interface Entry {
     id: string; divisionId: string; dayOfWeek: number; slotId: string;
     sessionTypeId: string; sessionTypeName: string; sessionKind: string; color: string | null;
     subjectId: string | null; subjectName: string | null; title: string | null;
-    teacherId: string | null; teacherName: string | null; roomId: string | null; roomName: string | null;
+    teacherId: string | null; teacherName: string | null; roomId: string | null; roomName: string | null; roomIsLab?: boolean;
     configId: string | null; groupId: string | null; isLocked: boolean;
     divisionName?: string; timetableStatus?: TimetableStatus | null;
 }
@@ -88,7 +88,7 @@ export type SessionStatus = 'NORMAL' | 'CANCELLED' | 'CHANGED' | 'SUBSTITUTED' |
 export interface WeekSession {
     date: string; dayOfWeek: number; slotId: string; slotName: string; startMinute: number; endMinute: number;
     divisionId: string; divisionName: string; sessionTypeName: string; sessionKind: string; color: string | null;
-    subjectName: string | null; title: string | null; teacherId: string | null; teacherName: string | null; roomName: string | null;
+    subjectName: string | null; title: string | null; teacherId: string | null; teacherName: string | null; roomName: string | null; roomIsLab?: boolean;
     status: SessionStatus; note: string | null; originalTeacherName: string | null; originalSubjectName: string | null;
 }
 export interface WeekData {

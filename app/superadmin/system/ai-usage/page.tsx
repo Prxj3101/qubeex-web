@@ -38,6 +38,7 @@ const AI_FEATURE_LABELS: Record<string, string> = {
     PAYROLL_REVIEW: 'AI Payroll Review',
     INVENTORY_BRIEF: 'AI Inventory Brief',
     ADMISSION_FORM_SCAN: 'AI Admission Form Scan',
+    TIMETABLE_AI: 'AI Timetable',
     ATTENDANCE_SUMMARY: 'AI Attendance Insight',
     SCHOOL_ASSISTANT: 'Jarvis',
 };
@@ -55,6 +56,7 @@ const AI_FEATURE_COLORS: Record<string, string> = {
     PAYROLL_REVIEW: '#0D9488',
     INVENTORY_BRIEF: '#0EA5E9',
     ADMISSION_FORM_SCAN: '#8B5CF6',
+    TIMETABLE_AI: '#14B8A6',
     ATTENDANCE_SUMMARY: '#DC2626',
     SCHOOL_ASSISTANT: '#F59E0B',
 };

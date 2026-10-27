@@ -25,7 +25,7 @@ import { HistoricalYearBanner } from '@/components/shared/HistoricalYearBanner';
 const ALL_NAV_ITEMS = [
     { label: 'Overview',   href: '/admin/overview',           icon: LayoutDashboard, childKeys: [] as string[] },
     { label: 'Staff',      href: '/admin/staff',              icon: Users,           childKeys: ['STAFF_TEACHERS', 'STAFF_STAFFROOM', 'STAFF_SUBADMINS'] },
-    { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
+    { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET', 'TIMETABLE_VIEW', 'TIMETABLE_MANAGE'] },
     { label: 'Insights',   href: '/admin/insights',           icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION', 'AUDIT_LOGS'] },
     { label: 'Admissions', href: '/admin/admissions',        icon: UserPlus,        activePath: '/admin/admissions', childKeys: ['ADMISSIONS'] },
     { label: 'Inventory',  href: '/admin/inventory',         icon: Boxes,           activePath: '/admin/inventory', childKeys: ['INVENTORY'] },
@@ -44,6 +44,7 @@ const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/staff/subadmins',       keys: ['STAFF_SUBADMINS'] },
     { prefix: '/admin/payroll',               keys: ['PAYROLL'] },
     { prefix: '/admin/timetable',             keys: ['TIMETABLE_VIEW', 'TIMETABLE_MANAGE'] },
+    { prefix: '/admin/campus/timetable',      keys: ['TIMETABLE_VIEW', 'TIMETABLE_MANAGE'] },
     { prefix: '/admin/campus/classes',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     { prefix: '/admin/campus/courses',        keys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'] },
     // Bare '/admin/campus' (the Feed page) is intentionally NOT gated here —

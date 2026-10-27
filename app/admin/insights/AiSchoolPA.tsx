@@ -267,7 +267,7 @@ export default function AiSchoolPA() {
                         <div
                             className="w-full h-full flex flex-col relative"
                             style={{
-                                background: 'linear-gradient(180deg, rgba(20,14,12,0.97) 0%, rgba(15,12,14,0.98) 100%)',
+                                background: '#000000',
                                 border: '1px solid rgba(255,255,255,0.1)',
                                 boxShadow: '0 20px 60px -12px rgba(0,0,0,0.6)',
                             }}
@@ -371,7 +371,7 @@ export default function AiSchoolPA() {
 
                             {/* Input */}
                             <div className="relative shrink-0 p-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                                <div className="flex items-center gap-2 rounded-2xl px-3 py-1.5" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                <div className="flex items-center gap-2 rounded-2xl px-3 py-1.5" style={{ background: '#000000', border: '1px solid rgba(255,255,255,0.14)' }}>
                                     <input
                                         value={input}
                                         onChange={e => setInput(e.target.value)}

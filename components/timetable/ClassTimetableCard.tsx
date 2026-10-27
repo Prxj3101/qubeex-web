@@ -1,13 +1,13 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Calendar, Expand, Pencil } from 'lucide-react';
+import Link from 'next/link';
+import { Calendar, Expand, Sparkles } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAcademicYear } from '@/context/AcademicYearContext';
 import { useCanManageTimetable } from '@/hooks/useTimetableAccess';
 import { useRemote } from '@/hooks/useRemote';
 import { TimetableGrid } from './TimetableGrid';
-import { ClassTimetableEditor } from './ClassTimetableEditor';
 import { STATUS_CLASS, STATUS_LABEL, errMsg, selfApi, ttApi, type Entry, type Slot, type TimetableStatus, type WeekData } from '@/lib/timetable';
 import api from '@/lib/api';
 
@@ -33,7 +33,7 @@ function fromWeek(w: WeekData, divisionId: string): Model {
                 id: `${s.date}-${s.slotId}-${s.divisionId}`, divisionId, dayOfWeek: d.dayOfWeek, slotId: s.slotId,
                 sessionTypeId: '', sessionTypeName: s.sessionTypeName, sessionKind: s.sessionKind, color: s.color,
                 subjectId: null, subjectName: s.status === 'CANCELLED' ? `${base} (cancelled)` : base, title: s.title,
-                teacherId: s.teacherId, teacherName: s.teacherName, roomId: null, roomName: s.roomName,
+                teacherId: s.teacherId, teacherName: s.teacherName, roomId: null, roomName: s.roomName, roomIsLab: s.roomIsLab,
                 configId: null, groupId: null, isLocked: false, divisionName: s.divisionName,
             });
         }
@@ -43,7 +43,8 @@ function fromWeek(w: WeekData, divisionId: string): Model {
 
 /**
  * The "Timetable" card on a class page. Shows the live weekly grid when the class has one and falls back to
- * the old uploaded image otherwise. Admins get an Edit button that opens the full studio for just this class.
+ * the old uploaded image otherwise. It only shows the timetable; admins build and change it on the
+ * AI Timetable page (one place for the whole school), which the button opens on this class.
  */
 export function ClassTimetableCard({ mode, divisionId, divisionLabel, imageUrl, onOpenImage, headerExtra }: {
     mode: Mode; divisionId: string; divisionLabel: string; imageUrl: string | null; onOpenImage?: () => void; headerExtra?: React.ReactNode;
@@ -51,7 +52,6 @@ export function ClassTimetableCard({ mode, divisionId, divisionLabel, imageUrl, 
     const { selectedYearId } = useAcademicYear();
     const canManage = useCanManageTimetable();
     const [expanded, setExpanded] = useState(false);
-    const [editing, setEditing] = useState(false);
 
     // Student/teacher cards read the current year; the admin page honours the selected academic year.
     const yearId = mode === 'student' ? undefined : selectedYearId;
@@ -97,9 +97,9 @@ export function ClassTimetableCard({ mode, divisionId, divisionLabel, imageUrl, 
                         </button>
                     )}
                     {canEdit && (
-                        <button type="button" onClick={() => setEditing(true)} className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[11px] font-semibold text-primary-foreground hover:opacity-90">
-                            <Pencil size={11} /> Edit timetable
-                        </button>
+                        <Link href={`/admin/campus/timetable?division=${divisionId}`} className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[11px] font-semibold text-white hover:opacity-90" style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                            <Sparkles size={11} /> Open timetable
+                        </Link>
                     )}
                 </span>
             </div>
@@ -116,7 +116,7 @@ export function ClassTimetableCard({ mode, divisionId, divisionLabel, imageUrl, 
             ) : showGrid ? (
                 <div className="p-2">
                     {grid}
-                    {unpublished && <p className="px-1 pt-2 text-[10px] text-amber-600">Not published yet — students and teachers can&apos;t see this.</p>}
+                    {unpublished && <p className="px-1 pt-2 text-[10px] text-amber-600">Not published yet - students and teachers can&apos;t see this.</p>}
                 </div>
             ) : imageUrl ? (
                 <div className="p-2 cursor-pointer" onClick={onOpenImage}>
@@ -126,7 +126,7 @@ export function ClassTimetableCard({ mode, divisionId, divisionLabel, imageUrl, 
             ) : (
                 <div className="px-4 py-8 text-center">
                     <p className="text-[12px] text-muted-foreground">
-                        {mode === 'admin' ? (canEdit ? 'No timetable yet. Use Edit timetable to build one.' : 'No timetable yet.') : 'Timetable not published yet'}
+                        {mode === 'admin' ? (canEdit ? 'No timetable yet. Use Open timetable to build it for the whole school.' : 'No timetable yet.') : 'Timetable not published yet'}
                     </p>
                 </div>
             )}
@@ -134,7 +134,7 @@ export function ClassTimetableCard({ mode, divisionId, divisionLabel, imageUrl, 
             {showGrid && m && (
                 <Dialog open={expanded} onOpenChange={setExpanded}>
                     <DialogContent className="sm:max-w-5xl bg-card">
-                        <DialogHeader><DialogTitle>Timetable — {divisionLabel}</DialogTitle></DialogHeader>
+                        <DialogHeader><DialogTitle>Timetable - {divisionLabel}</DialogTitle></DialogHeader>
                         <div className="max-h-[75vh] overflow-auto">
                             <TimetableGrid slots={m.slots} days={m.days} entries={m.entries} />
                         </div>
@@ -142,14 +142,6 @@ export function ClassTimetableCard({ mode, divisionId, divisionLabel, imageUrl, 
                 </Dialog>
             )}
 
-            {editing && (
-                <Dialog open onOpenChange={o => { if (!o) { setEditing(false); q.reload(); } }}>
-                    <DialogContent className="sm:max-w-[1400px] w-[96vw] h-[92vh] overflow-y-auto bg-card content-start">
-                        <DialogHeader><DialogTitle>Timetable — {divisionLabel}</DialogTitle></DialogHeader>
-                        <ClassTimetableEditor divisionId={divisionId} onChanged={q.reload} />
-                    </DialogContent>
-                </Dialog>
-            )}
         </div>
     );
 }

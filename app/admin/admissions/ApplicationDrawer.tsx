@@ -7,12 +7,13 @@ import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuRadioGroup, DropdownMenuRadioItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Pill, PrimaryButton, SecondaryButton } from '@/app/admin/payroll/_components/ui';
 import { beforeDecision, EVENT_LABELS, FIELD_LABELS, formatDate, formatDateTime, scrollStyle, whatsappLink, type ApplicationDetail, type FieldKey, type StandardWithSections } from './admissions.types';
 import ActionDialog, { type ActionKind } from './ActionDialog';
 import AdmissionFormCard from './AdmissionFormCard';
 import ApplicationForm from './ApplicationForm';
+import { parentMessages } from './whatsappMessages';
 
 type Step = { name: string; sub: string; state: 'done' | 'current' | 'todo' | 'skipped' };
 
@@ -178,6 +179,12 @@ export default function ApplicationDrawer({ id, onClose, onChanged }: { id: stri
         } catch (err) { toast.error(getErrorMessage(err, 'Could not send the email')); }
         finally { setResending(false); }
     };
+    // WhatsApp opens with the message ready; the history notes that it was opened (WhatsApp cannot tell us it was sent).
+    const [waTo, setWaTo] = useState<'phone' | 'altPhone'>('phone');
+    const waPhone = (waTo === 'altPhone' ? a?.details?.altPhone : a?.details?.phone) || a?.details?.phone || a?.details?.altPhone;
+    const logWhatsapp = async (label: string) => {
+        try { await api.post(`/admin/admissions/applications/${id}/whatsapp`, { label: label.slice(0, 60), to: waPhone ?? '' }); await load(); } catch { /* only the history note; the message still opens */ }
+    };
     const copy = (text: string, what: string) => { void navigator.clipboard.writeText(text).then(() => toast.success(`${what} copied`), () => toast.error('Could not copy')); };
 
     const step = a ? nextStep(a) : null;
@@ -248,8 +255,32 @@ export default function ApplicationDrawer({ id, onClose, onChanged }: { id: stri
                                         <div className="flex items-center justify-between mb-2">
                                             <h3 className="text-sm font-semibold">Child and parents</h3>
                                             <div className="flex items-center gap-1">
-                                                {details?.phone && <a href={whatsappLink(`Hello, this is the admissions office about ${a.childName}'s application (${a.applicationNo}).`, details.phone)} target="_blank" rel="noopener noreferrer" title="Message the parent on WhatsApp" aria-label="Message the parent on WhatsApp"
-                                                    className="w-7 h-7 rounded-lg border border-border flex items-center justify-center hover:bg-muted/50"><FaWhatsapp size={15} className="text-[#25D366]" /></a>}
+                                                {(details?.phone || details?.altPhone) && (
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <button type="button" title="Message the parent on WhatsApp" aria-label="Message the parent on WhatsApp"
+                                                                className="inline-flex h-7 items-center gap-1 rounded-lg border border-border px-2 text-xs font-semibold hover:bg-muted/50"><FaWhatsapp size={15} className="text-[#25D366]" />WhatsApp</button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-72">
+                                                            {details.phone && details.altPhone && <>
+                                                                <DropdownMenuLabel className="text-[11px] text-muted-foreground">Send to</DropdownMenuLabel>
+                                                                <DropdownMenuRadioGroup value={waTo} onValueChange={v => setWaTo(v as 'phone' | 'altPhone')}>
+                                                                    <DropdownMenuRadioItem value="phone" onSelect={e => e.preventDefault()}>{details.phone}</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="altPhone" onSelect={e => e.preventDefault()}>{details.altPhone}</DropdownMenuRadioItem>
+                                                                </DropdownMenuRadioGroup>
+                                                                <DropdownMenuSeparator />
+                                                            </>}
+                                                            {parentMessages(a).map(m => (
+                                                                <DropdownMenuItem key={m.key} asChild>
+                                                                    <a href={whatsappLink(m.text, waPhone)} target="_blank" rel="noopener noreferrer" onClick={() => void logWhatsapp(m.label)}>
+                                                                        <span className="flex-1">{m.label}</span>
+                                                                        {m.recommended && <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300">Now</span>}
+                                                                    </a>
+                                                                </DropdownMenuItem>
+                                                            ))}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                )}
                                                 {!a.placed && <button type="button" onClick={() => setEditing(true)} title="Edit details" aria-label="Edit details" className="w-7 h-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50"><Pencil size={13} /></button>}
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild><button type="button" aria-label="More" className="w-7 h-7 rounded-lg border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50"><MoreHorizontal size={14} /></button></DropdownMenuTrigger>
@@ -260,7 +291,6 @@ export default function ApplicationDrawer({ id, onClose, onChanged }: { id: stri
                                                             </DropdownMenuItem>
                                                         )}
                                                         {a.statusLink && <DropdownMenuItem onClick={() => copy(a.statusLink!, 'Status link')}>Copy parent status link</DropdownMenuItem>}
-                                                        {a.statusLink && details?.phone && <DropdownMenuItem asChild><a href={whatsappLink(`You can check ${a.childName}'s admission status here: ${a.statusLink}`, details.phone)} target="_blank" rel="noopener noreferrer">Send status link on WhatsApp</a></DropdownMenuItem>}
                                                         {!a.outcome && a.stage !== 'ADMITTED' && <DropdownMenuItem onClick={() => setAction('NOT_SELECTED')}>{beforeDecision(a) ? 'Close application' : 'Not selected'}</DropdownMenuItem>}
                                                         {!a.placed && a.outcome !== 'WITHDRAWN' && <DropdownMenuItem onClick={() => setAction('WITHDRAW')}>Withdraw</DropdownMenuItem>}
                                                     </DropdownMenuContent>

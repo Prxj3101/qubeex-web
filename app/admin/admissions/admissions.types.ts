@@ -130,7 +130,7 @@ export const EVENT_LABELS: Record<string, string> = {
     ENQUIRY_ADDED: 'Enquiry noted', REGISTERED: 'Registered', REGISTER: 'Registered', REG_FEE: 'Registration fee received',
     SCHEDULE: 'Interaction slot given', INTERACTION_DONE: 'Interaction done', SELECT: 'Selected, offer sent', WAITLIST: 'Put on waitlist',
     NOT_SELECTED: 'Not selected', WITHDRAW: 'Withdrawn', LAPSE: 'Offer lapsed', REOPEN: 'Reopened', ADM_FEE: 'Admission fee received',
-    DOCUMENTS_UPDATED: 'Documents checked', ADMIT: 'Admitted', SET_SECTION: 'Section changed', PLACED: 'Added to class', DETAILS_EDITED: 'Details edited', EMAIL_RESENT: 'Email sent again', ADMISSION_FORM: 'Admission form',
+    DOCUMENTS_UPDATED: 'Documents checked', ADMIT: 'Admitted', SET_SECTION: 'Section changed', PLACED: 'Added to class', DETAILS_EDITED: 'Details edited', EMAIL_RESENT: 'Email sent again', ADMISSION_FORM: 'Admission form', WHATSAPP: 'WhatsApp opened',
 };
 
 /** Before the school has had its say (no interaction yet), "Not selected" is really "Close application". */

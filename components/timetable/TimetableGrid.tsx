@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Lock, Link2, AlertTriangle, Plus, User, DoorOpen } from 'lucide-react';
+import { Lock, Link2, AlertTriangle, Plus, User, DoorOpen, FlaskConical } from 'lucide-react';
 import { DAY_SHORT, fmtTime, type Entry, type Slot } from '@/lib/timetable';
 
 export type GridLines = 'class' | 'teacher' | 'room' | 'subject';
@@ -138,6 +138,7 @@ export function TimetableGrid({ slots, days, entries, lines = 'class', conflictC
                                                         {e.isLocked && <Lock className="w-3 h-3 text-amber-500" />}
                                                     </div>
                                                     {list.length > 1 && <div className="text-[10px] text-primary">+{list.length - 1} more</div>}
+                                                    {e.roomIsLab && <FlaskConical className="absolute bottom-1.5 right-1.5 w-3 h-3" style={{ color }} aria-label="In a lab" />}
                                                 </div>
                                             )}
                                             {!e && editable && teaching && (

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRemote } from '@/hooks/useRemote';
-import { ChevronLeft, ChevronRight, Clock, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, FlaskConical, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAcademicYear } from '@/context/AcademicYearContext';
 import { DAY_NAMES, DAY_SHORT, fmtTime, selfApi, errMsg, type Slot, type WeekData, type WeekSession } from '@/lib/timetable';
@@ -43,6 +43,7 @@ function SessionCard({ s, role, now, next }: { s: WeekSession; role: 'teacher' |
                 <div className="text-right shrink-0">
                     <div className="text-xs font-medium">{s.slotName}</div>
                     <div className="text-[10px] text-muted-foreground">{fmtTime(s.startMinute)} – {fmtTime(s.endMinute)}</div>
+                    {s.roomIsLab && <FlaskConical className="ml-auto mt-1 h-3.5 w-3.5" style={{ color: s.color ?? 'var(--primary)' }} aria-label="In a lab" />}
                     {now && <div className="text-[10px] font-bold text-primary">NOW</div>}
                     {next && !now && <div className="text-[10px] font-bold text-primary/80">NEXT</div>}
                 </div>
@@ -158,7 +159,8 @@ export function WeekView({ role }: { role: 'teacher' | 'student' }) {
                                         return (
                                             <td key={d.date} className="border-t border-l border-border/50 p-1 align-top h-[60px]">
                                                 {s && (
-                                                    <div className={`h-full rounded-lg bg-muted/40 px-1.5 py-1 border-l-[3px] ${s.status === 'CANCELLED' ? 'opacity-60' : ''}`} style={{ borderLeftColor: s.color ?? 'var(--primary)' }}>
+                                                    <div className={`relative h-full rounded-lg bg-muted/40 px-1.5 py-1 border-l-[3px] ${s.status === 'CANCELLED' ? 'opacity-60' : ''}`} style={{ borderLeftColor: s.color ?? 'var(--primary)' }}>
+                                                        {s.roomIsLab && <FlaskConical className="absolute bottom-1 right-1 h-3 w-3" style={{ color: s.color ?? 'var(--primary)' }} aria-label="In a lab" />}
                                                         <div className={`font-semibold truncate ${s.status === 'CANCELLED' ? 'line-through' : ''}`}>{title(s)}</div>
                                                         <div className="text-[10px] text-muted-foreground truncate">{(role === 'teacher' ? [s.divisionName, s.roomName] : [s.teacherName, s.roomName]).filter(Boolean).join(' · ')}</div>
                                                         {b && <div className={`mt-0.5 inline-block rounded px-1 text-[9px] font-semibold ${b.cls}`}>{b.text}</div>}

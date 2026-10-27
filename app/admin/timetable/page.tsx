@@ -1,10 +1,8 @@
-import { Suspense } from 'react';
-import { StudioClient } from '@/components/timetable/StudioClient';
+import { redirect } from 'next/navigation';
 
-export default function TimetableStudioPage() {
-    return (
-        <Suspense fallback={null}>
-            <StudioClient />
-        </Suspense>
-    );
+// The timetable lives in Campus now (Campus > Timetable). Old links keep working.
+export default async function OldTimetablePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+    const q = new URLSearchParams();
+    for (const [k, v] of Object.entries(await searchParams)) if (typeof v === 'string') q.set(k, v);
+    redirect(`/admin/campus/timetable${q.size ? `?${q}` : ''}`);
 }

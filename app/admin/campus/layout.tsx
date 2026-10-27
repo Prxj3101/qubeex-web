@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Rss, LayoutGrid, Lock, Search, X, Hash, ArrowUpRight } from 'lucide-react';
+import { Rss, LayoutGrid, CalendarDays, Lock, Search, X, Hash, ArrowUpRight } from 'lucide-react';
 import { useMockInstType } from '@/context/MockInstTypeContext';
 import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
@@ -234,22 +234,27 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
     const canSeeFeed = !isSubAdmin || permissions.includes('CAMPUS_FEED');
     const canSeeClasses = !isSubAdmin || ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET'].some(key => permissions.includes(key));
 
+    const canSeeTimetable = !isSubAdmin || ['TIMETABLE_VIEW', 'TIMETABLE_MANAGE'].some(key => permissions.includes(key));
+    // A sub-admin without the Feed lands on the first tab they can open.
+    const landingHref = canSeeClasses || !canSeeTimetable ? classesHref : '/admin/campus/timetable';
+
     const onCampusRoot = pathname === '/admin/campus' || pathname === '/admin/campus/';
     const needsRedirect = !!user && isSubAdmin && !canSeeFeed && onCampusRoot;
 
     useEffect(() => {
-        if (needsRedirect) router.replace(classesHref);
-    }, [needsRedirect, router, classesHref]);
+        if (needsRedirect) router.replace(landingHref);
+    }, [needsRedirect, router, landingHref]);
 
     const TABS = [
         { key: 'feed', label: 'Feed', icon: Rss, href: '/admin/campus', locked: !canSeeFeed },
         { key: 'classes', label: classesLabel, icon: LayoutGrid, href: classesHref, locked: !canSeeClasses },
+        { key: 'timetable', label: 'AI Timetable', icon: CalendarDays, href: '/admin/campus/timetable', locked: !canSeeTimetable },
     ];
 
-    const activeTab = (pathname.startsWith('/admin/campus/classes') || pathname.startsWith('/admin/campus/courses')) ? 'classes' : 'feed';
+    const activeTab = pathname.startsWith('/admin/campus/timetable') ? 'timetable' : (pathname.startsWith('/admin/campus/classes') || pathname.startsWith('/admin/campus/courses')) ? 'classes' : 'feed';
 
     // Only show the tab bar on the top-level campus pages (not inside a class detail)
-    const showTabs = pathname === '/admin/campus' || pathname === '/admin/campus/classes' || pathname === '/admin/campus/courses';
+    const showTabs = pathname === '/admin/campus' || pathname === '/admin/campus/classes' || pathname === '/admin/campus/courses' || pathname === '/admin/campus/timetable';
 
     if (needsRedirect) return null;
 
@@ -257,7 +262,8 @@ export default function CampusLayout({ children }: { children: React.ReactNode }
         <div className="flex flex-col h-full overflow-visible">
             {showTabs && mounted && (
                 <div className="shrink-0 pt-0 pb-2 px-1 flex items-center justify-between gap-2">
-                    <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit shrink-0 overflow-x-auto">
+                    {/* The sliding pill overshoots for a moment while it springs; hide the scrollbar so it never flashes. */}
+                    <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit shrink-0 overflow-x-auto [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
                         {TABS.map(tab => {
                             const isActive = activeTab === tab.key;
                             const Icon = tab.icon;

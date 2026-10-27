@@ -135,6 +135,7 @@ const OTHER_FEATURE_LABELS: Record<string, string> = {
     PAYROLL_REVIEW: 'AI Payroll Review',
     INVENTORY_BRIEF: 'AI Inventory Brief',
     ADMISSION_FORM_SCAN: 'AI Admission Form Scan',
+    TIMETABLE_AI: 'AI Timetable',
     ATTENDANCE_SUMMARY: 'AI Attendance Analysis',
 };
 function featureColor(feature: string) {
