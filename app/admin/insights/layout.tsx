@@ -6,6 +6,7 @@ import { usePathname, useSearchParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { BarChart2, CreditCard, ScrollText, Lock, MessageCircle } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
+import { useParentChatBadgeStore } from '@/store/parentChatBadgeStore';
 import { toast } from 'sonner';
 
 const INSIGHTS_TABS = [
@@ -13,14 +14,15 @@ const INSIGHTS_TABS = [
     { label: 'Subscription', href: '/admin/insights/subscription', icon: CreditCard, permKey: 'INSIGHTS_SUBSCRIPTION' as string | null },
     // Moved here from the main nav (Payroll took its old spot there).
     { label: 'Audit Logs', href: '/admin/insights/audit-logs', icon: ScrollText, permKey: 'AUDIT_LOGS' as string | null, adminOnly: false },
-    // Private parent–teacher conversations: Admin only (the API rejects sub-admins).
-    { label: 'Parent Chat', href: '/admin/insights/parent-chat', icon: MessageCircle, permKey: null as string | null, adminOnly: true },
+    // Parent chat, forms & polls and meetings: Admin only (the API rejects sub-admins).
+    { label: 'Parents', href: '/admin/insights/parents', icon: MessageCircle, permKey: null as string | null, adminOnly: true },
 ];
 
 function TabBar({ isTabLocked, isSubAdmin }: { isTabLocked: (permKey: string) => boolean; isSubAdmin: boolean }) {
     const pathname = usePathname();
     const searchParams = useSearchParams();
     const from = searchParams.get('from');
+    const reportedParentMessages = useParentChatBadgeStore(s => s.adminReported);
 
     return (
         <div className="flex gap-1 bg-muted/50 rounded-4xl p-0.5 border border-border/50 w-fit">
@@ -60,6 +62,11 @@ function TabBar({ isTabLocked, isSubAdmin }: { isTabLocked: (permKey: string) =>
                             ${isActive ? 'text-white' : 'text-muted-foreground hover:text-foreground'}`}>
                             <Icon size={14} />
                             {tab.label}
+                            {tab.href === '/admin/insights/parents' && reportedParentMessages > 0 && (
+                                <span className="min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold leading-4 text-center">
+                                    {reportedParentMessages > 99 ? '99+' : reportedParentMessages}
+                                </span>
+                            )}
                         </div>
                     </Link>
                 );

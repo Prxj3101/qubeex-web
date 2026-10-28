@@ -9,6 +9,7 @@ import { AcademicYearSelector } from '@/components/shared/AcademicYearSelector';
 import { HistoricalYearBanner } from '@/components/shared/HistoricalYearBanner';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
 import { useUserTitleStore } from '@/store/userTitleStore';
+import { useParentChatBadgeStore } from '@/store/parentChatBadgeStore';
 import api from '@/lib/api';
 import {
     LayoutDashboard,
@@ -24,7 +25,7 @@ const TEACHER_NAV_ITEMS = [
     { label: 'Campus', href: '/teacher/campus', icon: Building2, activePath: '/teacher/campus' },
     { label: 'Classes', href: '/teacher/classes', icon: LayoutGrid, activePath: '/teacher/classes' },
     { label: 'Blackboard', href: '/teacher/blackboard', icon: Monitor },
-    { label: 'Messages', href: '/teacher/messages', icon: MessageCircle },
+    { label: 'Parents', href: '/teacher/parents', icon: MessageCircle },
     { label: 'My Profile', href: '/teacher/profile', icon: User },
 ];
 
@@ -35,6 +36,8 @@ function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
     }, []);
     const { instType } = useMockInstType();
     const pathname = usePathname();
+    const unreadParentMessages = useParentChatBadgeStore(s => s.teacherUnread);
+    const setUnreadParentMessages = useParentChatBadgeStore(s => s.setTeacherUnread);
     const setAvatarUrl = useUserAvatarStore(s => s.setAvatarUrl);
     const setTitle = useUserTitleStore(s => s.setTitle);
     const setPrefix = useUserTitleStore(s => s.setPrefix);
@@ -46,6 +49,20 @@ function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
             setPrefix(d?.prefix ?? null);
         }).catch(() => {});
     }, [setAvatarUrl, setTitle, setPrefix]);
+
+    // Unread parent messages for the "Parents" nav item. Refetched on navigation
+    // (reading a thread clears it) and polled so new messages show up without a reload.
+    useEffect(() => {
+        let cancelled = false;
+        const load = () => {
+            api.get('/teacher/parent-chat/unread-count')
+                .then(r => { if (!cancelled) setUnreadParentMessages(r.data?.data?.unread ?? 0); })
+                .catch(() => {});
+        };
+        load();
+        const timer = setInterval(load, 30_000);
+        return () => { cancelled = true; clearInterval(timer); };
+    }, [pathname, setUnreadParentMessages]);
 
     // Same fix as app/admin/layout.tsx: the `theme-college` class on <html>
     // only gets set server-side on a hard page load (RootLayout reads the
@@ -61,12 +78,16 @@ function TeacherLayoutInner({ children }: { children: React.ReactNode }) {
         return () => { document.documentElement.classList.remove('theme-college'); };
     }, [instType]);
 
+    const navItems = TEACHER_NAV_ITEMS.map(item =>
+        item.href === '/teacher/parents' ? { ...item, badgeCount: unreadParentMessages } : item
+    );
+
     return (
         <div
             suppressHydrationWarning
             className={`flex flex-col h-screen bg-background px-0 pt-3 gap-3 ${instType === 'COLLEGE' ? 'theme-college' : ''}`}
         >
-            <Topbar navItems={TEACHER_NAV_ITEMS} navRightSlot={pathname.startsWith('/teacher/classes') ? <AcademicYearSelector /> : undefined} />
+            <Topbar navItems={navItems} navRightSlot={pathname.startsWith('/teacher/classes') ? <AcademicYearSelector /> : undefined} />
             <HistoricalYearBanner />
             <main className="flex-1 min-h-0 px-2 overflow-y-auto">
                 {children}
