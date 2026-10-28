@@ -1,12 +1,13 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { EyeOff, FileText, Flag, Save } from 'lucide-react';
+import { EyeOff, FileText, Flag, MessageCircle, Save, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Avatar, EmptyState, IconTile } from './ui';
 
 interface Settings { enabled: boolean; officeStart: string; officeEnd: string }
 
@@ -100,13 +101,16 @@ export function ParentChatAdmin() {
 
     return (
         <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3" data-dashboard-surface="">
-                <div>
-                    <h2 className="text-sm font-semibold">Parent–teacher chat settings</h2>
-                    <p className="text-xs text-muted-foreground">
-                        Parents message their child&apos;s teachers from Parent Mode. Outside office hours messages are still delivered, but teachers are not notified.
-                        Times are in IST.
-                    </p>
+            <div className="rounded-2xl border border-border bg-gradient-to-br from-primary/12 via-card to-card p-4 flex flex-col gap-3" data-dashboard-surface="">
+                <div className="flex items-start gap-3">
+                    <IconTile icon={Settings2} />
+                    <div>
+                        <h2 className="text-sm font-semibold">Parent–teacher chat settings</h2>
+                        <p className="text-xs text-muted-foreground">
+                            Parents message their child&apos;s teachers from Parent Mode. Outside office hours messages are still delivered, but teachers are not notified.
+                            Times are in IST.
+                        </p>
+                    </div>
                 </div>
                 {settings && (
                     <div className="flex flex-wrap items-end gap-4">
@@ -145,41 +149,50 @@ export function ParentChatAdmin() {
 
             <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-3">
                 <div className="rounded-2xl border border-border bg-card overflow-y-auto max-h-[60vh]" data-dashboard-surface="">
-                    <p className="px-4 py-3 text-sm font-semibold border-b border-border">Conversations</p>
+                    <div className="px-4 py-3 border-b border-border flex items-center gap-2 bg-gradient-to-r from-primary/10 via-transparent to-transparent">
+                        <MessageCircle size={15} className="text-primary" />
+                        <p className="text-sm font-semibold">Conversations</p>
+                        <span className="ml-auto text-xs text-muted-foreground">{threads.length}</span>
+                    </div>
                     {threads.length === 0 ? (
-                        <p className="p-4 text-sm text-muted-foreground">No conversations yet.</p>
+                        <EmptyState icon={MessageCircle} title="No conversations yet" text="Conversations between parents and teachers will appear here." />
                     ) : threads.map(t => (
                         <button
                             key={t.id}
                             onClick={() => open(t.id)}
                             className={cn(
-                                'w-full text-left px-4 py-3 border-b border-border/60 hover:bg-muted/50 transition-colors',
-                                detail?.id === t.id && 'bg-muted/60',
+                                'w-full text-left px-4 py-3 border-b border-border/60 hover:bg-muted/50 transition-colors flex items-center gap-3',
+                                detail?.id === t.id && 'bg-primary/8',
+                                t.reportedCount > 0 && 'border-l-2 border-l-red-500',
                             )}
                         >
-                            <p className="text-sm font-medium truncate flex items-center gap-1.5">
-                                {t.reportedCount > 0 && (
-                                    <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-red-100 text-red-700 px-1.5 py-0.5 text-[10px] font-semibold">
-                                        <Flag size={9} /> {t.reportedCount}
-                                    </span>
-                                )}
-                                <span className="truncate">{t.studentName} ↔ {t.teacherName}</span>
-                            </p>
-                            <p className="text-xs text-muted-foreground truncate">
-                                {[t.className, t.rollNo ? `Roll ${t.rollNo}` : null].filter(Boolean).join(' · ')} · {t.messageCount} messages · {formatDateTime(t.lastMessageAt)}
-                            </p>
+                            <Avatar name={t.studentName} />
+                            <div className="min-w-0 flex-1">
+                                <p className="text-sm font-medium truncate flex items-center gap-1.5">
+                                    {t.reportedCount > 0 && (
+                                        <span className="shrink-0 inline-flex items-center gap-1 rounded-full bg-red-500/12 text-red-600 dark:text-red-400 px-1.5 py-0.5 text-[10px] font-semibold">
+                                            <Flag size={9} /> {t.reportedCount}
+                                        </span>
+                                    )}
+                                    <span className="truncate">{t.studentName} ↔ {t.teacherName}</span>
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                    {[t.className, t.rollNo ? `Roll ${t.rollNo}` : null].filter(Boolean).join(' · ')} · {t.messageCount} messages · {formatDateTime(t.lastMessageAt)}
+                                </p>
+                            </div>
                         </button>
                     ))}
                 </div>
 
                 <div className="rounded-2xl border border-border bg-card flex flex-col max-h-[60vh]" data-dashboard-surface="">
                     {!detail ? (
-                        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground p-6 text-center">
-                            Select a conversation to review it. Opening a conversation is recorded in the audit log.
+                        <div className="flex-1 flex items-center justify-center">
+                            <EmptyState icon={MessageCircle} title="Select a conversation" text="Opening a conversation is recorded in the audit log." />
                         </div>
                     ) : (
                         <>
-                            <div className="px-4 py-3 border-b border-border">
+                            <div className="px-4 py-3 border-b border-border flex items-center gap-3 bg-gradient-to-r from-primary/12 via-transparent to-transparent">
+                                <Avatar name={detail.studentName} />
                                 <p className="text-sm font-semibold">Parent of {detail.studentName} ↔ {detail.teacherName}</p>
                             </div>
                             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
@@ -187,7 +200,7 @@ export function ParentChatAdmin() {
                                     <div key={m.id} className={cn('flex flex-col', m.fromTeacher ? 'items-end' : 'items-start')}>
                                         <div className={cn(
                                             'max-w-[75%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words',
-                                            m.fromTeacher ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm',
+                                            m.fromTeacher ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-br-sm shadow-sm' : 'bg-muted rounded-bl-sm',
                                             m.hidden && 'opacity-60 line-through',
                                         )}>
                                             {m.attachment?.type === 'image' && (

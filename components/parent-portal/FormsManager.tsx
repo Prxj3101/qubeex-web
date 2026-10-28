@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, X } from 'lucide-react';
+import { Bell, CalendarClock, CheckCircle2, ClipboardCheck, FileSignature, Lock, Plus, Users, Vote, X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { CHOICE_COLORS, EmptyState, IconTile, ListSkeleton, PanelHeader, Pill, Progress, StatTile } from './ui';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface FormRow {
     id: string;
@@ -39,16 +41,19 @@ const fmt = (iso: string) => new Date(iso).toLocaleString([], { day: 'numeric', 
 
 /** Permission slips & polls. `apiBase` is `/teacher/parent-forms` or `/admin/parent-forms`. */
 export function FormsManager({ apiBase, canSendSchoolWide }: { apiBase: string; canSendSchoolWide: boolean }) {
+    const confirm = useConfirm();
     const [forms, setForms] = useState<FormRow[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [results, setResults] = useState<Results | null>(null);
     const [creating, setCreating] = useState(false);
+    const [loaded, setLoaded] = useState(false);
 
     const loadList = useCallback(async () => {
         try {
             const res = await api.get<{ data: FormRow[] }>(apiBase);
             setForms(res.data.data);
         } catch (err) { toast.error(getErrorMessage(err, 'Could not load forms')); }
+        finally { setLoaded(true); }
     }, [apiBase]);
 
     const loadResults = useCallback(async (id: string) => {
@@ -72,7 +77,15 @@ export function FormsManager({ apiBase, canSendSchoolWide }: { apiBase: string; 
     }, [activeId, loadResults]);
 
     const close = async () => {
-        if (!activeId || !window.confirm('Close this form? Parents will no longer be able to answer.')) return;
+        if (!activeId) return;
+        const ok = await confirm({
+            title: 'Close this form?',
+            message: 'Parents will no longer be able to answer. Responses already received are kept.',
+            confirmLabel: 'Close form',
+            tone: 'warning',
+            icon: Lock,
+        });
+        if (!ok) return;
         try {
             await api.patch(`${apiBase}/${activeId}/close`);
             await Promise.all([loadList(), loadResults(activeId)]);
@@ -87,78 +100,101 @@ export function FormsManager({ apiBase, canSendSchoolWide }: { apiBase: string; 
         } catch (err) { toast.error(getErrorMessage(err, 'Could not send the reminder')); }
     };
 
+    const open = forms.filter(f => !f.closed).length;
+    const pending = results ? results.total - results.answered : 0;
+
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-3">
-            <div className="rounded-2xl border border-border bg-card overflow-y-auto max-h-[70vh]" data-dashboard-surface="">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                    <p className="text-sm font-semibold">Forms &amp; polls</p>
-                    <Button size="sm" className="gap-1" onClick={() => { setCreating(true); setActiveId(null); }}><Plus size={14} /> New</Button>
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-3 h-full min-h-0">
+            <div className="rounded-2xl border border-border bg-card flex flex-col min-h-0" data-dashboard-surface="">
+                <PanelHeader
+                    icon={ClipboardCheck}
+                    title="Forms & polls"
+                    subtitle={forms.length ? `${open} open · ${forms.length} sent` : 'Permission slips and polls'}
+                    action={<Button size="sm" className="gap-1" onClick={() => { setCreating(true); setActiveId(null); }}><Plus size={14} /> New</Button>}
+                />
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                    {!loaded ? <ListSkeleton /> : forms.length === 0 ? (
+                        <EmptyState icon={ClipboardCheck} title="No forms sent yet" text="Send a permission slip or a quick poll and watch the replies come in." />
+                    ) : forms.map(f => {
+                        const done = f.audience > 0 && f.answered >= f.audience;
+                        return (
+                            <button
+                                key={f.id}
+                                onClick={() => { setActiveId(f.id); setCreating(false); }}
+                                className={cn('w-full text-left px-4 py-3 border-b border-border/60 flex items-center gap-3 hover:bg-muted/50 transition-colors', f.id === activeId && 'bg-primary/8')}
+                            >
+                                <IconTile icon={f.kind === 'SLIP' ? FileSignature : Vote} />
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="text-[11px] font-semibold text-primary">{f.kind === 'SLIP' ? 'Permission slip' : 'Poll'}</p>
+                                        {f.closed && <Pill tone="muted" icon={Lock}>Closed</Pill>}
+                                    </div>
+                                    <p className="text-sm font-medium truncate">{f.title}</p>
+                                    <Progress value={f.answered} total={f.audience} tone={done ? 'bg-emerald-500' : 'bg-primary'} className="mt-1.5" />
+                                    <p className="text-[11px] text-muted-foreground mt-1">{f.answered} of {f.audience} replied · {f.createdByName}</p>
+                                </div>
+                            </button>
+                        );
+                    })}
                 </div>
-                {forms.length === 0 ? (
-                    <p className="p-4 text-sm text-muted-foreground">No forms sent yet.</p>
-                ) : forms.map(f => (
-                    <button
-                        key={f.id}
-                        onClick={() => { setActiveId(f.id); setCreating(false); }}
-                        className={cn('w-full text-left px-4 py-3 border-b border-border/60 hover:bg-muted/50', f.id === activeId && 'bg-muted/60')}
-                    >
-                        <p className="text-[11px] font-semibold text-primary">{f.kind === 'SLIP' ? 'Permission slip' : 'Poll'}{f.closed ? ' · Closed' : ''}</p>
-                        <p className="text-sm font-medium truncate">{f.title}</p>
-                        <p className="text-xs text-muted-foreground">{f.answered} of {f.audience} answered · {f.createdByName}</p>
-                    </button>
-                ))}
             </div>
 
-            <div className="rounded-2xl border border-border bg-card max-h-[70vh] overflow-y-auto" data-dashboard-surface="">
+            <div className="rounded-2xl border border-border bg-card min-h-0 overflow-y-auto" data-dashboard-surface="">
                 {creating ? (
                     <NewForm apiBase={apiBase} canSendSchoolWide={canSendSchoolWide} onDone={() => { setCreating(false); loadList(); }} />
                 ) : !results ? (
-                    <div className="p-6 text-sm text-muted-foreground text-center">Select a form to see responses, or create a new one.</div>
+                    activeId ? <ListSkeleton rows={3} /> : <EmptyState icon={Users} title="Pick a form" text="Select a form on the left to see who replied, or create a new one." />
                 ) : (
-                    <div className="p-4 flex flex-col gap-4">
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <h2 className="text-base font-semibold">{results.title}</h2>
-                                {results.description && <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">{results.description}</p>}
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {results.answered} of {results.total} answered{results.deadline ? ` · reply by ${fmt(results.deadline)}` : ''}{results.closed ? ' · Closed' : ''}
-                                </p>
-                            </div>
-                            {!results.closed && (
+                    <div className="flex flex-col">
+                        <PanelHeader
+                            icon={results.kind === 'SLIP' ? FileSignature : Vote}
+                            title={results.title}
+                            subtitle={(results.kind === 'SLIP' ? 'Permission slip' : 'Poll') + (results.closed ? ' · Closed' : '')}
+                            action={!results.closed ? (
                                 <div className="flex gap-2 shrink-0">
-                                    {results.total - results.answered > 0 && (
-                                        <Button size="sm" variant="outline" onClick={remind}>Remind {results.total - results.answered}</Button>
+                                    {pending > 0 && (
+                                        <Button size="sm" className="gap-1.5" onClick={remind}><Bell size={13} /> Remind {pending}</Button>
                                     )}
-                                    <Button size="sm" variant="outline" onClick={close}>Close form</Button>
+                                    <Button size="sm" variant="outline" className="gap-1.5 text-red-600 border-red-500/40 hover:bg-red-500/10" onClick={close}><Lock size={13} /> Close</Button>
                                 </div>
-                            )}
-                        </div>
-                        <div className="flex flex-col gap-2">
-                            {results.counts.map(c => (
-                                <div key={c.label}>
-                                    <div className="flex justify-between text-sm"><span>{c.label}</span><span className="font-semibold">{c.count}</span></div>
-                                    <div className="h-2 rounded-full bg-muted overflow-hidden">
-                                        <div className="h-full bg-primary" style={{ width: `${results.total ? (c.count / results.total) * 100 : 0}%` }} />
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                        <table className="w-full text-sm">
-                            <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1">Student</th><th>Class</th><th>Answer</th><th>Note</th></tr></thead>
-                            <tbody>
+                            ) : undefined}
+                        />
+                        <div className="p-4 flex flex-col gap-4">
+                            {results.description && <p className="text-sm text-muted-foreground whitespace-pre-wrap">{results.description}</p>}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <StatTile icon={CheckCircle2} tone="good" label="Replied" value={`${results.answered}/${results.total}`} />
+                                <StatTile icon={Users} tone={pending > 0 ? 'bad' : 'good'} label="Waiting" value={pending} />
+                                <StatTile icon={CalendarClock} tone={results.closed ? 'primary' : 'warn'} label="Reply by" value={results.deadline ? fmt(results.deadline).split(',')[0] : '—'} hint={results.deadline ? fmt(results.deadline).split(',').slice(1).join(',').trim() : 'No deadline'} />
+                            </div>
+                            <div className="rounded-2xl border border-border/70 p-4 flex flex-col gap-3">
+                                {results.counts.map((c, i) => {
+                                    const col = CHOICE_COLORS[i % CHOICE_COLORS.length];
+                                    return (
+                                        <div key={c.label}>
+                                            <div className="flex justify-between text-sm"><span className="font-medium">{c.label}</span><span className={cn('font-bold', col.text)}>{c.count}</span></div>
+                                            <Progress value={c.count} total={results.total} tone={col.bar} className="h-2.5 mt-1" />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                            <div className="rounded-2xl border border-border/70 overflow-hidden">
                                 {results.students.map(s => (
-                                    <tr key={s.studentId} className="border-t border-border/60">
-                                        <td className="py-1.5">{s.name}{s.rollNo ? <span className="text-muted-foreground"> · {s.rollNo}</span> : null}</td>
-                                        <td className="text-muted-foreground">{s.className ?? '—'}</td>
-                                        <td className={s.optionIndex === null ? 'text-red-600' : 'font-medium'}>
-                                            {s.optionIndex === null ? 'No reply' : results.options[s.optionIndex]}
-                                            {s.changes > 0 && <span className="text-[10px] text-muted-foreground font-normal"> (changed {s.changes}×)</span>}
-                                        </td>
-                                        <td className="text-muted-foreground">{s.comment ?? ''}</td>
-                                    </tr>
+                                    <div key={s.studentId} className="flex items-center gap-3 px-4 py-2.5 border-b border-border/60 last:border-b-0">
+                                        <span className={cn('inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold', s.optionIndex === null ? 'bg-red-500/12 text-red-600' : 'bg-primary/12 text-primary')}>{s.name[0]?.toUpperCase() ?? '?'}</span>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="text-sm font-medium truncate">{s.name}{s.rollNo ? <span className="text-muted-foreground font-normal"> · {s.rollNo}</span> : null}</p>
+                                            <p className="text-xs text-muted-foreground truncate">{s.className ?? '—'}{s.comment ? ` · “${s.comment}”` : ''}</p>
+                                        </div>
+                                        {s.optionIndex === null ? <Pill tone="bad">No reply</Pill> : (
+                                            <span className="flex items-center gap-1.5">
+                                                {s.changes > 0 && <span className="text-[10px] text-muted-foreground">changed {s.changes}×</span>}
+                                                <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold', CHOICE_COLORS[s.optionIndex % CHOICE_COLORS.length].chip)}><CheckCircle2 size={11} />{results.options[s.optionIndex]}</span>
+                                            </span>
+                                        )}
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
@@ -213,15 +249,20 @@ function NewForm({ apiBase, canSendSchoolWide, onDone }: { apiBase: string; canS
         <div className="p-4 flex flex-col gap-3 max-w-xl">
             <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold">New form</h2>
-                <button onClick={onDone} aria-label="Close"><X size={16} /></button>
+                <button onClick={onDone} aria-label="Close" className="rounded-lg p-1 hover:bg-muted"><X size={16} /></button>
             </div>
             {!canSendSchoolWide && targets.length === 0 && (
                 <p className="text-sm text-red-600">Only a class teacher can send forms to parents.</p>
             )}
-            <div className="flex gap-2">
-                {(['SLIP', 'POLL'] as const).map(k => (
-                    <button key={k} onClick={() => setKind(k)} className={cn('rounded-full border px-4 py-1.5 text-sm font-medium', kind === k ? 'border-primary bg-primary/10 text-primary' : 'border-border')}>
-                        {k === 'SLIP' ? 'Permission slip' : 'Poll'}
+            <div className="grid grid-cols-2 gap-3">
+                {([
+                    { k: 'SLIP', label: 'Permission slip', sub: 'Yes / No consent', icon: FileSignature },
+                    { k: 'POLL', label: 'Poll', sub: 'Pick one option', icon: Vote },
+                ] as const).map(o => (
+                    <button key={o.k} onClick={() => setKind(o.k)} className={cn('rounded-2xl border-2 p-3 text-left flex flex-col gap-1.5 transition-colors', kind === o.k ? 'border-primary bg-primary/8' : 'border-border hover:bg-muted/40')}>
+                        <IconTile icon={o.icon} className="h-9 w-9" />
+                        <span className="text-sm font-semibold">{o.label}</span>
+                        <span className="text-xs text-muted-foreground">{o.sub}</span>
                     </button>
                 ))}
             </div>

@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { CalendarClock, Plus, X } from 'lucide-react';
+import { CalendarCheck, CalendarClock, CalendarX2, Clock, MapPin, Plus, UserRound, Users, X } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { EmptyState, ListSkeleton, PanelHeader, Pill, Progress, StatTile } from './ui';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface TeacherSession {
     id: string;
@@ -40,6 +42,19 @@ const clock = (minute: number) => {
     const h = Math.floor(minute / 60);
     return `${h % 12 === 0 ? 12 : h % 12}:${String(minute % 60).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 };
+const dateParts = (dateStr: string) => {
+    const d = new Date(`${dateStr}T00:00:00+05:30`);
+    return { day: d.toLocaleDateString([], { day: 'numeric' }), mon: d.toLocaleDateString([], { month: 'short' }).toUpperCase() };
+};
+function DateTile({ date, dim }: { date: string; dim?: boolean }) {
+    const { day, mon } = dateParts(date);
+    return (
+        <span className={cn('inline-flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-xl text-white bg-gradient-to-br', dim ? 'from-muted-foreground/70 to-muted-foreground/40' : 'from-primary to-primary/65')}>
+            <span className="text-base font-bold leading-4">{day}</span>
+            <span className="text-[9px] font-semibold tracking-wider opacity-85">{mon}</span>
+        </span>
+    );
+}
 const pretty = (dateStr: string) => new Date(`${dateStr}T00:00:00+05:30`).toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
 /** Parent-teacher meeting slots. Teachers publish and manage; admins get a read-only overview. */
@@ -55,40 +70,49 @@ function AdminPtm() {
             .catch(err => { toast.error(getErrorMessage(err, 'Could not load meetings')); setSessions([]); });
     }, []);
     return (
-        <div className="rounded-2xl border border-border bg-card overflow-x-auto" data-dashboard-surface="">
-            <p className="px-4 py-3 text-sm font-semibold border-b border-border flex items-center gap-2"><CalendarClock size={15} /> Upcoming parent-teacher meetings</p>
-            {sessions === null ? <p className="p-4 text-sm text-muted-foreground">Loading…</p> : sessions.length === 0 ? (
-                <p className="p-4 text-sm text-muted-foreground">No upcoming meetings.</p>
-            ) : (
-                <table className="w-full text-sm">
-                    <thead><tr className="text-left text-xs text-muted-foreground"><th className="px-4 py-2">Teacher</th><th>Meeting</th><th>When</th><th>Location</th><th>Booked</th></tr></thead>
-                    <tbody>
-                        {sessions.map(s => (
-                            <tr key={s.id} className={cn('border-t border-border/60', s.cancelled && 'opacity-50 line-through')}>
-                                <td className="px-4 py-2">{s.teacherName}</td>
-                                <td>{s.title}</td>
-                                <td>{pretty(s.date)} · {clock(s.startMinute)}–{clock(s.endMinute)}</td>
-                                <td className="text-muted-foreground">{s.location ?? '—'}</td>
-                                <td className="font-medium">{s.booked}/{s.totalSlots}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-            )}
+        <div className="rounded-2xl border border-border bg-card h-full min-h-0 flex flex-col" data-dashboard-surface="">
+            <PanelHeader icon={CalendarClock} title="Upcoming parent-teacher meetings" subtitle={sessions ? `${sessions.filter(x => !x.cancelled).length} scheduled` : undefined} />
+            <div className="flex-1 min-h-0 overflow-y-auto">
+                {sessions === null ? <ListSkeleton /> : sessions.length === 0 ? (
+                    <EmptyState icon={CalendarClock} title="No upcoming meetings" text="Meetings published by teachers will show up here." />
+                ) : sessions.map(s => (
+                    <div key={s.id} className={cn('flex items-center gap-3 px-4 py-3 border-b border-border/60 last:border-b-0', s.cancelled && 'opacity-50')}>
+                        <DateTile date={s.date} dim={s.cancelled} />
+                        <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                                <p className="text-sm font-medium truncate">{s.title}</p>
+                                {s.cancelled && <Pill tone="bad">Cancelled</Pill>}
+                            </div>
+                            <p className="text-xs text-muted-foreground flex items-center gap-3 flex-wrap">
+                                <span className="inline-flex items-center gap-1"><UserRound size={11} />{s.teacherName}</span>
+                                <span className="inline-flex items-center gap-1"><Clock size={11} />{clock(s.startMinute)}–{clock(s.endMinute)}</span>
+                                {s.location && <span className="inline-flex items-center gap-1"><MapPin size={11} />{s.location}</span>}
+                            </p>
+                        </div>
+                        <div className="w-28 shrink-0">
+                            <p className="text-xs font-semibold text-right">{s.booked}/{s.totalSlots} booked</p>
+                            <Progress value={s.booked} total={s.totalSlots} tone={s.totalSlots > 0 && s.booked >= s.totalSlots ? 'bg-emerald-500' : 'bg-primary'} className="mt-1" />
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
 
 function TeacherPtm() {
+    const confirm = useConfirm();
     const [sessions, setSessions] = useState<TeacherSession[]>([]);
     const [activeId, setActiveId] = useState<string | null>(null);
     const [creating, setCreating] = useState(false);
+    const [loaded, setLoaded] = useState(false);
 
     const load = useCallback(async () => {
         try {
             const res = await api.get<{ data: TeacherSession[] }>('/teacher/ptm/sessions');
             setSessions(res.data.data);
         } catch (err) { toast.error(getErrorMessage(err, 'Could not load meetings')); }
+        finally { setLoaded(true); }
     }, []);
 
     useEffect(() => {
@@ -100,69 +124,112 @@ function TeacherPtm() {
     const active = sessions.find(s => s.id === activeId) ?? null;
 
     const release = async (slotId: string, name: string) => {
-        if (!window.confirm(`Release this slot? ${name} will be notified and can book another.`)) return;
+        const ok = await confirm({
+            title: 'Release this slot?',
+            message: `${name} will be notified and can book another.`,
+            confirmLabel: 'Release slot',
+            tone: 'warning',
+            icon: CalendarX2,
+        });
+        if (!ok) return;
         try { await api.patch(`/teacher/ptm/slots/${slotId}/release`); await load(); }
         catch (err) { toast.error(getErrorMessage(err, 'Could not release the slot')); }
     };
 
     const cancel = async (id: string) => {
-        if (!window.confirm('Cancel this meeting? Parents with a booking will be notified.')) return;
+        const ok = await confirm({
+            title: 'Cancel this meeting?',
+            message: 'Parents with a booking will be notified.',
+            confirmLabel: 'Cancel meeting',
+            cancelLabel: 'Keep it',
+            tone: 'danger',
+            icon: CalendarX2,
+        });
+        if (!ok) return;
         try { await api.delete(`/teacher/ptm/sessions/${id}`); await load(); }
         catch (err) { toast.error(getErrorMessage(err, 'Could not cancel the meeting')); }
     };
 
+    const upcoming = sessions.filter(x => x.upcoming && !x.cancelled).length;
+
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-3">
-            <div className="rounded-2xl border border-border bg-card overflow-y-auto max-h-[70vh]" data-dashboard-surface="">
-                <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                    <p className="text-sm font-semibold">Meetings</p>
-                    <Button size="sm" className="gap-1" onClick={() => { setCreating(true); setActiveId(null); }}><Plus size={14} /> New</Button>
+        <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-3 h-full min-h-0">
+            <div className="rounded-2xl border border-border bg-card flex flex-col min-h-0" data-dashboard-surface="">
+                <PanelHeader
+                    icon={CalendarClock}
+                    title="Meetings"
+                    subtitle={sessions.length ? `${upcoming} upcoming · ${sessions.length} total` : 'Publish slots for parents'}
+                    action={<Button size="sm" className="gap-1" onClick={() => { setCreating(true); setActiveId(null); }}><Plus size={14} /> New</Button>}
+                />
+                <div className="flex-1 min-h-0 overflow-y-auto">
+                    {!loaded ? <ListSkeleton /> : sessions.length === 0 ? (
+                        <EmptyState icon={CalendarClock} title="No meetings yet" text="Publish time slots and parents of your students can book one from Parent Mode." />
+                    ) : sessions.map(s => {
+                        const dim = s.cancelled || !s.upcoming;
+                        return (
+                            <button
+                                key={s.id}
+                                onClick={() => { setActiveId(s.id); setCreating(false); }}
+                                className={cn('w-full text-left px-4 py-3 border-b border-border/60 flex items-center gap-3 hover:bg-muted/50 transition-colors', s.id === activeId && 'bg-primary/8', dim && 'opacity-70')}
+                            >
+                                <DateTile date={s.date} dim={dim} />
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                        <p className="text-sm font-medium truncate">{s.title}</p>
+                                        {s.cancelled ? <Pill tone="bad">Cancelled</Pill> : !s.upcoming ? <Pill tone="muted">Past</Pill> : null}
+                                    </div>
+                                    <p className="text-xs text-muted-foreground">{clock(s.startMinute)}–{clock(s.endMinute)}{s.location ? ` · ${s.location}` : ''}</p>
+                                    <Progress value={s.booked} total={s.slots.length} tone={s.slots.length > 0 && s.booked >= s.slots.length ? 'bg-emerald-500' : 'bg-primary'} className="mt-1.5" />
+                                    <p className="text-[11px] text-muted-foreground mt-1">{s.booked} of {s.slots.length} booked</p>
+                                </div>
+                            </button>
+                        );
+                    })}
                 </div>
-                {sessions.length === 0 ? <p className="p-4 text-sm text-muted-foreground">No meetings yet.</p> : sessions.map(s => (
-                    <button
-                        key={s.id}
-                        onClick={() => { setActiveId(s.id); setCreating(false); }}
-                        className={cn('w-full text-left px-4 py-3 border-b border-border/60 hover:bg-muted/50', s.id === activeId && 'bg-muted/60', (s.cancelled || !s.upcoming) && 'opacity-60')}
-                    >
-                        <p className="text-sm font-medium truncate">{s.title}{s.cancelled ? ' · Cancelled' : ''}</p>
-                        <p className="text-xs text-muted-foreground">{pretty(s.date)} · {clock(s.startMinute)}–{clock(s.endMinute)}</p>
-                        <p className="text-xs text-primary">{s.booked} of {s.slots.length} booked</p>
-                    </button>
-                ))}
             </div>
 
-            <div className="rounded-2xl border border-border bg-card max-h-[70vh] overflow-y-auto" data-dashboard-surface="">
+            <div className="rounded-2xl border border-border bg-card min-h-0 overflow-y-auto" data-dashboard-surface="">
                 {creating ? (
                     <NewSession onDone={() => { setCreating(false); load(); }} />
                 ) : !active ? (
-                    <div className="p-6 text-sm text-muted-foreground text-center">Select a meeting to see who booked, or publish new slots.</div>
+                    <EmptyState icon={Users} title="Pick a meeting" text="Select a meeting on the left to see who booked, or publish new slots." />
                 ) : (
-                    <div className="p-4 flex flex-col gap-3">
-                        <div className="flex items-start justify-between gap-3">
-                            <div>
-                                <h2 className="text-base font-semibold">{active.title}</h2>
-                                <p className="text-xs text-muted-foreground">{pretty(active.date)} · {clock(active.startMinute)}–{clock(active.endMinute)} · {active.slotMinutes} min each{active.location ? ` · ${active.location}` : ''}</p>
-                                {active.note && <p className="text-sm mt-1">{active.note}</p>}
+                    <div className="flex flex-col">
+                        <PanelHeader
+                            icon={CalendarCheck}
+                            title={active.title}
+                            subtitle={`${pretty(active.date)} · ${clock(active.startMinute)}–${clock(active.endMinute)} · ${active.slotMinutes} min each${active.location ? ` · ${active.location}` : ''}`}
+                            action={!active.cancelled && active.upcoming ? <Button size="sm" variant="outline" className="text-red-600 border-red-500/40 hover:bg-red-500/10" onClick={() => cancel(active.id)}>Cancel meeting</Button> : undefined}
+                        />
+                        <div className="p-4 flex flex-col gap-4">
+                            {active.note && <p className="text-sm rounded-xl bg-primary/8 px-3 py-2">{active.note}</p>}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                <StatTile icon={CalendarCheck} tone="good" label="Booked" value={active.booked} />
+                                <StatTile icon={Clock} tone="primary" label="Free" value={active.slots.length - active.booked} />
+                                <StatTile icon={Users} tone="warn" label="Total slots" value={active.slots.length} />
                             </div>
-                            {!active.cancelled && active.upcoming && <Button size="sm" variant="outline" onClick={() => cancel(active.id)}>Cancel meeting</Button>}
-                        </div>
-                        <table className="w-full text-sm">
-                            <thead><tr className="text-left text-xs text-muted-foreground"><th className="py-1">Time</th><th>Parent of</th><th>Class</th><th /></tr></thead>
-                            <tbody>
+                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
                                 {active.slots.map(sl => (
-                                    <tr key={sl.id} className="border-t border-border/60">
-                                        <td className="py-1.5 font-medium">{clock(sl.startMinute)}</td>
-                                        <td className={sl.student ? '' : 'text-muted-foreground'}>{sl.student ? sl.student.name : 'Free'}</td>
-                                        <td className="text-muted-foreground">{sl.student?.className ?? ''}</td>
-                                        <td className="text-right">
-                                            {sl.student && !active.cancelled && active.upcoming && (
-                                                <button className="text-xs text-red-600 hover:underline" onClick={() => release(sl.id, sl.student!.name)}>Release</button>
-                                            )}
-                                        </td>
-                                    </tr>
+                                    <div key={sl.id} className={cn('rounded-xl border p-3 flex items-center gap-3', sl.student ? 'border-primary/30 bg-primary/8' : 'border-dashed border-border')}>
+                                        <div className="shrink-0 text-center w-16">
+                                            <p className="text-xs font-bold">{clock(sl.startMinute)}</p>
+                                            <p className="text-[10px] text-muted-foreground">{clock(sl.endMinute)}</p>
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            {sl.student ? (
+                                                <>
+                                                    <p className="text-sm font-medium truncate">Parent of {sl.student.name}</p>
+                                                    <p className="text-[11px] text-muted-foreground truncate">{sl.student.className ?? ''}{sl.student.rollNo ? ` · Roll ${sl.student.rollNo}` : ''}</p>
+                                                </>
+                                            ) : <p className="text-sm text-muted-foreground">Free</p>}
+                                        </div>
+                                        {sl.student && !active.cancelled && active.upcoming && (
+                                            <button className="text-[11px] font-semibold text-red-600 hover:underline shrink-0" onClick={() => release(sl.id, sl.student!.name)}>Release</button>
+                                        )}
+                                    </div>
                                 ))}
-                            </tbody>
-                        </table>
+                            </div>
+                        </div>
                     </div>
                 )}
             </div>
