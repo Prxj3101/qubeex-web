@@ -7,6 +7,8 @@ import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Avatar, EmptyState, ListSkeleton } from '@/components/parent-portal/ui';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 interface Thread {
     id: string;
@@ -51,6 +53,7 @@ function formatTime(iso: string): string {
 }
 
 export function TeacherMessages() {
+    const confirm = useConfirm();
     const [data, setData] = useState<ThreadsPayload | null>(null);
     const [loading, setLoading] = useState(true);
     const [activeId, setActiveId] = useState<string | null>(null);
@@ -140,7 +143,14 @@ export function TeacherMessages() {
     };
 
     const report = async (m: Message) => {
-        if (!window.confirm('Report this message? The school administrator will be notified and will review it.')) return;
+        const ok = await confirm({
+            title: 'Report this message?',
+            message: 'The school administrator will be notified and will review it.',
+            confirmLabel: 'Report',
+            tone: 'warning',
+            icon: Flag,
+        });
+        if (!ok) return;
         try {
             await api.post(`/teacher/parent-chat/messages/${m.id}/report`, {});
             setMessages(prev => prev.map(x => (x.id === m.id ? { ...x, reportedByMe: true } : x)));
@@ -175,13 +185,9 @@ export function TeacherMessages() {
 
     return (
         <div className="flex flex-col gap-3 h-full min-h-0">
-            <div className="flex items-center gap-2 px-1">
-                <MessageCircle size={18} className="text-primary" />
-                <h1 className="text-lg font-semibold">Parent messages</h1>
-                <span className="flex items-center gap-1 text-xs text-muted-foreground ml-2">
-                    <ShieldCheck size={12} /> School administrators can view these conversations.
-                </span>
-            </div>
+            <p className="flex items-center gap-1.5 text-xs text-muted-foreground px-1">
+                <ShieldCheck size={12} className="text-primary" /> School administrators can view these conversations.
+            </p>
 
             {data && !data.settings.enabled && (
                 <div className="rounded-xl border border-border bg-card px-4 py-2 text-sm text-muted-foreground">
@@ -192,23 +198,19 @@ export function TeacherMessages() {
             <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[320px_1fr] gap-3">
                 <div className="rounded-2xl border border-border bg-card overflow-y-auto" data-dashboard-surface="">
                     {loading ? (
-                        <p className="p-4 text-sm text-muted-foreground">Loading…</p>
+                        <ListSkeleton />
                     ) : data && data.threads.length === 0 ? (
-                        <p className="p-4 text-sm text-muted-foreground">
-                            No parent messages yet. Parents can message you from Parent Mode in the student app.
-                        </p>
+                        <EmptyState icon={MessageCircle} title="No parent messages yet" text="Parents can message you from Parent Mode in the student app." />
                     ) : data?.threads.map(t => (
                         <button
                             key={t.id}
                             onClick={() => setActiveId(t.id)}
                             className={cn(
                                 'w-full text-left px-4 py-3 border-b border-border/60 flex items-start gap-3 hover:bg-muted/50 transition-colors',
-                                t.id === activeId && 'bg-muted/60',
+                                t.id === activeId && 'bg-primary/8',
                             )}
                         >
-                            <div className="h-9 w-9 shrink-0 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-semibold">
-                                {t.studentName[0]?.toUpperCase() ?? '?'}
-                            </div>
+                            <Avatar name={t.studentName} />
                             <div className="min-w-0 flex-1">
                                 <p className="text-sm font-medium truncate">Parent of {t.studentName}</p>
                                 <p className="text-xs text-muted-foreground truncate">
@@ -231,16 +233,19 @@ export function TeacherMessages() {
 
                 <div className="rounded-2xl border border-border bg-card flex flex-col min-h-0" data-dashboard-surface="">
                     {!active ? (
-                        <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground p-6 text-center">
-                            Select a conversation to read and reply.
+                        <div className="flex-1 flex items-center justify-center">
+                            <EmptyState icon={MessageCircle} title="Select a conversation" text="Pick a parent on the left to read and reply." />
                         </div>
                     ) : (
                         <>
-                            <div className="px-4 py-3 border-b border-border">
-                                <p className="text-sm font-semibold">Parent of {active.studentName}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    {[active.className, active.rollNo ? `Roll ${active.rollNo}` : null].filter(Boolean).join(' · ')}
-                                </p>
+                            <div className="px-4 py-3 border-b border-border flex items-center gap-3 bg-gradient-to-r from-primary/12 via-transparent to-transparent">
+                                <Avatar name={active.studentName} />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold truncate">Parent of {active.studentName}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {[active.className, active.rollNo ? `Roll ${active.rollNo}` : null].filter(Boolean).join(' · ')}
+                                    </p>
+                                </div>
                             </div>
                             <div className="flex-1 min-h-0 overflow-y-auto p-4 flex flex-col gap-2">
                                 {messages.map(m => {
@@ -249,7 +254,7 @@ export function TeacherMessages() {
                                         <div key={m.id} className={cn('group flex flex-col', mine ? 'items-end' : 'items-start')}>
                                             <div className={cn(
                                                 'max-w-[75%] rounded-2xl px-3 py-2 text-sm whitespace-pre-wrap break-words flex flex-col gap-1.5',
-                                                mine ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted rounded-bl-sm',
+                                                mine ? 'bg-gradient-to-br from-primary to-primary/80 text-primary-foreground rounded-br-sm shadow-sm' : 'bg-muted rounded-bl-sm',
                                                 m.hidden && 'italic opacity-70',
                                             )}>
                                                 {m.attachment?.type === 'image' && (

@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { toast } from 'sonner';
 import {
     Eye, EyeOff, ShieldCheck, TrendingUp, IndianRupee, Users, BarChart3,
     ArrowUpRight, ArrowDownRight, AlertTriangle, CreditCard, Zap, Clock,
@@ -321,7 +322,7 @@ function VaultDashboard({ onLock }: { onLock: () => void }) {
                             <Lock size={11} /> Lock
                         </button>
                         <button
-                            onClick={() => alert('Export coming soon!')}
+                            onClick={() => toast.info('Export is coming soon')}
                             className="flex items-center gap-1.5 text-white/80 hover:text-white text-xs border border-white/20 hover:border-white/40 px-3 py-1.5 rounded-full transition-all">
                             <Download size={11} /> Export
                         </button>

@@ -1,5 +1,5 @@
-import { TeacherMessages } from './TeacherMessages';
+import { redirect } from 'next/navigation';
 
-export default function TeacherMessagesPage() {
-    return <TeacherMessages />;
+export default function Page() {
+    redirect('/teacher/parents?tab=messages');
 }

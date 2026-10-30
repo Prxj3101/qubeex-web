@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import './globals.css';
 import { ThemeProvider } from '@/components/shared/ThemeProvider';
 import { Toaster } from '@/components/ui/sonner';
+import { ConfirmProvider } from '@/components/ui/confirm-dialog';
 import { BrandingProvider } from '@/context/BrandingContext';
 
 // Mirrors the qubeex_inst_type cookie pattern below — the qubeex_branding
@@ -79,7 +80,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           disableTransitionOnChange
         >
           <BrandingProvider>
-            {children}
+            <ConfirmProvider>{children}</ConfirmProvider>
             <Toaster />
           </BrandingProvider>
         </ThemeProvider>

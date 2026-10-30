@@ -14,6 +14,7 @@ import { useAuthStore } from '@/store/authStore';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -158,6 +159,7 @@ function PasswordInput({ value, onChange, placeholder, show, onToggleShow, autoF
 // ─── Main Page ───────────────────────────────────────────────────────────────
 
 export default function SuperAdminProfilePage() {
+    const confirm = useConfirm();
     const { user, clearAuth } = useAuthStore();
     const router = useRouter();
 
@@ -352,8 +354,15 @@ export default function SuperAdminProfilePage() {
         }
     };
 
-    const handleSignOutAll = () => {
-        if (!confirm('This will sign you out. Continue?')) return;
+    const handleSignOutAll = async () => {
+        const ok = await confirm({
+            title: 'Sign out?',
+            message: 'This will sign you out of this device.',
+            confirmLabel: 'Sign out',
+            tone: 'info',
+            icon: LogOut,
+        });
+        if (!ok) return;
         handleLogout();
     };
 

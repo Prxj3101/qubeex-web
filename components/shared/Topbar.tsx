@@ -33,6 +33,8 @@ interface NavItem {
     activePath?: string | string[];
     locked?: boolean;
     badge?: boolean;
+    // Unread count shown as a small pill on the icon (takes precedence over `badge`).
+    badgeCount?: number;
     lockToastMessage?: string;
 }
 
@@ -374,9 +376,13 @@ export function Topbar({ navItems, navRightSlot, restrictNav, lockMessage, disab
                                 )}>
                                     <span className="relative">
                                         {Icon && <Icon size={15} />}
-                                        {item.badge && (
+                                        {item.badgeCount ? (
+                                            <span className="absolute -top-2 -right-2.5 min-w-4 h-4 px-1 rounded-full bg-red-500 text-white text-[10px] font-semibold leading-4 text-center border border-background">
+                                                {item.badgeCount > 99 ? '99+' : item.badgeCount}
+                                            </span>
+                                        ) : item.badge ? (
                                             <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-red-500 border border-background" />
-                                        )}
+                                        ) : null}
                                     </span>
                                     {item.label}
                                 </div>

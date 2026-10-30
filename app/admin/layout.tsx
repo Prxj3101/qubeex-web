@@ -6,6 +6,7 @@ import { Topbar } from '@/components/shared/Topbar';
 import { useAuthStore } from '@/store/authStore';
 import { useUserAvatarStore } from '@/store/userAvatarStore';
 import { useUserTitleStore } from '@/store/userTitleStore';
+import { useParentChatBadgeStore } from '@/store/parentChatBadgeStore';
 import api from '@/lib/api';
 import {
     LayoutDashboard,
@@ -78,6 +79,23 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const setTitle = useUserTitleStore(s => s.setTitle);
     const setPrefix = useUserTitleStore(s => s.setPrefix);
     const isSubAdmin = user?.role === 'SUB_ADMIN';
+    const pathname = usePathname();
+    const reportedParentMessages = useParentChatBadgeStore(s => s.adminReported);
+    const setReportedParentMessages = useParentChatBadgeStore(s => s.setAdminReported);
+
+    // Reported parent-chat messages awaiting review (Admin only — the API rejects sub-admins).
+    useEffect(() => {
+        if (user?.role !== 'ADMIN') return;
+        let cancelled = false;
+        const load = () => {
+            api.get('/admin/parent-chat/reported-count')
+                .then(r => { if (!cancelled) setReportedParentMessages(r.data?.data?.reported ?? 0); })
+                .catch(() => {});
+        };
+        load();
+        const timer = setInterval(load, 60_000);
+        return () => { cancelled = true; clearInterval(timer); };
+    }, [user?.role, pathname, setReportedParentMessages]);
 
     // Populate the shared avatar/title/prefix stores from the correct source
     // depending on role — a sub-admin must never inherit the institution's
@@ -107,7 +125,6 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
         }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user, isSubAdmin]);
-    const pathname = usePathname();
     const router = useRouter();
 
     const permissions = user?.permissions ?? [];
@@ -162,8 +179,9 @@ function AdminLayoutInner({ children }: { children: React.ReactNode }) {
     const navItems = ALL_NAV_ITEMS
         .filter(item => !(isSubAdmin && 'adminOnly' in item && item.adminOnly))
         .map(({ childKeys, ...item }) => {
-            if (!isSubAdmin || childKeys.length === 0) return { ...item, locked: false };
-            return { ...item, locked: !childKeys.some(k => permissions.includes(k)) };
+            const badgeCount = item.href === '/admin/insights' ? reportedParentMessages : undefined;
+            if (!isSubAdmin || childKeys.length === 0) return { ...item, badgeCount, locked: false };
+            return { ...item, badgeCount, locked: !childKeys.some(k => permissions.includes(k)) };
         });
 
     // The `theme-college` class also needs to live on <html>, not just the
