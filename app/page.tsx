@@ -1,8 +1,9 @@
 import type { Metadata } from 'next';
-import { Space_Grotesk } from 'next/font/google';
+import { Caveat, Space_Grotesk } from 'next/font/google';
 import LandingPage from '@/components/landing/LandingPage';
 
 const display = Space_Grotesk({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-display' });
+const hand = Caveat({ subsets: ['latin'], weight: ['500', '700'], variable: '--font-hand' });
 
 export const metadata: Metadata = {
     title: 'QubeEx — AI-Powered Student Assessment System',
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
 
 export default function RootPage() {
     return (
-        <div className={display.variable}>
+        <div className={`${display.variable} ${hand.variable}`}>
             <LandingPage />
         </div>
     );

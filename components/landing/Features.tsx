@@ -26,7 +26,7 @@ const STACK: StackFeature[] = [
     {
         icon: Brain, no: '01',
         title: 'AI Tests, generated in minutes',
-        desc: 'Pick a chapter or upload a PDF, choose the question count and difficulty, and QubeEx builds the test for you - ready to assign or use live in the SmartBoard.',
+        desc: 'Pick a chapter or upload a PDF, choose the question count and difficulty, and QubeEx builds the test for you - ready to assign or use live on the AI Blackboard.',
         chips: [
             { icon: Brain, label: 'AI-generated questions' },
             { icon: Sparkles, label: 'Difficulty levels' },
@@ -38,7 +38,7 @@ const STACK: StackFeature[] = [
     {
         icon: Presentation, no: '02',
         title: 'AI Blackboard that teaches with you',
-        desc: 'SmartBoard puts live teaching material on the class display with an AI assist panel beside it - explanations, questions and full tests generated on demand. Free addon for the first year, on every plan.',
+        desc: 'AI Blackboard puts live teaching material on the class display with an AI assist panel beside it - explanations, questions and full tests generated on demand. Free addon for the first year, on every plan.',
         chips: [
             { icon: Presentation, label: 'Live teaching material' },
             { icon: Sparkles, label: 'AI assist panel' },

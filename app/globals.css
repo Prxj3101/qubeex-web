@@ -565,6 +565,17 @@
   }
 }
 
+/* Landing page: show the main page scrollbar on the right (the app hides
+   scrollbars everywhere else). LandingPage adds this class to <html>. */
+/* the strip behind a page scrollbar shows the html background (dark in the
+   app theme), so paint it the paper colour here: the bar then looks like it
+   floats on the page with no black strip behind it */
+html.landing-scrollbar, html.landing-scrollbar body { background-color: #f4f3ef; }
+/* Use the browser's own thin scrollbar (the ::-webkit-scrollbar route does
+   not bring the page bar back here, since the app hides it globally). Very
+   light, see-through thumb on a transparent track. */
+html.landing-scrollbar { scrollbar-width: thin; scrollbar-color: rgba(38, 41, 74, 0.16) transparent; }
+
 /* Neutral scrollbar for the paper ledger in both themes. */
 .ledger-scrollbar { scrollbar-width: thin; scrollbar-color: #96a58a #d5dfc5; }
 .ledger-scrollbar::-webkit-scrollbar { display: block; width: 6px; height: 6px; }

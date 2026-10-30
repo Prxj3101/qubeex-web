@@ -8,7 +8,7 @@ import { useRef } from 'react';
 import { DISPLAY } from './motion';
 
 const WORDS = [
-    'AI Smart Board',
+    'AI Blackboard',
     'Fees',
     'AI Tests & Exams',
     'Student App',

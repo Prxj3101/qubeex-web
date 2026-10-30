@@ -137,7 +137,7 @@ export default function Pricing({ onDemo }: { onDemo: () => void }) {
                     Every plan starts with a <span className="font-semibold text-[#DA7756]">14-day free trial</span> - full access, no payment details required.
                 </p>
                 <p className="mt-2 text-base text-[#9A93AC]">
-                    <span className="font-semibold text-[#DB2777]">AI Smartboard</span> addon included free for the first year on all plans. Multiple branches? Pay one full licence at 20% off, then just ₹20,000 per additional branch.
+                    <span className="font-semibold text-[#DB2777]">AI Blackboard</span> addon included free for the first year on all plans. Multiple branches? Pay one full licence at 20% off, then just ₹20,000 per additional branch.
                 </p>
             </Reveal>
         </section>
