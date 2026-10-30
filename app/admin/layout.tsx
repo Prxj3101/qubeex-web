@@ -16,6 +16,7 @@ import {
     Wallet,
     Boxes,
     UserPlus,
+    Bus,
 } from 'lucide-react';
 import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
 import { AcademicYearProvider } from '@/context/AcademicYearContext';
@@ -30,6 +31,7 @@ const ALL_NAV_ITEMS = [
     { label: 'Insights',   href: '/admin/insights',           icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION', 'AUDIT_LOGS'] },
     { label: 'Admissions', href: '/admin/admissions',        icon: UserPlus,        activePath: '/admin/admissions', childKeys: ['ADMISSIONS'] },
     { label: 'Inventory',  href: '/admin/inventory',         icon: Boxes,           activePath: '/admin/inventory', childKeys: ['INVENTORY'] },
+    { label: 'Transport',  href: '/admin/transport',         icon: Bus,             activePath: '/admin/transport', childKeys: ['TRANSPORT'] },
     // Sub-Admins (e.g. the school accountant) get in via the PAYROLL permission.
     // Audit Logs moved into Insights.
     { label: 'Payroll',    href: '/admin/payroll/runs',       icon: Wallet,          activePath: '/admin/payroll',  childKeys: ['PAYROLL'] },
@@ -39,6 +41,7 @@ const ALL_NAV_ITEMS = [
 // since the first matching prefix wins.
 const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/inventory', keys: ['INVENTORY'] },
+    { prefix: '/admin/transport', keys: ['TRANSPORT'] },
     { prefix: '/admin/admissions', keys: ['ADMISSIONS'] },
     { prefix: '/admin/staff/teachers',        keys: ['STAFF_TEACHERS'] },
     { prefix: '/admin/staff/staffroom',       keys: ['STAFF_STAFFROOM'] },

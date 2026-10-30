@@ -70,6 +70,7 @@ const PERMISSION_TREE: PermNode[] = [
     { key: 'SUPPORT', label: 'Support', icon: Headset, description: 'Support tickets & reviews' },
     { key: 'ADMISSIONS', label: 'Admissions', icon: Building2, description: 'Applications, admission and placing new students' },
     { key: 'INVENTORY', label: 'Inventory', icon: Building2, description: 'Manage school inventory and setup' },
+    { key: 'TRANSPORT', label: 'Transport', icon: Building2, description: 'Buses, routes and the live bus map' },
     { key: 'PAYROLL', label: 'Payroll', icon: Wallet,  description: 'Staff salaries, payroll runs & payslips' },
 ];
 
