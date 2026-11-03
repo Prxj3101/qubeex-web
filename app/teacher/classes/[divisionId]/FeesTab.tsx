@@ -7,7 +7,8 @@ import {
     ChevronDown, Users, ImagePlus, X,
 } from 'lucide-react';
 import { toast } from 'sonner';
-import api from '@/lib/api';
+import api from '@/lib/api';
+import { busMonthAmount } from '@/lib/busFee';
 import { useAcademicYear } from '@/context/AcademicYearContext';
 
 const FEE_CARD_THEMES = {
@@ -247,20 +248,12 @@ export default function TeacherFeesTab({ divisionId, divisionName }: {
         const busField = studentFields.find(f => f.kind === 'default' && f.defaultKey === 'bus');
         if (!busField) return null;
         const detailFields = rosterStudents.find(s => s.id === studentId)?.extraDetailFields;
-        if (detailFields?.[`${busField.id}-enabled`] !== 'true') return null;
-        const rawMonths = detailFields?.[`${busField.id}-months`];
-        let monthIds: string[] = [];
-        if (rawMonths) {
-            try {
-                const parsed = JSON.parse(rawMonths);
-                if (Array.isArray(parsed)) monthIds = parsed.filter((x): x is string => typeof x === 'string');
-            } catch { /* ignore malformed value */ }
-        }
-        if (!monthIds.includes(m.id)) return null;
+        // months locked at an old amount still count after the bus is turned off (lib/busFee)
+        const amount = busMonthAmount(detailFields, busField.id, m.id);
+        if (amount == null) return null;
         const busStructure = feeStructures.find(s => s.type === 'BUS');
         if (!busStructure) return null;
         if (m.assignedStructureIds.includes(busStructure.id)) return null;
-        const amount = Number(detailFields?.[`${busField.id}-fee`]) || 0;
         return { structure: busStructure, amount };
     };
 

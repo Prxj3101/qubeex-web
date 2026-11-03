@@ -27,7 +27,7 @@ export interface Question { id: string; label: string; required: boolean }
 export type FieldKey = 'bloodGroup' | 'previousSchool' | 'address' | 'sibling' | 'transport' | 'religion' | 'category' | 'motherTongue';
 export const FIELD_LABELS: Record<FieldKey, string> = {
     bloodGroup: 'Blood group', previousSchool: 'Previous school', address: 'Address', sibling: 'Sibling in this school',
-    transport: 'Needs school transport', religion: 'Religion', category: 'Category (General / OBC / SC / ST)', motherTongue: 'Mother tongue',
+    transport: 'Needs the school bus', religion: 'Religion', category: 'Category (General / OBC / SC / ST)', motherTongue: 'Mother tongue',
 };
 
 // ── Admission form (school's full form after selection) ─────────────────────
@@ -36,7 +36,7 @@ export type FormFieldType = typeof FORM_FIELD_TYPES[number];
 export const FORM_SOURCES = {
     childName: "Child's name", dob: 'Date of birth', gender: 'Gender', className: 'Class', fatherName: "Father's name", motherName: "Mother's name",
     guardianName: 'Guardian', phone: 'Phone', altPhone: 'Second phone', email: 'Email', address: 'Address', city: 'City', pincode: 'PIN code',
-    bloodGroup: 'Blood group', previousSchool: 'Previous school', sibling: 'Sibling', transport: 'Transport', religion: 'Religion', category: 'Category', motherTongue: 'Mother tongue',
+    bloodGroup: 'Blood group', previousSchool: 'Previous school', sibling: 'Sibling', transport: 'School bus', religion: 'Religion', category: 'Category', motherTongue: 'Mother tongue',
 } as const;
 export type FormSource = keyof typeof FORM_SOURCES;
 export interface FormField { id: string; label: string; type: FormFieldType; options: string[]; required: boolean; source?: FormSource | null }

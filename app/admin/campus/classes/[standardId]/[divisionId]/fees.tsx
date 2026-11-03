@@ -11,6 +11,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
+import { busMonthAmount, busMonthIds } from '@/lib/busFee';
+import { ThemedSelect } from '@/app/admin/payroll/_components/ui';
 import { useAcademicYear, useIsHistoricalYear } from '@/context/AcademicYearContext';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -24,6 +26,9 @@ interface FeeItem { id: string; label: string; amount: number; subItems: FeeSubI
 // Absent on structures saved before this field existed — treated as 'setup'.
 interface FeeStructure { id: string; name: string; type: FeeStructureType; color: string; items: FeeItem[]; origin?: 'setup' | 'student'; }
 interface FeeMonth { id: string; month: string; dueDate: string; assignedStructureIds: string[]; status: 'PAID' | 'PENDING'; paidDate?: string; }
+// Transport (Admin → Transport): buses with their route's stops, and who rides which.
+interface TransportBusOption { id: string; name: string; morningShift: boolean; afternoonShift: boolean; route: { id: string; name: string; stops: { id: string; name: string; monthlyFee: number | null }[] } | null; }
+interface StudentRide { studentId: string; busId: string; stopId: string | null; shift: 'MORNING' | 'AFTERNOON'; }
 interface BankDetails { accountName: string; accountNumber: string; ifsc: string; bankName: string; branch: string; upiId?: string; }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -713,6 +718,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const [confirmBusToggle, setConfirmBusToggle] = useState<{ studentId: string; fieldId: string; nextEnabled: boolean } | null>(null);
     const [busMonthsModal, setBusMonthsModal] = useState<{ studentId: string; fieldId: string } | null>(null);
     const [busMonthsSelection, setBusMonthsSelection] = useState<string[]>([]);
+    // Transport: the school's real buses + stops, and who in this division rides which.
+    const [transport, setTransport] = useState<{ buses: TransportBusOption[]; rides: StudentRide[] } | null>(null);
+    // Pick bus + stop (+ shift) for a student: turning the bus on, or changing it.
+    const [busPicker, setBusPicker] = useState<{ studentId: string; fieldId: string; busId: string; stopId: string; shift: 'MORNING' | 'AFTERNOON' } | null>(null);
+    const [busSaving, setBusSaving] = useState(false);
 
     const runConfirmedDelete = () => {
         if (!confirmDelete) return;
@@ -860,6 +870,97 @@ export const FeesTab = forwardRef<FeesTabHandle, {
         }, 500);
     };
 
+    // ── Bus (linked to Transport) ───────────────────────────────────────────
+    // Bus on/off, bus + stop, fee and months all go through the bus endpoints,
+    // which also update the Transport page (who rides which bus) and lock the
+    // bus fee of months already due or paid, so old bills never change.
+    const applyStudentFields = (studentId: string, fields: Record<string, string>) =>
+        setRosterStudents(prev => prev.map(s => s.id === studentId ? { ...s, extraDetailFields: fields } : s));
+    const rideOf = (studentId: string) => transport?.rides.find(r => r.studentId === studentId) ?? null;
+    const reloadTransport = () => api.get(`/admin/campus/divisions/${divisionId}/transport`).then(res => setTransport(res.data.data ?? null)).catch(() => { });
+
+    const openBusPicker = (studentId: string, fieldId: string) => {
+        const ride = rideOf(studentId);
+        const busId = ride?.busId ?? transport?.buses[0]?.id ?? '';
+        setBusPicker({ studentId, fieldId, busId, stopId: ride?.stopId ?? '', shift: ride?.shift ?? 'MORNING' });
+    };
+
+    const saveBusPicker = async () => {
+        if (!busPicker || busSaving) return;
+        if (!busPicker.busId) { toast.error('Pick a bus'); return; }
+        const wasOn = getStudentDetailValue(busPicker.studentId, `${busPicker.fieldId}-enabled`) === 'true';
+        setBusSaving(true);
+        try {
+            const res = await api.put(`/admin/campus/divisions/${divisionId}/students/${busPicker.studentId}/bus`, {
+                enabled: true, busId: busPicker.busId, stopId: busPicker.stopId || null, shift: busPicker.shift,
+            });
+            const fields: Record<string, string> = res.data.data.extraDetailFields ?? {};
+            applyStudentFields(busPicker.studentId, fields);
+            await reloadTransport();
+            const { studentId, fieldId } = busPicker;
+            setBusPicker(null);
+            if (!wasOn) {
+                // just turned on: confirm which months carry the bus fee
+                setBusMonthsSelection(busMonthIds(fields, fieldId));
+                setBusMonthsModal({ studentId, fieldId });
+            }
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
+            toast.error(msg?.message ?? msg?.error ?? 'Could not save the bus');
+        } finally { setBusSaving(false); }
+    };
+
+    // Needs the bus, but which one isn't decided yet: goes on Transport → Waiting list.
+    const decideBusLater = async () => {
+        if (!busPicker || busSaving) return;
+        setBusSaving(true);
+        try {
+            const res = await api.put(`/admin/campus/divisions/${divisionId}/students/${busPicker.studentId}/bus`, { enabled: true });
+            applyStudentFields(busPicker.studentId, res.data.data.extraDetailFields ?? {});
+            setBusPicker(null);
+            toast.success('Added to Transport → Waiting list');
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
+            toast.error(msg?.message ?? msg?.error ?? 'Could not save');
+        } finally { setBusSaving(false); }
+    };
+
+    const turnBusOff = async (studentId: string) => {
+        try {
+            const res = await api.put(`/admin/campus/divisions/${divisionId}/students/${studentId}/bus`, { enabled: false });
+            applyStudentFields(studentId, res.data.data.extraDetailFields ?? {});
+            await reloadTransport();
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
+            toast.error(msg?.message ?? msg?.error ?? 'Could not turn the bus off');
+        }
+    };
+
+    const busFeeTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+    const setBusFeeAmount = (studentId: string, fieldId: string, value: string) => {
+        setRosterStudents(prev => prev.map(s => s.id === studentId ? { ...s, extraDetailFields: { ...(s.extraDetailFields ?? {}), [`${fieldId}-fee`]: value } } : s));
+        if (busFeeTimers.current[studentId]) clearTimeout(busFeeTimers.current[studentId]);
+        busFeeTimers.current[studentId] = setTimeout(async () => {
+            try {
+                const res = await api.patch(`/admin/campus/divisions/${divisionId}/students/${studentId}/bus-fee`, { fee: value ? Number(value) : null });
+                applyStudentFields(studentId, res.data.data.extraDetailFields ?? {});
+            } catch (err: unknown) {
+                const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
+                toast.error(msg?.message ?? msg?.error ?? 'Could not save the bus fee');
+            }
+        }, 600);
+    };
+
+    const saveBusMonths = async (studentId: string, months: string[]) => {
+        try {
+            const res = await api.patch(`/admin/campus/divisions/${divisionId}/students/${studentId}/bus-fee`, { months });
+            applyStudentFields(studentId, res.data.data.extraDetailFields ?? {});
+        } catch (err: unknown) {
+            const msg = (err as { response?: { data?: { message?: string; error?: string } } })?.response?.data;
+            toast.error(msg?.message ?? msg?.error ?? 'Could not save the months');
+        }
+    };
+
     // ── Load / Save ─────────────────────────────────────────────────────────
 
     const applyData = useCallback((data: {
@@ -942,6 +1043,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
         api.get(`/admin/campus/divisions/${divisionId}/fee-payments`)
             .then(res => setFeePayments(res.data.data ?? []))
             .catch(() => { });
+        api.get(`/admin/campus/divisions/${divisionId}/transport`)
+            .then(res => setTransport(res.data.data ?? null))
+            .catch(() => setTransport({ buses: [], rides: [] }));
     }, [divisionId]);
 
     useEffect(() => {
@@ -1082,16 +1186,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     // Which months the admin has explicitly picked for this student's Bus Fee
     // (stored as a JSON array of feeMonth ids in the same generic detail-field
     // store used for the toggle/number/fee, under key `${fieldId}-months`).
-    const getBusMonthIds = (studentId: string, fieldId: string): string[] => {
-        const raw = getStudentDetailValue(studentId, `${fieldId}-months`);
-        if (!raw) return [];
-        try {
-            const parsed = JSON.parse(raw);
-            return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : [];
-        } catch {
-            return [];
-        }
-    };
+    const studentFieldsOf = (studentId: string) => rosterStudents.find(s => s.id === studentId)?.extraDetailFields ?? null;
+    const getBusMonthIds = (studentId: string, fieldId: string): string[] => busMonthIds(studentFieldsOf(studentId), fieldId);
 
     // Once the admin turns a student's Bus toggle ON, they explicitly pick
     // which months get the Bus Fee structure via the month picker — it only
@@ -1103,12 +1199,12 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const getAutoBusFee = (studentId: string, m: FeeMonth): { structure: FeeStructure; amount: number } | null => {
         const busField = studentFields.find(f => f.kind === 'default' && f.defaultKey === 'bus');
         if (!busField) return null;
-        if (getStudentDetailValue(studentId, `${busField.id}-enabled`) !== 'true') return null;
-        if (!getBusMonthIds(studentId, busField.id).includes(m.id)) return null;
+        // months locked at an old amount still count after the bus is turned off (lib/busFee)
+        const amount = busMonthAmount(studentFieldsOf(studentId), busField.id, m.id);
+        if (amount == null) return null;
         const busStructure = feeStructures.find(s => s.type === 'BUS');
         if (!busStructure) return null;
         if (m.assignedStructureIds.includes(busStructure.id)) return null;
-        const amount = Number(getStudentDetailValue(studentId, `${busField.id}-fee`)) || 0;
         return { structure: busStructure, amount };
     };
 
@@ -1951,12 +2047,16 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                         const busEnabled = getStudentDetailValue(selectedStudent.id, `${f.id}-enabled`) === 'true';
                                                                         const busNumber = getStudentDetailValue(selectedStudent.id, `${f.id}-number`);
                                                                         const busFee = getStudentDetailValue(selectedStudent.id, `${f.id}-fee`);
+                                                                        const busRide = rideOf(selectedStudent.id);
+                                                                        const busWaiting = !!getStudentDetailValue(selectedStudent.id, 'bus-request');
+                                                                        const busStop = busRide?.stopId ? transport?.buses.find(b => b.id === busRide.busId)?.route?.stops.find(st => st.id === busRide.stopId)?.name ?? '' : '';
                                                                         return (
                                                                             <div key={f.id} className="flex items-center justify-between gap-1 px-2.5 py-2 rounded-lg basis-[calc(50%-4px)] grow-0 shrink-0" style={{ border: `1px solid ${fc.border}` }}>
                                                                                 <div className="flex items-center gap-1 shrink-0">
                                                                                     <span className="text-[11px]" style={{ color: '#000000' }}>{f.label}</span>
                                                                                     <button type="button"
-                                                                                        onClick={() => setConfirmBusToggle({ studentId: selectedStudent.id, fieldId: f.id, nextEnabled: !busEnabled })}
+                                                                                        onClick={() => busEnabled ? setConfirmBusToggle({ studentId: selectedStudent.id, fieldId: f.id, nextEnabled: false }) : openBusPicker(selectedStudent.id, f.id)}
+                                                                                        title={busEnabled ? 'Turn the bus off' : 'Put this student on a bus'}
                                                                                         className="relative w-7 h-4 rounded-full shrink-0 transition-colors"
                                                                                         style={{ background: busEnabled ? '#10B981' : 'rgba(0,0,0,0.18)' }}>
                                                                                         <span className="absolute top-0.5 w-3 h-3 rounded-full bg-white shadow transition-all"
@@ -1977,17 +2077,19 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                                                                 </div>
                                                                                 <div className="flex items-center gap-1.5 shrink-0">
                                                                                     <div className="flex items-center gap-0.5 shrink-0">
-                                                                                        <span className="text-[11px]" style={{ color: '#000000', opacity: busEnabled ? 0.6 : 0.3 }}>Bus No.</span>
-                                                                                        <input value={busNumber} onChange={e => setStudentDetailField(selectedStudent.id, `${f.id}-number`, e.target.value)}
-                                                                                            disabled={!busEnabled} placeholder="—"
-                                                                                            className="text-[11px] font-semibold text-right bg-transparent focus:outline-none shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                                                                                            style={{ color: '#000000', width: `${Math.max(2, busNumber.length || 1) + 0.5}ch`, minWidth: 0, borderBottom: '1px solid rgba(0,0,0,0.35)' }} />
+                                                                                        <span className="text-[11px]" style={{ color: '#000000', opacity: busEnabled ? 0.6 : 0.3 }}>Bus</span>
+                                                                                        <button type="button" disabled={!busEnabled && !busWaiting} onClick={() => openBusPicker(selectedStudent.id, f.id)}
+                                                                                            title={busEnabled ? `${busNumber || 'No bus'}${busStop ? ` · ${busStop}` : ''} (click to change bus or stop)` : undefined}
+                                                                                            className="max-w-[9rem] truncate text-[11px] font-semibold text-right shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                                            style={{ color: '#000000', borderBottom: '1px solid rgba(0,0,0,0.35)' }}>
+                                                                                            {busEnabled ? (busNumber || 'Pick bus') : busWaiting ? 'Waiting list' : '—'}
+                                                                                        </button>
                                                                                     </div>
                                                                                     <div className="flex items-center gap-0.5 shrink-0">
                                                                                         <span className="text-[11px]" style={{ color: '#000000', opacity: busEnabled ? 0.6 : 0.3 }}>Bus Fee ₹</span>
-                                                                                        <input value={busFee} onChange={e => setStudentDetailField(selectedStudent.id, `${f.id}-fee`, e.target.value.replace(/[^0-9]/g, ''))}
+                                                                                        <input value={busFee} onChange={e => setBusFeeAmount(selectedStudent.id, f.id, e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                                                                                             disabled={!busEnabled} placeholder="0" inputMode="numeric"
-                                                                                            title="This student's individual bus fee amount — bus fee varies by pickup location"
+                                                                                            title="This student's monthly bus fee. Filled from their stop's fee; you can change it. Months already due or paid keep their old amount."
                                                                                             className="text-[11px] font-semibold text-right bg-transparent focus:outline-none shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                                                                                             style={{ color: '#000000', width: `${Math.max(1, busFee.length || 1) + 0.5}ch`, minWidth: 0, borderBottom: '1px solid rgba(0,0,0,0.35)' }} />
                                                                                     </div>
@@ -2466,8 +2568,8 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                             </h3>
                             <p className="text-sm text-muted-foreground mb-5">
                                 {confirmBusToggle.nextEnabled
-                                    ? 'This student will be marked as taking the bus service. You can enter their bus number after confirming.'
-                                    : 'This student will be marked as not taking the bus service. The bus number field will be locked.'}
+                                    ? 'This student will be marked as taking the bus service.'
+                                    : 'This student will be taken off their bus (also on the Transport page and in the parent app). Bus fee stops from the next due month; months already due or paid keep their bus fee.'}
                             </p>
                             <div className="flex gap-2 justify-end">
                                 <button onClick={() => setConfirmBusToggle(null)}
@@ -2477,15 +2579,9 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                 <button onClick={() => {
                                     if (!confirmBusToggle) return;
                                     const { studentId, fieldId, nextEnabled } = confirmBusToggle;
-                                    setStudentDetailField(studentId, `${fieldId}-enabled`, nextEnabled ? 'true' : 'false');
-                                    if (!nextEnabled) {
-                                        setStudentDetailField(studentId, `${fieldId}-number`, '');
-                                    }
                                     setConfirmBusToggle(null);
-                                    if (nextEnabled) {
-                                        setBusMonthsSelection(getBusMonthIds(studentId, fieldId));
-                                        setBusMonthsModal({ studentId, fieldId });
-                                    }
+                                    if (nextEnabled) openBusPicker(studentId, fieldId);
+                                    else void turnBusOff(studentId);
                                 }}
                                     className="h-9 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"
                                     style={{ background: confirmBusToggle.nextEnabled ? '#10B981' : '#DC2626' }}>
@@ -2495,6 +2591,84 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                         </motion.div>
                     </div>
                 )}
+            </AnimatePresence>
+
+            {/* Bus - pick the real bus + stop (+ shift) from Transport */}
+            <AnimatePresence>
+                {busPicker && (() => {
+                    const buses = transport?.buses ?? [];
+                    const bus = buses.find(b => b.id === busPicker.busId) ?? null;
+                    const stops = bus?.route?.stops ?? [];
+                    const name = rosterStudents.find(s => s.id === busPicker.studentId)?.name ?? 'this student';
+                    return (
+                        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm" onClick={() => { if (!busSaving) setBusPicker(null); }}>
+                            <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }}
+                                className="bg-card border border-border rounded-2xl p-5 max-w-sm w-full mx-4 shadow-2xl" onClick={e => e.stopPropagation()} data-admin-surface="">
+                                <h3 className="text-sm font-bold mb-1">Bus for {name}</h3>
+                                {!transport ? (
+                                    <p className="text-xs text-muted-foreground mb-4">Loading buses...</p>
+                                ) : !buses.length ? (
+                                    <p className="text-xs text-muted-foreground mb-4">No buses yet. Add the school&apos;s buses and routes in <b>Transport</b> first, then come back here.</p>
+                                ) : (
+                                    <div className="space-y-3 mb-4">
+                                        <p className="text-xs text-muted-foreground">The bus fee is filled from the stop&apos;s monthly fee. You can still change it on the card.</p>
+                                        <div className="space-y-1">
+                                            <span className="text-xs font-semibold text-muted-foreground">Bus</span>
+                                            <ThemedSelect value={busPicker.busId} placeholder="Pick a bus"
+                                                options={buses.map(b => ({ value: b.id, label: `${b.name}${b.route ? ` · ${b.route.name}` : ' · no route yet'}` }))}
+                                                onChange={v => {
+                                                    const next = buses.find(b => b.id === v);
+                                                    const shift = next && !next.afternoonShift ? 'MORNING' : next && !next.morningShift ? 'AFTERNOON' : busPicker.shift;
+                                                    setBusPicker({ ...busPicker, busId: v, stopId: '', shift });
+                                                }} />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <span className="text-xs font-semibold text-muted-foreground">Stop</span>
+                                            {stops.length
+                                                ? <ThemedSelect value={busPicker.stopId} placeholder="Pick the stop"
+                                                    options={stops.map((st, i) => ({ value: st.id, label: `${i + 1}. ${st.name}${st.monthlyFee != null ? ` · ₹${st.monthlyFee.toLocaleString('en-IN')}/month` : ''}` }))}
+                                                    onChange={v => setBusPicker({ ...busPicker, stopId: v })} />
+                                                : <p className="text-xs text-muted-foreground">This bus has no route or stops yet. Add them in Transport.</p>}
+                                        </div>
+                                        {bus?.morningShift && bus.afternoonShift && (
+                                            <div className="space-y-1">
+                                                <span className="text-xs font-semibold text-muted-foreground">Shift</span>
+                                                <div className="flex gap-1.5">
+                                                    {(['MORNING', 'AFTERNOON'] as const).map(sh => (
+                                                        <button key={sh} type="button" onClick={() => setBusPicker({ ...busPicker, shift: sh })}
+                                                            className="flex-1 h-8 rounded-xl border-2 text-xs font-semibold transition-all"
+                                                            style={busPicker.shift === sh ? { borderColor: '#0891B2', background: '#0891B220', color: '#0891B2' } : { borderColor: 'hsl(var(--border))', color: 'hsl(var(--muted-foreground))' }}>
+                                                            {sh === 'MORNING' ? '🌅 Morning' : '☀️ Afternoon'}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="flex gap-2 justify-end">
+                                    <button onClick={() => setBusPicker(null)} disabled={busSaving}
+                                        className="h-9 px-4 rounded-xl border border-border text-xs font-semibold text-muted-foreground hover:bg-muted transition-all disabled:opacity-60">
+                                        Cancel
+                                    </button>
+                                    {getStudentDetailValue(busPicker.studentId, `${busPicker.fieldId}-enabled`) !== 'true' && (
+                                        <button onClick={() => void decideBusLater()} disabled={busSaving} title="Needs the bus, but which one isn't decided yet. Shows on Transport → Waiting list."
+                                            className="h-9 px-3 rounded-xl border border-border text-xs font-semibold hover:bg-muted transition-all disabled:opacity-60 mr-auto">
+                                            Decide later
+                                        </button>
+                                    )}
+                                    {!!buses.length && (
+                                        <button onClick={() => void saveBusPicker()} disabled={busSaving}
+                                            className="h-9 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all disabled:opacity-60"
+                                            style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}>
+                                            {busSaving ? 'Saving...' : 'Save'}
+                                        </button>
+                                    )}
+                                </div>
+                            </motion.div>
+                        </div>
+                    );
+                })()}
             </AnimatePresence>
 
             {/* Bus Fee - pick which months it applies to for this student */}
@@ -2538,7 +2712,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
                                 </button>
                                 <button onClick={() => {
                                     if (!busMonthsModal) return;
-                                    setStudentDetailField(busMonthsModal.studentId, `${busMonthsModal.fieldId}-months`, JSON.stringify(busMonthsSelection));
+                                    void saveBusMonths(busMonthsModal.studentId, busMonthsSelection);
                                     setBusMonthsModal(null);
                                 }}
                                     className="h-9 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all"

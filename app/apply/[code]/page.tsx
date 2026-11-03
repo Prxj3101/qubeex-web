@@ -8,6 +8,7 @@ import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import ApplyShell, { HeaderChip, PhoneField, SectionCard, fieldCls, phoneComplete } from '../_components/ApplyShell';
 import { BackpackDoodle, BookDoodle, StarDoodle } from '../_components/Doodles';
+import { BusNeedField } from '@/app/admin/admissions/BusNeedField';
 
 // Public registration form a school shares with parents (link or QR code).
 // No login. Phone first, only the fields the school turned on.
@@ -255,7 +256,11 @@ export default function ApplyPage() {
                             {on('address') && <Q title="Home address"><input maxLength={300} className={fieldCls} value={f.address} onChange={e => set({ address: e.target.value })} autoComplete="street-address" /></Q>}
                             {on('address') && <div className="grid grid-cols-2 gap-4"><Q title="City"><input maxLength={80} className={fieldCls} value={f.city} onChange={e => set({ city: e.target.value })} /></Q><Q title="PIN code"><input inputMode="numeric" maxLength={10} className={fieldCls} value={f.pincode} onChange={e => set({ pincode: e.target.value })} /></Q></div>}
                             {on('sibling') && <Q title="Brother or sister in this school?" hint="Name and class, if any"><input maxLength={160} className={fieldCls} value={f.sibling} onChange={e => set({ sibling: e.target.value })} /></Q>}
-                            {on('transport') && <Q title="Need the school bus?" hint="Your pickup area, if yes"><input maxLength={160} className={fieldCls} value={f.transport} onChange={e => set({ transport: e.target.value })} /></Q>}
+                            {on('transport') && <div>{/* not a <label>: it holds buttons */}
+                                <span className="block text-[13px] font-semibold text-slate-700 mb-1.5">Need the school bus?</span>
+                                <BusNeedField value={f.transport} onChange={v => set({ transport: v })} inputClassName={fieldCls} />
+                                <span className="block text-[11px] text-slate-500 mt-1">If yes, write your pickup area</span>
+                            </div>}
                         </SectionCard>
                     )}
 

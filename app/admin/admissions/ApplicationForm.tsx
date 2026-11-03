@@ -6,6 +6,7 @@ import api from '@/lib/api';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Field, inputCls, PhoneInput, phoneComplete, PrimaryButton, SecondaryButton, Segmented, ThemedSelect } from '@/app/admin/payroll/_components/ui';
 import { apiError, emptyDetails, scrollStyle, todayYmd, type ApplicationDetail, type Details, type FieldKey, type Question, type StandardWithSections } from './admissions.types';
+import { BusNeedField } from './BusNeedField';
 
 interface Props {
     standards: StandardWithSections[];
@@ -117,7 +118,11 @@ export default function ApplicationForm({ standards, fields, questions, editing,
                                     {optional('address') && <Field label="City"><input maxLength={80} className={inputCls} value={d.city} onChange={e => set({ city: e.target.value })} /></Field>}
                                     {optional('address') && <Field label="PIN code"><input inputMode="numeric" maxLength={10} className={inputCls} value={d.pincode} onChange={e => set({ pincode: e.target.value })} /></Field>}
                                     {optional('sibling') && <Field label="Sibling in this school" hint="Name and class, if any"><input maxLength={160} className={inputCls} value={d.sibling} onChange={e => set({ sibling: e.target.value })} /></Field>}
-                                    {optional('transport') && <Field label="School transport" hint="Pickup area, if needed"><input maxLength={160} className={inputCls} value={d.transport} onChange={e => set({ transport: e.target.value })} /></Field>}
+                                    {optional('transport') && <div className="sm:col-span-2 space-y-1">{/* not a <label>: it holds buttons */}
+                                        <span className="text-xs font-semibold text-muted-foreground">Need the school bus?</span>
+                                        <BusNeedField value={d.transport} onChange={v => set({ transport: v })} inputClassName={inputCls} />
+                                        <span className="block text-[11px] text-muted-foreground/80">If yes, they show on Transport → Waiting list once admitted</span>
+                                    </div>}
                                 </div>
                             </section>
                         )}

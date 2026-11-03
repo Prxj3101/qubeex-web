@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { IndianRupee, Award, User, ChevronRight } from 'lucide-react';
-import api from '@/lib/api';
+import api from '@/lib/api';
+import { busMonthAmount } from '@/lib/busFee';
 import StudentProfileView, { ProfileViewMarksheet, ProfileViewAttendance } from '@/components/shared/StudentProfileView';
 import PTMNotesCard from '@/components/shared/PTMNotesCard';
 import { FlagItem } from '@/lib/flags';
@@ -193,20 +194,12 @@ export default function TeacherStudentProfilePage() {
         const busField = studentFields.find(f => f.kind === 'default' && f.defaultKey === 'bus');
         if (!busField) return null;
         const detailFields = student?.extraDetailFields;
-        if (detailFields?.[`${busField.id}-enabled`] !== 'true') return null;
-        const rawMonths = detailFields?.[`${busField.id}-months`];
-        let monthIds: string[] = [];
-        if (rawMonths) {
-            try {
-                const parsed = JSON.parse(rawMonths);
-                if (Array.isArray(parsed)) monthIds = parsed.filter((x): x is string => typeof x === 'string');
-            } catch { /* ignore malformed value */ }
-        }
-        if (!monthIds.includes(m.id)) return null;
+        // months locked at an old amount still count after the bus is turned off (lib/busFee)
+        const amount = busMonthAmount(detailFields, busField.id, m.id);
+        if (amount == null) return null;
         const busStructure = feeStructures.find(s => s.type === 'BUS');
         if (!busStructure) return null;
         if (m.assignedStructureIds.includes(busStructure.id)) return null;
-        const amount = Number(detailFields?.[`${busField.id}-fee`]) || 0;
         return { structure: busStructure, amount };
     };
 

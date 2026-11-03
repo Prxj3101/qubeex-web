@@ -6,6 +6,8 @@ export interface Stop {
     lat: number;
     lng: number;
     pickupTime: string;
+    /** monthly bus fee in rupees for students picked up here; null = not set */
+    monthlyFee: number | null;
 }
 
 export interface TransportRoute {
@@ -27,7 +29,16 @@ export interface Bus {
     routeId: string | null;
     route: { id: string; name: string; color: string } | null;
     _count: { students: number };
+    /** Timings (HH:MM). Pickup = bus leaves the first stop, drop = bus leaves school. */
+    morningShift: boolean;
+    morningPickup: string;
+    morningDrop: string;
+    afternoonShift: boolean;
+    afternoonPickup: string;
+    afternoonDrop: string;
 }
+
+export type Shift = 'MORNING' | 'AFTERNOON';
 
 export interface GpsFix {
     lat: number;
@@ -49,9 +60,17 @@ export interface LiveBus {
     online: boolean;
 }
 
+export interface SchoolPoint {
+    name: string;
+    lat: number;
+    lng: number;
+}
+
 export interface Overview {
     routes: TransportRoute[];
     buses: Bus[];
+    /** School gate on the map; null until the admin sets it. */
+    school: SchoolPoint | null;
 }
 
 /** Map opens here when there is nothing to show yet (Mumbai). */
@@ -74,3 +93,69 @@ export function ago(iso: string | null | undefined, now = Date.now()): string {
 /** OpenStreetMap tiles: free, credit shown on the map as their policy asks. */
 export const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 export const TILE_ATTRIBUTION = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors';
+
+// ── Planned stop times (same maths as the backend's transportSchedule.ts) ──
+// The admin only types when the bus leaves school; each stop's time is worked
+// out from the distances (school -> stop 1 -> stop 2 ...). Live GPS gives
+// parents the real ETA. Drop trips visit the stops in reverse order.
+const ROAD_FACTOR = 1.35;
+const AVG_SPEED_KMH = 20;
+const DWELL_MIN = 1;
+
+export function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }) {
+    const rad = (d: number) => (d * Math.PI) / 180;
+    const dLat = rad(b.lat - a.lat), dLng = rad(b.lng - a.lng);
+    const h = Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.lat)) * Math.cos(rad(b.lat)) * Math.sin(dLng / 2) ** 2;
+    return 2 * 6371 * Math.asin(Math.sqrt(h));
+}
+const legMinutes = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => (distanceKm(a, b) * ROAD_FACTOR / AVG_SPEED_KMH) * 60;
+
+/**
+ * Pickup trip: minutes after the bus leaves school until it reaches each stop,
+ * and the whole round trip back to school. Without a school, counts from stop 1.
+ */
+export function rideMinutes(stops: { lat: number; lng: number }[], school: { lat: number; lng: number } | null): { atStop: number[]; roundTrip: number | null } {
+    const atStop: number[] = [];
+    let t = 0;
+    let prev = school;
+    stops.forEach((s, i) => {
+        if (prev) t += legMinutes(prev, s) + (i > 0 ? DWELL_MIN : 0);
+        atStop.push(Math.round(t));
+        prev = s;
+    });
+    const roundTrip = school && stops.length ? Math.round(t + legMinutes(stops[stops.length - 1], school) + DWELL_MIN) : null;
+    return { atStop, roundTrip };
+}
+
+const toMinutes = (hhmm: string) => { const m = /^(\d{2}):(\d{2})$/.exec(hhmm); return m ? Number(m[1]) * 60 + Number(m[2]) : null; };
+const toHHMM = (mins: number) => { const t = ((Math.round(mins) % 1440) + 1440) % 1440; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`; };
+
+/** Planned time at each stop (same order as `stops`) for a trip leaving school at `start`. Drop trips run in reverse. */
+/** Morning drop and afternoon pickup leave school together: one combined midday trip (children get off and on at each stop). */
+export const isCombinedMidday = (bus: { morningShift: boolean; afternoonShift: boolean; morningDrop: string; afternoonPickup: string }) =>
+    bus.morningShift && bus.afternoonShift && !!bus.morningDrop && bus.morningDrop === bus.afternoonPickup;
+
+/** `combined`: a drop on the combined midday trip, so it follows the pickup order. */
+export function plannedTimes(stops: { lat: number; lng: number }[], school: { lat: number; lng: number } | null, start: string, kind: 'PICKUP' | 'DROP', combined = false): (string | null)[] {
+    const t0 = toMinutes(start);
+    if (t0 == null) return stops.map(() => null);
+    const order = stops.map((s, i) => ({ s, i }));
+    if (kind === 'DROP' && !combined) order.reverse();
+    const out: (string | null)[] = stops.map(() => null);
+    let t = t0;
+    let prev: { lat: number; lng: number } | null = school;
+    order.forEach(({ s, i }, k) => {
+        if (prev) t += legMinutes(prev, s) + (k > 0 ? DWELL_MIN : 0);
+        out[i] = toHHMM(t);
+        prev = s;
+    });
+    return out;
+}
+
+/** 12-hour label for an HH:MM time: "06:30" -> "6:30 am". */
+export function clock(hhmm: string | null | undefined): string {
+    const m = hhmm ? /^(\d{2}):(\d{2})$/.exec(hhmm) : null;
+    if (!m) return '';
+    const h = Number(m[1]);
+    return `${h % 12 || 12}:${m[2]} ${h < 12 ? 'am' : 'pm'}`;
+}
