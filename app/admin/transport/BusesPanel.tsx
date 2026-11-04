@@ -7,16 +7,17 @@ import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
-import { EmptyState, Field, PageHeader, Pill, PrimaryButton, SecondaryButton, SmallButton, ThemedSelect, inputCls } from '@/app/admin/payroll/_components/ui';
+import { EmptyState, Field, PageHeader, PhoneInput, Pill, PrimaryButton, SecondaryButton, SmallButton, ThemedSelect, inputCls, phoneComplete } from '@/app/admin/payroll/_components/ui';
 import { clock, isCombinedMidday, plannedTimes, rideMinutes, type Bus, type SchoolPoint, type Shift, type TransportRoute } from './types';
 import { TransportArt } from './TransportArt';
+import { Avatar } from './WaitingPanel';
 
 interface BusDraft {
     id?: string; name: string; plateNumber: string; trackerId: string; driverName: string; driverPhone: string; capacity: string; routeId: string;
     morningShift: boolean; morningPickup: string; morningDrop: string; afternoonShift: boolean; afternoonPickup: string; afternoonDrop: string;
 }
-interface Rider { studentId: string; admissionNo: string; name: string; rollNo: string | null; className: string; stop: { id: string; name: string } | null; shift: Shift }
-interface Found { studentId: string; admissionNo: string; name: string; className: string; currentBus: { id: string; name: string } | null }
+interface Rider { studentId: string; admissionNo: string; name: string; rollNo: string | null; avatarUrl: string | null; className: string; stop: { id: string; name: string } | null; shift: Shift }
+interface Found { studentId: string; admissionNo: string; name: string; avatarUrl: string | null; className: string; currentBus: { id: string; name: string } | null }
 
 const card = 'rounded-2xl bg-card shadow-[0_0_10px_1px_rgba(0,0,0,0.08)] dark:shadow-[0_0_10px_1px_rgba(0,0,0,0.28)]';
 const NO_ROUTE = '__none';
@@ -29,7 +30,8 @@ function BusCard({ bus: b, onEdit, onDelete, onStudents }: { bus: Bus; onEdit: (
     const riders = b._count.students;
     const full = b.capacity ? Math.min(100, Math.round((riders / b.capacity) * 100)) : 0;
     const over = !!b.capacity && riders > b.capacity;
-    const row = 'flex items-center gap-2.5 py-1.5 text-xs';
+    // every row has a fixed height so all cards line up the same, whatever is filled in
+    const row = 'flex h-9 items-center gap-2.5 text-xs';
     const label = 'w-16 shrink-0 text-[11px] text-muted-foreground';
 
     return (
@@ -40,10 +42,13 @@ function BusCard({ bus: b, onEdit, onDelete, onStudents }: { bus: Bus; onEdit: (
                     <TransportArt kind="bus" size={64} />
                     <div className="min-w-0 flex-1 pt-1">
                         <h3 className="font-semibold text-[15px] leading-tight truncate">{b.name}</h3>
-                        {b.plateNumber
-                            // looks like a real number plate
-                            ? <span className="mt-2 inline-block rounded-md border-2 border-[#26294A] bg-white px-1.5 py-px font-mono text-[11px] font-bold tracking-wider text-[#26294A] uppercase">{b.plateNumber}</span>
-                            : <span className="mt-2 inline-block text-[11px] text-muted-foreground">No number plate</span>}
+                        <div className="mt-2 flex h-[26px] items-center">{b.plateNumber
+                            // Indian-style number plate (same as the parent app): white plate, black bold letters, blue "IND" strip
+                            ? <span className="inline-flex items-stretch overflow-hidden rounded-[5px] border-[1.5px] border-[#111] bg-white">
+                                <span className="flex items-center bg-[#1D4ED8] px-[3px] text-[7px] font-bold leading-none text-white">IND</span>
+                                <span className="px-[7px] py-[3px] text-[13px] font-bold leading-[17px] tracking-[1.2px] text-[#111] uppercase">{b.plateNumber}</span>
+                            </span>
+                            : <span className="text-[11px] text-muted-foreground">No number plate</span>}</div>
                     </div>
                     <div className="flex gap-1 shrink-0">
                         <SmallButton onClick={onEdit} aria-label={`Edit ${b.name}`}><Pencil size={12} />Edit</SmallButton>
@@ -67,17 +72,18 @@ function BusCard({ bus: b, onEdit, onDelete, onStudents }: { bus: Bus; onEdit: (
                     <div className={row}>
                         <span className={label}>Driver</span>
                         {b.driverName || b.driverPhone
-                            ? <span className="flex min-w-0 items-center gap-2">
+                            ? <span className="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
                                 {b.driverName && <span className="truncate font-medium">{b.driverName}</span>}
                                 {b.driverPhone && <a href={`tel:${b.driverPhone.replace(/\s+/g, '')}`} className="inline-flex shrink-0 items-center gap-1 rounded-md bg-card px-1.5 py-0.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground"><Phone size={11} />{b.driverPhone}</a>}
                             </span>
                             : <span className="text-muted-foreground">Not added</span>}
                     </div>
-                    <div className={row}>
+                    <div className="flex h-14 items-center gap-2.5 text-xs">
                         <span className={label}>Timings</span>
+                        {/* always two lines (morning + afternoon) so every card is the same height */}
                         <span className="flex min-w-0 flex-col gap-0.5">
-                            {b.morningShift && <span className="tabular-nums"><span className="font-medium">Morning</span> <span className="text-muted-foreground">{b.morningPickup ? `${clock(b.morningPickup)} → ${clock(b.morningDrop)}` : 'times not set'}</span></span>}
-                            {b.afternoonShift && <span className="tabular-nums"><span className="font-medium">Afternoon</span> <span className="text-muted-foreground">{b.afternoonPickup ? `${clock(b.afternoonPickup)} → ${clock(b.afternoonDrop)}` : 'times not set'}</span></span>}
+                            <span className="truncate tabular-nums"><span className="font-medium">Morning</span> <span className="text-muted-foreground">{!b.morningShift ? 'Off' : b.morningPickup ? `${clock(b.morningPickup)} → ${clock(b.morningDrop)}` : 'times not set'}</span></span>
+                            <span className="truncate tabular-nums"><span className="font-medium">Afternoon</span> <span className="text-muted-foreground">{!b.afternoonShift ? 'Off' : b.afternoonPickup ? `${clock(b.afternoonPickup)} → ${clock(b.afternoonDrop)}` : 'times not set'}</span></span>
                         </span>
                     </div>
                 </div>
@@ -87,16 +93,30 @@ function BusCard({ bus: b, onEdit, onDelete, onStudents }: { bus: Bus; onEdit: (
                         <span className="font-semibold">{riders} {riders === 1 ? 'student' : 'students'}</span>
                         <span className={over ? 'font-semibold text-red-600' : 'text-muted-foreground'}>{b.capacity ? (over ? `${riders - b.capacity} over ${b.capacity} seats` : `${b.capacity - riders} of ${b.capacity} seats free`) : 'Seats not set'}</span>
                     </div>
-                    {!!b.capacity && <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${full}%`, background: over ? '#DC2626' : color }} />
-                    </div>}
+                    {/* bar always drawn (empty when seats aren't set) so the cards keep the same height */}
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                        {!!b.capacity && <div className="h-full rounded-full transition-all" style={{ width: `${full}%`, background: over ? '#DC2626' : color }} />}
+                    </div>
                 </div>
 
-                <SecondaryButton className="mt-3 w-full" onClick={onStudents}><Users size={13} />Students on this bus</SecondaryButton>
+                {/* spacer pushes the button to the bottom of every card */}
+                <div className="min-h-3 flex-1" />
+                <SecondaryButton className="w-full" onClick={onStudents}><Users size={13} />Students on this bus</SecondaryButton>
             </div>
         </div>
     );
 }
+
+/**
+ * Indian number plate, formatted while typing: "mh48ab1234" -> "MH 48 AB 1234".
+ * State (2 letters) · district (1-2 digits) · series (0-3 letters) · number (1-4 digits).
+ */
+function formatPlate(raw: string): string {
+    const s = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const m = /^([A-Z]{0,2})(\d{0,2})([A-Z]{0,3})(\d{0,4})/.exec(s);
+    return m ? [m[1], m[2], m[3], m[4]].filter(Boolean).join(' ') : '';
+}
+const PLATE_OK = /^[A-Z]{2} \d{1,2}( [A-Z]{1,3})? \d{1,4}$/;
 
 export default function BusesPanel({ buses, routes, school, onChanged, addSignal, onAddHandled }: { buses: Bus[]; routes: TransportRoute[]; school: SchoolPoint | null; onChanged: () => void; addSignal: number; onAddHandled: () => void }) {
     const [draft, setDraft] = useState<BusDraft | null>(null);
@@ -107,7 +127,7 @@ export default function BusesPanel({ buses, routes, school, onChanged, addSignal
 
     const open = useCallback((b?: Bus) => setDraft(b
         ? {
-            id: b.id, name: b.name, plateNumber: b.plateNumber, trackerId: b.trackerId ?? '', driverName: b.driverName, driverPhone: b.driverPhone, capacity: b.capacity ? String(b.capacity) : '', routeId: b.routeId ?? NO_ROUTE,
+            id: b.id, name: b.name, plateNumber: formatPlate(b.plateNumber), trackerId: b.trackerId ?? '', driverName: b.driverName, driverPhone: b.driverPhone, capacity: b.capacity ? String(b.capacity) : '', routeId: b.routeId ?? NO_ROUTE,
             morningShift: b.morningShift, morningPickup: b.morningPickup, morningDrop: b.morningDrop, afternoonShift: b.afternoonShift, afternoonPickup: b.afternoonPickup, afternoonDrop: b.afternoonDrop,
         }
         : {
@@ -147,6 +167,8 @@ export default function BusesPanel({ buses, routes, school, onChanged, addSignal
     const save = async () => {
         if (!draft || saving) return;
         if (!draft.name.trim()) { toast.error('Give the bus a name, like "Bus 1"'); return; }
+        if (draft.plateNumber && !PLATE_OK.test(draft.plateNumber)) { toast.error('Number plate should look like MH 48 AB 1234'); return; }
+        if (draft.driverPhone && !phoneComplete(draft.driverPhone)) { toast.error('Driver phone number is not complete'); return; }
         const cap = draft.capacity.trim() ? Number(draft.capacity) : null;
         if (cap !== null && (!Number.isInteger(cap) || cap < 1 || cap > 200)) { toast.error('Seats should be a number between 1 and 200'); return; }
         if (!draft.morningShift && !draft.afternoonShift) { toast.error('Tick at least one shift this bus runs'); return; }
@@ -189,7 +211,7 @@ export default function BusesPanel({ buses, routes, school, onChanged, addSignal
             </PageHeader>
             {!buses.length
                 ? <EmptyState icon={BusIcon} title="No buses yet" text="Add each school bus with the id of the GPS tracker fitted in it." />
-                : <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                : <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {buses.map(b => (
                         <BusCard key={b.id} bus={b} onEdit={() => open(b)} onDelete={() => setToDelete(b)} onStudents={() => setRidersFor(b)} />
                     ))}
@@ -204,14 +226,14 @@ export default function BusesPanel({ buses, routes, school, onChanged, addSignal
                 </DialogHeader>
                 {draft && <div className="grid gap-3 sm:grid-cols-2">
                     <Field label="Bus name"><input className={inputCls} value={draft.name} maxLength={40} placeholder="Bus 1" onChange={e => setDraft({ ...draft, name: e.target.value })} /></Field>
-                    <Field label="Number plate"><input className={inputCls} value={draft.plateNumber} maxLength={20} placeholder="MH 48 AB 1234" onChange={e => setDraft({ ...draft, plateNumber: e.target.value })} /></Field>
+                    <Field label="Number plate"><input className={`${inputCls} uppercase tracking-wide`} value={draft.plateNumber} maxLength={13} placeholder="MH 48 AB 1234" onChange={e => setDraft({ ...draft, plateNumber: formatPlate(e.target.value) })} /></Field>
                     <div className="sm:col-span-2"><Field label="GPS tracker id" hint="Leave empty if the tracker is not fitted yet. For testing with the Traccar Client app, use the app's device identifier.">
                         <input className={inputCls} value={draft.trackerId} maxLength={64} placeholder="e.g. 358657100123456" onChange={e => setDraft({ ...draft, trackerId: e.target.value })} />
                     </Field></div>
                     <Field label="Route"><ThemedSelect value={draft.routeId} onChange={v => setDraft({ ...draft, routeId: v })} options={[{ value: NO_ROUTE, label: 'No route yet' }, ...routes.map(r => ({ value: r.id, label: r.name }))]} /></Field>
                     <Field label="Seats"><input className={inputCls} inputMode="numeric" value={draft.capacity} placeholder="40" onChange={e => setDraft({ ...draft, capacity: e.target.value.replace(/\D/g, '') })} /></Field>
                     <Field label="Driver name"><input className={inputCls} value={draft.driverName} maxLength={60} onChange={e => setDraft({ ...draft, driverName: e.target.value })} /></Field>
-                    <Field label="Driver phone"><input className={inputCls} value={draft.driverPhone} maxLength={20} inputMode="tel" onChange={e => setDraft({ ...draft, driverPhone: e.target.value })} /></Field>
+                    <Field label="Driver phone"><PhoneInput value={draft.driverPhone} onChange={driverPhone => setDraft({ ...draft, driverPhone })} /></Field>
                     <div className="sm:col-span-2 space-y-1.5">
                         <span className="text-xs font-semibold text-muted-foreground">Timings</span>
                         <div className="rounded-xl border border-border/60 divide-y divide-border/50">
@@ -374,7 +396,8 @@ function RidersDialog({ bus, route, school, onClose }: { bus: Bus; route: Transp
                 </div>
                 {found.length > 0 && <div className="max-h-48 overflow-y-auto visible-scrollbar rounded-xl border border-border/60 divide-y divide-border/50">
                     {found.map(f => (
-                        <div key={f.studentId} className="flex items-center gap-2 px-3 py-2 text-sm">
+                        <div key={f.studentId} className="flex items-center gap-2.5 px-3 py-2 text-sm">
+                            <Avatar name={f.name || f.admissionNo} url={f.avatarUrl} size={36} />
                             <div className="min-w-0">
                                 <p className="font-medium truncate">{f.name || f.admissionNo}</p>
                                 <p className="text-[11px] text-muted-foreground">{f.className || 'No class'} · {f.admissionNo}{f.currentBus ? ` · now on ${f.currentBus.name}` : ''}</p>
@@ -394,7 +417,10 @@ function RidersDialog({ bus, route, school, onClose }: { bus: Bus; route: Transp
                                 <tbody className="divide-y divide-border/50">
                                     {riders.map(r => (
                                         <tr key={r.studentId}>
-                                            <td className="py-2 pr-2"><p className="font-medium">{r.name || r.admissionNo}</p><p className="text-[11px] text-muted-foreground">{r.className}{r.rollNo ? ` · Roll ${r.rollNo}` : ''}</p></td>
+                                            <td className="py-2 pr-2"><div className="flex items-center gap-2.5">
+                                                <Avatar name={r.name || r.admissionNo} url={r.avatarUrl} size={36} />
+                                                <div className="min-w-0"><p className="font-medium">{r.name || r.admissionNo}</p><p className="text-[11px] text-muted-foreground">{r.className}{r.rollNo ? ` · Roll ${r.rollNo}` : ''}</p></div>
+                                            </div></td>
                                             {bothShifts && <td className="py-2 pr-2 w-32"><ThemedSelect value={r.shift} options={shiftOptions} onChange={v => assign(r.studentId, r.stop?.id ?? null, v as Shift)} /></td>}
                                             <td className="py-2 pr-2 w-56">{route
                                                 ? <>

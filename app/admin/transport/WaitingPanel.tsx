@@ -32,10 +32,10 @@ export interface WaitingStudent {
 const AVATAR_COLORS = ['#7C3AED', '#DA7756', '#0891B2', '#059669', '#D97706', '#DC2626', '#2563EB', '#8B5CF6'];
 const initials = (n: string) => n.split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || '?';
 
-function Avatar({ name, url }: { name: string; url: string | null }) {
+export function Avatar({ name, url, size = 40 }: { name: string; url: string | null; size?: number }) {
     return (
-        <span className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold text-white"
-            style={{ background: url ? 'transparent' : AVATAR_COLORS[(name.charCodeAt(0) || 0) % AVATAR_COLORS.length] }}>
+        <span className="relative flex shrink-0 items-center justify-center overflow-hidden rounded-full text-xs font-bold text-white"
+            style={{ width: size, height: size, background: url ? 'transparent' : AVATAR_COLORS[(name.charCodeAt(0) || 0) % AVATAR_COLORS.length] }}>
             {url ? <NextImage src={url} alt={name} fill sizes="96px" quality={95} className="object-cover" /> : initials(name)}
         </span>
     );

@@ -58,6 +58,26 @@ export interface LiveBus {
     hasTracker: boolean;
     position: GpsFix | null;
     online: boolean;
+    /** where the bus is on its trip (server follows it stop by stop); null when offline / no route */
+    trip?: BusTrip | null;
+}
+
+export interface BusTrip {
+    phase: 'AT_SCHOOL' | 'ON_TRIP';
+    trip: 'PICKUP' | 'DROP' | null;
+    standingAt: string | null;
+    nextStop: string | null;
+    done: number;
+    total: number;
+    reachedSchool: boolean;
+}
+
+/** One line for the live list: "At Patankar", "Going to 4th Road", "Reached school"... */
+export function tripLine(t: BusTrip): { text: string; tone: 'green' | 'blue' | 'gray' } {
+    if (t.phase === 'AT_SCHOOL') return t.reachedSchool ? { text: '🏫 Reached school', tone: 'green' } : { text: 'Parked at school', tone: 'gray' };
+    if (t.standingAt) return { text: `At ${t.standingAt}`, tone: 'blue' };
+    if (t.nextStop) return { text: `Going to ${t.nextStop}`, tone: 'blue' };
+    return { text: 'Heading to the first stop', tone: 'blue' };
 }
 
 export interface SchoolPoint {

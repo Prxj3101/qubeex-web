@@ -108,6 +108,26 @@ function busIcon(bus: LiveBus, selected: boolean) {
     });
 }
 
+// Polls come every 5 s (LivePanel): glide a little under that so the bus keeps moving smoothly.
+const GLIDE_MS = 4700;
+
+/** Move a marker smoothly to `to` over `ms` (cancels the previous glide of the same bus). */
+function glideTo(mk: L.Marker, to: [number, number], ms: number, running: Map<string, number>, id: string) {
+    cancelAnimationFrame(running.get(id) ?? 0);
+    const from = mk.getLatLng();
+    const dLat = to[0] - from.lat, dLng = to[1] - from.lng;
+    // big jump (first fix after a long gap) or no change: just place it
+    if (Math.abs(dLat) + Math.abs(dLng) > 0.02 || (dLat === 0 && dLng === 0)) { mk.setLatLng(to); return; }
+    const t0 = performance.now();
+    const step = (now: number) => {
+        const t = Math.min(1, (now - t0) / ms);
+        mk.setLatLng([from.lat + dLat * t, from.lng + dLng * t]);
+        if (t < 1) running.set(id, requestAnimationFrame(step));
+        else running.delete(id);
+    };
+    running.set(id, requestAnimationFrame(step));
+}
+
 export default function BusMap({ routes, school, live, selectedBusId, onSelectBus }: {
     routes: TransportRoute[];
     school: SchoolPoint | null;
@@ -120,6 +140,7 @@ export default function BusMap({ routes, school, live, selectedBusId, onSelectBu
     const routeLayer = useRef<L.LayerGroup | null>(null);
     const markers = useRef(new Map<string, L.Marker>());
     const iconKeys = useRef(new Map<string, string>());
+    const glides = useRef(new Map<string, number>()); // running glide animation per bus
     const fitted = useRef(false);
     const onSelect = useRef(onSelectBus);
     onSelect.current = onSelectBus;
@@ -143,7 +164,8 @@ export default function BusMap({ routes, school, live, selectedBusId, onSelectBu
         const ro = new ResizeObserver(() => m.invalidateSize());
         ro.observe(box.current);
         const markerMap = markers.current;
-        return () => { ro.disconnect(); m.remove(); map.current = null; markerMap.clear(); };
+        const glideMap = glides.current;
+        return () => { ro.disconnect(); glideMap.forEach(cancelAnimationFrame); glideMap.clear(); m.remove(); map.current = null; markerMap.clear(); };
     }, []);
 
     // routes: a coloured line through the stops + numbered stop dots
@@ -178,7 +200,8 @@ export default function BusMap({ routes, school, live, selectedBusId, onSelectBu
             const key = JSON.stringify(busState(bus, selected));
             const existing = markers.current.get(bus.busId);
             if (existing) {
-                existing.setLatLng(ll);
+                // glide to the new spot over the next poll instead of jumping (like the parent app)
+                glideTo(existing, [bus.position.lat, bus.position.lng], GLIDE_MS, glides.current, bus.busId);
                 if (iconKeys.current.get(bus.busId) !== key) {
                     existing.setIcon(busIcon(bus, selected));
                     iconKeys.current.set(bus.busId, key);
@@ -192,7 +215,7 @@ export default function BusMap({ routes, school, live, selectedBusId, onSelectBu
             }
         }
         for (const [id, mk] of markers.current) {
-            if (!seen.has(id)) { mk.remove(); markers.current.delete(id); iconKeys.current.delete(id); }
+            if (!seen.has(id)) { cancelAnimationFrame(glides.current.get(id) ?? 0); glides.current.delete(id); mk.remove(); markers.current.delete(id); iconKeys.current.delete(id); }
         }
         // no school set yet: first time we have something to show, zoom to fit it all
         if (!fitted.current) {
