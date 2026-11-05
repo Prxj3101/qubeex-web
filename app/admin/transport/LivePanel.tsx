@@ -72,7 +72,8 @@ export default function LivePanel({ overview, onAddBus, onRefresh }: { overview:
 
     // ── demo buses: only buses with a "sim-" tracker id, driven by the server ──
     const hasDemoBuses = overview.buses.some(b => b.trackerId?.startsWith('sim-'));
-    const [demo, setDemo] = useState<{ running: boolean; endsAt?: string } | null>(null);
+    const [demo, setDemo] = useState<{ running: boolean; endsAt?: string; speed?: number } | null>(null);
+    const [simSpeed, setSimSpeed] = useState(1); // 1x / 2x / 3x
     const [demoBusy, setDemoBusy] = useState(false);
     useEffect(() => {
         if (!hasDemoBuses) return;
@@ -84,13 +85,21 @@ export default function LivePanel({ overview, onAddBus, onRefresh }: { overview:
         if (demoBusy) return;
         setDemoBusy(true);
         try {
-            const r = await api.post(`/admin/transport/demo/${demo?.running ? 'stop' : 'start'}`);
+            const r = await api.post(`/admin/transport/demo/${demo?.running ? 'stop' : 'start'}`, demo?.running ? {} : { speed: simSpeed });
             setDemo(r.data.data);
             toast.success(r.data.data.running ? 'Sim started: the buses leave school in a moment' : 'Sim stopped');
             void pollNow.current();
         } catch (err) { toast.error(getErrorMessage(err, 'Could not change the sim')); }
         finally { setDemoBusy(false); }
     };
+    // pick the speed; while it's running the change applies straight away
+    const changeSpeed = async (v: number) => {
+        setSimSpeed(v);
+        if (!demo?.running) return;
+        try { setDemo((await api.post('/admin/transport/demo/speed', { speed: v })).data.data); }
+        catch (err) { toast.error(getErrorMessage(err, 'Could not change the speed')); }
+    };
+    useEffect(() => { if (demo?.running && demo.speed) setSimSpeed(demo.speed); }, [demo]);
     const demoLeft = demo?.running && demo.endsAt ? Math.max(0, Math.ceil((Date.parse(demo.endsAt) - now) / 60000)) : 0;
 
     const counts = useMemo(() => ({
@@ -118,18 +127,6 @@ export default function LivePanel({ overview, onAddBus, onRefresh }: { overview:
                     </span>
                     <h2 className="text-sm font-semibold">Buses</h2>
                     <span className="ml-auto text-xs text-muted-foreground">{counts.online} of {counts.total} live</span>
-                    {hasDemoBuses && (
-                        <button
-                            type="button"
-                            onClick={toggleDemo}
-                            disabled={demoBusy || !demo}
-                            title={demo?.running ? `Sim running, stops by itself in ${demoLeft} min` : 'Drive the demo buses (tracker ids starting with "sim-") along their routes'}
-                            className={`flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold transition-colors disabled:opacity-60 ${demo?.running ? 'bg-red-500/10 text-red-600 hover:bg-red-500/20' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
-                        >
-                            {demoBusy ? <Loader2 size={11} className="animate-spin" /> : demo?.running ? <Square size={10} fill="currentColor" /> : <Play size={11} fill="currentColor" />}
-                            {demo?.running ? `Stop sim · ${demoLeft}m` : 'Start sim'}
-                        </button>
-                    )}
                     <button
                         type="button"
                         onClick={refresh}
@@ -141,6 +138,35 @@ export default function LivePanel({ overview, onAddBus, onRefresh }: { overview:
                         <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
                     </button>
                 </div>
+                {/* demo buses: speed + start / stop (only when the school has "sim-" buses) */}
+                {hasDemoBuses && (
+                    <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border/50 bg-muted/20">
+                        <span className="text-[11px] font-semibold text-muted-foreground">Sim</span>
+                        <div className="flex h-7 items-center rounded-lg bg-muted/60 p-0.5" role="group" aria-label="Sim speed">
+                            {[1, 2, 3].map(v => (
+                                <button
+                                    key={v}
+                                    type="button"
+                                    onClick={() => changeSpeed(v)}
+                                    aria-pressed={simSpeed === v}
+                                    title={`Drive the sim buses ${v === 1 ? 'at real speed' : `${v}x faster`}`}
+                                    className={`h-6 min-w-[26px] rounded-md px-1 text-[10.5px] font-bold transition-colors ${simSpeed === v ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                                >{v}x</button>
+                            ))}
+                        </div>
+                        <button
+                            type="button"
+                            onClick={toggleDemo}
+                            style={{ marginLeft: 'auto' }}
+                            disabled={demoBusy || !demo}
+                            title={demo?.running ? `Sim running, stops by itself in ${demoLeft} min` : 'Drive the demo buses (tracker ids starting with "sim-") along their routes'}
+                            className={`flex h-7 items-center gap-1 rounded-lg px-2 text-[11px] font-semibold transition-colors disabled:opacity-60 ${demo?.running ? 'bg-red-500/10 text-red-600 hover:bg-red-500/20' : 'bg-primary/10 text-primary hover:bg-primary/20'}`}
+                        >
+                            {demoBusy ? <Loader2 size={11} className="animate-spin" /> : demo?.running ? <Square size={10} fill="currentColor" /> : <Play size={11} fill="currentColor" />}
+                            {demo?.running ? `Stop sim · ${demoLeft}m` : 'Start sim'}
+                        </button>
+                    </div>
+                )}
                 <div className="flex-1 min-h-0 overflow-y-auto visible-scrollbar p-2.5 space-y-2">
                     {!live && <div className="flex items-center justify-center gap-2 py-10 text-sm text-muted-foreground"><Loader2 size={15} className="animate-spin" />Finding buses...</div>}
                     {live?.map(b => <LiveBusCard key={b.busId} bus={b} now={now} selected={selected === b.busId} onSelect={() => setSelected(b.busId)} />)}

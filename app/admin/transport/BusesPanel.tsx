@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Bus as BusIcon, Check, Loader2, Pencil, Phone, Plus, Radio, Search, Trash2, UserMinus, Users } from 'lucide-react';
+import { Bus as BusIcon, Check, History, Loader2, Pencil, Phone, Plus, Radio, Search, Trash2, UserMinus, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/lib/api';
 import { getErrorMessage } from '@/lib/error';
@@ -11,6 +11,7 @@ import { EmptyState, Field, PageHeader, PhoneInput, Pill, PrimaryButton, Seconda
 import { clock, isCombinedMidday, plannedTimes, rideMinutes, type Bus, type SchoolPoint, type Shift, type TransportRoute } from './types';
 import { TransportArt } from './TransportArt';
 import { Avatar } from './WaitingPanel';
+import BusHistoryDialog from './BusHistoryDialog';
 
 interface BusDraft {
     id?: string; name: string; plateNumber: string; trackerId: string; driverName: string; driverPhone: string; capacity: string; routeId: string;
@@ -25,7 +26,7 @@ const NO_STOP = '__none';
 
 // One bus as a card, in the same style as the route cards: route-colour strip,
 // number plate, the key details in a soft box, and how full the bus is.
-function BusCard({ bus: b, onEdit, onDelete, onStudents }: { bus: Bus; onEdit: () => void; onDelete: () => void; onStudents: () => void }) {
+function BusCard({ bus: b, onEdit, onDelete, onStudents, onHistory }: { bus: Bus; onEdit: () => void; onDelete: () => void; onStudents: () => void; onHistory: () => void }) {
     const color = b.route?.color ?? '#9CA3AF';
     const riders = b._count.students;
     const full = b.capacity ? Math.min(100, Math.round((riders / b.capacity) * 100)) : 0;
@@ -101,7 +102,10 @@ function BusCard({ bus: b, onEdit, onDelete, onStudents }: { bus: Bus; onEdit: (
 
                 {/* spacer pushes the button to the bottom of every card */}
                 <div className="min-h-3 flex-1" />
-                <SecondaryButton className="w-full" onClick={onStudents}><Users size={13} />Students on this bus</SecondaryButton>
+                <div className="flex gap-2">
+                    <SecondaryButton className="flex-1" onClick={onStudents}><Users size={13} />Students on this bus</SecondaryButton>
+                    <SecondaryButton onClick={onHistory} aria-label={`Trip history of ${b.name}`}><History size={13} />History</SecondaryButton>
+                </div>
             </div>
         </div>
     );
@@ -124,6 +128,7 @@ export default function BusesPanel({ buses, routes, school, onChanged, addSignal
     const [toDelete, setToDelete] = useState<Bus | null>(null);
     const [deleting, setDeleting] = useState(false);
     const [ridersFor, setRidersFor] = useState<Bus | null>(null);
+    const [historyFor, setHistoryFor] = useState<Bus | null>(null);
 
     const open = useCallback((b?: Bus) => setDraft(b
         ? {
@@ -213,7 +218,7 @@ export default function BusesPanel({ buses, routes, school, onChanged, addSignal
                 ? <EmptyState icon={BusIcon} title="No buses yet" text="Add each school bus with the id of the GPS tracker fitted in it." />
                 : <div className="grid auto-rows-fr gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {buses.map(b => (
-                        <BusCard key={b.id} bus={b} onEdit={() => open(b)} onDelete={() => setToDelete(b)} onStudents={() => setRidersFor(b)} />
+                        <BusCard key={b.id} bus={b} onEdit={() => open(b)} onDelete={() => setToDelete(b)} onStudents={() => setRidersFor(b)} onHistory={() => setHistoryFor(b)} />
                     ))}
                 </div>}
         </div>
@@ -279,6 +284,7 @@ export default function BusesPanel({ buses, routes, school, onChanged, addSignal
             onConfirm={remove}
         />
 
+        {historyFor && <BusHistoryDialog bus={historyFor} onClose={() => setHistoryFor(null)} />}
         {ridersFor && <RidersDialog bus={ridersFor} route={routes.find(r => r.id === ridersFor.routeId) ?? null} school={school} onClose={() => { setRidersFor(null); onChanged(); }} />}
     </>;
 }
