@@ -3,15 +3,17 @@
 import { motion } from 'framer-motion';
 import {
     BarChart3, Banknote, Bot, Bus, CalendarCheck, ClipboardList, FileText, LayoutGrid, MessagesSquare, Package, PenLine,
-    Presentation, UserCog, Users, Video, Wallet, type LucideIcon,
+    Presentation, Sparkles, UserCog, Users, Video, Wallet, type LucideIcon,
 } from 'lucide-react';
 import { DISPLAY, EASE } from '../motion';
 import { HAND, INK, TERRA } from './paper';
+import { GoldSheen } from './BusRoute';
 
 // The feature list, ERP style: 16 areas (4 x 4), each with its main pieces
 // as bullets. Names only, no how-it-works details.
 
-type Area = { icon: LucideIcon; name: string; points: string[]; color: string; soft: string };
+// secret: exclusive feature - golden card that keeps what's inside a surprise (see it in a demo)
+type Area = { icon: LucideIcon; name: string; points: string[]; color: string; soft: string; secret?: boolean };
 
 const AREAS: Area[] = [
     { icon: ClipboardList, name: 'Admissions', color: '#0EA5E9', soft: '#E3F4FC',
@@ -28,8 +30,7 @@ const AREAS: Area[] = [
         points: ['Online tests', 'Anti-cheating with tab-switch detection', 'AI question papers', 'Assignments & course material'] },
     { icon: LayoutGrid, name: 'AI timetable scheduling', color: '#7C3AED', soft: '#F0EAFD',
         points: ['Whole-school timetable in one click', 'Rules in plain words', 'Clash-free, every time', 'Absent-teacher cover'] },
-    { icon: Presentation, name: 'AI blackboard', color: '#16A34A', soft: '#E6F6EC',
-        points: ['AI-assisted teaching', 'AI mindmap generation', 'AI quiz generation', 'AI explanations & diagrams'] },
+    { icon: Presentation, name: 'AI Blackboard', color: '#B8860B', soft: '#FFF4CC', points: [], secret: true },
     { icon: Video, name: 'Online classes', color: '#2563EB', soft: '#E8F0FE',
         points: ['Live online classes', 'Google Meet integration', 'Class links shared with students'] },
     { icon: Bot, name: 'Jarvis AI', color: '#E11D48', soft: '#FDE8EC',
@@ -47,6 +48,43 @@ const AREAS: Area[] = [
     { icon: Bus, name: 'Transport', color: '#F59E0B', soft: '#FEF3C7',
         points: ['Live GPS bus tracking', 'Routes & stops', 'Parent alerts in the app'] },
 ];
+
+// Golden "exclusive" card: same size as the others, but what's inside stays a surprise.
+function SecretCard({ a }: { a: Area }) {
+    return (
+        <div
+            className="group relative flex h-full flex-col overflow-hidden rounded-2xl border-2 p-5 shadow-[4px_5px_0_rgba(38,41,74,0.85)] transition-transform duration-200 hover:-translate-y-1 hover:shadow-[5px_8px_0_rgba(38,41,74,0.85)]"
+            style={{ borderColor: '#8A6416', background: 'linear-gradient(140deg, #FFF6D6 0%, #FFE08A 40%, #F5C04A 75%, #E3A92E 100%)' }}
+        >
+            <GoldSheen />
+            {/* ribbon */}
+            <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-[#4A3405] px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wider text-[#FFE08A]">
+                <Sparkles size={11} />Exclusive
+            </span>
+            <span className="relative grid h-12 w-12 place-items-center rounded-xl bg-white/70 text-[#8A6416] transition-transform duration-200 group-hover:-rotate-6 group-hover:scale-105">
+                <a.icon size={23} />
+            </span>
+            <h3 style={DISPLAY} className="relative mt-4 text-lg font-bold leading-tight text-[#3A2904]">{a.name}</h3>
+            {/* what's inside: hidden on purpose */}
+            <div className="relative mt-3.5 flex-1 border-t border-dashed border-[#B98A2A]/50 pt-3.5">
+                <div className="space-y-2.5" aria-hidden>
+                    {[88, 70, 80].map((w, k) => (
+                        <div key={k} className="flex items-center gap-2">
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#8A6416]/60" />
+                            <span className="h-2.5 rounded-full bg-[#8A6416]/20 blur-[1.5px]" style={{ width: `${w}%` }} />
+                        </div>
+                    ))}
+                </div>
+                <div className="absolute inset-0 grid place-items-center">
+                    <span className="inline-flex items-center gap-1.5 rounded-full border border-[#8A6416]/40 bg-white/85 px-3 py-1.5 text-[12.5px] font-bold text-[#4A3405] shadow-sm">
+                        <Sparkles size={13} />See it in a live demo
+                    </span>
+                </div>
+            </div>
+            <p style={HAND} className="relative mt-3 text-[19px] leading-tight text-[#5C430B]">only on QubeEx, worth the wait.</p>
+        </div>
+    );
+}
 
 export default function ModulesGrid() {
     return (
@@ -77,7 +115,7 @@ export default function ModulesGrid() {
                             viewport={{ once: true, margin: '-40px' }}
                             transition={{ duration: 0.5, ease: EASE, delay: (i % 4) * 0.06 }}
                         >
-                            <div
+                            {a.secret ? <SecretCard a={a} /> : <div
                                 className="group relative flex h-full flex-col rounded-2xl border-2 bg-white p-5 shadow-[4px_5px_0_rgba(38,41,74,0.85)] transition-transform duration-200 hover:-translate-y-1 hover:shadow-[5px_8px_0_rgba(38,41,74,0.85)]"
                                 style={{ borderColor: INK }}
                             >
@@ -96,7 +134,7 @@ export default function ModulesGrid() {
                                         </li>
                                     ))}
                                 </ul>
-                            </div>
+                            </div>}
                         </motion.li>
                     ))}
                 </ul>

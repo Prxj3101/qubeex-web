@@ -87,7 +87,7 @@ export const MODULES: Module[] = [
         tag: 'For Teachers',
         title: 'A classroom command centre',
         desc: 'Everything a teacher touches in a day - one calm dashboard.',
-        points: ['AI Blackboard - AI-assisted live teaching', 'Daily & overall attendance with smart alerts', 'Tasks, tests, marks & AI question generation', 'Student profiles, fee visibility & personal notes'],
+        points: ['AI Blackboard - exclusive, see it live', 'Daily & overall attendance with smart alerts', 'Tasks, tests, marks & AI question generation', 'Student profiles, fee visibility & personal notes'],
         accent: '#7C3AED',
     },
     {
@@ -170,12 +170,12 @@ export const TESTIMONIALS: Testimonial[] = [];
 export interface Faq { q: string; a: string }
 
 export const FAQS: Faq[] = [
-    { q: 'What exactly is QubeEx?', a: 'QubeEx is an AI-powered ERP + LMS platform - one place where institutions manage attendance, assessments, fees and analytics, with AI insights layered on top. This includes AI-generated tests, an AI-assisted digital blackboard, and AI-driven performance analytics.' },
+    { q: 'What exactly is QubeEx?', a: 'QubeEx is a school ERP + LMS - one place to run admissions, attendance, fees, exams, the classroom and more. AI is not a separate thing you have to switch to: it runs quietly as an intelligent layer across the whole system, writing tests, spotting students who need attention and doing the busywork, while your school keeps working the way it already does.' },
     { q: 'Is it only for schools?', a: 'Schools are fully live today. College and coaching editions are in active development and launching soon - you can register interest via the demo form.' },
     { q: 'How does pricing work?', a: 'A one-time licence fee plus a small monthly rate per active user (admins, teachers and students). The rate drops automatically once your institution crosses 1,500 users. No hidden charges.' },
     { q: 'Is there a free trial?', a: 'Yes - every institution gets a 14-day free trial with full access. No payment details needed to start.' },
     { q: 'We have multiple branches - how does that work?', a: 'Each branch runs as its own account, since principals, class structures and staff differ per branch. With multiple branches, you pay one full licence at a flat 20% discount, and every additional branch is just ₹20,000 instead of a full licence - this covers setup, security and feature updates. Monthly per-user billing stays standard for each branch.' },
-    { q: 'What is AI Blackboard?', a: 'AI Blackboard lets teachers run live teaching material on the class blackboard with an AI assist panel alongside - explanations, questions and material on demand. It ships as an addon that is free for the first year on every plan.' },
+    { q: 'What is AI Blackboard?', a: 'Our most exclusive classroom feature, and it is best seen, not read about. Book a demo and we will show it to you live.' },
     { q: 'Does it work on mobile?', a: 'Yes. QubeEx runs in any modern browser, and a dedicated mobile app keeps teachers and students connected on the go.' },
     { q: 'How is our data protected?', a: 'Role-based access control, full audit trails of every action, and encrypted storage - built to align with India’s DPDP Act. Since much of the data involves minors, we treat it with extra care: your institution remains the data fiduciary, QubeEx acts only as processor, and data is never shared or sold. On exit, your institution’s data can be exported and deleted on request.' },
 ];

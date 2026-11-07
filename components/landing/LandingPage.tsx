@@ -11,6 +11,7 @@ import { paper } from './notebook/paper';
 // Old Features section is parked: the bus route + MeetJarvis (#features) replace it.
 // import Features from './Features';
 import RolesBook from './notebook/RolesBook';
+import PrivacyReportCard from './notebook/PrivacyReportCard';
 import FAQPad from './notebook/FAQPad';
 import BellFooter from './notebook/BellFooter';
 // Old Modules / FAQ / CTAFooter are parked: replaced by the notebook versions above.
@@ -40,6 +41,7 @@ export default function LandingPage() {
                 <MeetJarvis />
                 <ModulesGrid />
                 <RolesBook />
+                <PrivacyReportCard />
                 {SHOW_PRICING && <Pricing onDemo={openDemo} />}
                 <FAQPad />
                 <BellFooter onDemo={openDemo} />

@@ -1,7 +1,7 @@
 // Shared look for the "school drawing book" landing page.
 export const INK = '#26294A';
 export const TERRA = '#DA7756';
-export const PAPER = '#F4F3EF';
+export const PAPER = '#F7F7F5'; // near-white paper, just a hint of warmth (was #F4F3EF, too yellow)
 export const HAND = { fontFamily: 'var(--font-hand), "Comic Sans MS", cursive' } as const;
 
 // White drawing-book paper (cold press): a soft bumpy "tooth" lit from the

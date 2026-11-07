@@ -185,13 +185,21 @@ export default function RolesBook() {
                     <div className="relative -mt-1 rounded-[22px] border-2 bg-[#E9E1D2] p-2.5 shadow-[8px_10px_0_rgba(38,41,74,0.9)] sm:p-3" style={{ borderColor: INK }}>
                         {wide ? (
                             <div className="relative grid min-h-[480px] grid-cols-2 rounded-[14px]" style={{ perspective: 2200 }}>
+                                {/* invisible copies of every role's pages in the same cells: the book always
+                                    takes the height of the tallest role, so it doesn't grow / shrink per tab */}
+                                {ROLES.map((r) => (
+                                    <div key={`size-l-${r.key}`} aria-hidden className="invisible col-start-1 row-start-1"><LeftPage r={r} n={0} /></div>
+                                ))}
+                                {ROLES.map((r) => (
+                                    <div key={`size-r-${r.key}`} aria-hidden className="invisible col-start-2 row-start-1"><RightPage r={r} n={0} draw={false} /></div>
+                                ))}
                                 {/* left page (under) */}
-                                <div className="relative overflow-hidden rounded-l-[14px]" style={{ background: LEFT_BG }}>
+                                <div className="relative col-start-1 row-start-1 overflow-hidden rounded-l-[14px]" style={{ background: LEFT_BG }}>
                                     <LeftPage r={leftUnder} n={pageNo(leftUnder)} />
                                     <motion.div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(270deg, rgba(60,40,15,0.9), transparent 60%)', opacity: castLeft }} />
                                 </div>
                                 {/* right page (under) */}
-                                <div className="relative overflow-hidden rounded-r-[14px]" style={{ background: RIGHT_BG }}>
+                                <div className="relative col-start-2 row-start-1 overflow-hidden rounded-r-[14px]" style={{ background: RIGHT_BG }}>
                                     <RightPage r={rightUnder} n={pageNo(rightUnder) + 1} draw={!turn} key={`r-${rightUnder.key}-${drawn}`} />
                                     <motion.div aria-hidden className="pointer-events-none absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(60,40,15,0.9), transparent 60%)', opacity: castRight }} />
                                 </div>
@@ -220,9 +228,17 @@ export default function RolesBook() {
                             </div>
                         ) : (
                             /* phones: pages stacked, a simple slide between roles */
-                            <div className="overflow-hidden rounded-[14px]" style={{ background: RIGHT_BG }}>
+                            <div className="grid overflow-hidden rounded-[14px]" style={{ background: RIGHT_BG }}>
+                                {/* same trick on phones: fixed to the tallest role */}
+                                {ROLES.map((r) => (
+                                    <div key={`size-m-${r.key}`} aria-hidden className="invisible col-start-1 row-start-1">
+                                        <LeftPage r={r} n={0} />
+                                        <div className="mx-7 border-t border-dashed" />
+                                        <RightPage r={r} n={0} draw={false} />
+                                    </div>
+                                ))}
                                 <AnimatePresence mode="wait">
-                                    <motion.div key={cur.key} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.35 }}>
+                                    <motion.div className="col-start-1 row-start-1" key={cur.key} initial={{ opacity: 0, x: 30 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -30 }} transition={{ duration: 0.35 }}>
                                         <LeftPage r={cur} n={pageNo(cur)} />
                                         <div className="mx-7 border-t border-dashed border-[#E6DECF]" />
                                         <RightPage r={cur} n={pageNo(cur) + 1} draw />

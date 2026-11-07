@@ -55,19 +55,46 @@ function SkyWash() {
             >
                 <ellipse cx="300" cy="225" rx="275" ry="205" fill="url(#skyg)" />
             </motion.g>
-            <g filter="url(#wash)" transform="translate(520 70)">
-                <circle r="34" fill="#FFD86B" opacity="0.85" />
-            </g>
+            {/* crayon sun: rises in on load, then breathes - glow pulses, rays spin and twinkle */}
             <g transform="translate(520 70)">
-            <motion.g
-                animate={still ? undefined : { rotate: 360 }}
-                transition={{ duration: 40, repeat: Infinity, ease: 'linear' }}
-            >
-                {Array.from({ length: 10 }).map((_, i) => {
-                    const a = (i / 10) * Math.PI * 2;
-                    return <path key={i} d={`M${(Math.cos(a) * 44).toFixed(2)} ${(Math.sin(a) * 44).toFixed(2)} L${(Math.cos(a) * 58).toFixed(2)} ${(Math.sin(a) * 58).toFixed(2)}`} stroke="#F2B84B" strokeWidth="4" strokeLinecap="round" />;
-                })}
-            </motion.g>
+                <motion.g
+                    initial={still ? false : { y: 70, opacity: 0, scale: 0.6 }}
+                    animate={{ y: 0, opacity: 1, scale: 1 }}
+                    transition={{ duration: 1.4, ease: EASE, delay: 0.3 }}
+                >
+                    {/* soft halo that swells and fades */}
+                    <motion.circle
+                        r="46" fill="#FFE7A3"
+                        animate={still ? undefined : { scale: [1, 1.18, 1], opacity: [0.35, 0.12, 0.35] }}
+                        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                    />
+                    <motion.g
+                        filter="url(#wash)"
+                        animate={still ? undefined : { scale: [1, 1.06, 1] }}
+                        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                        <circle r="34" fill="#FFD86B" opacity="0.85" />
+                    </motion.g>
+                    <motion.g
+                        animate={still ? undefined : { rotate: 360 }}
+                        transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+                    >
+                        {Array.from({ length: 10 }).map((_, i) => {
+                            const a = (i / 10) * Math.PI * 2;
+                            const c = Math.cos(a), sn = Math.sin(a);
+                            return (
+                                <motion.path
+                                    key={i}
+                                    d={`M${(c * 44).toFixed(2)} ${(sn * 44).toFixed(2)} L${(c * 58).toFixed(2)} ${(sn * 58).toFixed(2)}`}
+                                    stroke="#F2B84B" strokeWidth="4" strokeLinecap="round"
+                                    // rays take turns stretching out a little, like a twinkle
+                                    animate={still ? undefined : { pathLength: [0.55, 1, 0.55], opacity: [0.6, 1, 0.6] }}
+                                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: (i % 2) * 0.9 }}
+                                />
+                            );
+                        })}
+                    </motion.g>
+                </motion.g>
             </g>
         </svg>
     );
@@ -138,8 +165,8 @@ export default function NotebookHero({ onDemo }: { onDemo: () => void }) {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.8, ease: EASE, delay: 0.7 }}
                     >
-                        From a &ldquo;Regular Institute&rdquo; to an &ldquo;AI Institute&rdquo;. QubeEx makes the
-                        shift, running your campus smarter, every single day.
+                        AI isn&apos;t a corner of QubeEx you visit. It&apos;s the intelligent layer running
+                        quietly beneath your entire school, all day.
                     </motion.p>
 
                     <motion.div

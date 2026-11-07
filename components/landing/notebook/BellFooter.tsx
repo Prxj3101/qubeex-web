@@ -60,7 +60,7 @@ export default function BellFooter({ onDemo }: { onDemo: () => void }) {
 
                         <p style={HAND} className="mt-6 text-2xl text-[#8A6A5A] sm:text-3xl">that&apos;s the bell,</p>
                         <h2 style={DISPLAY} className="mt-1 text-balance text-4xl font-bold tracking-[-0.02em] text-[#190D2E] sm:text-6xl">
-                            Ready to make your school <span style={{ color: TERRA }}>an AI school?</span>
+                            Ready to let your school <span style={{ color: TERRA }}>run smarter?</span>
                         </h2>
                         <p className="mx-auto mt-5 max-w-xl text-pretty text-lg leading-relaxed text-[#575C7A]">
                             Book a walkthrough and watch QubeEx run on your own school&apos;s classes, fees and timetable.
@@ -82,9 +82,13 @@ export default function BellFooter({ onDemo }: { onDemo: () => void }) {
                                 or log in
                             </Link>
                         </div>
+
                     </motion.div>
                 </div>
             </section>
+
+            {/* who made it (same line as the sales deck): one handwritten line, a cap tossed in the air */}
+            <MadeByStudents />
 
             {/* footer: the original white style, with the dashed line on top */}
             <footer className="border-t-2 border-dashed border-[#D9D1C2] bg-white/60 backdrop-blur-sm">
@@ -110,5 +114,49 @@ export default function BellFooter({ onDemo }: { onDemo: () => void }) {
                 </div>
             </footer>
         </>
+    );
+}
+
+// "Made by former students. For the schools that made them." on one line:
+// a graduation cap gets tossed up and lands, then the second half gets a crayon underline.
+function MadeByStudents() {
+    const still = useReducedMotion();
+    return (
+        <motion.div
+            className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-x-3 gap-y-1 px-6 pb-14 pt-2 text-center"
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true, margin: '-40px' }}
+            transition={{ duration: 0.6 }}
+        >
+            {/* tossed cap */}
+            <motion.svg
+                viewBox="0 0 48 36" className="h-9 w-12 shrink-0" aria-hidden
+                initial={still ? false : { y: 0, rotate: 0 }}
+                whileInView={still ? undefined : { y: [0, -34, 0], rotate: [0, -200, -360] }}
+                viewport={{ once: true }}
+                transition={{ duration: 1.1, ease: 'easeOut', delay: 0.3 }}
+            >
+                <path d="M24 4 L46 13 L24 22 L2 13 Z" fill={INK} stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+                <path d="M12 17 V26 Q24 33 36 26 V17" fill={INK} stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+                <path d="M42 15 V27" stroke="#F6C453" strokeWidth="2.4" strokeLinecap="round" />
+                <circle cx="42" cy="29" r="2.6" fill="#F6C453" />
+            </motion.svg>
+            <p style={HAND} className="text-[1.75rem] leading-tight text-[#26294A] sm:text-[2.1rem]">
+                Made by former students.{' '}
+                <span className="relative inline-block whitespace-nowrap" style={{ color: TERRA }}>
+                    For the schools that made them.
+                    <svg viewBox="0 0 300 14" preserveAspectRatio="none" className="absolute -bottom-1.5 left-0 h-3 w-full" aria-hidden>
+                        <motion.path
+                            d="M3 9 C80 3 170 13 297 6" fill="none" stroke="#F6C453" strokeWidth="5" strokeLinecap="round"
+                            initial={still ? false : { pathLength: 0 }}
+                            whileInView={{ pathLength: 1 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.7, ease: 'easeInOut', delay: 1.2 }}
+                        />
+                    </svg>
+                </span>
+            </p>
+        </motion.div>
     );
 }

@@ -11,13 +11,14 @@ import { useEffect, useRef, useState } from 'react';
 import { DISPLAY } from '../motion';
 import { HAND, INK, TERRA, paper } from './paper';
 
-type Stop = { icon: LucideIcon; title: string; desc: string; color: string; soft: string; ai?: boolean; more?: boolean };
+// secret: an exclusive feature shown as a golden card that doesn't say what's inside (curiosity -> demo)
+type Stop = { icon: LucideIcon; title: string; desc: string; color: string; soft: string; ai?: boolean; more?: boolean; secret?: boolean };
 
 const STOPS: Stop[] = [
     // AI first
     { icon: Sparkles, title: 'Jarvis AI', desc: 'Ask anything, or tell it what to schedule.', color: '#E11D48', soft: '#FDE8EC', ai: true },
     { icon: LayoutGrid, title: 'AI Timetable', desc: 'Type your rules. Get a clash-free timetable.', color: '#7C3AED', soft: '#F0EAFD', ai: true },
-    { icon: Presentation, title: 'AI Blackboard', desc: 'Textbook page to mindmap and diagrams, live in class.', color: '#16A34A', soft: '#E6F6EC', ai: true },
+    { icon: Presentation, title: 'AI Blackboard', desc: 'Exclusive to QubeEx. See it live in a demo.', color: '#B8860B', soft: '#FFF4CC', ai: true, secret: true },
     { icon: PenLine, title: 'AI Tests & homework', desc: 'AI writes the questions. Cheat-proof online tests.', color: '#DB2777', soft: '#FCEAF3', ai: true },
     { icon: Brain, title: 'AI Insights', desc: 'Flags 3-day absences, falling marks and fee risk early.', color: '#0EA5E9', soft: '#E3F4FC', ai: true },
     // the everyday school work
@@ -295,6 +296,7 @@ function Bus({ wheel, flip, riders, still }: { wheel: MotionValue<number>; flip:
 /* ---------------- stop board ---------------- */
 
 function Board({ s, on, i }: { s: Stop; on: boolean; i: number }) {
+    if (s.secret) return <SecretBoard s={s} on={on} i={i} />;
     return (
         <motion.div
             animate={{ opacity: on ? 1 : 0.4, scale: on ? 1 : 0.94, filter: on ? 'grayscale(0)' : 'grayscale(0.8)' }}
@@ -312,6 +314,42 @@ function Board({ s, on, i }: { s: Stop; on: boolean; i: number }) {
             </div>
             <p className="mt-1.5 text-[11.5px] leading-snug text-[#5A5F7D]">{s.desc}</p>
         </motion.div>
+    );
+}
+
+// Golden "exclusive" stop board: no details, just a shine and a nudge to see it live.
+function SecretBoard({ s, on, i }: { s: Stop; on: boolean; i: number }) {
+    return (
+        <motion.div
+            animate={{ opacity: on ? 1 : 0.4, scale: on ? 1 : 0.94, filter: on ? 'grayscale(0)' : 'grayscale(0.8)' }}
+            transition={{ type: 'spring', stiffness: 260, damping: 18 }}
+            className="relative w-[164px] overflow-hidden rounded-xl border-2 px-3 py-2.5 shadow-[3px_4px_0_rgba(38,41,74,0.85)] xl:w-[184px]"
+            style={{ borderColor: '#8A6416', rotate: i % 2 ? 2 : -2, background: 'linear-gradient(135deg, #FFF3C4 0%, #FFD966 45%, #F2B84B 100%)' }}
+        >
+            <GoldSheen />
+            <div className="relative flex items-center gap-2">
+                <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-white/70 text-[#8A6416]">
+                    <s.icon size={14} />
+                </span>
+                <span style={DISPLAY} className="text-[13px] font-bold leading-tight text-[#4A3405]">{s.title}</span>
+            </div>
+            <p className="relative mt-1.5 text-[11.5px] font-semibold leading-snug text-[#5C430B]">✨ {s.desc}</p>
+        </motion.div>
+    );
+}
+
+/** A soft white shine that sweeps across a golden card every few seconds. */
+export function GoldSheen() {
+    const still = useReducedMotion();
+    if (still) return null;
+    return (
+        <motion.span
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 -left-1/2 w-1/2 -skew-x-12"
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.75), transparent)' }}
+            animate={{ x: ['0%', '400%'] }}
+            transition={{ duration: 1.4, repeat: Infinity, repeatDelay: 2.6, ease: 'easeInOut' }}
+        />
     );
 }
 
