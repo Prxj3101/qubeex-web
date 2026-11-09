@@ -12,7 +12,6 @@ import { paper } from './notebook/paper';
 // import Features from './Features';
 import RolesBook from './notebook/RolesBook';
 import PrivacyReportCard from './notebook/PrivacyReportCard';
-import AppComparison from './notebook/AppComparison';
 import FAQPad from './notebook/FAQPad';
 import BellFooter from './notebook/BellFooter';
 // Old Modules / FAQ / CTAFooter are parked: replaced by the notebook versions above.
@@ -43,7 +42,6 @@ export default function LandingPage() {
                 <ModulesGrid />
                 <RolesBook />
                 <PrivacyReportCard />
-                <AppComparison />
                 {SHOW_PRICING && <Pricing onDemo={openDemo} />}
                 <FAQPad />
                 <BellFooter onDemo={openDemo} />

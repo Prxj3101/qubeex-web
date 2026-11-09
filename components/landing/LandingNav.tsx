@@ -45,7 +45,6 @@ const LINKS = [
     { label: 'Features', href: '#features', id: 'features' },
     { label: 'Modules', href: '#modules', id: 'modules' },
     { label: 'DPDP Act', href: '#privacy', id: 'privacy' },
-    { label: 'Comparison', href: '#compare', id: 'compare' },
     { label: 'Pricing', href: '#pricing', id: 'pricing' },
     { label: 'FAQ', href: '#faq', id: 'faq' },
 ].filter((l) => SHOW_PRICING || l.id !== 'pricing');
