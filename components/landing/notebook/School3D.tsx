@@ -31,8 +31,7 @@ export default function School3D({ className }: { className?: string }) {
             import('./school3d-scene')
                 .then(({ createSchoolScene }) => {
                     if (cancelled || !box.current) return;
-                    dispose = createSchoolScene(box.current, { still: !!still }).dispose;
-                    setMode('3d');
+                    dispose = createSchoolScene(box.current, { still: !!still, onReady: () => { if (!cancelled) setMode('3d'); } }).dispose;
                 })
                 .catch(() => setMode('2d'));
         };

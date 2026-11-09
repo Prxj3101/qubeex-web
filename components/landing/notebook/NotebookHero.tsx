@@ -6,97 +6,81 @@ import { DISPLAY, EASE } from '../motion';
 import School3D from './School3D';
 import { HAND, INK, TERRA } from './paper';
 
-// Small doodles floating on the page margins.
-function Doodle({ d, className, delay = 0 }: { d: string; className: string; delay?: number }) {
-    const still = useReducedMotion();
-    return (
-        <motion.svg
-            viewBox="0 0 40 40"
-            className={className}
-            aria-hidden
-            initial={still ? false : { opacity: 0, scale: 0.6 }}
-            animate={still ? undefined : { opacity: 0.55, scale: 1, rotate: [0, 6, 0] }}
-            transition={{ delay, duration: 0.6, rotate: { duration: 7, repeat: Infinity, ease: 'easeInOut' } }}
-        >
-            <path d={d} fill="none" stroke={INK} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" />
-        </motion.svg>
-    );
-}
-
-const STAR = 'M20 4 L24 15 L36 15 L26 22 L30 34 L20 27 L10 34 L14 22 L4 15 L16 15 Z';
-const PENCIL = 'M8 32 L10 24 L28 6 L34 12 L16 30 Z M10 24 L16 30 M25 9 L31 15';
-const BOOK = 'M6 10 Q14 6 20 10 Q26 6 34 10 V32 Q26 28 20 32 Q14 28 6 32 Z M20 10 V32';
-const RULER = 'M4 26 L26 4 L36 14 L14 36 Z M10 20 L13 23 M15 15 L18 18 M20 10 L23 13';
-
 // Watercolour sky behind the island and a crayon sun, so white clouds and
 // paper planes stand out on the white page.
 function SkyWash() {
     const still = useReducedMotion();
+    const box = 'pointer-events-none absolute -inset-[4%] h-[108%] w-[108%]';
     return (
-        <svg viewBox="0 0 600 500" className="pointer-events-none absolute -inset-[4%] h-[108%] w-[108%]" style={{ mixBlendMode: 'multiply' }} aria-hidden>
-            <defs>
-                <filter id="wash" x="-20%" y="-20%" width="140%" height="140%">
-                    <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="3" seed="8" />
-                    <feDisplacementMap in="SourceGraphic" scale="46" />
-                    <feGaussianBlur stdDeviation="1.4" />
-                </filter>
-                <radialGradient id="skyg" cx="50%" cy="42%" r="55%">
-                    <stop offset="0" stopColor="#BFDDF5" stopOpacity="0.75" />
-                    <stop offset="0.65" stopColor="#D5E9F8" stopOpacity="0.5" />
-                    <stop offset="1" stopColor="#E9F3FB" stopOpacity="0" />
-                </radialGradient>
-            </defs>
-            <motion.g
-                filter="url(#wash)"
-                initial={still ? false : { opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 1.4, ease: EASE }}
-                style={{ originX: '50%', originY: '45%' }}
+        <>
+            {/* the watercolour wash: a heavy SVG filter, so it never animates inside.
+                It only fades in as a whole (cheap), and the moving sun lives in its own
+                layer below - otherwise the filter is redrawn every frame and the whole
+                hero (headline underline, 3D school) stutters. */}
+            <motion.svg
+                viewBox="0 0 600 500" className={box} style={{ mixBlendMode: 'multiply' }} aria-hidden
+                initial={still ? false : { opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1.2, ease: EASE }}
             >
-                <ellipse cx="300" cy="225" rx="275" ry="205" fill="url(#skyg)" />
-            </motion.g>
-            {/* crayon sun: rises in on load, then breathes - glow pulses, rays spin and twinkle */}
-            <g transform="translate(520 70)">
-                <motion.g
-                    initial={still ? false : { y: 70, opacity: 0, scale: 0.6 }}
-                    animate={{ y: 0, opacity: 1, scale: 1 }}
-                    transition={{ duration: 1.4, ease: EASE, delay: 0.3 }}
-                >
-                    {/* soft halo that swells and fades */}
-                    <motion.circle
-                        r="46" fill="#FFE7A3"
-                        animate={still ? undefined : { scale: [1, 1.18, 1], opacity: [0.35, 0.12, 0.35] }}
-                        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
-                    />
+                <defs>
+                    <filter id="wash" x="-20%" y="-20%" width="140%" height="140%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.011" numOctaves="3" seed="8" />
+                        <feDisplacementMap in="SourceGraphic" scale="46" />
+                        <feGaussianBlur stdDeviation="1.4" />
+                    </filter>
+                    <radialGradient id="skyg" cx="50%" cy="42%" r="55%">
+                        <stop offset="0" stopColor="#BFDDF5" stopOpacity="0.75" />
+                        <stop offset="0.65" stopColor="#D5E9F8" stopOpacity="0.5" />
+                        <stop offset="1" stopColor="#E9F3FB" stopOpacity="0" />
+                    </radialGradient>
+                </defs>
+                <g filter="url(#wash)">
+                    <ellipse cx="300" cy="225" rx="275" ry="205" fill="url(#skyg)" />
+                </g>
+            </motion.svg>
+
+            {/* crayon sun, in its own light layer: rises in on load, then breathes -
+                glow pulses, rays spin and twinkle (no heavy filter in here) */}
+            <svg viewBox="0 0 600 500" className={box} style={{ mixBlendMode: 'multiply' }} aria-hidden>
+                <g transform="translate(520 70)">
                     <motion.g
-                        filter="url(#wash)"
-                        animate={still ? undefined : { scale: [1, 1.06, 1] }}
-                        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                        initial={still ? false : { y: 70, opacity: 0 }}
+                        animate={{ y: 0, opacity: 1 }}
+                        transition={{ duration: 1.4, ease: EASE, delay: 0.3 }}
                     >
-                        <circle r="34" fill="#FFD86B" opacity="0.85" />
+                        <motion.circle
+                            r="46" fill="#FFE7A3"
+                            animate={still ? undefined : { scale: [1, 1.18, 1], opacity: [0.35, 0.12, 0.35] }}
+                            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                        <motion.circle
+                            r="34" fill="#FFD86B" opacity="0.88"
+                            animate={still ? undefined : { scale: [1, 1.06, 1] }}
+                            transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut' }}
+                        />
+                        <motion.g
+                            animate={still ? undefined : { rotate: 360 }}
+                            transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
+                        >
+                            {Array.from({ length: 10 }).map((_, i) => {
+                                const a = (i / 10) * Math.PI * 2;
+                                const c = Math.cos(a), sn = Math.sin(a);
+                                return (
+                                    <motion.path
+                                        key={i}
+                                        d={`M${(c * 44).toFixed(2)} ${(sn * 44).toFixed(2)} L${(c * 58).toFixed(2)} ${(sn * 58).toFixed(2)}`}
+                                        stroke="#F2B84B" strokeWidth="4" strokeLinecap="round"
+                                        animate={still ? undefined : { pathLength: [0.55, 1, 0.55], opacity: [0.6, 1, 0.6] }}
+                                        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: (i % 2) * 0.9 }}
+                                    />
+                                );
+                            })}
+                        </motion.g>
                     </motion.g>
-                    <motion.g
-                        animate={still ? undefined : { rotate: 360 }}
-                        transition={{ duration: 18, repeat: Infinity, ease: 'linear' }}
-                    >
-                        {Array.from({ length: 10 }).map((_, i) => {
-                            const a = (i / 10) * Math.PI * 2;
-                            const c = Math.cos(a), sn = Math.sin(a);
-                            return (
-                                <motion.path
-                                    key={i}
-                                    d={`M${(c * 44).toFixed(2)} ${(sn * 44).toFixed(2)} L${(c * 58).toFixed(2)} ${(sn * 58).toFixed(2)}`}
-                                    stroke="#F2B84B" strokeWidth="4" strokeLinecap="round"
-                                    // rays take turns stretching out a little, like a twinkle
-                                    animate={still ? undefined : { pathLength: [0.55, 1, 0.55], opacity: [0.6, 1, 0.6] }}
-                                    transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: (i % 2) * 0.9 }}
-                                />
-                            );
-                        })}
-                    </motion.g>
-                </motion.g>
-            </g>
-        </svg>
+                </g>
+            </svg>
+        </>
     );
 }
 
@@ -104,11 +88,6 @@ export default function NotebookHero({ onDemo }: { onDemo: () => void }) {
     const still = useReducedMotion();
     return (
         <section id="top" className="relative overflow-hidden">
-
-            <Doodle d={STAR} className="absolute left-[3%] top-[30%] hidden h-7 w-7 lg:block" delay={2.4} />
-            <Doodle d={PENCIL} className="absolute bottom-[12%] left-[38%] hidden h-9 w-9 lg:block" delay={2.6} />
-            <Doodle d={BOOK} className="absolute right-[3%] top-[14%] hidden h-9 w-9 lg:block" delay={2.8} />
-            <Doodle d={RULER} className="absolute bottom-[6%] right-[4%] hidden h-8 w-8 lg:block" delay={3} />
 
             <div className="relative z-10 mx-auto grid w-full max-w-[1440px] lg:min-h-screen items-center gap-6 px-6 pb-12 pt-32 sm:px-10 lg:grid-cols-[1fr_1.1fr] lg:pt-24">
                 <div>

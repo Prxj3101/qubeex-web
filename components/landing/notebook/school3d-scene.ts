@@ -561,7 +561,7 @@ function bird() {
 /* scene                                                               */
 /* ------------------------------------------------------------------ */
 
-export function createSchoolScene(container: HTMLElement, opts: { still?: boolean } = {}): SchoolScene {
+export function createSchoolScene(container: HTMLElement, opts: { still?: boolean; onReady?: () => void } = {}): SchoolScene {
     const still = !!opts.still;
     const tx = makeTextures();
     const R = rng(42);
@@ -573,7 +573,8 @@ export function createSchoolScene(container: HTMLElement, opts: { still?: boolea
     scene.add(camera);
 
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // 1.5x is plenty sharp for this size and much lighter on the GPU than 2x (smoother on laptops)
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
     renderer.setClearColor(0x000000, 0);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -587,7 +588,7 @@ export function createSchoolScene(container: HTMLElement, opts: { still?: boolea
     const sun = new THREE.DirectionalLight(0xfff0d8, 2.7);
     sun.position.set(6, 10, 5);
     sun.castShadow = true;
-    sun.shadow.mapSize.set(2048, 2048);
+    sun.shadow.mapSize.set(1024, 1024); // soft shadows anyway; a quarter of the work of 2048
     Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 30 });
     sun.shadow.bias = -0.0006;
     sun.shadow.normalBias = 0.02;
@@ -1071,7 +1072,14 @@ export function createSchoolScene(container: HTMLElement, opts: { still?: boolea
     // compile all shaders in the background first, so the first frame does not
     // freeze the page
     let disposed = false;
-    renderer.compileAsync(scene, camera).catch(() => undefined).finally(() => { if (!disposed) { clock.getDelta(); frame(); } });
+    renderer.compileAsync(scene, camera).catch(() => undefined).finally(() => {
+        if (disposed) return;
+        // draw one frame, then let the page fade the canvas in and start the intro on the
+        // next frame - so nothing appears half-built or jumps on its first heavy frames
+        renderer.render(scene, camera);
+        opts.onReady?.();
+        requestAnimationFrame(() => { if (!disposed) { clock.getDelta(); frame(); } });
+    });
 
     return {
         poke,

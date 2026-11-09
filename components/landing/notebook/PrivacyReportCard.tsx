@@ -53,22 +53,10 @@ function RecordCard({ phase, still, desk, active }: { phase: number; still: bool
         <motion.div
             className="relative w-[210px] rounded-2xl border-2 bg-white px-4 py-3 shadow-[4px_5px_0_rgba(38,41,74,0.85)]"
             style={{ borderColor: INK }}
-            // delete: once the bin's lid (the step icon below) opens, the card is sucked in -
-            // it pinches into a funnel towards the bottom and stretches down into the bin
-            animate={deleting && !still
-                ? {
-                    // wobble as the pull starts, then drawn down: pinched at the bottom,
-                    // stretched long and thin, swallowed right at the bin's open lid
-                    y: [0, -8, -4, (desk ? SUCK_Y : 40) * 0.45, desk ? SUCK_Y : 40],
-                    x: [0, -3, 3, desk ? SUCK_X * 0.5 : 0, desk ? SUCK_X : 0],
-                    scaleX: [1, 1.02, 0.98, 0.4, 0.025],
-                    scaleY: [1, 0.97, 1.03, 1.08, 0.4],
-                    rotate: [-3, -1, 1, 0, 0],
-                    opacity: [1, 1, 1, 1, 0],
-                    clipPath: [FULL, FULL, FULL, MID, FUNNEL],
-                }
-                : { y: 0, x: 0, scaleX: 1, scaleY: 1, rotate: -3, opacity: 1, clipPath: FULL }}
-            transition={deleting ? { duration: 1.1, delay: 0.25, times: [0, 0.12, 0.24, 0.62, 1], ease: 'easeIn' } : { duration: 0.3 }}
+            // delete: the card folds itself away into a folder (see DeleteFolder), which
+            // then flies up and drops into the bin - like a desktop "move to trash"
+            animate={deleting && !still ? { scale: [1, 0.3], opacity: [1, 0], rotate: [-3, 0] } : { scale: 1, opacity: 1, rotate: -3 }}
+            transition={deleting ? { duration: 0.35, ease: 'easeIn' } : { duration: 0.3 }}
         >
             <div className="flex items-center gap-2">
                 <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full text-[17px] leading-none" style={{ background: '#FBEDE6', border: `1.5px solid ${TERRA}` }}>🧑‍🎓</span>
@@ -128,20 +116,54 @@ function RecordCard({ phase, still, desk, active }: { phase: number; still: bool
 }
 
 // how far down the card travels to reach the bin icon on the last step (desktop)
-const SUCK_Y = 62; // to just above the bin's lid
-const SUCK_X = 12; // and a touch right, onto the middle of the bin's mouth
-const FULL = 'polygon(-6% -8%, 106% -8%, 106% 112%, -6% 112%)'; // a bit bigger than the card so its shadow isn't cut
-const MID = 'polygon(8% 0%, 92% 0%, 55% 100%, 45% 100%)';
-const FUNNEL = 'polygon(38% 0%, 62% 0%, 50.5% 100%, 49.5% 100%)'; // pinched like it's being pulled through a hole
+// where the bin's mouth is, from the card's centre (desktop) - the folder drops in there
+const MOUTH_X = 6;
+const MOUTH_Y = 128;
+const DEL_S = 1.9; // the whole delete moment (one step)
+const SHOW = 'inset(-30% -30% 0% -30%)'; // whole folder (a little extra room for its shadow)
+const GONE = 'inset(-30% -30% 100% -30%)'; // cut away from the bottom up = gone into the bin
+
+/**
+ * "Move to trash": a folder appears where the card was, hops up, arcs over and
+ * drops into the bin (the last step's icon) while its lid is open.
+ */
+function DeleteFolder({ desk }: { desk: boolean }) {
+    const mx = desk ? MOUTH_X : 0, my = desk ? MOUTH_Y : 60;
+    return (
+        <motion.div
+            aria-hidden
+            className="pointer-events-none absolute left-1/2 top-1/2 z-30 -ml-[26px] -mt-[22px]"
+            initial={{ scale: 0, x: 0, y: 0, rotate: 0, clipPath: SHOW }}
+            animate={{
+                scale: [0, 1.15, 1, 0.9, 0.55, 0.52],
+                x: [0, 0, -14, mx * 0.4, mx, mx],
+                y: [0, 0, -34, my * 0.45, my - 10, my + 14],
+                rotate: [0, -6, -18, 10, 14, 8],
+                // last part: it slides down through the bin's mouth - the bit that's past
+                // the rim is cut away from the bottom up, so it looks like it goes INSIDE
+                clipPath: [SHOW, SHOW, SHOW, SHOW, SHOW, GONE],
+            }}
+            transition={{ duration: DEL_S * 0.75, times: [0, 0.14, 0.34, 0.55, 0.78, 1], ease: 'easeInOut', delay: 0.12 }}
+        >
+            <svg viewBox="0 0 52 44" className="h-11 w-[52px] drop-shadow-[2px_3px_0_rgba(38,41,74,0.35)]">
+                <path d="M3 8 Q3 4 7 4 H19 L24 9 H45 Q49 9 49 13 V38 Q49 41 45 41 H7 Q3 41 3 38 Z" fill="#1EA7F0" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+                <rect x="9" y="12" width="30" height="20" rx="2" fill="#E6F6FF" stroke={INK} strokeWidth="1.4" transform="rotate(-6 24 22)" />
+                <path d="M3 17 H49 V38 Q49 41 45 41 H7 Q3 41 3 38 Z" fill="#38B6F5" stroke={INK} strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+        </motion.div>
+    );
+}
 
 /** The last step's icon: a bin whose lid opens, swallows the card, and shuts. */
 function BinIcon({ open }: { open: boolean }) {
     return (
         <svg viewBox="0 0 24 24" className="h-6 w-6 overflow-visible" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
             <motion.g
-                style={{ originX: '3px', originY: '6px' }}
-                animate={open ? { rotate: [0, -50, -50, 0] } : { rotate: 0 }}
-                transition={open ? { duration: 1.65, times: [0, 0.12, 0.85, 0.97] } : { duration: 0.2 }} // shuts just after the card is in
+                // hinged at the right end: swings up while the folder flies over, slams shut
+                // with a little bounce once it's in
+                style={{ originX: '21px', originY: '6px' }}
+                animate={open ? { rotate: [0, 0, 75, 75, -12, 6, -2, 0] } : { rotate: 0 }}
+                transition={open ? { duration: DEL_S, times: [0, 0.26, 0.36, 0.84, 0.89, 0.93, 0.97, 1] } : { duration: 0.2 }}
             >
                 <path d="M3 6h18" />
                 <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
@@ -226,6 +248,7 @@ export default function PrivacyReportCard() {
                             </AnimatePresence>
                             <div className="relative">
                                 <RecordCard key={loop} phase={phase} still={still} desk={desk} active={inView} />
+                                {phase === 4 && !still && <DeleteFolder desk={desk} />}
                             </div>
                             {/* little pointer down to the step */}
                             <svg viewBox="0 0 20 14" className={`mt-1 h-3.5 w-5 ${phase === 4 ? 'invisible' : ''}`} aria-hidden><path d="M2 2 L10 12 L18 2" fill="none" stroke={INK} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>

@@ -132,10 +132,11 @@ function MadeByStudents() {
             {/* tossed cap */}
             <motion.svg
                 viewBox="0 0 48 36" className="h-9 w-12 shrink-0" aria-hidden
+                // tossed up and caught again, every few seconds
                 initial={still ? false : { y: 0, rotate: 0 }}
                 whileInView={still ? undefined : { y: [0, -34, 0], rotate: [0, -200, -360] }}
-                viewport={{ once: true }}
-                transition={{ duration: 1.1, ease: 'easeOut', delay: 0.3 }}
+                viewport={{ once: false }}
+                transition={{ duration: 1.1, ease: 'easeOut', delay: 0.3, repeat: Infinity, repeatDelay: 3 }}
             >
                 <path d="M24 4 L46 13 L24 22 L2 13 Z" fill={INK} stroke={INK} strokeWidth="2" strokeLinejoin="round" />
                 <path d="M12 17 V26 Q24 33 36 26 V17" fill={INK} stroke={INK} strokeWidth="2" strokeLinejoin="round" />

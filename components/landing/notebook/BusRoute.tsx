@@ -12,11 +12,11 @@ import { DISPLAY } from '../motion';
 import { HAND, INK, TERRA, paper } from './paper';
 
 // secret: an exclusive feature shown as a golden card that doesn't say what's inside (curiosity -> demo)
-type Stop = { icon: LucideIcon; title: string; desc: string; color: string; soft: string; ai?: boolean; more?: boolean; secret?: boolean };
+type Stop = { icon: LucideIcon; title: string; desc: string; color: string; soft: string; ai?: boolean; more?: boolean; secret?: boolean; gold?: boolean };
 
 const STOPS: Stop[] = [
     // AI first
-    { icon: Sparkles, title: 'Jarvis AI', desc: 'Ask anything, or tell it what to schedule.', color: '#E11D48', soft: '#FDE8EC', ai: true },
+    { icon: Sparkles, title: 'Jarvis AI', desc: 'Ask anything, or tell it what to schedule.', color: '#8A6416', soft: 'rgba(255,255,255,0.7)', ai: true, gold: true },
     { icon: LayoutGrid, title: 'AI Timetable', desc: 'Type your rules. Get a clash-free timetable.', color: '#7C3AED', soft: '#F0EAFD', ai: true },
     { icon: Presentation, title: 'AI Blackboard', desc: 'Exclusive to QubeEx. See it live in a demo.', color: '#B8860B', soft: '#FFF4CC', ai: true, secret: true },
     { icon: PenLine, title: 'AI Tests & homework', desc: 'AI writes the questions. Cheat-proof online tests.', color: '#DB2777', soft: '#FCEAF3', ai: true },
@@ -301,9 +301,12 @@ function Board({ s, on, i }: { s: Stop; on: boolean; i: number }) {
         <motion.div
             animate={{ opacity: on ? 1 : 0.4, scale: on ? 1 : 0.94, filter: on ? 'grayscale(0)' : 'grayscale(0.8)' }}
             transition={{ type: 'spring', stiffness: 260, damping: 18 }}
-            className={`relative w-[164px] rounded-xl border-2 px-3 py-2.5 shadow-[3px_4px_0_rgba(38,41,74,0.85)] xl:w-[184px] ${s.more ? 'border-dashed bg-[#FFFDF6]' : 'bg-white'}`}
-            style={{ borderColor: INK, rotate: i % 2 ? 2 : -2 }}
+            className={`relative w-[164px] rounded-xl border-2 px-3 py-2.5 shadow-[3px_4px_0_rgba(38,41,74,0.85)] xl:w-[184px] ${s.more ? 'border-dashed bg-[#FFFDF6]' : s.gold ? 'overflow-hidden' : 'bg-white'}`}
+            style={s.gold
+                ? { borderColor: '#8A6416', rotate: i % 2 ? 2 : -2, background: 'linear-gradient(135deg, #FFF3C4 0%, #FFD966 45%, #F2B84B 100%)' }
+                : { borderColor: INK, rotate: i % 2 ? 2 : -2 }}
         >
+            {s.gold && <GoldSheen />}
             {/* washi tape */}
             <span aria-hidden className="absolute -top-2.5 left-1/2 h-4 w-12 -translate-x-1/2 rotate-[-4deg] opacity-80" style={{ background: s.soft }} />
             <div className="flex items-center gap-2">
