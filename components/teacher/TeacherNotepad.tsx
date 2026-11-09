@@ -64,7 +64,7 @@ export default function TeacherNotepad() {
                 })));
                 setTasks(t.map(x => ({ id: x.id, text: x.text, done: x.done })));
             })
-            .catch(() => { /*leave notepa empty on failure — non-critical widget */ });
+            .catch(() => { /*leave notepad empty on failure — non-critical widget */ });
     }, []);
 
     const addNote = () => {
