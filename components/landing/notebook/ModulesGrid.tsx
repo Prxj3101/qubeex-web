@@ -281,7 +281,8 @@ function FeatureCard({ a }: { a: Area }) {
     const [peek, setPeek] = useState(false);
     const [hover, setHover] = useState(false);
     if (a.secret) return <SecretCard a={a} />;
-    const preview = PEEKS[a.name];
+    // not every card has a peek (Partial: so TypeScript knows it can be missing)
+    const preview = (PEEKS as Partial<typeof PEEKS>)[a.name];
     return (
         <div
             className={`group relative flex h-full flex-col overflow-hidden rounded-2xl border-2 p-5 shadow-[4px_5px_0_rgba(38,41,74,0.85)] transition-transform duration-200 hover:-translate-y-1 hover:shadow-[5px_8px_0_rgba(38,41,74,0.85)] ${a.gold ? '' : 'bg-white'}`}

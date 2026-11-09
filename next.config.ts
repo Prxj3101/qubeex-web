@@ -1,6 +1,12 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // There is a stray pnpm-lock.yaml in C:\Users\Prxj, so Next guessed the
+  // home folder as the project root and next/font broke. Pin it to this folder.
+  turbopack: {
+    root: path.resolve(__dirname),
+  },
   // Lets the app's WebView (loading this dev server over the LAN IP instead
   // of localhost) talk to Next.js dev-only resources like the webpack-HMR
   // socket, which are blocked cross-origin by default for safety.
