@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import NextImage from 'next/image';
-import { ArrowLeft, Landmark, Building2, QrCode, CreditCard, Wallet, ChevronDown, ImagePlus } from 'lucide-react';
+import { ArrowLeft, Landmark, Building2, QrCode, CreditCard, Wallet, ChevronDown, ImagePlus, ReceiptText, Printer } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
 import { busMonthAmount } from '@/lib/busFee';
@@ -104,6 +104,16 @@ const FEE_TYPE_CFG: Record<FeeStructureType, { label: string; color: string; bg:
     LATE_FEE: { label: 'Late Fee Fine',    color: '#DC2626', bg: 'bg-red-100 dark:bg-red-950/40',     text: 'text-red-700 dark:text-red-400',     emoji: '⚠️' },
 };
 
+// Paid / due per month and receipts from the school's fee counter (GET /student/fees → money).
+interface FeeMoney {
+    bills: { feeMonthId: string; month: string; total: number; received: number; balance: number; due: boolean }[];
+    totals: { total: number; paid: number; balance: number; overdue: number };
+    receipts: { id: string; receiptNo: string; day: string; amount: number; discount: number; mode: string; lines: { month: string }[] }[];
+}
+const MODE_LABEL: Record<string, string> = { CASH: 'Cash', UPI: 'UPI', CHEQUE: 'Cheque', CARD: 'Card', BANK: 'Bank transfer' };
+const rupees = (n: number) => `₹${(Math.round(n * 100) / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+const prettyDay = (day: string) => { const [y, m, d] = day.split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }); };
+
 const STATUS_CFG = {
     PAID:    { label: 'Paid',    cls: 'bg-emerald-100 text-emerald-700' },
     PENDING: { label: 'Pending', cls: 'bg-red-100 text-red-700' },
@@ -166,6 +176,7 @@ export default function FeesPage() {
     const [qrDownloading, setQrDownloading] = useState(false);
     const [studentFields, setStudentFields] = useState<StudentDetailField[]>(DEFAULT_STUDENT_FIELDS);
     const [extraDetailFields, setExtraDetailFields] = useState<Record<string, string> | null>(null);
+    const [money, setMoney] = useState<FeeMoney | null>(null);
 
     useEffect(() => {
         setLoading(true);
@@ -206,6 +217,7 @@ export default function FeesPage() {
             setExtraDetailFields(feesRes.data?.data?.extraDetailFields ?? null);
 
             setFeePayments(feesRes.data?.data?.payments ?? []);
+            setMoney(feesRes.data?.data?.money ?? null);
         }).finally(() => setLoading(false));
     }, [effectiveYear]);
 
@@ -508,9 +520,21 @@ export default function FeesPage() {
                                                                         <td className="px-3 py-2 text-[11px] font-medium" style={{ color: '#000000', borderRight: `1px solid ${fc.border}` }}>{m.dueDate}</td>
                                                                         <td className="px-3 py-2 text-[11px] font-medium" style={{ color: isPaidLate(m.dueDate, payment.paidDate) ? '#DC2626' : '#000000', fontWeight: isPaidLate(m.dueDate, payment.paidDate) ? 600 : undefined, borderRight: `1px solid ${fc.border}` }}>{payment.paidDate || '—'}</td>
                                                                         <td className="px-3 py-2" style={{ borderRight: `1px solid ${fc.border}` }}>
-                                                                            <span className={`flex items-center gap-1 w-fit h-6 px-2 rounded-full text-[10px] font-semibold ${STATUS_CFG[payment.status].cls}`}>
-                                                                                {payment.status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[payment.status].label}
-                                                                            </span>
+                                                                            {(() => {
+                                                                                // Part paid at the fee counter: show it, with what is left.
+                                                                                const bill = money?.bills.find(b => b.feeMonthId === m.id);
+                                                                                if (payment.status !== 'PAID' && bill && bill.received > 0 && bill.balance > 0) return (
+                                                                                    <span className="flex flex-col w-fit">
+                                                                                        <span className="flex items-center gap-1 w-fit h-6 px-2 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-700">◐ Partial</span>
+                                                                                        <span className="text-[9.5px] font-semibold mt-0.5" style={{ color: '#B45309' }}>{rupees(bill.balance)} left</span>
+                                                                                    </span>
+                                                                                );
+                                                                                return (
+                                                                                    <span className={`flex items-center gap-1 w-fit h-6 px-2 rounded-full text-[10px] font-semibold ${STATUS_CFG[payment.status].cls}`}>
+                                                                                        {payment.status === 'PAID' ? '✓' : '⏳'} {STATUS_CFG[payment.status].label}
+                                                                                    </span>
+                                                                                );
+                                                                            })()}
                                                                         </td>
                                                                         <td className="px-3 py-2 text-[11px] font-medium" style={{ color: '#000000', borderRight: extraColumns.length > 0 ? `1px solid ${fc.border}` : 'none' }}>{payment.remark || '—'}</td>
                                                                         {extraColumns.map((col, ci) => (
@@ -685,8 +709,54 @@ export default function FeesPage() {
                     <div className="flex-1 overflow-y-auto bg-background px-4 py-3 space-y-3 divide-y divide-border/30"
                         style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--scrollbar-thumb) transparent' }}>
 
+                        {/* This year's fees at a glance */}
+                        {money && money.totals.total > 0 && (
+                            <div className="pb-3">
+                                <div className="grid grid-cols-3 gap-2">
+                                    {[
+                                        { label: 'Paid', value: money.totals.paid, cls: 'text-emerald-600' },
+                                        { label: 'Still due', value: money.totals.balance, cls: '' },
+                                        { label: 'Overdue', value: money.totals.overdue, cls: money.totals.overdue > 0 ? 'text-red-600' : '' },
+                                    ].map(x => (
+                                        <div key={x.label} className="rounded-xl border border-border/50 bg-card px-2.5 py-2">
+                                            <p className="text-[9.5px] font-semibold uppercase tracking-wide text-muted-foreground">{x.label}</p>
+                                            <p className={`text-sm font-bold tabular-nums ${x.cls}`}>{rupees(x.value)}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
+                                    <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, (money.totals.paid / money.totals.total) * 100)}%` }} />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Receipts from the school's fee counter */}
+                        {money && (
+                            <div className="py-3">
+                                <p className="text-xs font-semibold flex items-center gap-1.5 mb-2"><ReceiptText size={14} /> Receipts</p>
+                                {money.receipts.length === 0 ? (
+                                    <p className="text-[11px] text-muted-foreground">No payments this year yet.</p>
+                                ) : (
+                                    <div className="space-y-1.5">
+                                        {money.receipts.map(r => (
+                                            <div key={r.id} className="flex items-center gap-2.5 rounded-xl border border-border/50 bg-card px-3 py-2">
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-xs font-bold tabular-nums">{rupees(r.amount)} <span className="font-medium text-muted-foreground">· {MODE_LABEL[r.mode] ?? r.mode}</span></p>
+                                                    <p className="text-[10.5px] text-muted-foreground truncate">#{r.receiptNo} · {prettyDay(r.day)} · {r.lines.map(l => l.month.slice(0, 3)).join(', ')}</p>
+                                                </div>
+                                                <button type="button" title="Print / save receipt" onClick={() => window.open(`/print/fee-receipt/${r.id}`, '_blank', 'noopener')}
+                                                    className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground shrink-0">
+                                                    <Printer size={13} />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* Bank Details */}
-                        <div className="pb-3">
+                        <div className="py-3">
                             <p className="text-xs font-semibold flex items-center gap-1.5 mb-2"><Building2 size={14} /> Bank Details</p>
                             <div className="space-y-1">
                                 {BANK_LABELS.map(({ key, label }) => (

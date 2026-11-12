@@ -14,6 +14,7 @@ import {
     Users,
     LineChart,
     Wallet,
+    IndianRupee,
     Boxes,
     UserPlus,
     Bus,
@@ -30,6 +31,8 @@ const ALL_NAV_ITEMS = [
     { label: 'Campus',     href: '/admin/campus',             icon: Building2,       childKeys: ['CAMPUS_VIEW', 'CAMPUS_MANAGE', 'CAMPUS_FEES', 'CAMPUS_ATTENDANCE', 'CAMPUS_MARKSHEET', 'TIMETABLE_VIEW', 'TIMETABLE_MANAGE'] },
     { label: 'Insights',   href: '/admin/insights',           icon: LineChart,       activePath: '/admin/insights', childKeys: ['INSIGHTS_ANALYTICS', 'INSIGHTS_SUBSCRIPTION', 'AUDIT_LOGS'] },
     { label: 'Admissions', href: '/admin/admissions',        icon: UserPlus,        activePath: '/admin/admissions', childKeys: ['ADMISSIONS'] },
+    // The fee counter (collect, day book, dues). The school accountant gets in with the class fees permission.
+    { label: 'Fees',       href: '/admin/fees/collect',      icon: IndianRupee,     activePath: '/admin/fees',      childKeys: ['CAMPUS_FEES'] },
     { label: 'Inventory',  href: '/admin/inventory',         icon: Boxes,           activePath: '/admin/inventory', childKeys: ['INVENTORY'] },
     { label: 'Transport',  href: '/admin/transport',         icon: Bus,             activePath: '/admin/transport', childKeys: ['TRANSPORT'] },
     // Sub-Admins (e.g. the school accountant) get in via the PAYROLL permission.
@@ -43,6 +46,7 @@ const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/inventory', keys: ['INVENTORY'] },
     { prefix: '/admin/transport', keys: ['TRANSPORT'] },
     { prefix: '/admin/admissions', keys: ['ADMISSIONS'] },
+    { prefix: '/admin/fees', keys: ['CAMPUS_FEES'] },
     { prefix: '/admin/staff/teachers',        keys: ['STAFF_TEACHERS'] },
     { prefix: '/admin/staff/staffroom',       keys: ['STAFF_STAFFROOM'] },
     { prefix: '/admin/staff/subadmins',       keys: ['STAFF_SUBADMINS'] },

@@ -654,7 +654,11 @@ export interface FeesTabHandle {
 export const FeesTab = forwardRef<FeesTabHandle, {
     divisionId: string; divisionName: string; feesSubTab: 'setup' | 'students';
     onSavingChange?: (saving: boolean) => void;
-}>(function FeesTab({ divisionId, divisionName, feesSubTab, onSavingChange }, ref) {
+    /** Called when the setup is changed (before the auto-save runs), for a parent's "Save now" button. */
+    onEdit?: () => void;
+    /** Paid / pending student counts (same rule as the Student Fees list), for the class header. */
+    onCounts?: (counts: { paid: number; pending: number }) => void;
+}>(function FeesTab({ divisionId, divisionName, feesSubTab, onSavingChange, onEdit, onCounts }, ref) {
     const { selectedYearId, isCurrentYearSelected } = useAcademicYear();
     const isHistorical = useIsHistoricalYear();
     const effectiveYear = isCurrentYearSelected ? null : selectedYearId;
@@ -784,6 +788,11 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     }, [feeMonths, getPayment]);
 
     const students: FeesStudent[] = rosterStudents.map(s => ({ ...s, paid: isStudentPaid(s.id) }));
+    const paidCount = students.filter(s => s.paid).length;
+    const pendingCount = students.length - paidCount;
+    useEffect(() => {
+        if (!loading) onCounts?.({ paid: paidCount, pending: pendingCount });
+    }, [loading, paidCount, pendingCount, onCounts]);
 
     const paymentSyncTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
@@ -1104,6 +1113,7 @@ export const FeesTab = forwardRef<FeesTabHandle, {
     const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     useEffect(() => {
         if (!didLoadRef.current) return;
+        onEdit?.();
         if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
         autosaveTimerRef.current = setTimeout(() => {
             handleSaveRef.current({ silent: true });

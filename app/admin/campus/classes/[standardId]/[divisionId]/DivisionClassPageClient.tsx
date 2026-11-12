@@ -8,7 +8,7 @@ import {
     ArrowLeft, ChevronRight, Users, BookOpen, User, Shield, MapPin, Heart,
     Plus, X, Check, ChevronDown, User as UserIcon, ArrowUp,
     Calendar, FileText, Trophy, Send, Megaphone, Flag, Eye, EyeOff, Crown, ChevronLeft, ChevronUp, Paperclip, PowerOff, Power, ExternalLink,
-    CalendarCheck, BarChart2, NotebookPen, Smartphone, Save
+    CalendarCheck, BarChart2, NotebookPen, Smartphone, Settings2
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Lock } from 'lucide-react';
@@ -889,9 +889,8 @@ export default function DivisionDetailPage() {
     const [togglingStatus, setTogglingStatus] = useState(false);
     const [togglingSubject, setTogglingSubject] = useState<string | null>(null);
     const [confirmRemove, setConfirmRemove] = useState<string | null>(null);
-    const [feesSubTab, setFeesSubTab] = useState<'setup' | 'students'>('students');
     const feesTabRef = useRef<FeesTabHandle>(null);
-    const [feesSaving, setFeesSaving] = useState(false);
+    const [feeCounts, setFeeCounts] = useState<{ paid: number; pending: number } | null>(null);
     const [attendanceSubTab, setAttendanceSubTab] = useState<AttendanceSubTab>('daily');
     const [attendanceHeaderStats, setAttendanceHeaderStats] = useState<{ overall: number | null; thisMonth: number | null }>({ overall: null, thisMonth: null });
     const [marksheetSubTab, setMarksheetSubTab] = useState<MarksSubTab>('offline');
@@ -1287,37 +1286,21 @@ export default function DivisionDetailPage() {
 
                         {activeTab === 'fees' && (
                             <div className="flex items-center gap-4 flex-wrap">
-                                {feesSubTab === 'setup' && (
-                                    <button
-                                        onClick={() => feesTabRef.current?.save()}
-                                        disabled={feesSaving}
-                                        className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white disabled:opacity-60 hover:opacity-90 transition-all shrink-0"
-                                        style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
-                                    >
-                                        <Save size={13} />
-                                        {feesSaving ? 'Saving…' : 'Save Changes'}
-                                    </button>
-                                )}
-                                <div className="flex gap-1 bg-muted/50 rounded-xl p-0.5 border border-border/40">
-                                    {[
-                                        { key: 'students' as const, label: 'Student Fees' },
-                                        { key: 'setup' as const, label: 'Fee Setup' },
-                                    ].map(tab => {
-                                        const isActive = feesSubTab === tab.key;
-                                        return (
-                                            <button key={tab.key} onClick={() => setFeesSubTab(tab.key)}
-                                                className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-all ${isActive ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
-                                                {tab.label}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
+                                {/* Fee setup lives in Admin > Fees (gear button); this opens it for this class. */}
+                                <button
+                                    onClick={() => router.push(`/admin/fees/setup?class=${divisionId}`)}
+                                    className="flex items-center gap-1.5 h-8 px-4 rounded-xl text-xs font-semibold text-white hover:opacity-90 transition-all shrink-0"
+                                    style={{ background: 'linear-gradient(135deg, #E8876A 0%, #DA7756 40%, #C06040 100%)' }}
+                                >
+                                    <Settings2 size={13} />
+                                    Fee Setup
+                                </button>
                                 <div className="text-right">
-                                    <p className="text-lg font-bold leading-tight text-emerald-600">5</p>
+                                    <p className="text-lg font-bold leading-tight text-emerald-600">{feeCounts?.paid ?? '-'}</p>
                                     <p className="text-[11px] text-muted-foreground">Paid</p>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-lg font-bold leading-tight text-red-500">5</p>
+                                    <p className="text-lg font-bold leading-tight text-red-500">{feeCounts?.pending ?? '-'}</p>
                                     <p className="text-[11px] text-muted-foreground">Pending</p>
                                 </div>
                             </div>
@@ -2206,8 +2189,8 @@ export default function DivisionDetailPage() {
                                 ref={feesTabRef}
                                 divisionId={divisionId}
                                 divisionName={division.name}
-                                feesSubTab={feesSubTab}
-                                onSavingChange={setFeesSaving}
+                                feesSubTab="students"
+                                onCounts={setFeeCounts}
                             />
                         </motion.div>
                     )}

@@ -58,7 +58,7 @@ export default function PayrollLayout({ children }: { children: React.ReactNode 
                             {inSettings && <motion.div layoutId="payrollTab" className="absolute inset-0 bg-primary rounded-full" transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }} />}
                             <Settings2 size={16} className="relative z-10" />
                         </Link>
-                        <span role="tooltip" className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 z-50 rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity whitespace-nowrap">Settings</span>
+                        <span role="tooltip" className="pointer-events-none absolute left-1/2 top-full mt-1.5 -translate-x-1/2 z-50 rounded-md bg-foreground px-2 py-1 text-xs font-medium text-background opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Settings</span>
                     </div>
                 </div>
 
