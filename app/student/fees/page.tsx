@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import api from '@/lib/api';
 import { busMonthAmount } from '@/lib/busFee';
 import { useAcademicYear } from '@/context/AcademicYearContext';
+import LibraryDues from '@/components/student/LibraryDues';
 
 const FEE_CARD_THEMES = {
     yellow: { name: 'Yellow', bg: '#FFF9E0', border: '#EEDD9B' },
@@ -801,6 +802,8 @@ export default function FeesPage() {
                 </div>
 
             </div>
+
+            <LibraryDues />
 
             {/* QR Code enlarge + download */}
             <AnimatePresence>

@@ -17,6 +17,7 @@ import {
     LayoutGrid,
     MessageCircle,
     Monitor,
+    Library,
     User,
 } from 'lucide-react';
 
@@ -26,6 +27,7 @@ const TEACHER_NAV_ITEMS = [
     { label: 'Classes', href: '/teacher/classes', icon: LayoutGrid, activePath: '/teacher/classes' },
     { label: 'Blackboard', href: '/teacher/blackboard', icon: Monitor },
     { label: 'Parents', href: '/teacher/parents', icon: MessageCircle },
+    { label: 'Library', href: '/teacher/library', icon: Library },
     { label: 'My Profile', href: '/teacher/profile', icon: User },
 ];
 

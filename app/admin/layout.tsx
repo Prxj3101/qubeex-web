@@ -18,6 +18,7 @@ import {
     Boxes,
     UserPlus,
     Bus,
+    Library,
 } from 'lucide-react';
 import { MockInstTypeProvider, useMockInstType } from '@/context/MockInstTypeContext';
 import { AcademicYearProvider } from '@/context/AcademicYearContext';
@@ -34,6 +35,7 @@ const ALL_NAV_ITEMS = [
     // The fee counter (collect, day book, dues). The school accountant gets in with the class fees permission.
     { label: 'Fees',       href: '/admin/fees/collect',      icon: IndianRupee,     activePath: '/admin/fees',      childKeys: ['CAMPUS_FEES'] },
     { label: 'Inventory',  href: '/admin/inventory',         icon: Boxes,           activePath: '/admin/inventory', childKeys: ['INVENTORY'] },
+    { label: 'Library',    href: '/admin/library',           icon: Library,         activePath: '/admin/library', childKeys: ['LIBRARY'] },
     { label: 'Transport',  href: '/admin/transport',         icon: Bus,             activePath: '/admin/transport', childKeys: ['TRANSPORT'] },
     // Sub-Admins (e.g. the school accountant) get in via the PAYROLL permission.
     // Audit Logs moved into Insights.
@@ -44,6 +46,7 @@ const ALL_NAV_ITEMS = [
 // since the first matching prefix wins.
 const LOCKED_PREFIX_TO_KEYS: Array<{ prefix: string; keys: string[] }> = [
     { prefix: '/admin/inventory', keys: ['INVENTORY'] },
+    { prefix: '/admin/library', keys: ['LIBRARY'] },
     { prefix: '/admin/transport', keys: ['TRANSPORT'] },
     { prefix: '/admin/admissions', keys: ['ADMISSIONS'] },
     { prefix: '/admin/fees', keys: ['CAMPUS_FEES'] },
